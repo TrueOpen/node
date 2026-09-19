@@ -335,8 +335,23 @@ func (k Keeper) handleExpiredVerifyOpenDeadline(ctx context.Context, taskID type
 	if summary, summaryErr := k.TaskRoundSummary.Get(ctx, taskID); summaryErr == nil && summary.OpenRoundCount == 1 {
 		verifyRound = types.ChallengeVerifyRoundV1
 	}
+	// The verify-open deadline is the assignment deadline: it exists precisely to
+	// retire a task that never got a verifier assignment. Every status that
+	// expectedTaskPhaseForVerificationStatus maps to RECEIPT_COMMITTED is such a
+	// task, and the receipt path walks through all three of them —
+	// VERIFIER_WINDOW_PENDING at the receipt, VERIFY_COLLECTION_OPEN delta_w
+	// blocks later when the window materializes, VERIFIER_SELECTION_PENDING once
+	// the handraise window closes — with nothing ever writing the earlier one
+	// back. Accepting only VERIFIER_WINDOW_PENDING therefore made the terminal
+	// key unreachable in exactly the case it was filed for: the sweep called the
+	// row stale, deleted it, and left the task in RECEIPT_COMMITTED forever with
+	// its order value and every task liability still locked. VERIFIER_ASSIGNED
+	// and later are genuinely stale here because a real assignment exists and
+	// normal settlement owns the task from then on.
 	if err := k.validateActiveVerifierStage(ctx, taskID, core, verifyRound,
-		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING); err != nil {
+		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING,
+		types.VerificationStatus_VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN,
+		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING); err != nil {
 		return deadlineSweepStale, rowBytes, nil
 	}
 	window, err := k.VerifierCandidateWindow.Get(ctx, types.NewVerifyRoundKey(taskID, verifyRound))

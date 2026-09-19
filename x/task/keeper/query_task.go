@@ -238,10 +238,12 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 				return types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN, mark, true, nil
 			}
 		}
-		// Past assignment_deadline_height the row has been re-filed by
-		// rescheduleVerifyOpenDeadline under current_height +
-		// verifyDeadlineRetryBlocksV1, which no store row records. §16.2 already
-		// requires the two next-deadline fields to be absent rather than
+		// Past assignment_deadline_height the row is the EndBlock sweep's to
+		// consume, and consuming it fails the task — after which this switch is
+		// unreachable because the status is VERIFY_FAILED. The only window this
+		// branch covers is the blocks between the deadline height and that sweep,
+		// where the pending mark is already spent. §16.2 requires the two
+		// next-deadline fields to be absent rather than
 		// defaulted, so absent is the honest answer; a consumed height is not.
 		return 0, 0, false, nil
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,

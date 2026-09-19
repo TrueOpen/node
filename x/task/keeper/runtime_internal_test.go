@@ -106,6 +106,20 @@ func (internalStubHubKeeper) ReleaseTaskLiabilities(context.Context, string, str
 	return nil
 }
 
+// A terminal Task releases its admission refs, so any fixture that drives a
+// task to a terminal state needs both halves of that release to answer.
+func (internalStubHubKeeper) ReleaseCandidatePoolTaskRef(context.Context, []byte, []byte, uint64) (bool, error) {
+	return true, nil
+}
+
+func (internalStubHubKeeper) ReleaseBuilderSetTaskRef(context.Context, []byte, string, []byte, uint64) (bool, error) {
+	return true, nil
+}
+
+func (internalStubHubKeeper) ReleaseParameterBucketTaskRef(context.Context, shared.BucketKind, string, uint64, uint64) error {
+	return nil
+}
+
 func (internalStubHubKeeper) ApplyTaskRoleFault(_ context.Context, fact hubtypes.TaskRoleFaultFact) (hubtypes.RoleFaultState, error) {
 	return stubAppliedRoleFault(fact), nil
 }
@@ -205,6 +219,9 @@ func (internalStubHubKeeper) GetHubParams(sdk.Context) hubtypes.HubParamsSnapsho
 		// BuildAssignmentCandidateSet bounds the pool body with the registered
 		// candidate_slot_hard_capacity, so the stub has to project it too or every
 		// pool looks like a count/body mismatch.
+		// Every escrow movement resolves its denom through this projection, so a
+		// stub that drops it turns each refund into "business denom is unavailable".
+		BusinessDenom:                     params.Phase0.BusinessDenom,
 		CandidateSlotHardCapacity:         params.CandidatePool.CandidateSlotHardCapacity,
 		BuildersPerTask:                   params.Builder.BuildersPerTask,
 		FreezeFailureIndexRetentionBlocks: params.Freeze.FreezeFailureIndexRetentionBlocks,
