@@ -1,0 +1,59 @@
+name: Protobuf contract
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/proto-contract.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "codegen/**"
+      - "internal/proto/**"
+      - "scripts/generate_node_api_doc.go"
+      - "scripts/generate_node_api_doc_test.go"
+      - "scripts/merge_openapi/**"
+      - "docs/static/node-api.md"
+      - "docs/static/openapi.json"
+      - "registry/v1/domains.json"
+      - "registry_export_test.go"
+      - "wire/**"
+      - "wire_pin_test.go"
+      - "x/*/types/*.pb.go"
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+    paths:
+      - ".github/workflows/proto-contract.yml"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
+      - "codegen/**"
+      - "internal/proto/**"
+      - "scripts/generate_node_api_doc.go"
+      - "scripts/generate_node_api_doc_test.go"
+      - "scripts/merge_openapi/**"
+      - "docs/static/node-api.md"
+      - "docs/static/openapi.json"
+      - "registry/v1/domains.json"
+      - "registry_export_test.go"
+      - "wire/**"
+      - "wire_pin_test.go"
+      - "x/*/types/*.pb.go"
+  merge_group:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.10"
+      - name: Verify the pinned wire release descriptor
+        run: make GO=go proto-wire-check
+      - name: Check protobuf and Go generation
+        run: make GO=go proto-event-check

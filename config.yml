@@ -1,0 +1,29 @@
+version: 1
+validation: sovereign
+default_denom: ubond
+accounts: 
+- name: alice
+  coins:
+  - 20000token
+  - 200000000uusdc
+  - 100000000ubond
+- name: bob
+  coins:
+  - 10000token
+  - 100000000uusdc
+  - 100000000ubond
+client:
+  openapi:
+    path: docs/static/openapi.json
+faucet:
+  name: bob
+  coins:
+  - 5token
+  - 100000uusdc
+validators:
+- name: alice
+  bonded: 100000000ubond
+- name: validator1
+  bonded: 200000000ubond
+- name: validator2
+  bonded: 100000000ubond

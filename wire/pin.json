@@ -1,0 +1,37 @@
+{
+  "schema": "trueopen-node-wire-pin-v1",
+  "notes": [
+    "wire.binpb is the descriptor image published by the TrueOpen/wire release named below. Every protobuf artifact this repository generates - Go, OpenAPI, the node API document - is generated from it, so the wire release is the single source of the contract and this repository holds no .proto of its own for those packages.",
+    "It is vendored rather than downloaded at build time so that generation is reproducible offline and at any past commit, and so no credential sits in the path of a local `make proto-gen`. The blob itself is not reviewable, but its effect is: the regenerated .pb.go diff is what a reviewer reads.",
+    "The one exception is internal/proto, which holds node-private messages that never cross a process boundary and are therefore not part of the wire contract. A separate buf invocation generates them.",
+    "make proto-wire-check (wire_pin_test.go) enforces three rules: the vendored blob hashes to the sha256 below; released_packages plus withheld_packages account for every package in the image exactly once and are disjoint; and the Makefile's WIRE_EXCLUDE excludes exactly the withheld ones. The expected digest is checkable rather than assumed because the wire release publishes release-manifest.json naming the same value.",
+    "The domain registry is vendored from the same release and pinned by bytes and sha256. Node's in-process DomainRegistryV1 is checked against its domain set, framing, ordered fields and variants, so wire is the release authority for both schema and registered digest generations.",
+    "Linting and compatibility checking of the contract itself are not repeated here. TrueOpen/wire's CI runs buf lint over the whole module and buf breaking against the previous release before an image is ever published.",
+    "withheld_packages are present in the image - the same image feeds wire's own lint and compatibility checks - but excluded from generation. release/packages.json in the wire repository is the authority for why.",
+    "The descriptor image vendored here is the wire.binpb the release publishes, and its digest is the one release-manifest.json declares for it. Rebuilding it from the tagged tree with the buf version the manifest names reproduces the same bytes, so this pin can be re-verified offline without trusting a download.",
+    "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
+  ],
+  "source_repository": "https://github.com/TrueOpen/wire",
+  "release_tag": "v0.1.1",
+  "release_commit": "f9d22ce1b98388adf8f6c4c4123d943e3aea9c5f",
+  "descriptor": {
+    "path": "wire/wire.binpb",
+    "bytes": 997981,
+    "sha256": "695ef9180e7ad9e4f1447f28d85c919ae91b788d0810a1a25ce28094a84a25ba"
+  },
+  "domain_registry": {
+    "path": "registry/v1/domains.json",
+    "bytes": 157303,
+    "sha256": "28226b2db5bb7d8b85dce2e791d9fe9dd47551daf0480d391b73448b66b938b9"
+  },
+  "released_packages": [
+    "bus.v1",
+    "hub.module.v1",
+    "hub.v1",
+    "nexus.v1",
+    "shared.v1",
+    "task.module.v1",
+    "task.v1"
+  ],
+  "withheld_packages": []
+}

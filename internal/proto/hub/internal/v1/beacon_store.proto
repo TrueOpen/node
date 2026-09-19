@@ -1,0 +1,16 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BeaconStoreState is the private storage projection of hub.v1.BeaconState.
+// Public Query/Genesis/ABCI boundaries continue to expose randomness_hex.
+message BeaconStoreState {
+  uint64 height = 1;
+  bytes randomness = 2;
+  string source_tag = 3;
+  bytes proof_digest = 4;
+  string proposer_consensus_address = 5;
+  bool verified = 6;
+  bytes block_hash = 7;
+}

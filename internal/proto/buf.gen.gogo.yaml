@@ -1,0 +1,4 @@
+version: v2
+plugins:
+  - local: ["go", "run", "github.com/cosmos/gogoproto/protoc-gen-gocosmos"]
+    out: .

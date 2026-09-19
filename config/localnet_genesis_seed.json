@@ -1,0 +1,545 @@
+{
+  "version": 1,
+  "node_config": {
+    "task_event_grpc": {
+      "enabled": true,
+      "protocol_events_enabled": true
+    }
+  },
+  "account_balance": 100000000000000,
+  "support_until_epoch": 10000,
+  "hub_params": {
+    "bucket": {
+      "max_parameter_bucket_entries": 1024,
+      "max_parameter_bucket_update_bytes": "1048576",
+      "parameter_bucket_version_retention_blocks": "60480",
+      "max_parameter_bucket_prune_items_per_block": 32
+    },
+    "builder": {
+      "builder_set_cap": 15,
+      "builders_per_task": 3,
+      "builder_set_update_lead_blocks": "100",
+      "assignment_builder_proposal_window_blocks": "5",
+      "open_verify_builder_proposal_window_blocks": "5",
+      "settlement_builder_grace_blocks": "2",
+      "builder_set_retention_epochs": 30,
+      "builder_set_header_retention_epochs": 30,
+      "max_builder_set_prune_items_per_block": 32,
+      "builder_fault_retention_blocks": "604800",
+      "max_builder_fault_prune_items_per_block": 256
+    },
+    "beacon": {
+      "beacon_retention_blocks": "60480",
+      "beacon_checkpoint_interval_blocks": "1024",
+      "max_beacon_prune_items_per_block": 256,
+      "vrf_required_from_height": "0",
+      "max_beacon_carrier_bytes": 1024,
+      "max_vrf_key_history_epochs": 30
+    },
+    "candidate_pool": {
+      "candidate_slot_hard_capacity": 4096,
+      "candidate_bitmap_segment_bytes": 512,
+      "candidate_pool_build_lead_blocks": "100",
+      "max_candidate_pool_build_members_per_block": 1024,
+      "max_candidate_pool_prune_items_per_block": 32,
+      "candidate_pool_header_retention_epochs": 30,
+      "candidate_slot_binding_retention_epochs": 30,
+      "max_candidate_slot_binding_prune_items_per_block": 32,
+      "candidate_pool_query_default_limit": 100,
+      "candidate_pool_query_hard_limit": 1000
+    },
+    "epoch": {
+      "epoch_length_blocks": "60480000",
+      "delta_w_blocks": "5",
+      "delta_m_blocks": "100"
+    },
+    "freeze": {
+      "freeze_risk_window_blocks": "100",
+      "min_freeze_signal_failure_count": 1,
+      "freeze_signal_vote_window_blocks": "100",
+      "freeze_signal_detail_retention_blocks": "60480",
+      "freeze_signal_summary_retention_blocks": "60480",
+      "freeze_failure_index_retention_blocks": "604800",
+      "max_freeze_signal_schedule_items_per_block": 1024,
+      "max_freeze_signal_build_items_per_block": 1024,
+      "max_freeze_signal_prune_items_per_block": 1024,
+      "max_freeze_failure_index_prune_items_per_block": 1024,
+      "max_freeze_signal_build_items_per_tx": 32
+    },
+    "query_event": {
+      "max_query_page_token_bytes": 1024,
+      "max_query_page_limit": 1000,
+      "max_query_response_bytes": "4194304",
+      "max_protocol_event_payload_bytes": 65536,
+      "max_endblock_visited_items_total": 10000
+    },
+    "reward": {
+      "max_order_value_histogram_buckets": 256,
+      "order_value_bucket_boundaries": [
+        {
+          "atomic_units": "1000000"
+        },
+        {
+          "atomic_units": "5000000"
+        },
+        {
+          "atomic_units": "10000000"
+        },
+        {
+          "atomic_units": "50000000"
+        }
+      ],
+      "p30_bootstrap_order_value_floor": {
+        "atomic_units": "1"
+      },
+      "min_epoch_sample": 30,
+      "max_reward_epoch_items_per_block": 1024,
+      "reward_audit_retention_epochs": 30,
+      "min_claim_amount": {
+        "atomic_units": "1"
+      }
+    },
+    "schema_version": 2,
+    "service": {
+      "service_unbonding_period_blocks": "302400",
+      "unbonding_slash_safety_margin_blocks": "100",
+      "max_open_unbonding_entries_per_operator": 16,
+      "unbonding_receipt_retention_blocks": "60480",
+      "max_unbonding_receipt_prune_items_per_block": 32,
+      "jail_clear_normal_action_count": 1,
+      "tombstone_jail_count_threshold": 3,
+      "max_service_descriptor_endpoints": 16,
+      "max_service_descriptor_bytes": "16384",
+      "max_service_endpoint_uri_bytes": 512,
+      "max_service_endpoint_protocol_version_bytes": 64,
+      "service_bond_min_initial": {
+        "atomic_units": "1000000"
+      },
+      "max_service_material_expiry_blocks": "604800",
+      "max_unbonding_withdraw_items_per_tx": 16,
+      "max_unbonding_maturity_items_per_block": 1024,
+      "record_retention_blocks": "604800",
+      "max_role_fault_prune_items_per_block": 256,
+      "objective_forgery_slash_bps": 300,
+      "min_task_liability": {
+        "atomic_units": "15000"
+      },
+      "max_service_bond_effective_items_per_block": 1024,
+      "task_liability_order_coverage_bps": 10000
+    },
+    "support": {
+      "support_window_epochs": 2,
+      "active_supporter_min_count": 2,
+      "active_support_stake_ratio_numerator": 2,
+      "active_support_stake_ratio_denominator": 3,
+      "active_support_stake_cap_multiplier": 3,
+      "max_supported_profiles_per_operator": 256,
+      "max_daily_support_confirmations_per_batch": 256,
+      "max_daily_support_items_per_batch": 256,
+      "max_daily_support_batch_bytes": "1048576",
+      "daily_support_retention_epochs": 30,
+      "model_support_row_retention_epochs": 30,
+      "max_model_support_prune_items_per_block": 32,
+      "max_support_expiry_items_per_block": 32
+    },
+    "treasury": {
+      "governance_action_replay_window_blocks": "60480",
+      "max_treasury_spend_receipt_prune_items_per_block": 32,
+      "model_profile_registration_fee": {
+        "atomic_units": "1000000"
+      },
+      "profile_version_update_fee": {
+        "atomic_units": "1000000"
+      },
+      "treasury_spend_limit_per_proposal": {
+        "atomic_units": "1000000000"
+      },
+      "treasury_spend_limit_per_epoch": {
+        "atomic_units": "1000000000"
+      },
+      "treasury_spend_limit_per_recipient": {
+        "atomic_units": "1000000000"
+      }
+    },
+    "price": {
+      "price_step_ppm": 1000000,
+      "price_max_steps_per_block": 10,
+      "price_floor_bps": 1000,
+      "price_hard_min": "1",
+      "price_hard_max": "18446744073709551615"
+    },
+    "phase0": {
+      "business_denom": "uusdc",
+      "consensus_bond_denom": "ubond",
+      "validator_bond_unit": "1000000",
+      "native_token_enabled": false,
+      "epoch_block_reward": {
+        "atomic_units": "0"
+      },
+      "fee_policy_version": "1",
+      "min_fee_per_gas_numerator": "1",
+      "min_fee_per_gas_denominator": "1",
+      "fee_bypass_type_urls": [],
+      "max_bypass_gas_per_block": "10000000",
+      "evm_chain_id": "31337"
+    },
+    "bridge": {
+      "bridge_limit_hard_max": {
+        "atomic_units": "1000000000000"
+      },
+      "initial_inbound_limit_per_epoch": {
+        "atomic_units": "1000000000"
+      },
+      "initial_outbound_limit_per_epoch": {
+        "atomic_units": "1000000000"
+      },
+      "bridge_usage_retention_epochs": 30,
+      "max_bridge_usage_prune_items_per_block": 256,
+      "max_bridge_cutover_inflight_messages": 10000,
+      "bridge_bootstrap_max_gas": "10000000"
+    }
+  },
+  "task_params": {
+    "schema_version": 1,
+    "session": {
+      "max_order_sequences_per_active_session": 4096,
+      "session_idle_ttl_blocks": 100,
+      "session_close_ttl_blocks": 600000,
+      "session_order_retention_blocks": 60480,
+      "max_session_history_prune_items_per_block": 256,
+      "session_terminal_summary_retention_blocks": 60480,
+      "max_session_terminal_summary_prune_items_per_block": 256,
+      "max_session_sweep_per_block": 1024,
+      "cancel_order_min_gas": 50000
+    },
+    "deadlines": {
+      "verify_open_deadline_blocks": 300,
+      "commit_window_blocks": 100000,
+      "reveal_window_blocks": 100000,
+      "collection_window_blocks": 200200,
+      "settle_margin_blocks": 20,
+      "self_rescue_margin_blocks": 30,
+      "max_deadline_sweep_per_block": 1024
+    },
+    "proposals": {
+      "max_candidate_handraises_per_proposal": 210,
+      "max_candidate_proposal_bytes": 524288,
+      "max_candidate_accepted_proposals_per_stage": 16,
+      "max_candidate_union_members_per_stage": 4096,
+      "max_candidate_stage_finalize_tasks_per_block": 16,
+      "max_candidate_stage_finalize_members_per_block": 4096
+    },
+    "weights": {
+      "worker_stake_weight_ppm": 300000,
+      "worker_performance_weight_ppm": 700000,
+      "verifier_stake_weight_ppm": 200000,
+      "verifier_performance_weight_ppm": 800000,
+      "verifier_candidate_ratio_ppm": 100000,
+      "verifier_candidate_window_min": 4,
+      "verifier_candidate_window_max": 21,
+      "selected_verifier_count": 3,
+      "k_stake": 3,
+      "candidate_weight_ppm_max": 1000000,
+      "max_weighted_draw_attempts_per_selection": 64
+    },
+    "verification": {
+      "worker_infer_timeout_slash_bps": 0,
+      "result_reveal_missing_slash_bps": 0,
+      "builder_fault_slash_bps": 0
+    },
+    "evidence": {
+      "max_evidence_retention_blocks": 1000,
+      "max_infer_evidence_commitments_per_receipt": 32,
+      "max_infer_receipt_commitment_bytes": 8192,
+      "max_supported_evidence_schema_versions": 16,
+      "max_supported_leaf_ordering_versions": 16,
+      "evidence_schema_version_supported": [],
+      "leaf_ordering_version_supported": [],
+      "max_output_mmr_leaves": "65536",
+      "min_output_stream_frame_bytes": 16,
+      "max_worker_evidence_bytes_v1": "1048576"
+    },
+    "cleanup": {
+      "max_task_cleanup_items_per_block": 1024,
+      "task_terminal_summary_retention_blocks": 60480,
+      "max_task_terminal_summary_prune_items_per_block": 256,
+      "max_epoch_task_summary_items_per_block": 1024,
+      "max_epoch_task_summary_support_candidates": 1024,
+      "max_epoch_task_summary_bytes": "1048576",
+      "max_task_failure_class_prune_items_per_block": 256
+    },
+    "batch": {
+      "max_batch_commit_items": 512,
+      "max_batch_result_items": 512,
+      "max_batch_commit_bytes": 524288,
+      "max_batch_result_bytes": 524288
+    },
+    "generation": {
+      "stop_sequence_max_items": 16,
+      "stop_sequence_max_bytes_each": 128,
+      "stop_sequence_max_total_bytes": 1024,
+      "stop_token_max_items": 64,
+      "top_k_max": 1000,
+      "max_output_tokens": "131072"
+    },
+    "fee": {
+      "fee_rule_version": "2",
+      "maintenance_rate_bps": 0,
+      "fee_policy_version": "1",
+      "max_reimbursable_fee_per_gas_numerator": "0",
+      "max_reimbursable_fee_per_gas_denominator": "1",
+      "max_reimbursement_per_tx": {
+        "atomic_units": "0"
+      },
+      "max_reimbursement_per_task": {
+        "atomic_units": "0"
+      }
+    },
+    "challenge": {
+      "max_verify_round": 2,
+      "max_open_round_per_task": 1,
+      "challenge_verifier_count": 3,
+      "challenge_open_bond": {
+        "atomic_units": "0"
+      },
+      "challenge_inconclusive_bond_slash_bps": 0,
+      "challenge_fault_slash_bps": 0,
+      "candidate_window_delay_blocks": "1",
+      "handraise_window_blocks": "1",
+      "assignment_delay_blocks": "1",
+      "commit_window_blocks": "20",
+      "reveal_window_blocks": "10",
+      "max_round_effect_items_per_block": 1024
+    }
+  },
+  "builders": [
+    {
+      "address": "trueopen1ef4vvszwflrrgg443a3d6qg3f3vxxfu93tg690",
+      "service_address": "trueopen1ef4vvszwflrrgg443a3d6qg3f3vxxfu93tg690",
+      "service_pubkey": "02ca7675c14060f52cfd101cb0f8cc2aca5bd2caa247e10d0ca11746aa4b7bb22a",
+      "descriptor": {
+        "endpoints": [
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
+            "uri": "https://167.86.122.49:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
+            "uri": "https://167.86.122.49:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
+            "uri": "https://167.86.122.49:8080/healthz",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+          }
+        ]
+      }
+    },
+    {
+      "address": "trueopen1t5c7hcc5sg2cavq3fqtq7rj4xjw4lpja9kqgyu",
+      "service_address": "trueopen1t5c7hcc5sg2cavq3fqtq7rj4xjw4lpja9kqgyu",
+      "service_pubkey": "0361f07ada4cdca6746b45ee4cad277f6bf70933c6011a21ec14df88d431f8b6d7",
+      "descriptor": {
+        "endpoints": [
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
+            "uri": "https://207.180.235.236:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
+            "uri": "https://207.180.235.236:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
+            "uri": "https://207.180.235.236:8080/healthz",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+          }
+        ]
+      }
+    },
+    {
+      "address": "trueopen1y5umte2nvarxn0vnkv92safjpa3vwcr3kqxr0a",
+      "service_address": "trueopen1y5umte2nvarxn0vnkv92safjpa3vwcr3kqxr0a",
+      "service_pubkey": "038113ed782546cefb88d0a99cdc3c33754d5b1bbb92ecef4fcfb44679a08be803",
+      "descriptor": {
+        "endpoints": [
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
+            "uri": "https://167.86.69.213:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
+            "uri": "https://167.86.69.213:8080",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+          },
+          {
+            "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
+            "uri": "https://167.86.69.213:8080/healthz",
+            "protocol_version": "v1",
+            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+          }
+        ]
+      }
+    }
+  ],
+  "cortex_nodes": [
+    {
+      "operator_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
+      "service_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
+      "service_pubkey": "0298c2da175fd3063bd2e8156303b98a0f77df43c5ca078eaa08dc2533e829f507",
+      "bond": 1000000,
+      "supported_profiles": [
+        {
+          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+          "profile_version": 1,
+          "active": true
+        }
+      ]
+    },
+    {
+      "operator_address": "trueopen1q8fazf4duvmw5as74kgyyezdxdewahzydav3vl",
+      "service_address": "trueopen1q8fazf4duvmw5as74kgyyezdxdewahzydav3vl",
+      "service_pubkey": "039832910fde7c4012d0b00e0305a2b55073e7fa6bf7670908fbf9467bbfe01849",
+      "bond": 1000000,
+      "supported_profiles": [
+        {
+          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+          "profile_version": 1,
+          "active": true
+        }
+      ]
+    },
+    {
+      "operator_address": "trueopen1zz29gdunukh0dsckd5kmete0hmnu6d0ta55vgj",
+      "service_address": "trueopen1zz29gdunukh0dsckd5kmete0hmnu6d0ta55vgj",
+      "service_pubkey": "03ce74fda5a57435f8e7796323d65ac00a239e2b33996e45cdd72899870b387271",
+      "bond": 1000000,
+      "supported_profiles": [
+        {
+          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+          "profile_version": 1,
+          "active": true
+        }
+      ]
+    },
+    {
+      "operator_address": "trueopen13f2wj4cc90la25k5dljj4ktukp7chremmddxqv",
+      "service_address": "trueopen13f2wj4cc90la25k5dljj4ktukp7chremmddxqv",
+      "service_pubkey": "028ed93ad13ccc93e453844503fbad48e8ec02e7df22e082697dfd517c4edccada",
+      "bond": 1000000,
+      "supported_profiles": [
+        {
+          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+          "profile_version": 1,
+          "active": true
+        }
+      ]
+    }
+  ],
+  "models": [
+    {
+      "proposer_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
+      "batch_verification": {
+        "enabled": false,
+        "min_sample_count": 0,
+        "min_valid_sample_count": 0,
+        "pass_min_sample_pass_ratio_bps": 0,
+        "reject_min_sample_reject_ratio_bps": 0
+      },
+      "challenge_open_window_blocks": 300,
+      "generation_type": "SAMPLED",
+      "manifest_hash": "0x86eaed40cd6276d3b0e6c5b95767078dd2a1cae9712d1244cef75b08b87e0c6a",
+      "min_stake": {
+        "amount": 1000000,
+        "denom": "uusdc"
+      },
+      "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+      "previous_profile_version": 0,
+      "pricing_profile": {
+        "initial_output_price": 10,
+        "min_order_value": 1000,
+        "verify_ratio_bps": 1000
+      },
+      "profile_version": 1,
+      "registration_fee": {
+        "amount": 1000000,
+        "denom": "uusdc"
+      },
+      "required_top_k": 20,
+      "resource_tier": 1,
+      "runtime_class": "CAUSAL_LM_PREFILL_LOGPROBS_V1",
+      "schema_hash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+      "task_types": [
+        "TEXT_GENERATION",
+        "CHAT"
+      ],
+      "timeout_bootstrap_profile": {
+        "bootstrap_valid_until_epoch": 1000,
+        "commit_timeout_bootstrap_blocks": 20,
+        "infer_timeout_bootstrap_blocks": 100,
+        "verify_timeout_bootstrap_blocks": 50
+      },
+      "tokenizer_hash": "0xcbdf28d8de232c9451d0b25d75dc1ce15d74add14c3f46796838f66168d69c3b",
+      "verification_profile": {
+        "canonical_encoding_version": "CANONICAL_OUTPUT_TEXT_V1",
+        "evidence_schema": {
+          "schema_version": 1,
+          "required_infer_evidence": [
+            {
+              "evidence_kind": "WORKER_VALUE_OPENING",
+              "commitment_schema_version": 2,
+              "max_encoded_size_bytes": 1073741824
+            }
+          ]
+        },
+        "include_generated_special_tokens": true,
+        "include_padding_tokens": false,
+        "include_prompt_tokens": false,
+        "judgment_function_version": "PREFILL_GENERATED_TOKEN_METRICS_V1",
+        "metric_aggregate_proof_version": "PREFILL_METRIC_AGGREGATE_PROOF_V1",
+        "metrics": {
+          "compare_logprob_diff": true,
+          "compare_rank_delta": true,
+          "compare_topk_jaccard": true,
+          "compare_union_js": true,
+          "compared_top_k": 20,
+          "numeric_scale": "FP_1E6"
+        },
+        "require_finish_reason": true,
+        "require_output_token_ids": true,
+        "token_scope": "ALL_GENERATED_OUTPUT_TOKENS",
+        "verification_mode": "SINGLE_SAMPLE",
+        "verification_profile_id": 1
+      },
+      "verification_thresholds": {
+        "pass_abs_logprob_diff_p95_max": 100000,
+        "pass_abs_logprob_diff_p99_max": 200000,
+        "pass_max_missing_compared_count": 0,
+        "pass_mean_abs_logprob_diff_max": 50000,
+        "pass_min_finite_count": 16,
+        "pass_rank_delta_nonzero_rate_max": 50000,
+        "pass_topk_jaccard_mean_min": 900000,
+        "pass_union_js_p99_max": 50000,
+        "reject_abs_logprob_diff_p95_min": 500000,
+        "reject_abs_logprob_diff_p99_min": 800000,
+        "reject_mean_abs_logprob_diff_min": 300000,
+        "reject_rank_delta_nonzero_rate_min": 300000,
+        "reject_topk_jaccard_mean_max": 600000,
+        "reject_union_js_p99_min": 200000
+      }
+    }
+  ]
+}

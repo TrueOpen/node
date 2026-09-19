@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - path: .
+lint:
+  use:
+    - COMMENTS
+    - STANDARD
+    - FILE_LOWER_SNAKE_CASE
+  except:
+    - COMMENT_FIELD
+  disallow_comment_ignores: true
+breaking:
+  use:
+    - FILE

@@ -1,0 +1,22 @@
+build/
+.idea/
+.vscode/
+.DS_Store
+*.log
+*.dot
+
+# Local Go and buf caches
+.gocache/
+.bufcache/
+*.go.[0-9]*
+
+# Protobuf generation writes into the module path before the Makefile copies the
+# sources into x/ and removes these. A cancelled run leaves them behind.
+/github.com/
+/bus/
+/hub/
+/nexus/
+/node/
+/shared/
+/task/
+*.swagger.json

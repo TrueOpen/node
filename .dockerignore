@@ -1,0 +1,37 @@
+# Keep the docker build context small — only what the Dockerfile actually
+# reads from disk. Bigger context means slower `docker build` uploads and
+# risks accidentally shipping local secrets into a layer.
+
+# Build outputs
+build/
+dist/
+coverage.out
+coverage.html
+
+# Local state / caches
+.omc/
+.claude/
+.git/
+.github/
+.vscode/
+.idea/
+
+# Never ship keys or a validator's local state
+**/priv_validator_key.json
+**/priv_validator_state.json
+**/node_key.json
+**/keyring-*
+**/*.pem
+**/*.key
+.env
+.env.*
+
+# Bulky docs / attachments the builder does not need
+docs/*.pdf
+docs/static/openapi.json
+
+# Editor / OS noise
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db
