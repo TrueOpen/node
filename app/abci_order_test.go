@@ -24,7 +24,14 @@ func TestBeginBlockOrderFrozen(t *testing.T) {
 
 // TestEndBlockOrderFrozen mirrors TestBeginBlockOrderFrozen for EndBlockers.
 // Note that distribution is intentionally absent from EndBlock; per §14.4 the
-// EndBlock chain is staking -> hub -> task.
+// EndBlock chain is gov -> staking -> hub -> task.
+//
+// gov leads the chain (SDK convention): its EndBlocker only tallies proposals
+// and executes the messages of passed proposals (e.g. MsgUpdateHubParams /
+// task MsgUpdateParams). Running it first means a param change lands before
+// staking and the business modules read state in the same block, and it keeps
+// gov from ever sitting *between* staking and those modules — the property the
+// scoreboard-ordering test locks in.
 func TestEndBlockOrderFrozen(t *testing.T) {
 	want := []string{
 		"gov",

@@ -66,7 +66,11 @@ var BeginBlockOrder = []string{
 // EndBlockOrder is the ordered list of EndBlocker module names.
 // Frozen per TrueOpen_Node_Spec.md §14.4:
 //
-//	staking -> trueopen
+//	gov -> staking -> hub -> task
+//
+// gov runs first (SDK convention): a passed proposal that mutates hub or task
+// params is applied before those modules' EndBlockers read them in the same
+// block.
 var EndBlockOrder = []string{
 	govtypes.ModuleName,
 	stakingtypes.ModuleName,
@@ -122,7 +126,8 @@ var (
 		// for.
 		hlwarptypes.ModuleName,
 		// We allow the following module accounts to receive funds:
-		// govtypes.ModuleName
+		// govtypes.ModuleName — it must be able to receive proposal deposits
+		// from ordinary accounts, so it must not be blocked.
 	}
 
 	// application configuration (used by depinject)

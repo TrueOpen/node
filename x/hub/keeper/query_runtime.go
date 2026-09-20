@@ -165,7 +165,17 @@ func (q queryServer) Params(ctx context.Context, req *types.QueryHubParamsReques
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
-	return &types.QueryHubParamsResponse{Params: params}, nil
+	// meta is what makes MsgUpdateHubParams usable more than once: its
+	// expected_version is optimistic concurrency against params_version, and this
+	// query is the only way a client can learn the current value. Leaving it at
+	// the zero value reports version 0 forever, so every update after the first
+	// is rejected with ErrHubParamsVersionMismatch. task.v1.Query/Params
+	// already answers with its own Meta; this is the same contract.
+	meta, err := q.k.GetHubParamsMeta(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+	return &types.QueryHubParamsResponse{Params: params, Meta: meta}, nil
 }
 
 func (q queryServer) FreezeSignal(ctx context.Context, req *types.QueryFreezeSignalRequest) (*types.QueryFreezeSignalResponse, error) {

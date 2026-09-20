@@ -8,13 +8,13 @@ import (
 	"strconv"
 
 	"cosmossdk.io/collections"
-	"cosmossdk.io/depinject"
 	sdkmath "cosmossdk.io/math"
 	hlcorekeeper "github.com/bcp-innovations/hyperlane-cosmos/x/core/keeper"
 	cryptokey "github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
@@ -28,10 +28,10 @@ import (
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
 )
 
-var GovernanceBankKeeperBinding = depinject.BindInterface(
-	"github.com/cosmos/cosmos-sdk/x/gov/types.BankKeeper",
-	"github.com/TrueOpen/node/app.GovernedGovBankKeeper",
-)
+// GovernanceBankKeeperBinding is what keeps x/gov's forfeited deposits out of
+// bank.BurnCoins; see bindGuardedInterface for why the names are derived rather
+// than written.
+var GovernanceBankKeeperBinding = bindGuardedInterface[govtypes.BankKeeper, GovernedGovBankKeeper]()
 
 // governanceReplayChecker keeps TreasurySpend retention tied to the
 // authoritative x/gov proposal lifecycle. A proposal that is still accepting

@@ -31,6 +31,8 @@
 #   MIN_GAS_PRICES=0uusdc
 #   KEY_MNEMONIC="word1 ... word24"   # recover a deterministic key instead of random
 #   FAST_BLOCKS=1                      # ~1s commit for snappy local dev
+#   GOV_FAST=1                         # shrink x/gov params (short voting/deposit
+#                                       # periods, tiny min_deposit) for testing
 #   GENESIS_SEED_FILE=/path/to/seed.json
 #                                       # optional Builder/Cortex/model seed
 #
@@ -75,6 +77,33 @@ BIND_ALL="${BIND_ALL:-0}"
 # NOTE: "*" is convenient for dev but permissive — restrict on any real deploy.
 ENABLE_CORS="${ENABLE_CORS:-$BIND_ALL}"
 CORS_ORIGINS="${CORS_ORIGINS:-*}"
+# GOV_FAST=1 shrinks x/gov params in genesis for quick testing of the full
+# proposal -> deposit -> vote -> execute cycle: short voting/deposit periods
+# and a tiny min_deposit. Quorum/threshold stay at defaults (a single
+# validator holds ~100% voting power on localnet, so they pass trivially).
+# Do NOT use on a real network. Individual values below are overridable.
+#
+# It only touches periods and deposit amounts. The Phase 0 deposit POLICY is
+# owned by `noded genesis apply-seed` (cmd/noded/cmd/genesis_seed.go
+# applySDKGenesisParams), which runs after this block and pins
+# burn_vote_veto=true plus the deposit denom. That is deliberate: the "burn"
+# is intercepted by GovernedGovBankKeeper and routed to hub_treasury with
+# a matching treasury-inflow record, so turning the burn off here would silently
+# disable the ADR-0018 Decision 3 residual. Setting proposal_cancel_dest would
+# break it the other way, by sending the cancellation fee straight to the
+# treasury account and skipping that record. Leave both alone.
+GOV_FAST="${GOV_FAST:-0}"
+# Defaults are short but leave enough time to submit + query + vote before the
+# voting period closes. Override any of them as needed.
+GOV_VOTING_PERIOD="${GOV_VOTING_PERIOD:-300s}"
+GOV_MAX_DEPOSIT_PERIOD="${GOV_MAX_DEPOSIT_PERIOD:-300s}"
+# Left empty by default: gov requires expedited_voting_period to be strictly
+# less than voting_period, so it is derived from GOV_VOTING_PERIOD below unless
+# you set it explicitly. Setting only GOV_VOTING_PERIOD used to produce a
+# confusing "expedited voting period must be strictly less" genesis error.
+GOV_EXPEDITED_VOTING_PERIOD="${GOV_EXPEDITED_VOTING_PERIOD:-}"
+GOV_MIN_DEPOSIT="${GOV_MIN_DEPOSIT:-1000000}"
+GOV_EXPEDITED_MIN_DEPOSIT="${GOV_EXPEDITED_MIN_DEPOSIT:-5000000}"
 
 # --- resolve the noded binary ----------------------------------------------
 # Prefer the repo build output; fall back to noded on PATH.
@@ -155,6 +184,77 @@ noded genesis gentx "$KEY_NAME" "$SELF_DELEGATION" \
 
 log "5/8 collect-gentxs"
 noded genesis collect-gentxs --home "$HOME_DIR" >/dev/null 2>&1
+
+if [ "$GOV_FAST" = "1" ]; then
+    # Same interpreter resolution as the node_config block below: some
+    # platforms (Windows/Git Bash in particular) ship only "python".
+    if command -v python3 >/dev/null 2>&1; then
+        GOV_PYTHON=python3
+    elif command -v python >/dev/null 2>&1; then
+        GOV_PYTHON=python
+    else
+        die "python3 or python is required for GOV_FAST"
+    fi
+    GENESIS_JSON="$HOME_DIR/config/genesis.json"
+    GOV_VOTING_PERIOD="$GOV_VOTING_PERIOD" \
+    GOV_MAX_DEPOSIT_PERIOD="$GOV_MAX_DEPOSIT_PERIOD" \
+    GOV_EXPEDITED_VOTING_PERIOD="$GOV_EXPEDITED_VOTING_PERIOD" \
+    GOV_MIN_DEPOSIT="$GOV_MIN_DEPOSIT" \
+    GOV_EXPEDITED_MIN_DEPOSIT="$GOV_EXPEDITED_MIN_DEPOSIT" \
+    DENOM="$DENOM" \
+    "$GOV_PYTHON" - "$GENESIS_JSON" <<'PY'
+import json
+import os
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+genesis = json.loads(path.read_text(encoding="utf-8"))
+gov = genesis["app_state"]["gov"]["params"]
+denom = os.environ["DENOM"]
+
+def to_seconds(text):
+    """Parse a Go-ish duration ("90s", "2m", "1h30m") into whole seconds."""
+    text = text.strip()
+    total, number = 0, ""
+    units = {"h": 3600, "m": 60, "s": 1}
+    for ch in text:
+        if ch.isdigit():
+            number += ch
+        elif ch in units and number:
+            total += int(number) * units[ch]
+            number = ""
+        elif ch == ".":
+            break
+    if number:
+        total += int(number)
+    return total
+
+
+voting = os.environ["GOV_VOTING_PERIOD"]
+voting_secs = to_seconds(voting)
+if voting_secs <= 0:
+    raise SystemExit(f"GOV_VOTING_PERIOD {voting!r} must be a positive duration")
+
+# gov requires expedited_voting_period < voting_period. Derive it when the
+# operator did not pin one, so overriding only GOV_VOTING_PERIOD just works.
+expedited = os.environ.get("GOV_EXPEDITED_VOTING_PERIOD", "").strip()
+if not expedited:
+    expedited = f"{max(1, voting_secs // 2)}s"
+elif to_seconds(expedited) >= voting_secs:
+    raise SystemExit(
+        f"GOV_EXPEDITED_VOTING_PERIOD {expedited} must be strictly less than "
+        f"GOV_VOTING_PERIOD {voting}")
+
+gov["voting_period"] = voting
+gov["max_deposit_period"] = os.environ["GOV_MAX_DEPOSIT_PERIOD"]
+gov["expedited_voting_period"] = expedited
+gov["min_deposit"] = [{"denom": denom, "amount": os.environ["GOV_MIN_DEPOSIT"]}]
+gov["expedited_min_deposit"] = [{"denom": denom, "amount": os.environ["GOV_EXPEDITED_MIN_DEPOSIT"]}]
+path.write_text(json.dumps(genesis, indent=2) + "\n", encoding="utf-8")
+PY
+    log "    GOV_FAST: voting=$GOV_VOTING_PERIOD deposit_period=$GOV_MAX_DEPOSIT_PERIOD min_deposit=$GOV_MIN_DEPOSIT$DENOM"
+fi
 
 if [ -f "$GENESIS_SEED_FILE" ]; then
     noded genesis apply-seed "$GENESIS_SEED_FILE" --home "$HOME_DIR"

@@ -120,6 +120,10 @@ func AppConfig() depinject.Config {
 		depinject.Provide(ProvideGovernanceActionReplayChecker),
 		depinject.Provide(ProvideGovernanceContentRuntime),
 		depinject.Provide(ProvideVrfPoPVerifier),
+		// NOTE: no CalculateVoteResultsAndVotingPowerFn is supplied on purpose.
+		// x/gov's default tally is the only permitted one
+		// (governance_protocol.md §2 / §6, ADR-0018 Decision 3,
+		// parameter_table.md §8 [hard boundary]). See app/gov_domain.go.
 		depinject.Configs(HyperlaneBankKeeperBindings...),
 		StakingBankKeeperBinding,
 		GovernanceBankKeeperBinding,
@@ -257,6 +261,18 @@ func New(
 		}
 		return response, nil
 	})
+	// Reject proposals that mix builder-domain and standard-domain messages, so
+	// what a proposal does is unambiguous from what it contains. This is the
+	// only place the domain classification is enforced — the tally is x/gov's
+	// default and knows nothing about domains.
+	// See docs/governance_dualmode_design.md §6 and §12.
+	if existingAnte := app.App.BaseApp.AnteHandler(); existingAnte != nil {
+		proposalDomainGuard := NewProposalDomainDecorator()
+		app.App.BaseApp.SetAnteHandler(func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			return proposalDomainGuard.AnteHandle(ctx, tx, simulate, existingAnte)
+		})
+	}
+
 	// Install Beacon PrepareProposal / ProcessProposal / PreBlocker wiring —
 	// the hooks that carry the ECVRF proof through the proposal pipeline.
 	// ACCEPT/REJECT is decided solely by the committed

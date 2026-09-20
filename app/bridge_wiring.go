@@ -8,6 +8,7 @@ import (
 	hlwarpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	hlwarptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	nodeante "github.com/TrueOpen/node/app/ante"
 	appbridge "github.com/TrueOpen/node/app/bridge"
@@ -35,22 +36,14 @@ func ProvideGuardedBankKeeper(bank bankkeeper.Keeper, hub hubkeeper.Keeper) appb
 }
 
 // HyperlaneBankKeeperBindings names the two upstream interfaces that must
-// resolve to the guard rather than to the plain bank keeper.
+// resolve to the guard rather than to the plain bank keeper. See
+// bindGuardedInterface for why the names are derived rather than written.
 var HyperlaneBankKeeperBindings = []depinject.Config{
-	depinject.BindInterface(hlcoreBankKeeperType, guardedBankKeeperType),
-	depinject.BindInterface(hlwarpBankKeeperType, guardedBankKeeperType),
+	bindGuardedInterface[hlcoretypes.BankKeeper, appbridge.GuardedBankKeeper](),
+	bindGuardedInterface[hlwarptypes.BankKeeper, appbridge.GuardedBankKeeper](),
 }
 
-var StakingBankKeeperBinding = depinject.BindInterface(
-	"github.com/cosmos/cosmos-sdk/x/staking/types.BankKeeper",
-	"github.com/TrueOpen/node/app.GovernedStakingBankKeeper",
-)
-
-const (
-	hlcoreBankKeeperType  = "github.com/bcp-innovations/hyperlane-cosmos/x/core/types.BankKeeper"
-	hlwarpBankKeeperType  = "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types.BankKeeper"
-	guardedBankKeeperType = "github.com/TrueOpen/node/app/bridge.GuardedBankKeeper"
-)
+var StakingBankKeeperBinding = bindGuardedInterface[stakingtypes.BankKeeper, GovernedStakingBankKeeper]()
 
 // ProvideBridgeUpstream hands the Hub the read-only projection of the Hyperlane
 // objects its route guard compares against. Supplying it here is what keeps
