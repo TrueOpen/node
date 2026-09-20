@@ -1,56 +1,115 @@
-# This workflow is useful if you want to automate the process of:
+# Builds the platform binaries for a release tag and attaches them, with a
+# SHA256SUMS.txt, to a DRAFT release for the maintainer to review and publish.
 #
-# a) Creating a new prelease when you push a new tag with a "v" prefix (version).
+# This implements steps 3-5 of "Producing a release" in
+# docs/runbooks/release_artifacts.md. The artifact names and the checksum file
+# are the ones that runbook tells validators to expect, so changing them here
+# means changing it there too.
 #
-#    This type of prerelease is meant to be used for production: alpha, beta, rc, etc. types of releases.
-#    After the prerelease is created, you need to make your changes on the release page at the relevant
-#    Github page and publish your release.
-#
-# b) Creating/updating the "latest" prerelease when you push to your default branch.
-#
-#    This type of prelease is useful to make your bleeding-edge binaries available to advanced users.
-#
-# The workflow will not run if there is no tag pushed with a "v" prefix and no change pushed to your
-# default branch.
-on: push
+# It replaces the Ignite scaffold workflow, which ran `ignite chain build
+# --release` on every push. That contradicted the runbook in three ways: it
+# fired on pushes rather than tags, it deleted and recreated a "latest" tag
+# (the runbook states a pushed tag is never deleted), and it published
+# automatically instead of leaving a draft for the maintainer. It had also been
+# failing since the repository was created, because the pinned-to-@main Ignite
+# action dropped the --release flag.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  might_release:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Prepare Release Variables
-        id: vars
-        uses: ignite/cli/actions/release/vars@main
-
-      - name: Issue Release Assets
-        uses: ignite/cli/actions/cli@main
-        if: ${{ steps.vars.outputs.should_release == 'true' }}
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          args: chain build --release --release.prefix ${{ steps.vars.outputs.tarball_prefix }} -t linux:amd64 -t darwin:amd64 -t darwin:arm64 -y
-        env:
-          DO_NOT_TRACK: 1
-          GOFLAGS: "-buildvcs=false"
+          go-version: "stable"
 
-      - name: Delete the "latest" Release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        if: ${{ steps.vars.outputs.is_release_type_latest == 'true' }}
-        with:
-          tag_name: ${{ steps.vars.outputs.tag_name }}
-          delete_release: true
+      # CGO_ENABLED=0 is what makes cross-compiling darwin from this runner
+      # work at all, and it is what the Dockerfile already does; the ldflags
+      # match Makefile and Dockerfile so `noded version` agrees across all
+      # three ways of building it.
+      - name: Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA}"
+          mkdir -p dist
+          go build \
+            -mod=readonly \
+            -trimpath \
+            -ldflags "-s -w \
+              -X github.com/cosmos/cosmos-sdk/version.Name=node \
+              -X github.com/cosmos/cosmos-sdk/version.AppName=noded \
+              -X github.com/cosmos/cosmos-sdk/version.Version=${VERSION} \
+              -X github.com/cosmos/cosmos-sdk/version.Commit=${COMMIT}" \
+            -o dist/noded \
+            ./cmd/noded
+          tar -czf "noded-${VERSION}-${GOOS}-${GOARCH}.tar.gz" -C dist noded
+          rm -rf dist
 
-      - name: Publish the Release
-        uses: softprops/action-gh-release@v1
-        if: ${{ steps.vars.outputs.should_release == 'true' }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.vars.outputs.tag_name }}
-          files: release/*
-          prerelease: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: noded-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: noded-*.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # One SHA256SUMS.txt over every tarball, which is the file the runbook
+      # tells the maintainer to detach-sign and validators to verify against.
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha256sum noded-*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Draft, never prerelease: the runbook has the maintainer review and
+      # publish, and attach the detached signature, before validators see it.
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            artifacts/noded-*.tar.gz
+            artifacts/SHA256SUMS.txt

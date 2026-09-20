@@ -1,54 +1,98 @@
 # node
-**node** is a blockchain built using Cosmos SDK and Tendermint and created with [Ignite CLI](https://ignite.com/cli).
+
+`noded` is the TrueOpen chain: a Cosmos SDK v0.53 / CometBFT v0.38 application
+implementing the Hub and Task modules, with Hyperlane core and warp mounted for
+the USDC bridge.
 
 > **Importing the wire types from Go?** Read [CONSUMING.md](CONSUMING.md) first.
 > It lists which commit to pin, the supported import packages, the Go 1.25.10
 > toolchain requirement, and the four `replace` directives that do not
 > propagate to consumers. The full repository is expected to build and test.
 
-## Get started
+## Modules
 
-```
-ignite chain serve
-```
+| Module | Responsibility |
+|---|---|
+| `x/hub` | Participant registry and identity, models and profiles, the BuilderSet, rewards, emission and the treasury |
+| `x/task` | Task lifecycle, escrow, stage submissions, verification and settlement |
+| `x/shared` | Canonical framing, signing domains and types both modules read |
 
-`serve` command installs dependencies, builds, initializes, and starts your blockchain in development.
+The protobuf contract is not owned here. It comes from the pinned
+[`TrueOpen/wire`](https://github.com/TrueOpen/wire) release recorded in
+`wire/pin.json`; `make proto-wire-check` verifies the tree against it.
 
-### Configure
+## Build
 
-Your blockchain in development can be configured with `config.yml`. To learn more, see the [Ignite CLI docs](https://docs.ignite.com).
+Go 1.25.10 or newer.
 
-### Web Frontend
-
-Additionally, Ignite CLI offers a frontend scaffolding feature (based on Vue) to help you quickly build a web frontend for your blockchain:
-
-Use: `ignite scaffold vue`
-This command can be run within your scaffolded blockchain project.
-
-
-For more information see the [monorepo for Ignite front-end development](https://github.com/ignite/web).
-
-## Release
-To release a new version of your blockchain, create and push a new tag with `v` prefix. A new draft release with the configured targets will be created.
-
-```
-git tag v0.1
-git push origin v0.1
+```sh
+make build        # -> build/noded
+make test         # full unit suite
+make lint         # golangci-lint plus exported dead-code analysis
 ```
 
-After a draft release is created, make your final changes from the release page and publish it.
+`make help` lists every target.
 
-### Install
-To install the latest version of your blockchain node's binary, execute the following command on your machine:
+## Run a local chain
 
+```sh
+./scripts/localnet_single_node.sh
 ```
-curl https://get.ignite.com/TrueOpen/node@latest! | sudo bash
+
+This initialises a single-validator chain and starts it. Useful switches:
+
+```sh
+RESET=1            # wipe the home directory first
+FAST_BLOCKS=1      # ~1s commits
+GOV_FAST=1         # short gov voting/deposit periods, for testing governance
+START=0            # set up genesis but do not start
+HOME_DIR=/tmp/x    # use a separate home directory
 ```
-`TrueOpen/node` should match the `username` and `repo_name` of the Github repository to which the source code was pushed. Learn more about [the install process](https://github.com/ignite/installer).
 
-## Learn more
+Once it is up:
 
-- [Ignite CLI](https://ignite.com/cli)
-- [Tutorials](https://docs.ignite.com/guide)
-- [Ignite CLI docs](https://docs.ignite.com)
-- [Cosmos SDK docs](https://docs.cosmos.network)
+```sh
+build/noded status
+build/noded query hub params -o json
+build/noded query task params -o json
+```
+
+## Container
+
+```sh
+docker build --build-arg VERSION=$(git describe --tags) \
+             --build-arg COMMIT=$(git rev-parse HEAD) -t noded .
+```
+
+The image is published as `ghcr.io/trueopen/noded:<version>`.
+
+## Releases
+
+Releases are cut from a `v*` tag. `.github/workflows/release.yml` builds the
+platform binaries, attaches them with a `SHA256SUMS.txt`, and leaves a **draft**
+release for the maintainer to sign and publish.
+
+```sh
+git tag -s v1.2.3 -m "release v1.2.3"
+git push origin v1.2.3
+```
+
+Artifacts, signing, verification, distribution and rollback are documented in
+[docs/runbooks/release_artifacts.md](docs/runbooks/release_artifacts.md).
+
+## Documentation
+
+- [docs/governance_spec.md](docs/governance_spec.md) — what governance can and
+  cannot do, the lifecycle, tallying and parameters
+- [docs/governance_dualmode_design.md](docs/governance_dualmode_design.md) —
+  proposal domain routing, and why there is no custom tally
+- [docs/builder_registration_design.md](docs/builder_registration_design.md) —
+  the Builder admission path
+- [docs/runbooks/](docs/runbooks/) — operator runbooks: build and test, daily
+  ops, governance changes, upgrades and migration, metrics, release artifacts
+- [docs/rpc.md](docs/rpc.md) — the RPC surface
+
+## Related repositories
+
+- [TrueOpen/wire](https://github.com/TrueOpen/wire) — the protobuf contract,
+  signing domains and cross-language fixtures this chain is generated from
