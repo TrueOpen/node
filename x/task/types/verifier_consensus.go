@@ -118,7 +118,12 @@ func AggregateVerifierConsensus(selectedVerifierCount uint32, samples []Verifier
 		if uint32(len(members)) < threshold {
 			continue
 		}
-		verdict, failureClass := TaskVerdict_TASK_VERDICT_UNSPECIFIED, TaskFailureClass_TASK_FAILURE_CLASS_UNSPECIFIED
+		// Both zero values are the UNSPECIFIED members, and every branch below
+		// either assigns both or returns.
+		var (
+			verdict      TaskVerdict
+			failureClass TaskFailureClass
+		)
 		switch key.verdict {
 		case MetricSampleVerdictV1_METRIC_SAMPLE_VERDICT_V1_PASS:
 			verdict, failureClass = TaskVerdict_TASK_VERDICT_PASS, TaskFailureClass_TASK_FAILURE_CLASS_NONE

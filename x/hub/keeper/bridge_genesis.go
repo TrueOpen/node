@@ -318,18 +318,9 @@ func (k Keeper) exportBridgeGenesis(ctx context.Context, genesis *types.GenesisS
 		Lifecycle:                 control.Lifecycle,
 		Frozen:                    control.Frozen,
 		DeploymentManifestHash:    append([]byte(nil), control.DeploymentManifestHash...),
-		Limits: types.BridgeLimitGenesisV1{
-			BridgeLimitHardMax:    limit.BridgeLimitHardMax,
-			InboundLimitPerEpoch:  limit.InboundLimitPerEpoch,
-			OutboundLimitPerEpoch: limit.OutboundLimitPerEpoch,
-			EffectiveEpoch:        limit.EffectiveEpoch,
-		},
-		Supply: types.BridgeSupplyGenesisV1{
-			GenesisAllocated:       supply.GenesisAllocated,
-			CumulativeBridgeMinted: supply.CumulativeBridgeMinted,
-			CumulativeBridgeBurned: supply.CumulativeBridgeBurned,
-		},
-		Bootstrap: bridgeBootstrapGenesisFromState(bootstrap),
+		Limits:                    types.BridgeLimitGenesisV1(limit),
+		Supply:                    types.BridgeSupplyGenesisV1(supply),
+		Bootstrap:                 bridgeBootstrapGenesisFromState(bootstrap),
 	}
 	if pending, err := k.BridgePendingLimit.Get(ctx); err == nil {
 		genesis.Bridge.PendingLimit = &types.BridgePendingLimitGenesisV1{
