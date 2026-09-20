@@ -8,9 +8,9 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// parameter_table.md registers challenge_open_window_blocks_min/max as "pending
+// the parameter tableregisters challenge_open_window_blocks_min/max as "pending
 // parameter calibration"; the only hard boundary is `min>0 and min<=max`
-// (parameter_table.md:63). The actual window is chosen by each Profile at
+// (the parameter table:63). The actual window is chosen by each Profile at
 // registration time and frozen at Task admission, so these two constants are only
 // the lower and upper bounds of the selectable range.
 //

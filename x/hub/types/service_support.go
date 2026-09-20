@@ -43,7 +43,7 @@ func (s ServiceBondState) Validate() error {
 	if s.EffectiveActiveBond > s.ActiveBond {
 		return fmt.Errorf("service bond effective_active_bond exceeds active_bond")
 	}
-	// reserved_liability is deliberately NOT bounded here. keeper_api_contract.md
+	// reserved_liability is deliberately NOT bounded here. the API contract
 	// §10.0c layer 1 slashes active_bond without subtracting reserved_liability,
 	// so "reserved_liability > effective_active_bond" is a reachable, legal state
 	// between a slash and the CloseTaskLiabilityReservation that releases each
@@ -57,7 +57,7 @@ func (s ServiceBondState) Validate() error {
 	if s.Status == ServiceBondStatusExited && (s.ActiveBond != 0 || s.EffectiveActiveBond != 0 || s.ReservedLiability != 0 || s.PendingUnbondingTotal != 0) {
 		return fmt.Errorf("exited service bond must have zero balances")
 	}
-	// ADR-0019 jail invariant (keeper_data_structure_contract.md §6.4). Only the
+	// jail invariant (the data-structure contract). Only the
 	// row-local half lives
 	// here; the two halves that need params — `jail_count < tombstone threshold`
 	// for JAILED and `>=` for TOMBSTONED — plus the ModelSupport cross-check are
@@ -83,7 +83,7 @@ func (s ServiceBondState) Validate() error {
 // ValidateServiceBondEpochConsistency is Ruling 9's epoch-scoped invariant for the
 // unregistered ServiceBondState.effective_active_bond field.
 //
-// CONTRACT-GAP: keeper_data_structure_contract.md §6.4 does not register
+// CONTRACT-GAP: the data-structure contract does not register
 // effective_active_bond, but §6.1's support_vote_weight and §10.0c's "top-up
 // takes effect next epoch" both need the previous-epoch snapshot, so the field is
 // kept and constrained here instead:
@@ -280,7 +280,7 @@ func (s RoleFaultState) Validate() error {
 }
 
 // SupportEligibilityInputs is the complete set of rows the profile-support
-// eligibility predicate of node_context.md §4 reads. Passing them in explicitly
+// eligibility predicate reads. Passing them in explicitly
 // keeps the predicate a pure function so Genesis can recompute it without a store.
 type SupportEligibilityInputs struct {
 	Node       CortexNodeState
@@ -372,13 +372,13 @@ func IsLiveServiceBondStatus(status ServiceBondStatus) bool {
 
 // IsCandidateEligibleBondStatus is the single candidate-admission bond-status
 // predicate. JAILED stays admissible on purpose: the hard filter of
-// candidate_selection_and_performance_score.md §4 lists "jail_count has not reached
-// the pool-ejection threshold" rather than a status test, and parameter_table.md
+// the candidate selection contract lists "jail_count has not reached
+// the pool-ejection threshold" rather than a status test, and the parameter table
 // registers
 // candidate_jail_factor as jail_count 1/2 -> 500000/250000 ppm with only
 // jail_count >= tombstone threshold ejecting from the pool. The graduated factor,
 // not the status, therefore owns jail exclusion. Rejecting JAILED here instead
-// would also strand the recovery path, because keeper_api_contract.md §10.0c
+// would also strand the recovery path, because the API contract
 // clears jail_count
 // only through the normal actions a candidate has to be admitted to perform.
 func IsCandidateEligibleBondStatus(status ServiceBondStatus) bool {

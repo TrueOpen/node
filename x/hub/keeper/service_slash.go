@@ -16,7 +16,7 @@ import (
 )
 
 // This file holds the single service-bond slash entry point required by
-// keeper_api_contract.md §10.0c ("the slash debit function must be a single
+// the API contract ("the slash debit function must be a single
 // unified internal function; every Cortex Node Worker/Verifier duty fault,
 // successful challenge and objective forgery calls the same sequence").
 //

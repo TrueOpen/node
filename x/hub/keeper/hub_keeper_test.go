@@ -126,7 +126,7 @@ const fixtureRegistrationChainID = "trueopen-hub-fixture"
 // registerCortexNodeIdentityForTest brings one operator to "registered cortex
 // node with an active service key" through the production registration path.
 //
-// keeper_api_contract.md §10.0c step 1 made MsgStakeService.register the only entry
+// the API contract step 1 made MsgStakeService.register the only entry
 // point that may create an identity: keeper.StakeService is a pure top-up now and
 // refuses an operator that has no CortexNodeState. The helper therefore drives the
 // real handler, which means every fixture built on it also exercises the bank

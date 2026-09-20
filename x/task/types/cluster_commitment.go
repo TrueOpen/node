@@ -7,7 +7,7 @@ import (
 )
 
 // ResultReceiptRefsHash commits only the membership of the threshold cluster:
-// who was in it and which receipt each member opened. keeper_api_contract.md §10.10a
+// who was in it and which receipt each member opened. the API contract
 // keeps the judgment and the derived count out of this digest on purpose —
 // ConsensusClusterHash below carries those — so a Query that only needs to prove
 // "these verifiers formed the cluster" does not have to reveal the verdict.

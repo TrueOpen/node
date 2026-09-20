@@ -109,7 +109,7 @@ func TestHubStrictSignatureVerifiesRegisteredPubKey(t *testing.T) {
 }
 
 // The three identity digests each have their own registered domain
-// (keeper_api_contract.md §1.4) and are built with H_FIELDS_V1, so moving a
+// (the API contract) and are built with H_FIELDS_V1, so moving a
 // separator across a field boundary can never produce the same digest and no
 // two actions can share one preimage.
 func TestHubServiceAuthorizationBytesAreDomainSeparatedAndLengthFramed(t *testing.T) {

@@ -293,7 +293,7 @@ func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID string, 
 	})
 	// The unfreeze handed the row back to the support aggregates, so the aggregates
 	// decide the status from here. Re-running the derivation inside the same Tx is
-	// what keeps keeper_api_contract.md §10.0.4 rule 5 ("the response returns the
+	// what keeps the API contract rule 5 ("the response returns the
 	// persisted status") honest: an
 	// unfreeze that lands on aggregates still above the activation thresholds
 	// persists ACTIVE, and the response reports ACTIVE rather than a REGISTERED that
@@ -403,25 +403,25 @@ func statusDisablesSupport(status types.ModelProfileStatus) bool {
 // deriveProfileAndModelStatus itself writes whenever the aggregates fall back
 // below the activation thresholds — the absence of a verdict, never a verdict.
 // The three statuses statusDisablesSupport covers are verdicts no support
-// statistic can produce, and those stay locked: keeper_api_contract.md §10.0d:2563
+// statistic can produce, and those stay locked: the API contract:2563
 // "the governance freeze/delist statuses may only be rewritten by the governance
-// path", keeper_data_structure_contract.md §6.1:698 "governance or EmergencyFreeze
+// path", the data-structure contract:698 "governance or EmergencyFreeze
 // may still change a model/profile status to FROZEN / EMERGENCY_FROZEN / DELISTED"
 // — REGISTERED is deliberately absent from that list.
 //
 // Without the reset the lock was permanent and ACTIVE became unreachable for the
 // rest of the chain's life. The derivation is gated on the AUTO sources
-// (keeper_data_structure_contract.md §6.1:696 "the automatic aggregation may rewrite
+// (the data-structure contract:696 "the automatic aggregation may rewrite
 // the model status only when status_source=AUTO_PROFILE"), and it is the *only*
 // writer of ACTIVE, because both governance entries refuse that target outright
 // (msg_server_registry.go SetModelStatus / SetProfileStatus,
-// keeper_api_contract.md §10.0.4:2225 "ACTIVE is derived only from valid support,
+// the API contract:2225 "ACTIVE is derived only from valid support,
 // the P30 activation facts and the thresholds"). So a GOVERNANCE/EMERGENCY-stamped
 // REGISTERED row had no path to ACTIVE at all: not a Msg, not the derivation, not
-// Genesis. That contradicts keeper_data_structure_contract.md §6.1:698 "once the
+// Genesis. That contradicts the data-structure contract:698 "once the
 // profile-local supporter count and support stake ratio thresholds are reached,
 // ProfileState.status enters ACTIVE automatically from REGISTERED ... no extra
-// 'apply for ACTIVE' transaction is needed" and keeper_api_contract.md
+// 'apply for ACTIVE' transaction is needed" and the API contract
 // §9.6a:1499 "a governance unfreeze of FROZEN returns to REGISTERED, not directly
 // to ACTIVE" — "not directly" presupposes that it does get there indirectly.
 func statusReturnsToAutoDerivation(status types.ModelProfileStatus) bool {

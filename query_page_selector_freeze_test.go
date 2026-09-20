@@ -19,7 +19,7 @@ import (
 )
 
 // queryPageRequestMessageV1 is the one pagination request wire of
-// keeper_api_contract.md §16.1. A Query RPC is paginated exactly when its request
+// the API contract. A Query RPC is paginated exactly when its request
 // message carries a field of this type - that is the definition the proto files
 // themselves use, and it is why the set below can be derived rather than listed.
 const queryPageRequestMessageV1 = "shared.v1.QueryPageRequestV1"

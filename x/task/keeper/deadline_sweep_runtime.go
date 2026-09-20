@@ -87,7 +87,7 @@ const (
 	deadlineSweepAdvanced deadlineSweepOutcome = iota
 	// deadlineSweepStale: the index row can be proven not to describe the
 	// primary any more (missing primary, deadline mismatch, already terminal).
-	// keeper_api_contract.md §4.6 line 713 / §2.2 line 375: count it and delete it.
+	// the API contract / §2.2 line 375: count it and delete it.
 	deadlineSweepStale
 	// deadlineSweepPending: the row is legitimately not actionable yet (§4.5:
 	// the beacon for the frozen randomness height is not published). The row

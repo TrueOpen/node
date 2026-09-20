@@ -16,7 +16,7 @@ import (
 // messages execute.
 //
 // A transient store is used for the same reason the Task gas post-handler uses
-// one (keeper_api_contract.md §10.10b): the queue is block-scoped scratch space and
+// one (the API contract): the queue is block-scoped scratch space and
 // must never reach the app hash. It is *not* self-cleaning across transactions,
 // which is what ResetBridgeTransferIntents exists to handle.
 const (

@@ -12,7 +12,7 @@
 #   4. restores the builder keys into the freshly created keyring,
 #   5. starts the node.
 #
-# NOTE (2026-09-17): builders carry NO bond in ADR-0018 Phase 0 — the genesis
+# NOTE (2026-09-17): builders carry NO bond in Phase 0 — the genesis
 # seed schema has no bond field for them (cmd/noded/cmd/genesis_seed.go
 # genesisSeedBuilder) and the loader rejects unknown fields. The old
 # BUILDER_BONDS knob and the bond-weighted governance it fed are gone; builder

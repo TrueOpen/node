@@ -51,7 +51,7 @@ func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) 
 }
 
 // ValidatorBridgeSigner projects one validator's current bridge signer row
-// (cross_chain_asset_bridge_protocol.md §4.1). The PoP signature is stored but not
+// (the bridge protocol). The PoP signature is stored but not
 // returned: it is
 // recomputable from the row plus chain_id, and returning it would invite
 // consumers to re-verify possession out of band instead of trusting the

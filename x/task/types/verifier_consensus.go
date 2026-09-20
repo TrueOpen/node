@@ -40,7 +40,7 @@ func ConsensusThreshold(selectedVerifierCount uint32) (uint32, error) {
 	return uint32((2*uint64(selectedVerifierCount) + 2) / 3), nil
 }
 
-// AggregateVerifierConsensus implements keeper_api_contract.md §10.9 step 3. It
+// AggregateVerifierConsensus implements the API contract step 3. It
 // clusters the formal verifiers' samples by the complete key
 // (sample_verdict, count_j) and returns the terminal verdict plus the cluster
 // that reached the threshold.

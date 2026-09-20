@@ -87,7 +87,7 @@ func CanonicalEvidenceSchemaFrameV1(schema EvidenceSchemaV1) ([]byte, error) {
 // proto fields of the message, schema_version and the required_infer_evidence
 // list, in field-number order.
 //
-// The list is ONE position. canonical_encoding_and_domain_hashing.md §4.4 fixes
+// The list is ONE position. the canonical encoding contract fixes
 // REPEATED_V1([e1..en]) = FRAME_V1(u32_be(n), ENC(e1), ..., ENC(en)), so the
 // count and the elements live inside their own frame. This function used to write
 // FRAME_V1(schema_version, u32_be(n), ENC(e1), ..., ENC(en)) instead - the count

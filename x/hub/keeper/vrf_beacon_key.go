@@ -3,21 +3,21 @@ package keeper
 // The single source of truth for beacon verification public keys: the on-chain VRF
 // public key registry.
 //
-// randomness_and_sampling_protocol.md §3: "V1 only accepts that proposer's active
+// the sampling protocol: "V1 only accepts that proposer's active
 // VRF public key for the epoch the height belongs to (§3.1); it does not accept
 // consensus public keys, historical public keys or not-yet-effective public keys".
-// keeper_api_contract.md §1.4:336 agrees: "the verification public key comes from
+// the API contract:336 agrees: "the verification public key comes from
 // the active VRF public key in VrfKeyState[operator] for the epoch the height
 // belongs to, not the x/staking consensus public key".
 //
 // The same document at :406 carries a sentence -- "ProcessProposal verifies against
 // the x/staking current consensus pubkey" -- that directly contradicts the above.
-// By authority order (adopted ADR-0011 > protocol specification > service design
+// By authority order (adopted > protocol specification > service design
 // contract, and contract :336 agrees with the first two), :406 is ruled an isolated
 // typo; recorded as DOC-021.
 //
 // Why the consensus private key cannot be reused (the hard mathematical constraint
-// behind ADR-0011): ECVRF Prove needs gamma = x * h, where h = hash_to_curve(pk,
+// behind): ECVRF Prove needs gamma = x * h, where h = hash_to_curve(pk,
 // alpha) is an arbitrary curve point determined by the input. The Ed25519 signing
 // interface only computes R = r*B (fixed base point) and S = r + H(...)*a and never
 // exposes that primitive, so tmkms / an HSM cannot produce an ECVRF proof.
@@ -100,7 +100,7 @@ func (k Keeper) ActiveVrfPubkeyForHeight(ctx context.Context, operator string, h
 // BeaconSentinelRequiredAtHeight reports whether height falls inside the sentinel
 // enforcement range.
 //
-// randomness_and_sampling_protocol.md §3: "the consensus policy comes from the
+// the sampling protocol: "the consensus policy comes from the
 // committed BeaconParamsV1.vrf_required_from_height", and "vrf_required_from_height
 // is the only consensus policy; a build tag may only make a stricter configuration
 // assertion at startup, and must not change the ACCEPT/REJECT of

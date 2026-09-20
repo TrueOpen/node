@@ -217,7 +217,7 @@ func (k Keeper) requireAdmissibleBuilder(ctx context.Context, builder string) er
 	return nil
 }
 
-// ActivateDueBuilderSetReplacements is keeper_detailed_design.md §15.1 step 2. It runs in
+// ActivateDueBuilderSetReplacements is the Keeper detailed design step 2. It runs in
 // BeginBlock, not EndBlock, because every transaction of this block must already
 // see the new set: a SignedOrder validated against the old members inside the
 // block that promotes them would bind a Task to a set that no longer exists.

@@ -28,7 +28,7 @@ const maxAddressCodecBytes = 255
 // nested FieldFrameV1 that TRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1 length-frames as a
 // single element.
 //
-// keeper_api_contract.md §1.2: "a required nested message recursively encodes its
+// the API contract: "a required nested message recursively encodes its
 // field frame in ascending schema field number order" - so the element frame carries
 // NO domain prefix and writes the three
 // fields of task/v1/evidence.proto in field-number order 1, 2, 3:
@@ -80,13 +80,13 @@ func CanonicalEvidenceCommitmentTypedFrameV1(item EvidenceCommitmentV1) (shared.
 
 // EvidenceCommitmentsHash derives InferReceiptV2.evidence_commitments_hash, the
 // tenth field of the TRUEOPEN_INFER_RECEIPT_V2 preimage. It is Keeper-derived and is
-// never a caller-submitted wire field (keeper_api_contract.md §5.14 line 1340).
+// never a caller-submitted wire field (the API contract).
 //
 //	evidence_commitments_hash =
 //	  H_FIELDS_V1("TRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1",
 //	    uint32_be(count), REPEATED_V1(commitment[0], ... commitment[count-1]))
 //
-// keeper_api_contract.md §1.4 line 190 registers the domain and points at §5.14 lines
+// the API contract registers the domain and points at §5.14 lines
 // 1335-1338 as the one place the ordered preimage may live; the byte-exact
 // expansion lives in proto/task/v1/infer_receipt.proto, which is the single
 // in-repository copy. The preimage carries NO chain_id and NO task_id: it is a pure

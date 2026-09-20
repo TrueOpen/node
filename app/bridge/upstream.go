@@ -20,7 +20,7 @@ import (
 // UpstreamAdapter is the only place TrueOpen reads Hyperlane state. It projects the
 // few frozen facts the route guard compares against and nothing else, so
 // x/hub keeps no Hyperlane import and no copy of upstream state
-// (cross_chain_asset_bridge_protocol.md §3.2).
+// (the bridge protocol).
 type UpstreamAdapter struct {
 	core *corekeeper.Keeper
 	warp warpkeeper.Keeper

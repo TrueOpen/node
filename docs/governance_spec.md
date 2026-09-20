@@ -216,7 +216,7 @@ rate (`expedited_threshold = 66.7%`), and a higher initial deposit threshold
     - Rejected with `no_with_veto` (`burn_vote_veto = true`) → the deposit is
       **not refunded**, but this chain does **not burn it**:
       `GovernedGovBankKeeper` transfers it into `hub_treasury` and records a
-      treasury inflow; see §17.1. This is exactly what ADR-0018 Decision 3 asks
+      treasury inflow; see §17.1. This is exactly what asks
       for.
 - The deposit denom is the business denom `uusdc`, forced at genesis rather than
   gov's default.
@@ -550,7 +550,7 @@ the middle of this address; only the prefix and the checksum differ.
 
 ## 17. Phase 0 (a mainnet without a token): this is the current shape
 
-The token-free phase defined by monorepo ADR-0018 (merged) **is already what this
+The token-free phase defined by monorepo (merged) **is already what this
 chain is**, not a future plan.
 
 | Item | Phase 0 (current) | Location |
@@ -578,7 +578,7 @@ gov module account --SendCoinsFromModuleToModule--> hub_treasury
                                                   + CreditGovernanceDepositResidual(amount)
 ```
 
-So ADR-0018 Decision 3's "burning the deposit is implemented as a transfer into
+So's "burning the deposit is implemented as a transfer into
 trueopen_treasury" is implemented **literally**, and USDC is never burned. Genesis
 therefore sets `burn_vote_veto = true` deliberately — that is the switch that
 triggers this path.
@@ -594,7 +594,7 @@ triggers this path.
 Node **does not implement** a Phase 0 / Phase 1 runtime switch, for two reasons:
 
 1. The switch could only live inside a tally function, and a custom tally is
-   expressly forbidden (governance protocol §2 and §6, ADR-0018 Decision 3,
+   expressly forbidden (governance protocol §2 and §6,,
    parameter table §8 `[hard boundary]`, genesis protocol §6).
 2. Phase 1 is not yet expressible: `validatePhase0Params` rejects both
    `native_token_enabled = true` and `consensus_bond_denom != "ubond"`

@@ -112,7 +112,7 @@ func TestProfileExecutionSnapshotHashGolden(t *testing.T) {
 	require.NoError(t, err)
 	// Moved when CanonicalEvidenceSchemaTypedFrameV1 stopped
 	// splicing the required_infer_evidence list into its message frame and started
-	// framing it as one canonical_encoding_and_domain_hashing.md §4.4 REPEATED_V1
+	// framing it as one the canonical encoding contract REPEATED_V1
 	// position. That list reaches this
 	// digest through verification_profile field 14, which is why the nested layer
 	// changed the snapshot hash and nothing above it did.

@@ -9,7 +9,7 @@ import (
 )
 
 // ReplaceBuilderSetActionDigest is the TRUEOPEN_REPLACE_BUILDER_SET_V1 preimage that
-// x/gov and the Hub recomputation must agree on (keeper_api_contract.md §9.6c).
+// x/gov and the Hub recomputation must agree on (the API contract).
 //
 // Unlike the five bridge action digests this one *is* persisted:
 // BuilderSetPendingReplacementState.action_digest keeps it for the whole lead

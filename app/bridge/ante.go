@@ -17,7 +17,7 @@ import (
 )
 
 // BridgeDecorator is the decorated Msg boundary of
-// cross_chain_asset_bridge_protocol.md §3.2. It runs
+// the bridge protocol. It runs
 // before any message executes and does two things the ledger hook cannot:
 //
 //   - refuses every Hyperlane message outside the public two-URL set, so a

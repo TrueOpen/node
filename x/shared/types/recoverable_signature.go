@@ -9,8 +9,8 @@ import (
 )
 
 // RecoverableSecp256k1SignatureBytes is the R||S||V transport length shared by
-// the SignedOrderV2 order domain (account_and_signature_protocol.md §10.1a) and the
-// bridge signer PoP (cross_chain_asset_bridge_protocol.md §4.1). Both are
+// the SignedOrderV2 order domain (the account and signature protocol) and the
+// bridge signer PoP (the bridge protocol). Both are
 // recoverable signatures over an already
 // derived 32-byte digest; neither applies a second hash or an EIP-191 prefix.
 const RecoverableSecp256k1SignatureBytes = 65

@@ -10,7 +10,7 @@ import (
 )
 
 // ProcessMessageTypeURL and RemoteTransferTypeURL are the entire public Msg
-// surface of the bridge (cross_chain_asset_bridge_protocol.md §3.2). They are
+// surface of the bridge (the bridge protocol). They are
 // the upstream type URLs verbatim: Node registers no wrapper Msg, so an SDK or
 // relayer built against the pinned release talks to this chain unchanged.
 const (

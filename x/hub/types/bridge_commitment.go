@@ -9,7 +9,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// cross_chain_asset_bridge_protocol.md §3.1 pins the two release literals the deployment manifest
+// the bridge protocol pins the two release literals the deployment manifest
 // must carry verbatim. They are consensus strings inside
 // TRUEOPEN_BRIDGE_DEPLOYMENT_MANIFEST_V1, not documentation: a manifest naming a
 // different upstream or SDK is a different bridge and must not hash the same.
@@ -71,8 +71,8 @@ func RequireEVMAddress(field string, value []byte) ([]byte, error) {
 
 // RequireHyperlaneID accepts exactly one raw upstream HexAddress.
 //
-// cross_chain_asset_bridge_protocol.md §2.1 rows 9-10 and
-// keeper_data_structure_contract.md §6.6a describe these as "the raw 20 bytes of
+// the bridge protocol rows 9-10 and
+// the data-structure contract describe these as "the raw 20 bytes of
 // the upstream HexAddress", but util.HEX_ADDRESS_LENGTH in the pinned
 // hyperlane-cosmos@v1.1.0 is 32, and §10.1a's own published manifest vector
 // encodes local_ism_id as 32 bytes. A 20-byte identifier could never equal the

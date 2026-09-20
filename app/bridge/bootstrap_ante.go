@@ -12,7 +12,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// BootstrapFeeExemption implements cross_chain_asset_bridge_protocol.md §5.3,
+// BootstrapFeeExemption implements the bridge protocol,
 // and nothing more.
 //
 // A shared testnet or mainnet starts with zero business_denom supply while

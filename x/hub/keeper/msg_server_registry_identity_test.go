@@ -13,7 +13,7 @@ import (
 )
 
 // serviceRegistrationProofBytes rebuilds the TRUEOPEN_SERVICE_REGISTRATION_V1
-// proof-of-possession preimage of keeper_api_contract.md §10.0c step 1. The initial
+// proof-of-possession preimage step 1. The initial
 // authorization nonce is Keeper-derived and fixed to 1, and service_pubkey is the
 // raw 33-byte compressed key rather than its hex text. operator_address is framed
 // as address-codec bytes, never Bech32 presentation text (Ruling 17).
@@ -33,7 +33,7 @@ func serviceRegistrationProofBytes(
 }
 
 // serviceKeyRotationProofBytes rebuilds the TRUEOPEN_SERVICE_KEY_ROTATION_V1
-// preimage of keeper_api_contract.md §10.0c1: only the new key signs, and it binds
+// preimage: only the new key signs, and it binds
 // both the expected current nonce and the Keeper-derived next nonce.
 func serviceKeyRotationProofBytes(
 	chainID string, participantType shared.ParticipantType, operatorBytes, newServicePubkey []byte,
@@ -55,7 +55,7 @@ func registerServiceAction(servicePubkey, serviceKeyProof []byte, amount uint64)
 	}}
 }
 
-// topUpServiceAction carries an amount and nothing else: keeper_api_contract.md §10.0c
+// topUpServiceAction carries an amount and nothing else: the API contract
 // step 1 removed every service key, proof and nonce field from TopUpServiceV1.
 func topUpServiceAction(amount uint64) types.ServiceStakeActionV1 {
 	return types.ServiceStakeActionV1{Action: &types.ServiceStakeActionV1_TopUp{
@@ -522,7 +522,7 @@ func TestMsgStakeServicePersistsOperatorBondAndCurrentServiceKeyAtomically(t *te
 // rotation-scoped form of the old-key rejection property.
 //
 // The original premise -- "a top-up signed by the pre-rotation service key is
-// refused" -- became unexpressible when keeper_api_contract.md §10.0c step 1 removed
+// refused" -- became unexpressible when the API contract step 1 removed
 // service_pubkey / service_key_proof / authorization_nonce from TopUpServiceV1: a
 // top-up now carries an amount only, so there is no old key material left to
 // refuse. The property under test is unchanged ("the previous service key loses

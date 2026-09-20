@@ -64,7 +64,7 @@ type Keeper struct {
 	DailySupportExpiryIndex             collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
 	SupportDeactivateCursor             collections.Map[types.ProfileStateKeyPair, types.SupportDeactivateCursorState]
 
-	// ---- Global epoch stable-slot CandidatePool (keeper_data_structure_contract.md §3.2) ----
+	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
 	//
 	// One pool per epoch shared by every profile and duty. The PR #88
 	// per-(model, profile_version, duty) collections
@@ -161,7 +161,7 @@ type Keeper struct {
 
 	// Bridge rows are TrueOpen's own guard/governance/audit state. Hyperlane's
 	// Mailbox, ISM, token and delivered-message state stay in the upstream
-	// modules; cross_chain_asset_bridge_protocol.md §3.2 and §6.1 forbid a second
+	// modules; the bridge protocol forbid a second
 	// copy here, so there
 	// is deliberately no delivered-message or nonce table below.
 	VrfKey                collections.Map[string, types.VrfKeyState]
@@ -251,7 +251,7 @@ func NewKeeper(
 	// cannot drift apart (A-15a).
 	serviceKeyResponsibilityKeyCodec := collections.TripleKeyCodec(collections.Int32Key, collections.StringKey, shared.Hash32KeyCodec)
 
-	// Global CandidatePool key codecs (keeper_data_structure_contract.md §3.2). slot is uint32
+	// Global CandidatePool key codecs (the data-structure contract). slot is uint32
 	// and slot_version uint64, so the binding key is not a string pair; Hash32 key
 	// components (snapshot_id, task_id) are lowercase 64-hex strings.
 	candidateSlotBindingKeyCodec := collections.PairKeyCodec(collections.Uint32Key, collections.Uint64Key)

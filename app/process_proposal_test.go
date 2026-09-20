@@ -36,7 +36,7 @@ import (
 //
 // vrfPubkey plays the on-chain VRF registry: the verification public key can
 // only come from here, and the consensus public key is entirely absent from
-// this path (randomness_and_sampling_protocol.md §3.1).
+// this path (the sampling protocol).
 type realCryptoKeeper struct {
 	input        []byte
 	inputErr     error
@@ -355,7 +355,7 @@ func TestProcessProposalRejectsOperatorLookupFailure(t *testing.T) {
 		"a proposal signed by an unknown proposer must be rejected")
 }
 
-// randomness_and_sampling_protocol.md §3: with no active VRF public key,
+// the sampling protocol: with no active VRF public key,
 // REJECT — do not fall back to the consensus public key and do not look up
 // historical keys. This is the core assertion of the DOC-021 fix.
 func TestProcessProposalRejectsWhenProposerHasNoActiveVrfKey(t *testing.T) {

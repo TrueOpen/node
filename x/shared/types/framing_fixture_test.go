@@ -17,7 +17,7 @@ import (
 )
 
 // framingFixturePath holds the language-independent golden vectors for
-// monorepo@f9b7c18 canonical_encoding_and_domain_hashing.md sections 3-10. The file carries only
+// the canonical encoding contractsections 3-10. The file carries only
 // inputs and expected hex outputs so a non-Go implementation can be validated
 // against the same vectors.
 //
@@ -137,7 +137,7 @@ type fieldFrameVector struct {
 	HashHex      string         `json:"hash_hex"`
 }
 
-// optionalVector is the canonical_encoding_and_domain_hashing.md §10.3 optional
+// optionalVector is the the canonical encoding contract optional
 // layout: absent is the single byte
 // 00, present is 01 || FRAME_V1(ENC(value)) where FRAME_V1(x) = u64_be(len(x)) || x.
 //
@@ -198,7 +198,7 @@ type signatureVector struct {
 	SignatureDigestHex string       `json:"signature_digest_hex"`
 }
 
-// directDigestVector is the canonical_encoding_and_domain_hashing.md §10.5
+// directDigestVector is the the canonical encoding contract
 // direct-digest form: the signer receives
 // an already-derived 32-byte SIGN_DIGEST and signs it as-is. It is a section of
 // its own rather than a flag on signatureVector because the two forms have
@@ -334,7 +334,7 @@ func TestFramingFixtureMatchesFrozenFramings(t *testing.T) {
 	}
 }
 
-// TestFramingFixtureOptionalV1 pins the canonical_encoding_and_domain_hashing.md
+// TestFramingFixtureOptionalV1 pins the the canonical encoding contract
 // §10.3 optional primitive as
 // published bytes, so a non-Go implementation can be checked against the same two
 // vectors. The frames are raw layout, not hashes: OPTIONAL_V1 is a value encoding
@@ -483,7 +483,7 @@ func TestFramingFixtureSignatureRoundTripAndRejects(t *testing.T) {
 }
 
 // TestFramingFixtureDirectDigestSignature pins
-// canonical_encoding_and_domain_hashing.md §10.5: a SIGN_DIGEST is
+// the canonical encoding contract: a SIGN_DIGEST is
 // signed and verified as-is.
 //
 // The negative half is the reason the vector exists. The task specification §10.3
@@ -575,7 +575,7 @@ func TestFramingFixtureDistinctHashGroups(t *testing.T) {
 }
 
 // The fixture uses dedicated test domains; they must never be mistaken for
-// registered business domains (keeper_api_contract.md §1.4 rule 1).
+// registered business domains (the API contract rule 1).
 func TestFramingFixtureUsesOnlyTestDomains(t *testing.T) {
 	fixture := loadFramingFixture(t)
 	domains := make(map[string]struct{})

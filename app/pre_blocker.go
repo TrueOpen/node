@@ -17,7 +17,7 @@ package app
 // writes, so this handler can be safely re-invoked on state sync catch-up
 // without corrupting BeaconState.
 //
-// Policy (randomness_and_sampling_protocol.md §3; the single source is the
+// Policy (the sampling protocol; the single source is the
 // committed `BeaconParamsV1.vrf_required_from_height`):
 //   - height >= required > 0: a missing sentinel is a bug, ProcessProposal
 //     should already have rejected it; the same section rules that a

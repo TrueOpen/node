@@ -88,7 +88,7 @@ func TestDecodeCanonicalFrameRejectsMalformedInput(t *testing.T) {
 
 // TestSection6LimitsAreDistinctConstants guards the one thing a reader is most
 // likely to "tidy up": 65535 and 65534 are two different
-// canonical_encoding_and_domain_hashing.md §6 rules, not a
+// the canonical encoding contract rules, not a
 // typo, and the field cap and the preimage cap are 32 MiB and 64 MiB rather than
 // one number used twice.
 func TestSection6LimitsAreDistinctConstants(t *testing.T) {
@@ -447,7 +447,7 @@ func TestDecodeCanonicalFrameBytesReportsTheLimitBeforeTheTruncation(t *testing.
 }
 
 // TestOptionalFrameV1KeepsAbsentAndPresentDistinct pins the
-// canonical_encoding_and_domain_hashing.md §10.3
+// the canonical encoding contract
 // requirement that absent, present-empty and present-zero are three different
 // preimages. Empty values of different schema types remain distinct when their
 // enclosing oneof uses different field-number tags.

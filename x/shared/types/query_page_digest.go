@@ -46,7 +46,7 @@ type QueryPageSelectorV1 struct {
 // QueryPageSelectorSchemaV1 is the closed set of paginated Query RPCs and, for
 // each one, its ordered selector fields.
 //
-// keeper_api_contract.md §16.1 derives the tail mechanically: "canonical selectors
+// the API contract derives the tail mechanically: "canonical selectors
 // exclude the page field and are encoded as §1.2 typed fields in ascending request
 // field number order". So each entry below is
 // the RPC's request message minus its page field, in field-number order.

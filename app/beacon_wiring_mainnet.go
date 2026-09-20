@@ -9,7 +9,7 @@ package app
 // role is not allowed to start without a usable VRF hot key; a non-block-
 // producing node turns this local assertion off explicitly in app.toml.
 //
-// The boundary (randomness_and_sampling_protocol.md §3, contract §1.4:406):
+// The boundary (the sampling protocol, contract §1.4:406):
 // **a build tag may only make the startup-time configuration assertions
 // stricter; it must not change the ACCEPT/REJECT decision of
 // PrepareProposal/ProcessProposal, nor change whether PreBlocker writes a

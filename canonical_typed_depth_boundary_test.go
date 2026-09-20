@@ -51,7 +51,7 @@ func TestTypedDepthCoreDoesNotRegressToLegacyNestedBuilders(t *testing.T) {
 		// TaskParamsHash and CanonicalTaskParamsFields used to sit here as the same
 		// kind of oracle for TaskParamsHashV1. They were removed instead of
 		// migrating them: once EvidenceLimitParamsV1's two repeated fields are
-		// framed as REPEATED_V1 per canonical_encoding_and_domain_hashing.md §4.4,
+		// framed as REPEATED_V1,
 		// the preimage needs an encoder that can fail, and TaskParamsHash's
 		// no-error []byte signature cannot express that shape at all. An oracle
 		// that cannot state the right answer is not an oracle.

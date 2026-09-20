@@ -176,7 +176,7 @@ func TestTopUpServiceEnforcesBondFloorWhenReturningFromExit(t *testing.T) {
 	require.Zero(t, stillExited.ActiveBond)
 
 	// (4) A return that meets the floor is still accepted - the guard is a floor,
-	// not a ban on returning (keeper_data_structure_contract.md §6.4).
+	// not a ban on returning (the data-structure contract).
 	f.bank.seedAccount(operator.Address, testServiceBondMinInitial)
 	returnProof = serviceRegistrationProofBytes(chainID, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operator.Address, returnKey.PubKey)
 	returned, err := server.StakeService(withdrawCtx, &types.MsgStakeService{

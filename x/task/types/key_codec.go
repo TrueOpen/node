@@ -10,7 +10,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// ---- Store key codecs (keeper_data_structure_contract.md §0.1) ----
+// ---- Store key codecs (the data-structure contract) ----
 //
 // NO-MIGRATION POLICY. Everything in this file describes the on-disk key layout
 // of a chain whose only genesis is the fresh V1 genesis. There is no v0

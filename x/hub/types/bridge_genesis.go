@@ -8,7 +8,7 @@ import (
 )
 
 // ValidateBridgeGenesis closes every Genesis gate that
-// cross_chain_asset_bridge_protocol.md §2, §4, §5 and §7 place on the bridge's own
+// the bridge protocol place on the bridge's own
 // rows. What it deliberately does *not* do is read
 // the upstream Mailbox / HypToken / RemoteRouter objects: those live in the
 // Hyperlane modules, are imported by their own InitGenesis, and are checked by

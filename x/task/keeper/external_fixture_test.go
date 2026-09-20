@@ -47,7 +47,7 @@ func initFixture(t *testing.T) *fixture {
 	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1")), keeper: k}
 }
 
-// Canonical bech32 addresses: keeper_api_contract.md §1.4 rule 4 / §2.2 step 3
+// Canonical bech32 addresses: the API contract rule 4 / §2.2 step 3
 // require every
 // address field to survive the address codec, and the frozen
 // TRUEOPEN_SELECTED_TASK_BUILDERS_V1 preimage uses the codec bytes.

@@ -159,7 +159,7 @@ func (k Keeper) processModelSupportBatch(
 // dailySupportConfirmationID is the object_id one accepted confirmation contributes
 // to the batch digest.
 //
-// CONTRACT-GAP: keeper_api_contract.md §9.6b requires TRUEOPEN_BATCH_RESULT_V1 to commit to
+// CONTRACT-GAP: the API contract requires TRUEOPEN_BATCH_RESULT_V1 to commit to
 // a per-item object_id but never defines what that object_id is for
 // MsgBatchConfirmModelSupport. The derivation here is the existing implementation,
 // registered as an unregistered-domain gap in

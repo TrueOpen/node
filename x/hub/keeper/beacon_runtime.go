@@ -77,8 +77,8 @@ func (k Keeper) WriteBlockBeacon(ctx context.Context, height uint64, blockHash [
 
 // ValidateAndWriteVerifiedBeacon validates the carrier and persists it.
 //
-// proposerOperatorAddress is the proposer's stable operator account address
-// (ADR-0004); the verification public key is obtained by indexing VrfKeyState with
+// proposerOperatorAddress is the proposer's stable operator account address;
+// the verification public key is obtained by indexing VrfKeyState with
 // it -- not the consensus public key, see vrf_beacon_key.go for the reasoning.
 func (k Keeper) ValidateAndWriteVerifiedBeacon(ctx context.Context, carrier types.BeaconCarrier, proposerConsensusAddressRaw []byte, proposerOperatorAddress string, verifier BeaconProofVerifier) (types.BeaconState, error) {
 	stored, err := k.validateBeaconCarrierStore(ctx, carrier, proposerConsensusAddressRaw, proposerOperatorAddress, verifier)

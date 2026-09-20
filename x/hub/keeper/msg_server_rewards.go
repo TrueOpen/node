@@ -13,7 +13,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// UpdateHubParams implements the keeper_api_contract.md §18.0 ordering exactly:
+// UpdateHubParams implements the the API contract ordering exactly:
 // assertAuthority -> Params.Validate -> expected_version match ->
 // per-field genesis-only rejection -> cross-field clamp -> one atomic write of
 // params and its meta row -> event 110.
@@ -88,7 +88,7 @@ func (m msgServer) UpdateHubParams(ctx context.Context, req *types.MsgUpdateHubP
 	}
 	commit()
 
-	// CONTRACT-GAP: keeper_api_contract.md §5.11's ProtocolEventPrimaryLocatorV1 oneof
+	// CONTRACT-GAP: the API contract's ProtocolEventPrimaryLocatorV1 oneof
 	// has no params/global branch, so code 110 has no legal primary locator to
 	// carry. The typed payload below is emitted without one; the document side
 	// must add the branch.

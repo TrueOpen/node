@@ -48,7 +48,7 @@ func TestGovDomainOfProposalSkipsNilMessages(t *testing.T) {
 
 // TestBuilderDomainProposalIsTalliedLikeAnyOther pins the Phase 0 outcome that
 // matters operationally: a model status proposal must be able to PASS on
-// validator stake. Builders hold no bond in Phase 0 (governance_protocol.md §2:104), so a
+// validator stake. Builders hold no bond in Phase 0 (the governance protocol:104), so a
 // builder-weighted tally would total zero weight and no model could ever be
 // frozen or delisted.
 func TestBuilderDomainProposalIsTalliedLikeAnyOther(t *testing.T) {

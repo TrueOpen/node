@@ -201,9 +201,9 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 }
 
 // ensureRoleFaultEvidenceScope enforces the single-producer rule for
-// classification evidence: keeper_api_contract.md §10.12 gives
+// classification evidence: the API contract gives
 // `evidence_digest` exactly one production point in the whole chain (the Task
-// failure classifier), and keeper_data_structure_contract.md requires that a
+// failure classifier), and the data-structure contractrequires that a
 // RoleFault sourced from DEADLINE / SETTLEMENT / VERIFICATION_ROUND carry the
 // byte-identical digest — and the same classification_source — as the
 // TaskFailureClassState for its (task_id, verify_round).

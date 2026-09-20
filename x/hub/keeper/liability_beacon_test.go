@@ -54,7 +54,7 @@ func TestBeaconPaths(t *testing.T) {
 	require.NoError(t, f2.keeper.InitGenesis(f2.ctx, *types.DefaultGenesis()))
 	proposer := bytes.Repeat([]byte{0x42}, 20)
 	// The verification public key may only come from the on-chain VRF registry
-	// (randomness_and_sampling_protocol.md §3.1), so the proposer's operator must
+	// (the sampling protocol), so the proposer's operator must
 	// have an active public key first, otherwise the whole block is rejected.
 	operator := hubAddress(t, 0x42)
 	registeredPubkey := vrfPubkey(0x9A)

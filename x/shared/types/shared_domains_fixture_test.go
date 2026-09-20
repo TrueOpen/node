@@ -166,7 +166,7 @@ func TestSharedDomainFixtureGoldenVectors(t *testing.T) {
 }
 
 // TestSharedDomainFixtureRejectsEveryFieldBitFlip is the derived per-field
-// sensitivity gate required by node_context.md §9.3: flipping a single bit of any
+// sensitivity gate required: flipping a single bit of any
 // framed field must move the digest. It is derived rather than published, so the
 // fixture carries no tamper section for another implementation to disagree with.
 func TestSharedDomainFixtureRejectsEveryFieldBitFlip(t *testing.T) {

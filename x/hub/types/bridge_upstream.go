@@ -8,7 +8,7 @@ import (
 
 // BridgeUpstream is the whole of what TrueOpen reads from the Hyperlane modules.
 //
-// cross_chain_asset_bridge_protocol.md §3.2 forbids mirroring upstream proto, state
+// the bridge protocol forbids mirroring upstream proto, state
 // or handlers here,
 // so this interface deliberately exposes only the few frozen facts §2.1, §3.3,
 // §3.4 and §4.4 require the guard to compare against — never the objects

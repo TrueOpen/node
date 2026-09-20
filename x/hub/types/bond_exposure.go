@@ -18,11 +18,11 @@ import (
 // reservation, which is a consensus-relevant divergence.
 //
 // Authority:
-//   - keeper_data_structure_contract.md §6.4: available_bond = active_bond - reserved_liability
-//   - keeper_api_contract.md §B.1.3: handraise/proposal accepted only when
+//   - the data-structure contract: available_bond = active_bond - reserved_liability
+//   - the API contract: handraise/proposal accepted only when
 //     available_bond >= min_stake and available_bond >= required_task_liability;
 //     unstake may only consume bond that is not reserved.
-//   - keeper_data_structure_contract.md §6.1: support_vote_weight uses effective_active_bond
+//   - the data-structure contract: support_vote_weight uses effective_active_bond
 //     (i.e. it deliberately does NOT subtract reserved liability).
 //
 // Every caller must use these functions instead of recomputing the arithmetic

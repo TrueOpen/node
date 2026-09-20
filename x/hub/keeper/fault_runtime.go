@@ -17,7 +17,7 @@ import (
 
 // Jail and tombstone are operator-global and live only on ServiceBondState
 // (`jail_count` / `normal_action_count_since_jail` / `status`), per
-// keeper_data_structure_contract.md §6.4 and keeper_api_contract.md §10.0c ("no
+// the data-structure contract and the API contract ("no
 // second TombstoneState is read"). The previous duty-scoped Jail/Tombstone
 // collections were a
 // second source of truth for the same facts and are no longer read or written
@@ -373,7 +373,7 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return ServiceJailSnapshot{}, false, err
 	}
-	// keeper_data_structure_contract.md §6.1 lists jail and tombstone together, both as a path
+	// the data-structure contract lists jail and tombstone together, both as a path
 	// that invalidates support and as a mutation that must go through the single
 	// applyModelSupportMutation entry point: the support aggregates and the
 	// ModelSupportByProfileIndex / ModelSupportExpiryIndex rows have to be updated
@@ -392,11 +392,11 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	// Only the terminal branch ends the declarations. Running the full
 	// deactivation on a plain jail as well is what made the first jail permanent:
 	// it wiped declared_support, the joint filter of
-	// candidate_selection_and_performance_score.md §4 admits candidates on a declared
+	// the candidate selection contract admits candidates on a declared
 	// support, and requireSupportScope refuses to re-declare while JAILED — so
 	// §10.0c's jail_clear_normal_action_count normal actions could never be
 	// performed and jail_count could never come back down. The graduated
-	// candidate_jail_factor (parameter_table.md [hard boundary]: 1 -> 500000,
+	// candidate_jail_factor (the parameter table[hard boundary]: 1 -> 500000,
 	// 2 -> 250000) is the
 	// penalty the ladder is supposed to apply; exclusion belongs to the tombstone
 	// step alone. suspendDeclaredSupportsForJail still discharges the §6.1 genesis
@@ -560,12 +560,12 @@ func serviceJailSnapshot(bond types.ServiceBondState, duty string) ServiceJailSn
 }
 
 // IsJailEjected reports the pool-ejection end of the jail ladder, i.e.
-// parameter_table.md's "jail_count >= 3 leaves the pool" and the hard filter of
-// candidate_selection_and_performance_score.md §4's "jail_count has not reached the
+// the parameter table's "jail_count >= 3 leaves the pool" and the hard filter of
+// the candidate selection contract's "jail_count has not reached the
 // pool-ejection threshold".
 // It deliberately does NOT report jail_count 1/2: those are demotions carried by
 // candidate_jail_factor (500000/250000 ppm), not exclusions, and treating them as
-// exclusions strands the recovery path — keeper_api_contract.md §10.0c only
+// exclusions strands the recovery path — the API contract only
 // decrements
 // jail_count on the normal actions an excluded operator can never perform.
 //

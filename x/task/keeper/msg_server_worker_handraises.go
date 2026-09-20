@@ -15,7 +15,7 @@ import (
 )
 
 // SubmitWorkerHandraises ORs legal Worker handraises into the authoritative
-// OPEN_TASK union (keeper_api_contract.md §10.1). A signed_order creates the Task
+// OPEN_TASK union (the API contract). A signed_order creates the Task
 // atomically; an existing_task can only append to that frozen scope.
 //
 // Nothing but `submitter_address` is taken from the request: the Task Builder
@@ -287,10 +287,10 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err := m.k.BuilderStageProposal.Set(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
 		return nil, err
 	}
-	// No Builder contribution is credited here. keeper_api_contract.md:3398 says a
-	// fallback submitter adds none, and :3635 / keeper_data_structure_contract.md:1564
+	// No Builder contribution is credited here. the API contract:3398 says a
+	// fallback submitter adds none, and :3635 / the data-structure contract:1564
 	// go further: Phase 0 does
-	// not create BuilderContributionState at all, because ADR-0010 must freeze a
+	// not create BuilderContributionState at all, because must freeze a
 	// fresh stage/writer/window schema rather than have it back-derived from
 	// Phase 0 events. The BuilderStageProposal receipt written just above, plus
 	// the acceptance event below, are the audit trail.

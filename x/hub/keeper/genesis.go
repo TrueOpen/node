@@ -309,7 +309,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		return fmt.Errorf("role fault genesis: %w", err)
 	}
 	// No jail/tombstone import: jail_count, normal_action_count_since_jail and
-	// the TOMBSTONED status ride on ServiceBondState (keeper_data_structure_contract.md §6.4)
+	// the TOMBSTONED status ride on ServiceBondState (the data-structure contract)
 	// and are imported with genState.ServiceBonds above.
 	if err := k.Treasury.Set(ctx, genState.Treasury); err != nil {
 		return err

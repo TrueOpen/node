@@ -283,7 +283,7 @@ func IsValidParticipantTypeEnum(value shared.ParticipantType) bool {
 }
 
 // IsValidServiceKeyResponsibilityKind accepts only the closed responsibility
-// kinds that gate MsgRotateServiceKey (keeper_api_contract.md §B.1.2). Task duty
+// kinds that gate MsgRotateServiceKey (the API contract). Task duty
 // liability is not a kind here: it is counted by
 // CortexNodeState.active_task_liability_count.
 func IsValidServiceKeyResponsibilityKind(value ServiceKeyResponsibilityKind) bool {

@@ -34,7 +34,7 @@ func DefaultGenesis() *GenesisState {
 // into a fresh chain therefore has its epoch-dependent support aggregates
 // re-evaluated at epoch 0; every freshness field (support_fresh_until_epoch,
 // effective_bond_epoch) is validated against epoch 0 as well. Registered in
-// node_context.md.
+// the node context document.
 const GenesisEpoch = uint64(0)
 
 func (gs GenesisState) Validate() error {
@@ -566,7 +566,7 @@ func validateBeaconGenesis(rows []BeaconState, checkpoints []BeaconCheckpointSta
 // validateVrfKeyGenesis checks the §9.3a VRF registry rows an import carries.
 //
 // This is the only source of beacon verification public keys
-// (randomness_and_sampling_protocol.md §3.1), so the shape has to be pinned down at
+// (the sampling protocol), so the shape has to be pinned down at
 // import time: a bad row does not fail InitGenesis, it makes the whole network
 // reject that validator's block the moment it is elected proposer. Genesis protocol
 // §4 requires a fresh genesis to write one active_from_epoch=0 row per validator,
@@ -1291,7 +1291,7 @@ func validateSupportDeactivateCursorGenesis(cursorRows []SupportDeactivateCursor
 
 // validateFaultGenesis no longer takes jail or tombstone rows: jail_count,
 // normal_action_count_since_jail and the TOMBSTONED status are operator-global
-// fields on ServiceBondState (keeper_data_structure_contract.md §6.4), so they are validated
+// fields on ServiceBondState (the data-structure contract), so they are validated
 // by validateServiceBondState instead of by a second collection.
 func validateFaultGenesis(faultRows []RoleFaultState, summaryRows []SlashSummaryState, nodes map[string]CortexNodeState, bonds map[string]ServiceBondState) error {
 	// source is a fixed-width array rather than the hex text SlashSummarySourceKey

@@ -18,7 +18,7 @@ import (
 // just admitted, the task fails late and feeds the operator another fault.
 //
 // It is also the only writer of the jail-clear counter — closeTaskLiabilityReservation's
-// RELEASED branch calls AdvanceJailClearCounter — so keeper_api_contract.md
+// RELEASED branch calls AdvanceJailClearCounter — so the API contract
 // §10.0c's "jail_clear_normal_action_count normal business actions -> jail_count
 // -1" is unreachable
 // unless a jailed operator can reserve here. Rejecting jail_count 1/2 makes the

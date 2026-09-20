@@ -44,7 +44,7 @@ const (
 )
 
 // EndBlockSweepResult reports visited work per queue. Every field counts
-// *visited* index rows, not successful transitions: keeper_api_contract.md §9.4 /
+// *visited* index rows, not successful transitions: the API contract /
 // §4.6 make the
 // per-block cap a visited-work budget so that a permanently unprocessable
 // ("poison") row cannot be rescanned for free every block.

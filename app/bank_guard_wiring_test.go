@@ -4,9 +4,9 @@ package app
 //
 // Four upstream modules must never see the raw bank keeper:
 //
-//	x/gov      -> GovernedGovBankKeeper       (ADR-0018 Decision 3 / fee_burn_policy = NO_USDC_BURN_V1)
+//	x/gov      -> GovernedGovBankKeeper       (fee_burn_policy = NO_USDC_BURN_V1)
 //	x/staking  -> GovernedStakingBankKeeper
-//	hl x/core  -> bridge.GuardedBankKeeper    (cross_chain_asset_bridge_protocol.md §5.1/§5.2/§7)
+//	hl x/core  -> bridge.GuardedBankKeeper    (the bridge protocol)
 //	hl x/warp  -> bridge.GuardedBankKeeper
 //
 // All four were silently unwired: depinject.BindInterface compares against its
@@ -146,7 +146,7 @@ func TestGovModuleAccountHasNoBurnerPermission(t *testing.T) {
 	require.True(t, ok)
 	require.False(t, account.HasPermission(authtypes.Burner),
 		"granting Burner to gov would let a missing GovernedGovBankKeeper burn USDC silently; "+
-			"the deposit must be routed to trueopen_treasury instead (ADR-0018 Decision 3)")
+			"the deposit must be routed to trueopen_treasury instead")
 }
 
 // TestDepinjectTypeNameMatchesUpstream pins depinjectTypeName against the real

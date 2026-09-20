@@ -100,7 +100,7 @@ func (b *endblockBudget) result() (uint64, uint64) {
 	return b.visited, b.bytes
 }
 
-// BeginBlocker runs the future-effective activations keeper_detailed_design.md §15.1
+// BeginBlocker runs the future-effective activations the Keeper detailed design
 // requires to be visible before this block's transactions. It deliberately takes
 // no visited budget: the only thing registered here is the governed BuilderSet
 // replacement, which is a single Item and therefore bounded by the store shape
@@ -160,7 +160,7 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 		}
 		return nil
 	}
-	// cross_chain_asset_bridge_protocol.md §7.2 / keeper_data_structure_contract.md
+	// the bridge protocol / the data-structure contract
 	// §6.6a: the epoch boundary
 	// activates any pending limit before the new usage window opens, then retires
 	// windows past their retention under the registered per-block budget.
@@ -358,7 +358,7 @@ func saturatingMul(a, b uint64) uint64 {
 // Every visited ModelSupportByProfileIndex row costs one visited item, including
 // rows whose primary is already gone and rows that are already inactive, so a
 // stale or poison row can never be rescanned for free on every block
-// (node_context.md §9.4). Completing a cursor costs one visited item as well, so
+// (the node context document). Completing a cursor costs one visited item as well, so
 // a flood of empty cursors is bounded too. A cursor is removed the moment its
 // operator scan is exhausted; no permanent per-profile audit row is left behind.
 func (k Keeper) ProcessSupportDeactivations(ctx context.Context, currentHeight, visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
@@ -674,7 +674,7 @@ func (k Keeper) ProcessDailySupportExpiries(ctx context.Context, currentEpoch, v
 			break
 		}
 		// DailySupportExpiryIndex is (expiry_epoch, operator_address, support_epoch)
-		// per keeper_data_structure_contract.md §6.1, so the primary key is (K3, K2).
+		//, so the primary key is (K3, K2).
 		stateKey := types.NewDailySupportKey(key.K3(), key.K2())
 		if err := k.DailySupport.Remove(ctx, stateKey); err != nil && !errors.Is(err, collections.ErrNotFound) {
 			visited, consumed := budget.result()

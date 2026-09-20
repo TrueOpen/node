@@ -38,7 +38,7 @@ type settlementInputs struct {
 }
 
 // BuildSettlementFacts derives every non-amount settlement field from
-// authoritative state (keeper_api_contract.md §10.10a step 5). It is a pure function:
+// authoritative state (the API contract step 5). It is a pure function:
 // Query preview, the Tx path, the deadline runner and Genesis validation all call
 // this one implementation, and success here authorizes nothing — no state write
 // and no fund movement.
@@ -203,7 +203,7 @@ func (k Keeper) BuildSettlementPlan(
 		return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("worker maintenance overflows")
 	}
 	// §10.10c requires every term checked. maintenance <= gross holds only while
-	// maintenance_rate_bps_snapshot <= 10000 (keeper_api_contract.md:4995); an
+	// maintenance_rate_bps_snapshot <= 10000 (the API contract:4995); an
 	// out-of-range
 	// snapshot would wrap this subtraction into a near-2^64 net and hand the
 	// plan an amount the escrow can never cover.

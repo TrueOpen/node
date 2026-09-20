@@ -2,7 +2,7 @@
 
 > **⚠️ Status (2026-09-17): the Builder bond lifecycle this document describes no
 > longer exists.**
-> After main landed ADR-0018 Phase 0, `MsgBondBuilder` /
+> After main landed Phase 0, `MsgBondBuilder` /
 > `MsgBeginBuilderUnbonding` / `MsgWithdrawBuilderUnbonded` were all removed from
 > `x/hub`, the CLI is down to `register-builder`, `BuilderStatus` is down to
 > `ADMITTED` / `REVOKED`, and `BuilderSetState.active_builders` is a plain address

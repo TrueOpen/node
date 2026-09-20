@@ -319,7 +319,7 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 // sub-accounts + gas_reimbursed_total). The terminal zero-balance assertion is
 // enforced below. The old blocker citation was stale — K-BLOCK-16 is closed and
 // TaskSettlementState is now a stored row with Genesis field 71 — but the
-// identity still cannot be re-derived here: keeper_api_contract.md §10.10c writes
+// identity still cannot be re-derived here: the API contract writes
 // it against
 // `apply_start_reserved_amount`, and neither that term nor a gas reimbursement
 // total is carried on TaskSettlementState. Re-deriving it from the terms that
@@ -381,7 +381,7 @@ func validateTaskBudgets(states []TaskBudgetState, assignments map[string]TaskAs
 				return fmt.Errorf("task budget %s %s: %w", tid, field.name, err)
 			}
 		}
-		// keeper_api_contract.md:4995 pins `bps<=10000` on the frozen fee params, and
+		// the API contract:4995 pins `bps<=10000` on the frozen fee params, and
 		// §10.10c
 		// derives maintenance/verify shares by mulDiv against 10000. An import above
 		// the bound makes maintenance exceed its gross, which is the one subtraction

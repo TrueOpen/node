@@ -689,7 +689,7 @@ func CanonicalTaskParamsTypedFields(p TaskParamsV1) []shared.CanonicalFieldV1 {
 }
 
 // canonicalTaskParamsStringList encodes one `repeated string` field as the
-// canonical_encoding_and_domain_hashing.md §4.4 REPEATED_V1 container:
+// the canonical encoding contract REPEATED_V1 container:
 // FRAME_V1(uint32_be(count), ENC(e_1), ..., ENC(e_n)), where ENC of a string
 // element is its own UTF-8 bytes.
 //

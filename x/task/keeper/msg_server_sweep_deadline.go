@@ -12,7 +12,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// deadlineKindPriority is the *only* copy of the keeper_api_contract.md §5.9 table
+// deadlineKindPriority is the *only* copy of the the API contract table
 // (lines 970-984). It backs the single same-height ordering rule
 // `deadline_height, kind_priority, primary_id` from §5.9 line 964, which both
 // MsgSweepDeadline and EndBlock use. Value 0 (UNSPECIFIED) has no priority and

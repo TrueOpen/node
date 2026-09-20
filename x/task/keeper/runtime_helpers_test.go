@@ -75,7 +75,7 @@ func TestDeriveSessionIDUsesRegisteredPreimage(t *testing.T) {
 	// cannot be re-derived from the code under test.
 	require.Equal(t, "f3e136453c4ff3532bf0429ec68016be579986071f7d67863bcbf10ccd34b0e3",
 		hex.EncodeToString(got),
-		"TRUEOPEN_SESSION_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against keeper_api_contract.md §5.13 and the §1.4 domain registry")
+		"TRUEOPEN_SESSION_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the API contract §5.13 and the §1.4 domain registry")
 	nextNonce, err := keeper.DeriveSessionID(ownerBytes, 8)
 	require.NoError(t, err)
 	require.NotEqual(t, got, nextNonce)

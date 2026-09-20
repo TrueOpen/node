@@ -2,7 +2,7 @@ package app
 
 // PrepareProposal handler that injects the Beacon sentinel.
 //
-// Data flow (see ADR-0011-proposer-vrf-sentinel-carrier.md §2):
+// Data flow (see §2):
 //
 //   1. Confirm the local VRF public key is the on-chain active key for this
 //      proposer in the epoch this height belongs to.
@@ -17,7 +17,7 @@ package app
 //      remaining business tx selection.
 //
 // The signature uses the separately registered VRF private key, not the
-// consensus private key (randomness_and_sampling_protocol.md §3.1 / ADR-0011).
+// consensus private key (the sampling protocol /).
 // The consensus private key can stay in tmkms / an HSM.
 //
 // Failure policy:
