@@ -6,9 +6,9 @@ package app
 // Both ProcessProposal and PreBlocker have to locate the proposer from the
 // `ProposerAddress` bytes of RequestPrepareProposal /
 // RequestProcessProposal / RequestFinalizeBlock.
-// randomness_and_sampling_protocol.md §3.1 rules that the beacon verification
+// the sampling protocol rules that the beacon verification
 // public key has "source: the on-chain VRF public key registry, indexed by the
-// stable operator (ADR-0004)", so what is delivered here is the operator
+// stable operator ", so what is delivered here is the operator
 // account address, not the consensus public key.
 //
 // Both conversion steps follow the repository's existing practice:

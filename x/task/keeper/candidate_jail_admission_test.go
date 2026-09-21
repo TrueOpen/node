@@ -13,11 +13,11 @@ import (
 )
 
 // A jailed operator has to keep drawing duty to ever leave jail.
-// keeper_api_contract.md §10.0c clears one jail_count per
-// jail_clear_normal_action_count normal actions, and keeper_detailed_design.md
+// the API contract clears one jail_count per
+// jail_clear_normal_action_count normal actions, and the Keeper detailed design
 // clears verifier_miss only after further completed verification duties. Both are
 // unreachable if JAILED is rejected at admission, so a single fault would be
-// terminal and parameter_table.md's candidate_jail_factor ladder (jail_count 1/2 ->
+// terminal and the parameter table's candidate_jail_factor ladder (jail_count 1/2 ->
 // 500000/250000 ppm, >=3 ejects) would never be observable. These tests pin the
 // ladder as the only jail exclusion rule on both candidate paths.
 

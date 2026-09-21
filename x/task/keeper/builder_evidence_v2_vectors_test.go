@@ -15,7 +15,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// The two envelopes are keeper_api_contract.md §5.5's linked V2 vectors, byte for
+// The two envelopes are the API contract's linked V2 vectors, byte for
 // byte. Their OPEN_VERIFY payload explicitly projects initial verify_round=1,
 // while zero is the invalid/unspecified proto3 value. The current public V1
 // surface opens no challenge round, so this is the only round with Task

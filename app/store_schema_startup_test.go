@@ -26,7 +26,7 @@ import (
 
 // buildSplitGenesis builds a default genesis plus one funded account. It used to
 // live in migration_replay_integration_test.go, which was deleted together with
-// the Task StateVersion / StoreMigrations wire (fresh genesis, node_context.md
+// the Task StateVersion / StoreMigrations wire (fresh genesis, the node context document
 // §1.2 has no migration surface to replay).
 func buildSplitGenesis(t *testing.T, app *App) ([]byte, []byte) {
 	t.Helper()

@@ -82,7 +82,7 @@ func validateStorePrefixComponent(component string) error {
 //	task_status, task_worker,
 //	task_verifiers                      the six sub-states are only on
 //	                                    TaskCoreState
-//	                                    (keeper_data_structure_contract.md §6.6); the
+//	                                    (the data-structure contract); the
 //	                                    two
 //	                                    projections had zero readers.
 //	verifier_candidate_set              replaced by the frozen verifier window
@@ -115,7 +115,7 @@ var (
 	ParamsKey     = collections.NewPrefix("p_task")
 	ParamsMetaKey = MustVersionedStorePrefix("params_meta", CurrentStoreSchemaVersion)
 
-	// ---- Session / Order (keeper_data_structure_contract.md §6.2) ----
+	// ---- Session / Order (the data-structure contract) ----
 	SessionNonceKey                     = MustVersionedStorePrefix("session_nonce", CurrentStoreSchemaVersion)
 	StreamStateKey                      = MustVersionedStorePrefix("stream_state", CurrentStoreSchemaVersion)
 	SessionByOwnerIndexKey              = MustVersionedStorePrefix("session_by_owner_index", CurrentStoreSchemaVersion)
@@ -504,7 +504,7 @@ const (
 )
 
 const (
-	// ADR-0014 v1.1 numbers the original verification as round 1 and the single
+	// v1.1 numbers the original verification as round 1 and the single
 	// funded challenge as round 2. Zero is always invalid.
 	VerifyRoundV1                uint32 = 1
 	ChallengeVerifyRoundV1       uint32 = 2

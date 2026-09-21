@@ -14,7 +14,7 @@ package app
 // beacon_pre_blocker.go so re-verification is cheap and the accept/reject
 // verdict cannot depend on write order.
 //
-// Policy (randomness_and_sampling_protocol.md §3):
+// Policy (the sampling protocol):
 //
 //	height >= vrf_required_from_height > 0:
 //	  a missing or invalid sentinel is always REJECTed.
@@ -44,9 +44,9 @@ import (
 )
 
 // ProposerOperatorLookup resolves the ABCI `req.ProposerAddress` bytes into
-// that validator's stable operator account address (ADR-0004). The beacon
+// that validator's stable operator account address . The beacon
 // verification public key is indexed out of the on-chain VRF registry by that
-// address (randomness_and_sampling_protocol.md §3.1). For the production
+// address (the sampling protocol). For the production
 // implementation see staking_pubkey_lookup.go; the interface is kept narrow so
 // unit tests can stub it.
 type ProposerOperatorLookup interface {
@@ -62,7 +62,7 @@ type ProposerOperatorLookup interface {
 //
 // The txDecoder argument remains part of the app hook signature but is unused.
 // The order_value tx ordering / verification pass is intentionally absent:
-// keeper_api_contract.md §5.9:964 is the only same-height ordering rule, §7:2026
+// the API contract:964 is the only same-height ordering rule, §7:2026
 // does not enable two-step assignment, and §10.1:2763 scopes order_value to
 // Builder/PrepareProposal congestion ordering plus audit events, so there is no
 // contract rule for ProcessProposal to re-verify. If a future contract registers a

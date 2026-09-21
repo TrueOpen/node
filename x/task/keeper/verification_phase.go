@@ -191,7 +191,7 @@ func (k Keeper) startRevealPhase(
 			// REVEALING. The sentinel is a deferral, not a dead end: the caller
 			// closes the round, BuildVerificationDeadlineFacts has already stamped
 			// it VERIFY_FAILED / INSUFFICIENT_VERIFIER, and MsgSettleTask performs
-			// the terminal transition per ADR-0014's single settlement/finality
+			// the terminal transition per's single settlement/finality
 			// runner. What §10.7 additionally asks for inline here — a
 			// TaskFailureClassState carrying classification_source = DEADLINE — is
 			// deliberately not written: the settlement runner produces that row

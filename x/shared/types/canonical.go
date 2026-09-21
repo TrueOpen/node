@@ -28,7 +28,7 @@ func validateCanonicalDomainV1(domain string) error {
 	return nil
 }
 
-// Canonical framing resource limits from canonical_encoding_and_domain_hashing.md
+// Canonical framing resource limits
 // §6. They bound how much work an
 // untrusted preimage can ask a node to do, so every framing helper that is able
 // to reject applies them before its first allocation. None of them can fire on a
@@ -128,7 +128,7 @@ func EnumBE(value uint32) []byte {
 }
 
 // OptionalAbsentFrameV1 and OptionalPresentFrameV1 encode the
-// canonical_encoding_and_domain_hashing.md §10.3
+// the canonical encoding contract
 // optional layout: absent is the single byte 00, present is 01 followed by
 // FRAME_V1(ENC(value)), i.e. u64_be(len) || bytes.
 //
@@ -543,7 +543,7 @@ func CanonicalFrameBytes(fields ...[]byte) []byte {
 // returned slices alias framed; callers that retain them past the buffer's
 // lifetime must copy.
 //
-// Every canonical_encoding_and_domain_hashing.md §6 bound is checked before the
+// Every the canonical encoding contract bound is checked before the
 // result slice is reserved. That
 // ordering is the point: fieldCount is the caller's claim about the input, not a
 // fact about it, so reserving capacity for it first let

@@ -1,6 +1,6 @@
 {
   "schema": "trueopen.task.worker_value_commitment.v2",
-  "source": "10-protocol_specifications/04-task/05-verification_algorithm.md §7.0b, reviewed at TrueOpen/monorepo@05afeeaf7f68ce477051683a45795040e8ea9fb3",
+  "source": "§7.0b",
   "notes": [
     "This is the only WORKER_VALUE_OPENING commitment. It binds the accepted output MMR and its leaf count plus the trace, checkpoint, input-token and generated-token artifacts.",
     "Hash32 values and the decoded Worker address are raw bytes. Integer and enum fields use fixed-width big-endian encoding.",
@@ -11,7 +11,7 @@
       "name": "worker_value_commitment_v2",
       "domain": "TRUEOPEN_WORKER_VALUE_COMMITMENT_V2",
       "framing": "H_FIELDS_V1",
-      "contract_section": "10-protocol_specifications/04-task/05-verification_algorithm.md §7 and §7.0b",
+      "contract_section": "§7 and §7.0b",
       "producer": "WorkerValueCommitmentV2",
       "fields": [
         {

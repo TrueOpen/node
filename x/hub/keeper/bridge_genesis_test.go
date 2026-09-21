@@ -107,7 +107,7 @@ func TestBridgeGenesisBindsCanonicalDenomAndInitialSupply(t *testing.T) {
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *validExport))
 }
 
-// keeper_data_structure_contract.md §6.6a requires every bridge row and the upstream module
+// the data-structure contract requires every bridge row and the upstream module
 // state to survive one export/import round trip with the same app hash and the
 // same next-block behaviour. This is the module half of that: the exported
 // document must be byte-identical to what was imported, and must re-import into

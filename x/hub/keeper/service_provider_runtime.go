@@ -84,7 +84,7 @@ func (k Keeper) prepareRegisterService(
 	if amount < minInitial {
 		return StakeServiceResult{}, fmt.Errorf("initial service bond must be at least %d", minInitial)
 	}
-	// Ruling 17/24: address codec bytes, not Bech32 text (keeper_api_contract.md
+	// Ruling 17/24: address codec bytes, not Bech32 text (the API contract
 	// §1.2). Cortex
 	// registration and Builder registration (msg_server_builder.go) share this one
 	// domain, so both must frame the operator identically or §1.4 rule 1 is broken.
@@ -143,7 +143,7 @@ func (k Keeper) prepareRegisterService(
 	// Re-registration reuses the existing row, so jail_count and its recovery
 	// counter survive a full exit. Writing REGISTERED unconditionally would launder
 	// a jailed operator back into candidate selection while still carrying the
-	// count that feeds the tombstone threshold. ADR-0019 lets only §10.0c's
+	// count that feeds the tombstone threshold. lets only §10.0c's
 	// jail-clear leave JAILED, and it does so by decrementing to zero first.
 	bond.Status = types.ServiceBondStatus_SERVICE_BOND_STATUS_REGISTERED
 	if bond.JailCount != 0 {

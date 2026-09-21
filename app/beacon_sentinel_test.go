@@ -2,8 +2,8 @@ package app
 
 // beacon sentinel codec unit tests.
 //
-// Covered properties (align with the "frozen items" section of
-// ADR-0011-proposer-vrf-sentinel-carrier.md):
+// Covered properties, aligned with the frozen items of the sentinel carrier
+// design:
 //
 //   - Round-trip: Encode/Decode reproduces every BeaconCarrier field bit-
 //     identical. If a future proto change adds a field that gogoproto silently

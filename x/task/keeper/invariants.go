@@ -15,7 +15,7 @@ import (
 
 const (
 	// InvariantEscrowReserved is the first of the two funding equations that
-	// keeper_data_structure_contract.md §6.2 (lines 845-846) declares the *only* authoritative
+	// the data-structure contract (lines 845-846) declares the *only* authoritative
 	// money statements of this module:
 	//
 	//	bank.balance(trueopen_escrow) == sum(TaskBudgetState.reserved_amount

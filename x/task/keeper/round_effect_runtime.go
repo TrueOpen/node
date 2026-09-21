@@ -3,7 +3,6 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sort"
 
 	errorsmod "cosmossdk.io/errors"
@@ -569,21 +568,4 @@ func (k Keeper) sendChallengeFundsToAccount(ctx context.Context, address string,
 	}
 	coins := sdk.NewCoins(sdk.NewCoin(denom, sdkmath.NewIntFromUint64(amount)))
 	return k.bankKeeper.SendCoinsFromModuleToAccount(ctx, shared.TaskChallengeEffectModuleName, sdk.AccAddress(raw), coins)
-}
-
-func validateEffectAddressOrder(subjects []roundEffectSubject) error {
-	for index := 1; index < len(subjects); index++ {
-		left, err := types.CanonicalOperatorAddressBytes("effect source", subjects[index-1].operator)
-		if err != nil {
-			return err
-		}
-		right, err := types.CanonicalOperatorAddressBytes("effect source", subjects[index].operator)
-		if err != nil {
-			return err
-		}
-		if bytes.Compare(left, right) >= 0 {
-			return fmt.Errorf("round effect subjects are not strictly address ordered")
-		}
-	}
-	return nil
 }

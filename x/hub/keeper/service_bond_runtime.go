@@ -580,7 +580,7 @@ func unwithdrawnServiceUnbondingAmount(state types.UnbondingState) (uint64, erro
 }
 
 // Ruling 17/24: operatorBytes is the address codec bytes required by
-// keeper_api_contract.md §1.2,
+// the API contract,
 // not the Bech32 text. §1.4 gives TRUEOPEN_UNBONDING_ID_V1 one preimage shared by
 // service and Builder unbonding, so the caller must always pass codec bytes.
 func serviceUnbondingID(chainID string, participantType shared.ParticipantType, operatorBytes []byte, bondVersion, amount, requestHeight, matureHeight uint64) ([]byte, error) {
@@ -596,7 +596,7 @@ func serviceUnbondingID(chainID string, participantType shared.ParticipantType, 
 }
 
 // Ruling 17/24: the receipt digest frames the operator as address codec bytes
-// (keeper_api_contract.md §1.2). It is a Keeper method purely so the single canonical decoder
+// (the API contract). It is a Keeper method purely so the single canonical decoder
 // (requireCanonicalAddress) stays the only bech32 -> bytes path in the module; a
 // second local decoder would be a second way to disagree about the preimage.
 func (k Keeper) unbondingReceiptHash(chainID string, receipt types.UnbondingReceiptState) ([]byte, error) {

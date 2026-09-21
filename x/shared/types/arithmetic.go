@@ -6,7 +6,7 @@ import (
 )
 
 // MaxBlockHeightV1 is the inclusive upper bound of the usable block height
-// domain. keeper_api_contract.md §3 models Height as uint64, but the consensus
+// domain. the API contract models Height as uint64, but the consensus
 // engine both
 // publishes and consumes heights as int64, so any height above MaxInt64 is
 // representable in the protocol types yet unusable everywhere it matters: it

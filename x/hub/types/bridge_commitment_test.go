@@ -13,7 +13,7 @@ import (
 )
 
 // The two vectors below are the published conformance values of
-// monorepo cross_chain_asset_bridge_protocol.md §10.1 and §10.1a. They
+// monorepo the bridge protocol. They
 // are the only authority for these preimages: Wire v0.3 ships no testdata file
 // for the bridge domains (DOC-013), so the doc's own golden hex is
 // what Node reproduces rather than a digest computed here.

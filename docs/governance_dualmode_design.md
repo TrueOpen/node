@@ -2,7 +2,7 @@
 
 > **⚠️ Status (2026-09-17): §1–§10 are the original design proposal, and their
 > builder-electorate part no longer holds.**
-> After main landed ADR-0018 Phase 0, builders have no bond, so a bond-weighted
+> After main landed Phase 0, builders have no bond, so a bond-weighted
 > electorate has no source of weight and the corresponding implementation was
 > deleted. Further, monorepo governance protocol v0.5 §2 states outright that
 > **no TrueOpen custom tally is added**, so the "custom tally function" extension
@@ -296,7 +296,7 @@ the Keeper side provides `BuilderElectorate` in parallel.
 
 > **This section went through two rounds of convergence and was finalised
 > 2026-09-18.**
-> Round one (merging main): after ADR-0018 Phase 0 landed, **builder bond ceased
+> Round one (merging main): after Phase 0 landed, **builder bond ceased
 > to exist**, a bond-weighted electorate had no source of weight, and that
 > implementation was deleted.
 > Round two (against monorepo governance protocol v0.5): **a custom tally is
@@ -345,7 +345,7 @@ message list should grow) is still waiting on product. The current list is
 
 ---
 
-## 12. ADR-0018 alignment: Phase 0 has only one electorate
+## 12. alignment: Phase 0 has only one electorate
 
 ### 12.1 The facts: main landed Phase 0, and builder bond no longer exists
 
@@ -359,7 +359,7 @@ Verified after merging main:
 | There is no `builder_bond` left in the hub params | `x/hub/types/params.go` |
 | `hubtypes.BuilderStateSnapshot`, `BuilderSetTermForHeight` and `GetBuilderSetSnapshot` are all deleted | 5 compile errors after the merge |
 
-In other words ADR-0018 Decision 6, "a Phase 0 Builder is a zero-bond
+In other words, "a Phase 0 Builder is a zero-bond
 allowlist", is already implemented in code, and **a bond-weighted builder
 electorate has no usable source of weight**. This is not an API change to adapt
 to; the premise is gone.
@@ -370,7 +370,7 @@ to; the premise is gone.
 
 - **In Phase 0, builder-domain proposals are tallied by the standard electorate
   (the validators) and can pass.**
-  This is exactly what ADR-0018 asks for — it states that Builders are not given
+  This is exactly what asks for — it states that Builders are not given
   governance voting power.
   Keeping bond weighting would mean zero bond → total electorate weight 0 →
   quorum can never be met → **a model could never be listed**.
@@ -390,8 +390,8 @@ forbidden** and the gate can only live inside a tally function:
 |---|---|
 | governance protocol §2 | the tally is Cosmos SDK v0.53.6 x/gov's, used unchanged; **no TrueOpen custom tally is added** |
 | governance protocol §6 | and **uses the SDK default tally** |
-| ADR-0018 Decision 3 | … **no TrueOpen custom tally is added** |
-| ADR-0018 implementation boundary | x/gov, x/slashing, ubond and a closed ValidatorSet (**the SDK default tally**) |
+| | … **no TrueOpen custom tally is added** |
+| implementation boundary | x/gov, x/slashing, ubond and a closed ValidatorSet (**the SDK default tally**) |
 | parameter table §8 | executed by the x/gov tally; **hub and task do not re-count votes** `[hard boundary]` |
 | genesis protocol §6 | initialise the x/gov params and **verify the default tally** |
 
@@ -433,7 +433,7 @@ threshold = Yes / (totalVotingPower − Abstain)          :204   excludes abstai
 | `TestTallyUnbondingLeavesTheQuorumDenominator` | only unbonding truly leaves the quorum denominator | — |
 | `TestTallyDenominatorsAreDistinct` | the three ratios differ from one another within one tally | change the expected value to 0.4 → FAIL |
 
-The third one also turns the Phase 0 liveness risk named by ADR-0018 Decision 3
+The third one also turns the named Phase 0 liveness risk
 into an executable assertion: after a jail, voting power is zero but the `ubond`
 is still in the denominator, until it unbonds.
 
@@ -457,7 +457,7 @@ governance.Params.BurnVoteVeto               = true
 **`burn_vote_veto = true` is deliberate**: `GovernedGovBankKeeper.BurnCoins`
 (`app/governance_bank_guard.go:27`) intercepts gov's burn and turns it into
 `SendCoinsFromModuleToModule(gov → hub_treasury)`, calling
-`CreditGovernanceDepositResidual` to record it. ADR-0018 Decision 3's "burning
+`CreditGovernanceDepositResidual` to record it.'s "burning
 the deposit is implemented as a transfer into trueopen_treasury" is thereby
 implemented **literally**, and USDC is never burned.
 

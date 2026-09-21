@@ -2,7 +2,7 @@ package app
 
 // Beacon carrier sentinel-tx codec.
 //
-// The Node proposal-extension design (see ADR-0011-proposer-vrf-sentinel-carrier.md
+// The Node proposal-extension design (see
 // §2) carries the BeaconCarrier proto as a synthetic tx prepended to
 // RequestPrepareProposal.Txs[0]. All validators pull it back in ProcessProposal
 // / PreBlocker.

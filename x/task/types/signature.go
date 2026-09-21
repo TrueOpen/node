@@ -51,7 +51,7 @@ func SelectedTaskBuildersHash(chainID string, taskID []byte, builderSetID string
 	).Nested(shared.CanonicalRepeatedFieldsV1(elements)).Sum()
 }
 
-// ---- Frozen stage wire digests (keeper_api_contract.md §5.14 / §4.1) ----
+// ---- Frozen stage wire digests (the API contract) ----
 //
 // The pre-freeze infer-receipt signing-bytes helper and its hex receipt-hash wrapper
 // (this file, lines 94 and 116 at ff76daa) framed uint64 values as DECIMAL TEXT and

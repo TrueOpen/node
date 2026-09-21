@@ -93,7 +93,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 	// that same edit has to move a constant whose provenance is the contract.
 	require.Equal(t, "9152865c416c8632dcd9756f2161c6348319ca073dcc73f478f9b7a49140e188",
 		hex.EncodeToString(selectedHash),
-		"TRUEOPEN_SELECTED_TASK_BUILDERS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against keeper_data_structure_contract.md §6.5 and the §1.4 domain registry")
+		"TRUEOPEN_SELECTED_TASK_BUILDERS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the data-structure contract §6.5 and the §1.4 domain registry")
 	require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, taskKey, tasktypes.TaskCoreState{
 		TaskId: taskID, SessionId: sessionID,
 		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED,

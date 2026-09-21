@@ -75,7 +75,7 @@ func (m msgServer) RotateServiceKey(ctx context.Context, msg *types.MsgRotateSer
 	}
 	nextNonce := current.AuthorizationNonce + 1
 	// Ruling 17: operator_address enters a consensus preimage as address codec
-	// bytes, never as its bech32 text (node_context.md §1.2).
+	// bytes, never as its bech32 text (the node context document).
 	digest, err := serviceKeyRotationDigest(
 		sdkCtx.ChainID(), msg.ParticipantType, operatorBytes, msg.NewServicePubkey,
 		current.AuthorizationNonce, nextNonce,
@@ -159,7 +159,7 @@ func (m msgServer) RevokeServiceKey(ctx context.Context, msg *types.MsgRevokeSer
 		// sides disagree and any chain that ever revoked a key exports a genesis
 		// it can no longer import -- the same defect that was fixed for jail.
 		// The operator -> profiles fan-out is bounded by
-		// max_supported_profiles_per_operator (keeper_data_structure_contract.md §6.1),
+		// max_supported_profiles_per_operator (the data-structure contract),
 		// so doing it in
 		// this transaction is safe.
 		//

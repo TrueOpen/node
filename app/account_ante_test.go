@@ -8,7 +8,6 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +35,7 @@ func TestCanonicalAminoSignDocMatchesAccountProtocolVector(t *testing.T) {
 		Sequence: 9,
 	}))
 
-	tx := builder.GetTx().(authsigning.Tx)
+	tx := builder.GetTx()
 	signDoc, err := canonicalAminoSignDoc(application.LegacyAmino(), "trueopen-golden-1", 7, 9, tx)
 	require.NoError(t, err)
 	require.Equal(t,

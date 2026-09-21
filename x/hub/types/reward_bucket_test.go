@@ -8,7 +8,7 @@ import (
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
 )
 
-// parameter_table.md line 143 and model_registration_chain_structure_and_manifest.md §475/§710 freeze this table and
+// the parameter table and the model registration contract freeze this table and
 // forbid deriving it from the enum values. The table is asserted literally so a
 // later enum edit on either side cannot quietly re-bucket every profile.
 func TestRewardBucketMappingIsTheFrozenTable(t *testing.T) {

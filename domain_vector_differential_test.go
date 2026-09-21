@@ -328,7 +328,7 @@ func isRepeatedRegistryField(entry string) bool {
 //
 // The only structural allowance is the repeated tail. A domain whose preimage ends in
 // a variable-length list records that list as one final "repeated(...)" entry, and per
-// canonical_encoding_and_domain_hashing.md §4.4 a compliant producer frames the whole
+// the canonical encoding contract a compliant producer frames the whole
 // group as one REPEATED_V1 position, so the vector should name exactly one field for it
 // however many elements it carries.
 // The fixed head is matched name-for-name; the tail's *arity* is checked separately by
@@ -439,7 +439,7 @@ func assertRegistryFieldOrder(t *testing.T, spec shared.DomainSpec, label, varia
 // assertRepeatedTailIsOnePosition closes the arity half of the repeated-tail hole
 // described above.
 //
-// canonical_encoding_and_domain_hashing.md §4.4 says
+// the canonical encoding contract says
 // REPEATED_V1([e1..en]) = FRAME_V1(u32_be(n), ENC(e1), ..., ENC(en)):
 // the whole group is ONE outer position regardless of n. A registry row that ends in a
 // repeated entry therefore describes len(spec.Fields) outer positions, and a compliant
@@ -472,7 +472,7 @@ func assertRepeatedTailIsOnePosition(t *testing.T, spec shared.DomainSpec, label
 
 // flattenedRepeatedTailAllowlistV1 names every domain that still splices a repeated
 // group's elements into its outer field list. Each entry is one known
-// canonical_encoding_and_domain_hashing.md §4.4 violation awaiting a producer fix.
+// the canonical encoding contract violation awaiting a producer fix.
 // The list only shrinks - the assertion above fails on an entry whose
 // domain has been fixed, so a batch cannot land without removing the domains it
 // repaired.
@@ -542,7 +542,7 @@ func (f domainGoldenField) encode(t *testing.T, where string) []byte {
 		// This is the encoding of a proto oneof whose SCHEMA declares one, and it is
 		// not a generic wrapper for "a domain with more than one shape". The Builder
 		// evidence content domain also selects a branch by tag, and its frozen
-		// preimage per keeper_api_contract.md §5.5 is flat - schema_version, oneof_tag,
+		// preimage is flat - schema_version, oneof_tag,
 		// then the branch's fields as siblings - so wrapping it in this frame would
 		// be a different preimage, not a tidier spelling of the same one. The
 		// registry's Variants express that difference; this type does not.

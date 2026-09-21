@@ -326,10 +326,6 @@ func isPhase0VerifyRound(round uint32) bool {
 	return round == VerifyRoundV1 || round == ChallengeVerifyRoundV1
 }
 
-func isExplicitTaskVerdict(verdict TaskVerdict) bool {
-	return verdict == TaskVerdict_TASK_VERDICT_PASS || verdict == TaskVerdict_TASK_VERDICT_FAIL
-}
-
 func isTerminalTaskVerdict(verdict TaskVerdict) bool {
 	return verdict > TaskVerdict_TASK_VERDICT_UNSPECIFIED && verdict <= TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE
 }

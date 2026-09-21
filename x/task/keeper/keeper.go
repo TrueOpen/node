@@ -15,7 +15,7 @@ import (
 //
 // Collection inventory. Primary rows are exactly the ones
 // task/v1/genesis.proto exports; height indexes are exactly the ones
-// keeper_data_structure_contract.md §7 registers for this module (the two documented
+// the data-structure contract registers for this module (the two documented
 // CONTRACT-GAP exceptions are marked in types/keys.go). Deleted collections are
 // deleted: fresh genesis has no compatibility collection, no "always empty"
 // collection and no placeholder.
@@ -23,7 +23,7 @@ import (
 // Ruling 23: every task-scoped collection is keyed by task_id alone and every task
 // deadline index by (deadline_height, task_id). task_id is already globally
 // unique: H_FIELDS_V1("TRUEOPEN_TASK_ID_V1", session_id, order_sequence), as
-// frozen by keeper_api_contract.md §5.13. The old (session_id, task_id) pair added
+// frozen. The old (session_id, task_id) pair added
 // a second,
 // non-authoritative copy of the session binding to 15 primary and 10 index keys.
 type Keeper struct {
@@ -40,7 +40,7 @@ type Keeper struct {
 	Params     collections.Item[types.TaskParamsV1]
 	ParamsMeta collections.Item[types.TaskParamsMetaState]
 
-	// ---- Session / Order (keeper_data_structure_contract.md §6.2) ----
+	// ---- Session / Order (the data-structure contract) ----
 	//
 	// Model A: a session never holds funds. SessionEscrow is deleted; TaskBudget is
 	// the only ledger. SessionByOwnerIndex holds ACTIVE/IDLE streams only, and the
@@ -105,7 +105,7 @@ type Keeper struct {
 	//
 	// TaskSettlement IS registered (below). K-BLOCK-16 is closed —
 	// PHASE0_PER_OUTPUT_TOKEN_V2 froze SettlementPlan/State/Query/Event — and
-	// keeper_data_structure_contract.md now keys TaskSettlementState by (task_id) with
+	// the data-structure contractnow keys TaskSettlementState by (task_id) with
 	// Genesis field 71
 	// carrying it. The non-amount SettlementFactsV1 stays a pure value object;
 	// only the amounts live in the stored row.
@@ -171,7 +171,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	sb := collections.NewSchemaBuilder(storeService)
 
 	// Key codecs. Every one of them mirrors a key tuple that
-	// keeper_data_structure_contract.md spells out; nothing here re-encodes an integer or a
+	// the data-structure contractspells out; nothing here re-encodes an integer or a
 	// Hash32 as text.
 	//
 	// Every Hash32 component (task_id, session_id, commit_key, proposal_digest) is

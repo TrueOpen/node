@@ -484,14 +484,14 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress, mod
 //
 // Clearing declared_support is not required by it, and doing so as well is what
 // made jail permanent. The joint filter of
-// candidate_selection_and_performance_score.md §4 admits a candidate on a declared
+// the candidate selection contract admits a candidate on a declared
 // support, so wiping the declaration removed the operator from every candidate
 // pool, and requireSupportScope refuses to re-declare while the bond is JAILED.
-// keeper_api_contract.md §10.0c then only decrements jail_count after
+// the API contract then only decrements jail_count after
 // jail_clear_normal_action_count normal actions the operator can no longer
 // perform. Keeping the declaration leaves the Worker path open — task_candidate_fact
 // tests declared_support alone — at the reduced candidate_jail_factor, which is
-// the graduated penalty parameter_table.md registers as the [hard boundary].
+// the graduated penalty the parameter tableregisters as the [hard boundary].
 //
 // Recovery stays gated rather than free: refreshModelSupport restores
 // support_active only through requireSupportScope (which rejects a JAILED bond)
@@ -1160,7 +1160,7 @@ func (k Keeper) requireSupportScope(ctx context.Context, operatorAddress, modelI
 	// duties without granting active support before the jail clears.
 	//
 	// Tombstone is unaffected — IsTombstoned above already rejected it, and
-	// parameter_table.md keeps "after a tombstone the corresponding identity is
+	// the parameter tablekeeps "after a tombstone the corresponding identity is
 	// permanently refused re-entry" as the [hard boundary].
 	if !types.IsCandidateEligibleBondStatus(bond.Status) {
 		return types.ProfileState{}, fmt.Errorf("service bond status %s is not eligible", bond.Status)

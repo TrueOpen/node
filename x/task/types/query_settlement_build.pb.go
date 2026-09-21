@@ -121,7 +121,7 @@ func (m *QueryInferReceiptResponse) GetReceipt() InferReceiptState {
 // QueryVerifierCandidateWindowRequest selects one task round's verifier window.
 type QueryVerifierCandidateWindowRequest struct {
 	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	// Every verify_round in this file uses ADR-0014 v1.1 numbering: 1 is the
+	// Every verify_round in this file uses the frozen numbering: 1 is the
 	// initial verification, values >= 2 are challenge rounds, and 0 is invalid.
 	VerifyRound uint32 `protobuf:"varint,2,opt,name=verify_round,json=verifyRound,proto3" json:"verify_round,omitempty"`
 }
@@ -549,8 +549,8 @@ func (m *QueryResultReceiptResponse) GetReceipt() ResultReceiptState {
 	return ResultReceiptState{}
 }
 
-// QueryDataUnavailableReportsRequest pages one (task, round) report list
-// (keeper_api_contract.md §16.2). The §16.1 pagination wire now lives in exactly one
+// QueryDataUnavailableReportsRequest pages one (task, round) report list.
+// The §16.1 pagination wire now lives in exactly one
 // place, shared/v1/query_page.proto, so this RPC can finally be declared.
 // QueryDataUnavailableReportsRequest defines the QueryDataUnavailableReportsRequest wire type.
 type QueryDataUnavailableReportsRequest struct {

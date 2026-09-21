@@ -109,7 +109,7 @@ type MsgClient interface {
 	// ReportDataUnavailable records one selected Verifier's data-availability report.
 	ReportDataUnavailable(ctx context.Context, in *MsgReportDataUnavailable, opts ...grpc.CallOption) (*MsgReportDataUnavailableResponse, error)
 	// SubmitBuilderEvidence accepts one closed typed objective Builder proof.
-	// ADR-0013 moved it here from hub.v1.Msg: the Task module owns the
+	// It moved here from hub.v1.Msg: the Task module owns the
 	// envelope payload and the Task authority, and it returns the shared receipt
 	// directly instead of a module-local Response wrapper (§5.5, §9.4).
 	// SubmitBuilderEvidence executes the SubmitBuilderEvidence operation.
@@ -309,7 +309,7 @@ type MsgServer interface {
 	// ReportDataUnavailable records one selected Verifier's data-availability report.
 	ReportDataUnavailable(context.Context, *MsgReportDataUnavailable) (*MsgReportDataUnavailableResponse, error)
 	// SubmitBuilderEvidence accepts one closed typed objective Builder proof.
-	// ADR-0013 moved it here from hub.v1.Msg: the Task module owns the
+	// It moved here from hub.v1.Msg: the Task module owns the
 	// envelope payload and the Task authority, and it returns the shared receipt
 	// directly instead of a module-local Response wrapper (§5.5, §9.4).
 	// SubmitBuilderEvidence executes the SubmitBuilderEvidence operation.

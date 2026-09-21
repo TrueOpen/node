@@ -125,7 +125,7 @@ func TaskBuilderRank(seed [32]byte, builderAddress string) ([32]byte, error) {
 // fields in proto field-number order. Two of the thirty look like exceptions to
 // the §1.2 typed-encoding table and are not; both are frozen, both are mirrored
 // by nexus and cortex, and both are pinned by golden vectors in
-// testdata/task_domains_v1.json. See monorepo@f9b7c18 task_order_hashing_and_signing.md
+// testdata/task_domains_v1.json. See the task order hashing contract
 // sections 4.4-4.5.
 //
 //  1. THE EIGHT Amount FIELDS (14-21) FRAME DECIMAL TEXT, NOT u64_be.

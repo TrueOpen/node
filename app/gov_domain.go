@@ -11,14 +11,13 @@ package app
 // and one tally: Cosmos SDK x/gov's default, weighted by bonded `ubond`. The
 // protocol forbids a custom tally outright —
 //
-//	governance_protocol.md §2  "the tally is Cosmos SDK v0.53.6 x/gov's, used
-//	                            unchanged; no custom tally is added"
-//	governance_protocol.md §6  "and the SDK default tally is retained"
-//	ADR-0018 Decision 3        "no custom tally is added"
-//	parameter_table.md §8      "executed by the x/gov tally; hub and task do
-//	                            not re-count votes [hard boundary]"
-//	genesis_protocol.md §6     "initialise the x/gov and x/slashing params and
-//	                            verify the default tally"
+//	"the tally is Cosmos SDK v0.53.6 x/gov's, used unchanged; no custom
+//	 tally is added"
+//	"and the SDK default tally is retained"
+//	"executed by the x/gov tally; hub and task do not re-count votes
+//	 [hard boundary]"
+//	"initialise the x/gov and x/slashing params and verify the default
+//	 tally"
 //
 // — so this file classifies and nothing else. The classification exists because
 // app/gov_proposal_ante.go uses it to keep builder-domain actions in their own
@@ -44,8 +43,8 @@ const (
 	// GovDomainStandard is everything that is not reserved to builders.
 	GovDomainStandard GovDomain = "standard"
 	// GovDomainBuilder marks operations reserved for the builder domain. In
-	// Phase 0 builders hold no bond and no voting power (governance_protocol.md §2:104,
-	// parameter_table.md builder_bond = 0), so these are decided by the same validator
+	// Phase 0 builders hold no bond and no voting power (the governance protocol:104,
+	// the parameter tablebuilder_bond = 0), so these are decided by the same validator
 	// electorate as everything else; the marking only keeps them in their own
 	// proposal.
 	GovDomainBuilder GovDomain = "builder"

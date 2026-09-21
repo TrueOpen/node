@@ -186,50 +186,6 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 	}
 }
 
-func (f *verificationFixture) commit(operator string, commitHash []byte) types.VerifyCommitV1 {
-	return types.VerifyCommitV1{
-		SchemaVersion: types.VerifyCommitSchemaVersionV1, ChainId: sdk.UnwrapSDKContext(f.ctx).ChainID(),
-		TaskId: f.taskID, VerifyRound: types.VerifyRoundV1, VerifierOperatorAddress: operator,
-		ServiceAuthorizationNonce: f.hub.nonce, CommitHash: commitHash, ExpiryHeight: 100,
-		ServiceSignature: bytes.Repeat([]byte{0x71}, 64),
-	}
-}
-
-func (f *verificationFixture) inferReceipt(t *testing.T) types.InferReceiptV2 {
-	t.Helper()
-	receipt := types.InferReceiptV2{
-		SchemaVersion: types.InferReceiptSchemaVersionV2, ChainId: sdk.UnwrapSDKContext(f.ctx).ChainID(),
-		TaskId: f.taskID, TaskHash: bytes.Repeat([]byte{0xd1}, types.Hash32Len),
-		WorkerOperatorAddress: f.operators[0], ServiceAuthorizationNonce: 7,
-		GenerationParamsDigest: f.genDigest, OutputHash: bytes.Repeat([]byte{0xd2}, types.Hash32Len),
-		OutputSizeBytes: 12, ExpiryHeight: 100, GeneratedTokenCount: 3, OutputLeafCount: 1,
-		ServiceSignature: bytes.Repeat([]byte{0xd3}, 64),
-	}
-	inputTokenHash, inputTokenSize, err := types.InputTokenIDsHashV1([]uint32{1})
-	require.NoError(t, err)
-	generatedTokenHash, generatedTokenSize, err := types.GeneratedTokenIDsHashV1([]uint32{2, 3, 4})
-	require.NoError(t, err)
-	workerValueHash, workerValueSize, err := types.WorkerValueCommitment(types.WorkerValueCommitmentV2{
-		SchemaVersion: types.WorkerValueCommitmentSchemaVersionV2, ChainId: receipt.ChainId,
-		TaskId: receipt.TaskId, AcceptedTaskHash: receipt.TaskHash,
-		WorkerOperatorAddress: receipt.WorkerOperatorAddress, GenerationParamsDigest: receipt.GenerationParamsDigest,
-		EvidenceSchemaHash: f.hub.profile.ExecutionSnapshot.VerificationProfile.EvidenceSchemaHash,
-		OutputHash:         receipt.OutputHash, OutputSizeBytes: receipt.OutputSizeBytes,
-		FinishReason: types.FinishReasonV1_FINISH_REASON_V1_EOS_TOKEN,
-		TraceRoot:    bytes.Repeat([]byte{0xa3}, types.Hash32Len), TraceEncodedSizeBytes: 3072,
-		CheckpointRoot: bytes.Repeat([]byte{0xa4}, types.Hash32Len), CheckpointEncodedSizeBytes: 1024,
-		GeneratedTokenCount: receipt.GeneratedTokenCount, OutputLeafCount: receipt.OutputLeafCount,
-		InputTokenIdsHash: inputTokenHash[:], GeneratedTokenIdsHash: generatedTokenHash[:],
-		InputTokenIdsSizeBytes: inputTokenSize, GeneratedTokenIdsSizeBytes: generatedTokenSize,
-	})
-	require.NoError(t, err)
-	receipt.RequiredEvidenceCommitments = []types.EvidenceCommitmentV1{{
-		EvidenceKind:       shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
-		EvidenceHashOrRoot: workerValueHash[:], EncodedSizeBytes: workerValueSize,
-	}}
-	return receipt
-}
-
 func (f *verificationFixture) setTaskBuilders(t *testing.T, builders ...string) {
 	t.Helper()
 	builderSetHash := bytes.Repeat([]byte{0xe1}, types.Hash32Len)
@@ -242,17 +198,6 @@ func (f *verificationFixture) setTaskBuilders(t *testing.T, builders ...string) 
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: membersHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}))
-}
-
-func (f *verificationFixture) setDutyBuilders(t *testing.T, primary string) []string {
-	t.Helper()
-	builders := []string{
-		primary,
-		sdk.AccAddress(bytes.Repeat([]byte{0xd1}, 20)).String(),
-		sdk.AccAddress(bytes.Repeat([]byte{0xd2}, 20)).String(),
-	}
-	f.setTaskBuilders(t, builders...)
-	return builders
 }
 
 // bytes32 builds a deterministic 32-byte value for fixtures that only need a

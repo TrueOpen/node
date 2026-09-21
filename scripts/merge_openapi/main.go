@@ -372,7 +372,7 @@ func appendDescription(existing any, suffix string) string {
 	return description + "\n\n" + suffix
 }
 
-// applyKeysetPaginationContract documents the two keeper_api_contract.md §16.1
+// applyKeysetPaginationContract documents the two the API contract
 // keyset query parameters wherever the generator emitted them, and fails closed
 // on any Cosmos offset/count_total parameter.
 //

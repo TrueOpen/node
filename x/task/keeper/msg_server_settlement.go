@@ -22,7 +22,7 @@ import (
 )
 
 // SettleTask is the single funded terminal transition of a task. It follows the
-// fixed handler order of keeper_api_contract.md §10.10a: an existing settlement is a
+// fixed handler order: an existing settlement is a
 // NOOP replay before anything is rebuilt, the facts and the plan are derived by
 // the two pure builders, and only then does ApplySettlementPlan move money — all
 // inside one cache context, so any failure leaves zero writes.
@@ -55,8 +55,8 @@ func (m msgServer) SettleTask(ctx context.Context, req *types.MsgSettleTask) (*t
 	// authorizeSettlementSubmitter enforces §10.10a's SETTLE grace window and
 	// reports whether the submitter was the duty Builder inside it. The boolean is
 	// discarded: its only consumer was the Builder contribution credit, and Phase 0
-	// does not create BuilderContributionState at all (keeper_api_contract.md:3273/:3635,
-	// keeper_data_structure_contract.md:1564). The authorization it just performed
+	// does not create BuilderContributionState at all (the API contract:3273/:3635,
+	// the data-structure contract:1564). The authorization it just performed
 	// is the live half.
 	if _, err := m.k.authorizeSettlementSubmitter(ctx, inputs, req.SubmitterAddress, height); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSignature, err.Error())
@@ -633,8 +633,8 @@ func (k Keeper) applySettlementPlan(
 			return types.TaskSettlementState{}, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 		}
 	}
-	// No settle-stage Builder contribution is credited. keeper_api_contract.md:3273/:3635
-	// and keeper_data_structure_contract.md:1564 all say Phase 0 does not create
+	// No settle-stage Builder contribution is credited. the API contract:3273/:3635
+	// and the data-structure contract:1564 all say Phase 0 does not create
 	// BuilderContributionState:
 	// it has no Builder reward or term consumer, and its four counter arrays have
 	// no complete producer. The proposal receipt and its event are the audit fact.
@@ -898,7 +898,7 @@ func (k Keeper) releaseTaskLiabilitiesForSettlement(ctx context.Context, inputs 
 	return nil
 }
 
-// recordTaskSupportCompletions is condition 1 of keeper_api_contract.md §10.9's
+// recordTaskSupportCompletions is condition 1.9's
 // activation rule:
 //
 //	"Promotion of a support to active is triggered after task finality, not by a
@@ -938,7 +938,7 @@ func (k Keeper) recordTaskSupportCompletions(
 	if !found {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "settled task references an unknown profile")
 	}
-	// parameter_table.md freezes tier 1..5 -> P0..P4 as a table; RewardBucketForResourceTier
+	// the parameter tablefreezes tier 1..5 -> P0..P4 as a table; RewardBucketForResourceTier
 	// reproduces it literally rather than inferring it from coincident enum values.
 	if profile.ResourceTier > math.MaxUint32 {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "profile resource_tier is out of range")

@@ -280,16 +280,3 @@ func dataUnavailableTaskID() []byte {
 func dataUnavailableDigest(value byte) []byte {
 	return bytes.Repeat([]byte{value}, tasktypes.Hash32Len)
 }
-
-func dataUnavailableWireSlots(digests [][]byte) []tasktypes.BuilderDataUnavailableSlotV1 {
-	slots := make([]tasktypes.BuilderDataUnavailableSlotV1, len(digests))
-	for i, digest := range digests {
-		if len(digest) == 0 {
-			continue
-		}
-		slots[i].XReportDigest = &tasktypes.BuilderDataUnavailableSlotV1_ReportDigest{
-			ReportDigest: bytes.Clone(digest),
-		}
-	}
-	return slots
-}

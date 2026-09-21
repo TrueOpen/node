@@ -2,7 +2,7 @@ package app
 
 // x/gov tally boundary tests.
 //
-// governance_protocol.md §2 requires the chain to use Cosmos SDK x/gov's default tally
+// the governance protocol requires the chain to use Cosmos SDK x/gov's default tally
 // unchanged, and states the obligation these tests discharge:
 //
 //	"the tests must cover the abstain, jailed and unbond boundaries, and must
@@ -191,7 +191,7 @@ func TestTallyAbstainIsIncludedInVetoDenominator(t *testing.T) {
 // --- jailed ----------------------------------------------------------------
 
 // TestTallyJailedValidatorLeavesNumeratorButStaysInQuorumDenominator pins the
-// asymmetry ADR-0018 Decision 3 calls out as a Phase 0 liveness risk: getCurrentValidators
+// asymmetry calls out as a Phase 0 liveness risk: getCurrentValidators
 // iterates the power index (tally.go:122), which jailing removes, so the jailed
 // validator's delegations contribute nothing; but its tokens are still in the
 // bonded pool, so they keep inflating the quorum denominator until it unbonds.

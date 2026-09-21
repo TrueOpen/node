@@ -3,7 +3,7 @@ package app
 // FinalizeBlock wrapper that keeps the beacon sentinel out of the block's
 // transaction results.
 //
-// Contract keeper_api_contract.md §1.4:407 requires that the
+// The API contract requires that the
 // "sentinel must not enter Ante/gas/Tx result". Two of the three already hold
 // without any help from us: baseapp.internalFinalizeBlock (SDK v0.53.6
 // abci.go:805)
@@ -19,8 +19,8 @@ package app
 //
 // "Zero tx result" is not reachable under ABCI. CometBFT v0.38
 // state/execution.go:253 and :759 assert len(block.Txs) == len(TxResults) and
-// abort the node when they differ, and the sentinel is block.Txs[0] by design
-// (ADR-0011). The best reachable state is therefore a neutral placeholder:
+// abort the node when they differ, and the sentinel is block.Txs[0] by design.
+// The best reachable state is therefore a neutral placeholder:
 // code=0, no data, no gas, no events.
 //
 // Why overwrite instead of strip-and-splice: PreBlocker reads the sentinel

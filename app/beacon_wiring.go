@@ -8,7 +8,7 @@ package app
 // implementation without touching app.go's main constructor).
 //
 // There is no compile-time policy switch here any more.
-// randomness_and_sampling_protocol.md §3 states that the single source of the
+// the sampling protocol states that the single source of the
 // consensus policy is the committed `BeaconParamsV1.vrf_required_from_height`;
 // a build tag may only add a stricter startup-time configuration assertion (see
 // beacon_wiring_mainnet.go), and must not change the ACCEPT/REJECT decision of
@@ -82,7 +82,7 @@ func vrfKeyPath(nodeHome string) string {
 
 // loadProposerSignerOrNil attempts to load the local proposer's **VRF** hot
 // key from the node's config directory (not priv_validator_key.json; see the
-// header of proposer_signer_vrf.go and ADR-0011 for why). Any failure returns
+// header of proposer_signer_vrf.go and for why). Any failure returns
 // nil and logs; the node is then unable to produce a sentinel as proposer.
 func loadProposerSignerOrNil(logger log.Logger, nodeHome string) ProposerSigner {
 	if nodeHome == "" {

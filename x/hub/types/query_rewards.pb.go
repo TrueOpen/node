@@ -24,8 +24,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// RewardEpochProgressViewV1 is the public projection of RewardEpochCursorState
-// (keeper_api_contract.md §16.5). The internal cursor keys
+// RewardEpochProgressViewV1 is the public projection of RewardEpochCursorState.
+// The internal cursor keys
 // last_order_value_bucket / last_task_id are deliberately not exposed, and the
 // cursor is deleted on completion, so a finished epoch returns NotFound instead
 // of a fabricated total or root.
@@ -107,7 +107,7 @@ func (m *RewardEpochProgressViewV1) GetAppliedCount() uint64 {
 }
 
 // ParameterBucketVersionViewV1 projects the public content of one timeout
-// bucket version (keeper_api_contract.md §16.5). It hides task_ref_count and store
+// bucket version. It hides task_ref_count and store
 // keys, and bucket_hash is the same value ParameterBucketVersionState stores as
 // content_hash.
 // ParameterBucketVersionViewV1 defines the ParameterBucketVersionViewV1 wire type.
@@ -219,8 +219,8 @@ func (m *ParameterBucketVersionViewV1) GetEncodedSizeBytes() uint32 {
 	return 0
 }
 
-// QueryCompetitionEpochRequest selects one competition bucket epoch
-// (keeper_api_contract.md §16.4); reward_bucket is checked against the allowlist.
+// QueryCompetitionEpochRequest selects one competition bucket epoch;
+// reward_bucket is checked against the allowlist.
 // QueryCompetitionEpochRequest defines the QueryCompetitionEpochRequest wire type.
 type QueryCompetitionEpochRequest struct {
 	RewardBucket RewardBucket `protobuf:"varint,1,opt,name=reward_bucket,json=rewardBucket,proto3,enum=hub.v1.RewardBucket" json:"reward_bucket,omitempty"`
@@ -319,8 +319,7 @@ func (m *QueryCompetitionEpochResponse) GetEpochState() RewardCompetitionEpochSt
 	return RewardCompetitionEpochState{}
 }
 
-// QueryRewardEpochCursorRequest selects one bounded runner cursor
-// (keeper_api_contract.md §16.4).
+// QueryRewardEpochCursorRequest selects one bounded runner cursor.
 // QueryRewardEpochCursorRequest defines the QueryRewardEpochCursorRequest wire type.
 type QueryRewardEpochCursorRequest struct {
 	Epoch        uint64       `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
@@ -523,7 +522,7 @@ func (m *QueryRewardEpochAuditResponse) GetAudit() RewardEpochAuditState {
 	return RewardEpochAuditState{}
 }
 
-// QueryTreasuryRequest has no selector (keeper_api_contract.md §16.4).
+// QueryTreasuryRequest has no selector.
 type QueryTreasuryRequest struct {
 }
 
@@ -607,7 +606,7 @@ func (m *QueryTreasuryResponse) GetTreasury() TreasuryState {
 	return TreasuryState{}
 }
 
-// QueryFreezeSignalRequest selects one freeze signal (keeper_api_contract.md §16.3).
+// QueryFreezeSignalRequest selects one freeze signal.
 type QueryFreezeSignalRequest struct {
 	FreezeSignalId []byte `protobuf:"bytes,1,opt,name=freeze_signal_id,json=freezeSignalId,proto3" json:"freeze_signal_id,omitempty"`
 }
@@ -699,8 +698,7 @@ func (m *QueryFreezeSignalResponse) GetSignal() FreezeSignalState {
 	return FreezeSignalState{}
 }
 
-// QueryFreezeSignalsRequest pages one profile's signals by status
-// (keeper_api_contract.md §16.3).
+// QueryFreezeSignalsRequest pages one profile's signals by status.
 // QueryFreezeSignalsRequest defines the QueryFreezeSignalsRequest wire type.
 type QueryFreezeSignalsRequest struct {
 	ModelId        string                   `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
@@ -825,8 +823,7 @@ func (m *QueryFreezeSignalsResponse) GetPage() types.QueryPageResponseV1 {
 	return types.QueryPageResponseV1{}
 }
 
-// QueryEmergencyFreezeVotesRequest pages one signal's ballots
-// (keeper_api_contract.md §16.3).
+// QueryEmergencyFreezeVotesRequest pages one signal's ballots.
 // QueryEmergencyFreezeVotesRequest defines the QueryEmergencyFreezeVotesRequest wire type.
 type QueryEmergencyFreezeVotesRequest struct {
 	FreezeSignalId []byte                   `protobuf:"bytes,1,opt,name=freeze_signal_id,json=freezeSignalId,proto3" json:"freeze_signal_id,omitempty"`

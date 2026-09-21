@@ -986,7 +986,7 @@ type profileSupportAggregate struct {
 // The fold below is deliberately the *production* fold, not a second reading of
 // it. keeper.applyModelSupportMutation adds eligible_support_stake_snapshot and
 // active_support_stake_snapshot unconditionally and moves active_supporter_count
-// iff active_support_stake_snapshot > 0 (keeper_data_structure_contract.md:730
+// iff active_support_stake_snapshot > 0 (the data-structure contract:730
 // "active_support_stake_snapshot holds the value that was actually added to the
 // numerator, eligible_support_stake_snapshot holds the value that was actually
 // added to the denominator"). An
@@ -1013,14 +1013,14 @@ type profileSupportAggregate struct {
 // types.EffectiveActiveBond, the budgeted SupportDeactivateCursor drain after a
 // freeze and the budgeted ProcessExpiredModelSupports sweep all leave a stale but
 // correct snapshot in place for one or more blocks, and
-// keeper_data_structure_contract.md:730 forbids re-deriving the old value from the
+// the data-structure contract:730 forbids re-deriving the old value from the
 // changed bond ("deducing the old value back out of the changed bond is not
 // allowed").
 // Worse, the equality form would be adversarially reachable: unbonding only
 // deactivates supports whose bond fell below profile.min_stake
 // (deactivateSupportsBelowBond), so any operator could unbond to just above
 // min_stake and halt FinalizeBlock for the whole chain.
-// keeper_data_structure_contract.md:728 assigns
+// the data-structure contract:728 assigns
 // the full row-by-row recompute to Genesis for the same reason, and
 // types.validateSupportGenesis performs it there at GenesisEpoch.
 //
@@ -1160,14 +1160,14 @@ type modelProfileAggregate struct {
 // latest_profile_version and registration_fee_paid from the ProfileState rows.
 //
 // active_profile_count is a delta-maintained field:
-// keeper_data_structure_contract.md:704 "if a profile's ACTIVE status changes, also
+// the data-structure contract:704 "if a profile's ACTIVE status changes, also
 // maintain ModelState.active_profile_count in step", and the only writer
 // is the +/-1 pair in deriveProfileAndModelStatus plus applyActiveProfileCountDelta
 // on the governance path. Delta bookkeeping fails in exactly the way an aggregate
 // read cannot see: once a transition is missed or double-counted the field is
 // wrong forever, and because deriveModelStatus turns "active_profile_count > 0"
 // straight into ModelState.status == ACTIVE, a drift of one silently changes the
-// parent gate of every profile under the model (keeper_data_structure_contract.md:696
+// parent gate of every profile under the model (the data-structure contract:696
 // "model ACTIVE can only mean that at least one profile has matured"). The
 // governance-unfreeze path makes that bookkeeping
 // materially more dynamic: landing on REGISTERED returns status_source to
@@ -1177,7 +1177,7 @@ type modelProfileAggregate struct {
 // from a lost update. This invariant therefore never reads the field to validate
 // it; it counts the ACTIVE profiles and compares.
 //
-// The recount is the same one keeper_data_structure_contract.md:728 already requires
+// The recount is the same one the data-structure contract:728 already requires
 // of Genesis ("ModelState.active_profile_count must be recomputed from the final
 // status of each profile and match item by item; imported derived aggregates are
 // not accepted") and that types.validateModelGenesis performs at import,
@@ -1502,7 +1502,7 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 //	claimable_builder_reward
 //
 // claimable_amount is not a fifth account — §1830-1834 of
-// keeper_data_structure_contract.md defines it as the checked sum of the THREE claimable
+// the data-structure contractdefines it as the checked sum of the THREE claimable
 // sub-ledgers and explicitly excludes pending_task_fee_amount. So the module
 // balance is Σ(claimable_amount + pending_task_fee_amount) over all rows, and
 // dropping pending_task_fee_amount here would under-count the escrow by exactly

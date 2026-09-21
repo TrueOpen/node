@@ -295,7 +295,7 @@ func walkTaskParamsLeaves(t *testing.T, path string, value reflect.Value, visit 
 
 // flatEvidenceFieldsForTest is EvidenceLimitParamsV1 with both repeated fields
 // written as a loose uint32_be count followed by sibling elements, i.e. without
-// the REPEATED_V1 frame canonical_encoding_and_domain_hashing.md §4.4 requires. It
+// the REPEATED_V1 frame the canonical encoding contract requires. It
 // exists only so the tests can
 // show this shape is not what TaskParamsHashV1 commits to.
 func flatEvidenceFieldsForTest(p TaskParamsV1) [][]byte {

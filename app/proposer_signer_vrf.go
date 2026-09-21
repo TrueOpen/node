@@ -2,9 +2,9 @@ package app
 
 // File-backed VRF ProposerSigner.
 //
-// randomness_and_sampling_protocol.md §3.1: the beacon uses a **separate VRF
+// the sampling protocol: the beacon uses a **separate VRF
 // hot key**, kept apart from the consensus signing key, whose public key is
-// registered on chain under the stable operator address (ADR-0004). ADR-0011
+// registered on chain under the stable operator address .
 // explains why the consensus key cannot be reused: ECVRF Prove needs
 // `gamma = x * hash_to_curve(pk, alpha)`, while tmkms/HSM only exposes the
 // fixed-base `R = r*B` and `S = r + H(...)*a`, so that primitive is out of

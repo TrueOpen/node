@@ -1,6 +1,6 @@
 // Package bridge holds the TrueOpen-owned wiring that turns the pinned upstream
 // Hyperlane modules into the single canonical USDC path
-// (cross_chain_asset_bridge_protocol.md §3.2). It contains no copy of Hyperlane
+// (the bridge protocol). It contains no copy of Hyperlane
 // proto, state, handler or ISM verification logic: everything here either
 // constrains what the upstream modules may do, or observes what they did.
 package bridge
@@ -30,7 +30,7 @@ type BankKeeper interface {
 
 // GuardedBankKeeper is the only bank keeper the Hyperlane modules ever see.
 //
-// cross_chain_asset_bridge_protocol.md §5.1 makes the warp module the sole
+// the bridge protocol makes the warp module the sole
 // legal source of business_denom mint and burn, and notes that Cosmos module
 // permissions are not denom-scoped — a module holding Minter may mint
 // anything. Interposing here

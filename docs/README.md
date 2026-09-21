@@ -1,7 +1,7 @@
 # TrueOpen Node Documentation
 
 This directory documents the node implementation. It does not define the
-protocol: the normative contract lives in the `TrueOpen/monorepo` specification
+protocol: the normative contract lives in the `` specification
 documents, and the wire format lives in the `TrueOpen/wire` release this
 repository pins.
 
@@ -9,9 +9,9 @@ repository pins.
 
 When two statements disagree, the higher one wins:
 
-1. The `TrueOpen/monorepo` protocol and service-design documents
-   (`keeper_api_contract.md`, `keeper_data_structure_contract.md`, the
-   `10-protocol_specifications` tree, and the accepted ADRs).
+1. The upstream protocol and service-design documents — the API contract, the
+   data-structure contract, the protocol specifications, and the accepted
+   decision records. They are not published in this repository.
 2. The pinned wire release: the descriptor image and domain registry named in
    `wire/pin.json`. Exact field numbers, registered RPC methods and frozen hash
    preimages come from there, never from a table written by hand.

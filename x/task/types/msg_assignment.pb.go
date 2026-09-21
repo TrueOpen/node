@@ -28,7 +28,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // DeadlineLatencyClass is the only latency class set. Values are frozen by
-// keeper_api_contract.md §9.6b because they enter the user-signed task_hash through
+// the API contract because they enter the user-signed task_hash through
 // TaskOrderV2.deadline_policy (§5.13 field 20).
 // DeadlineLatencyClass defines the DeadlineLatencyClass wire type.
 type DeadlineLatencyClass int32

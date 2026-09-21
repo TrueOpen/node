@@ -13,7 +13,7 @@
 
 > **⚠️ Rewritten twice.**
 > 2026-09-17: the old L2 §2.3–2.4 and the old L3 were written around "builders
-> vote weighted by bond"; after main landed ADR-0018 Phase 0 builders have no
+> vote weighted by bond"; after main landed Phase 0 builders have no
 > bond, the implementation was deleted, and those scenarios no longer exist.
 > 2026-09-18: after checking against monorepo governance protocol v0.5, **the
 > custom tally function was removed entirely** (§2, "no TrueOpen custom tally is

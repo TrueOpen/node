@@ -202,25 +202,6 @@ func mustTestProfileState(modelID, proposer string, profileVersion uint32, minSt
 	}
 }
 
-func refreshTestProfileEvidenceSchemaHash(profile *types.ProfileState) {
-	projection := shared.ModelProfileProjection{
-		ModelId: profile.ModelId, ProfileVersion: profile.ProfileVersion,
-		ManifestHash: profile.ManifestHash, TokenizerHash: profile.TokenizerHash,
-		RuntimeClass: profile.RuntimeClass, RequiredTopK: profile.RequiredTopK,
-		TaskTypes: profile.TaskTypes, GenerationType: profile.GenerationType,
-		ResourceTier: profile.ResourceTier, ChallengeOpenWindowBlocks: profile.ChallengeOpenWindowBlocks,
-		VerificationProfile: profile.VerificationProfile, VerificationThresholds: profile.VerificationThresholds,
-		BatchVerification: profile.BatchVerification, PricingProfile: profile.PricingProfile,
-		TimeoutBootstrapProfile: profile.TimeoutBootstrapProfile, SchemaHash: profile.SchemaHash,
-		PreviousProfileVersion: profile.PreviousProfileVersion,
-	}
-	hash, err := types.EvidenceSchemaHash(projection)
-	if err != nil {
-		panic(err)
-	}
-	profile.VerificationProfile.EvidenceSchemaHash = hash
-}
-
 func encodeCustodyKey[K any](t *testing.T, codec collcodec.KeyCodec[K], key K) []byte {
 	t.Helper()
 	encoded := make([]byte, codec.Size(key))

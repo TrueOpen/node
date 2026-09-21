@@ -26,7 +26,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // TreasuryPurposeCode is the closed purpose set of a governance treasury spend.
-// Values are frozen by keeper_api_contract.md §9.6b.
+// Values are frozen.
 // TreasuryPurposeCode defines the TreasuryPurposeCode wire type.
 type TreasuryPurposeCode int32
 
@@ -68,7 +68,7 @@ func (TreasuryPurposeCode) EnumDescriptor() ([]byte, []int) {
 }
 
 // TreasurySourceKind identifies where a non-zero treasury inflow came from.
-// Values are frozen by keeper_api_contract.md §9.6b; §5.11 event code 80 binds each
+// Values are frozen event code 80 binds each
 // value to the authoritative source ID it must carry (settlement_id, fault_id
 // or the §9.6c treasury action_digest).
 // TreasurySourceKind defines the TreasurySourceKind wire type.
@@ -111,11 +111,10 @@ func (TreasurySourceKind) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_5860a4e086969889, []int{1}
 }
 
-// TreasuryState is the protocol treasury balance and its monotonic version
-// (keeper_data_structure_contract.md §6.7).
+// TreasuryState is the protocol treasury balance and its monotonic version.
 //
 // V1 has no maintenance-rate controller and no automatic infrastructure
-// reward: keeper_api_contract.md §5.4 restricts Treasury outflow to x/gov approved
+// reward: the API contract restricts Treasury outflow to x/gov approved
 // typed TreasurySpend items, and unspent budget simply stays here. The
 // block-end invariant of §5.3 requires this balance to equal the treasury
 // module account balance.
@@ -173,7 +172,7 @@ func (m *TreasuryState) GetTreasuryVersion() uint64 {
 }
 
 // TreasurySpendReceiptState deduplicates one governance spend item inside the
-// x/gov replay window (keeper_data_structure_contract.md §6.7, key
+// x/gov replay window (the data-structure contract, key
 // (proposal_id, item_index)).
 //
 // prune_height and the action facts are stored explicitly so Genesis can rebuild
@@ -601,7 +600,7 @@ func (*TreasurySpendEpochCleanupCursorState) XXX_OneofWrappers() []interface{} {
 }
 
 // ExecuteTreasurySpendV1 is the internal typed governance action of
-// keeper_api_contract.md §9.6c. It is NOT a Tx Msg: it has no
+// the API contract. It is NOT a Tx Msg: it has no
 // cosmos.msg.v1.signer, no Tx RPC, no AutoCLI entry and no permissionless
 // event, and it is only invoked from an x/gov accepted proposal item.
 //

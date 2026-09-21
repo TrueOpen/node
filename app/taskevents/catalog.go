@@ -11,7 +11,7 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// This catalog mirrors keeper_api_contract.md §5.11 through the single
+// This catalog mirrors the API contract through the single
 // shared.v1.ProtocolEventCodeV1 registry. Blocked challenge and runner-level
 // summary events remain absent; adding a payload requires a frozen registry row
 // and the one-to-one catalog tests below.

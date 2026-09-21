@@ -8,7 +8,7 @@ import (
 )
 
 // Every consensus domain used below resolves through the shared registry so an
-// unregistered domain cannot reach a digest (keeper_api_contract.md §1.4 rule 1).
+// unregistered domain cannot reach a digest (the API contract rule 1).
 // Ordered field encodings stay in the helper that owns each digest; the registry
 // records framing, field order, producer, consumers, Store, Event and Query.
 var (

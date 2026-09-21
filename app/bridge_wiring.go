@@ -19,7 +19,7 @@ import (
 // HyperlaneBankKeepers is what the two upstream Hyperlane modules receive
 // instead of the raw bank keeper.
 //
-// cross_chain_asset_bridge_protocol.md §5.1 makes the warp module the only
+// the bridge protocol makes the warp module the only
 // legal mint/burn authority for business_denom, and observes that a Cosmos
 // Minter grant is not scoped to a denom. Interposing here is what turns that
 // open grant into the closed set the
@@ -47,7 +47,7 @@ var StakingBankKeeperBinding = bindGuardedInterface[stakingtypes.BankKeeper, Gov
 
 // ProvideBridgeUpstream hands the Hub the read-only projection of the Hyperlane
 // objects its route guard compares against. Supplying it here is what keeps
-// x/hub free of any Hyperlane import (cross_chain_asset_bridge_protocol.md §3.2).
+// x/hub free of any Hyperlane import (the bridge protocol).
 func ProvideBridgeUpstream(core *hlcorekeeper.Keeper, warp hlwarpkeeper.Keeper) hubtypes.BridgeUpstream {
 	return appbridge.NewUpstreamAdapter(core, warp)
 }

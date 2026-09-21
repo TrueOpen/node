@@ -23,7 +23,7 @@ const heightDomainBoundOwner = "x/shared/types/arithmetic.go"
 // TestHeightDomainBoundHasOneOwner keeps the usable block height range stated in
 // exactly one place.
 //
-// keeper_api_contract.md §3 models Height as uint64 while the consensus engine
+// the API contract models Height as uint64 while the consensus engine
 // publishes and consumes it as int64, so (MaxInt64, MaxUint64] is representable
 // but unusable.
 // That gap is only safe while every producer and consumer agrees on where it

@@ -46,7 +46,7 @@ func TestTaskQueryCapsRejectMissingHubProjection(t *testing.T) {
 	require.Equal(t, codes.Internal, status.Code(err))
 }
 
-// keeper_api_contract.md §16.1: limit=0 uses the default, a non-zero limit above
+// the API contract: limit=0 uses the default, a non-zero limit above
 // the cap is
 // rejected rather than silently clamped, and an over-long page token is rejected.
 func TestResolveQueryPage(t *testing.T) {

@@ -24,13 +24,6 @@ type internalFixture struct {
 	keeper Keeper
 }
 
-func ensureInternalFixtureChainID(f *internalFixture) {
-	sdkCtx := sdk.UnwrapSDKContext(f.ctx)
-	if sdkCtx.ChainID() == "" {
-		f.ctx = sdk.WrapSDKContext(sdkCtx.WithChainID("trueopen-test-1"))
-	}
-}
-
 type internalStubHubKeeper struct{ types.HubKeeper }
 
 func (internalStubHubKeeper) AcquireBeaconConsumerRef(context.Context, uint64, hubtypes.BeaconConsumerKind, string) error {

@@ -102,10 +102,10 @@ var (
 	ParamsKey = collections.NewPrefix("p_hub")
 
 	// ParamsMetaKey holds the HubParamsMetaState singleton that
-	// keeper_api_contract.md §18.0 needs for `expected_version == current_version`
+	// the API contract needs for `expected_version == current_version`
 	// and that §5.11 event 110 needs for `old_version`/`params_hash`.
 	//
-	// CONTRACT-GAP: keeper_data_structure_contract.md registers no HubParamsMetaState row;
+	// CONTRACT-GAP: the data-structure contractregisters no HubParamsMetaState row;
 	// it is the minimal state the two interface-contract requirements above
 	// force into existence. Document side must register it.
 	ParamsMetaKey = MustVersionedStorePrefix("params_meta", CurrentStoreSchemaVersion)
@@ -146,7 +146,7 @@ var (
 	// owes a bounded supporter fan-out; the EndBlock cursor deletes it on DONE.
 	SupportDeactivateCursorKey = MustVersionedStorePrefix("support_deactivate_cursor", CurrentStoreSchemaVersion)
 
-	// ---- Global epoch stable-slot CandidatePool (keeper_data_structure_contract.md §3.2) ----
+	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
 	//
 	// The six PR #88 per-(model, profile_version, duty) prefixes
 	// (candidate_pool_snapshot as an inline candidate vector, candidate_pool_current,
@@ -186,7 +186,7 @@ var (
 	ServiceBondEffectiveIndexKey         = MustVersionedStorePrefix("service_bond_effective", CurrentStoreSchemaVersion)
 
 	// There is no jail or tombstone prefix either: both are operator-global
-	// counters on ServiceBondState (keeper_data_structure_contract.md §6.4).
+	// counters on ServiceBondState (the data-structure contract).
 	RoleFaultKey           = MustVersionedStorePrefix("role_fault", CurrentStoreSchemaVersion)
 	RoleFaultPruneIndexKey = MustVersionedStorePrefix("role_fault_prune", CurrentStoreSchemaVersion)
 	// RoleFaultByTaskIndexKey is the (task_id, fault_id) lookup direction §6.6's
@@ -236,7 +236,7 @@ var (
 	EmergencyFreezeVoteStateKey      = MustVersionedStorePrefix("emergency_freeze_vote_state", CurrentStoreSchemaVersion)
 )
 
-// cross_chain_asset_bridge_protocol.md §3.2 forbids mirroring Hyperlane state; every prefix below
+// the bridge protocol forbids mirroring Hyperlane state; every prefix below
 // holds TrueOpen's own guard, governance and supply-audit rows only. The upstream
 // modules keep their own stores and remain their own owner.
 var (
@@ -254,7 +254,7 @@ var (
 )
 
 // BridgeEpochUsagePruneKeyPair = (prune_epoch, reward_epoch) per
-// keeper_data_structure_contract.md §6.6a. The due epoch leads so EndBlock can read
+// the data-structure contract. The due epoch leads so EndBlock can read
 // "everything due by epoch E" as one bounded ascending range.
 type BridgeEpochUsagePruneKeyPair = collections.Pair[uint64, uint64]
 
@@ -310,7 +310,7 @@ func NewBuilderSetTaskRefKey(taskID shared.Hash32Key, version uint64) BuilderSet
 }
 
 // BuilderSetPruneKeyTriple = (prune_epoch, builder_set_id, phase), the exact
-// component order keeper_data_structure_contract.md registers (D-24). The previous key put a
+// component order the data-structure contractregisters (D-24). The previous key put a
 // due *height* in K1; the schedule is denominated in retention *epochs*, so the
 // height was a derived value baked into a consensus key and the index could not
 // be read as "everything due by epoch E" without knowing epoch_length_blocks.
@@ -589,7 +589,7 @@ func NewDailySupportKey(epoch uint64, operatorAddress string) DailySupportKey {
 
 // DailySupportExpiryIndexKeyTriple is (expiry_epoch, operator_address,
 // support_epoch), the exact component order frozen by
-// keeper_data_structure_contract.md §6.1. The previous
+// the data-structure contract. The previous
 // (expiry_epoch, support_epoch, operator_address) order made the index unusable
 // for an operator-scoped bounded prefix scan.
 type DailySupportExpiryIndexKeyTriple = collections.Triple[uint64, string, uint64]
@@ -598,7 +598,7 @@ func NewDailySupportExpiryIndexKey(expiryEpoch uint64, operatorAddress string, s
 	return collections.Join3(expiryEpoch, operatorAddress, supportEpoch)
 }
 
-// ---- Global CandidatePool key types (keeper_data_structure_contract.md §3.2) ----
+// ---- Global CandidatePool key types (the data-structure contract) ----
 //
 // Hash32 key components (snapshot_id, task_id) are lowercase 64-hex strings, the
 // same wire form the rest of the Hub store already uses for Hash32 keys; the raw

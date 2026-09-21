@@ -20,19 +20,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25.10"
-      - name: Authenticate to the private wire module
-        env:
-          WIRE_READ_TOKEN: ${{ secrets.WIRE_READ_TOKEN }}
-        run: |
-          if [ -z "$WIRE_READ_TOKEN" ]; then
-            echo "WIRE_READ_TOKEN is unset, so the private github.com/TrueOpen/wire module cannot be fetched." >&2
-            echo "Add a fine-grained token with contents:read on TrueOpen/wire as the WIRE_READ_TOKEN secret." >&2
-            exit 1
-          fi
-          echo "GOPRIVATE=github.com/TrueOpen/*" >> "$GITHUB_ENV"
-          git config --global \
-            url."https://x-access-token:${WIRE_READ_TOKEN}@github.com/TrueOpen/".insteadOf \
-            "https://github.com/TrueOpen/"
       - name: run linting
         run: |
           make GO=go lint

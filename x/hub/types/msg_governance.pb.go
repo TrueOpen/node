@@ -28,7 +28,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // MsgSubmitFreezeSignal is a permissionless trigger that asks the Keeper to
-// aggregate one profile risk window into a votable object (keeper_api_contract.md
+// aggregate one profile risk window into a votable object (the API contract
 // §9.6a / §10.0a).
 //
 // The request carries only the profile locator plus the gas payer. Every field
@@ -203,7 +203,7 @@ func (*MsgSubmitFreezeSignalResponse) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// MsgEmergencyFreezeVote records one validator ballot (keeper_api_contract.md
+// MsgEmergencyFreezeVote records one validator ballot (the API contract
 // §9.6a / §10.0a).
 //
 // validator_address is the validator operator account and the sole Cosmos
@@ -345,9 +345,9 @@ func (m *MsgEmergencyFreezeVoteResponse) GetStatus() types.MutationStatusV1 {
 	return types.MutationStatusV1_MUTATION_STATUS_V1_UNSPECIFIED
 }
 
-// MsgUpdateTimeoutBucket applies one x/gov accepted timeout bucket version
-// (keeper_api_contract.md §9.6a / §5.2). It is registered on the Hub Msg service
-// because keeper_data_structure_contract.md §2.4 makes the Hub governance handler the only
+// MsgUpdateTimeoutBucket applies one x/gov accepted timeout bucket version.
+// It is registered on the Hub Msg service
+// because the data-structure contract makes the Hub governance handler the only
 // writer of the TimeoutBucket version and pointer rows. The
 // resulting timeout combination must cover the complete task window, so a
 // missing tail bucket cannot create a local fallback.

@@ -14,7 +14,7 @@ type BankKeeper interface {
 	SendCoinsFromModuleToAccount(ctx context.Context, moduleName string, to sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromModuleToModule(ctx context.Context, fromModule, toModule string, amt sdk.Coins) error
 	// GetSupply is the authoritative left-hand side of I-BRIDGE-2
-	// (cross_chain_asset_bridge_protocol.md §5.2). The bridge recomputes the identity
+	// (the bridge protocol). The bridge recomputes the identity
 	// against the bank
 	// rather than trusting its own cumulative counters, so a mint or burn that
 	// escaped the decorated path shows up as a broken invariant instead of a

@@ -89,7 +89,7 @@ CORS_ORIGINS="${CORS_ORIGINS:-*}"
 # burn_vote_veto=true plus the deposit denom. That is deliberate: the "burn"
 # is intercepted by GovernedGovBankKeeper and routed to hub_treasury with
 # a matching treasury-inflow record, so turning the burn off here would silently
-# disable the ADR-0018 Decision 3 residual. Setting proposal_cancel_dest would
+# disable the residual. Setting proposal_cancel_dest would
 # break it the other way, by sending the cancellation fee straight to the
 # treasury account and skipping that record. Leave both alone.
 GOV_FAST="${GOV_FAST:-0}"

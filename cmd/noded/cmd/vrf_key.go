@@ -2,7 +2,7 @@ package cmd
 
 // `noded beacon` — the local operator commands for the beacon VRF hot key.
 //
-// randomness_and_sampling_protocol.md §3.1 requires the beacon to use a VRF hot
+// the sampling protocol requires the beacon to use a VRF hot
 // key kept separate from the consensus signing key, with its public key
 // registered on chain under the stable operator address. These two subcommands
 // cover the two things that must be done on the machine before registration:
@@ -46,7 +46,7 @@ func newVrfKeygenCmd() *cobra.Command {
 		Long: "Generate the local beacon VRF hot key.\n\n" +
 			"The key is written with 0600 permissions and is independent of\n" +
 			"priv_validator_key.json — ECVRF cannot be produced by a consensus\n" +
-			"remote signer (ADR-0011). Register the printed public key on chain with\n" +
+			"remote signer. Register the printed public key on chain with\n" +
 			"`noded tx hub register-vrf-key` before the node proposes a block.\n\n" +
 			"An existing key file is never overwritten: rotating requires a\n" +
 			"MsgRegisterVrfKey that only takes effect in the next epoch, so replacing\n" +

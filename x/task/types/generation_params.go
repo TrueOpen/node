@@ -19,7 +19,7 @@ const (
 )
 
 // CanonicalGenerationParamsV1 returns the exact canonical_json_v1 payload
-// frozen by keeper_api_contract.md §5.6. Defaults are explicit order facts: this
+// frozen. Defaults are explicit order facts: this
 // helper never fills runtime defaults and never reads mutable profile state.
 func CanonicalGenerationParamsV1(
 	modelID string,

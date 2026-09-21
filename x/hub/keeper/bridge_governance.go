@@ -13,7 +13,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// The five bridge actions below are x/gov internal actions: keeper_api_contract.md
+// The five bridge actions below are x/gov internal actions: the API contract
 // §9.6c gives them no Tx route, no AutoCLI entry and no signer field, so each
 // takes the trusted execution locator instead of an authority argument. Every
 // one recomputes its own action digest and compares the caller's expected_*

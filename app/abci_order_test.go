@@ -6,7 +6,7 @@ import (
 )
 
 // TestBeginBlockOrderFrozen asserts the app-level BeginBlocker order matches
-// TrueOpen_Node_Spec.md §14.4.
+// the Node specification.
 // Changing this order is a cross-boundary breaking change; the intent is that
 // any accidental reordering trips the test before the diff can merge.
 func TestBeginBlockOrderFrozen(t *testing.T) {

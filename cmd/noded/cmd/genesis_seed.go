@@ -281,7 +281,7 @@ func validateGenesisSeed(seed genesisSeed) error {
 		return err
 	}
 	// Ruling 16: the minimum service deposit has one source,
-	// params.Service.service_bond_min_initial (keeper_api_contract.md §18.0 field 12).
+	// params.Service.service_bond_min_initial (the API contract field 12).
 	// Seed validation runs offline, so the default params carry the value; the
 	// deleted keeper.MinServiceBond constant was an unregistered duplicate that had
 	// already drifted to half this amount.
@@ -1066,7 +1066,7 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 			VerificationProfile:       projection.VerificationProfile, VerificationThresholds: projection.VerificationThresholds,
 			BatchVerification: projection.BatchVerification, PricingProfile: projection.PricingProfile,
 			TimeoutBootstrapProfile: projection.TimeoutBootstrapProfile, SchemaHash: projection.SchemaHash,
-			// model_registration_chain_structure_and_manifest.md §2 "then set
+			// the model registration contract "then set
 			// ProfileState.ref_price = initial_output_price";
 			// ValidateGenesis requires it to be positive, so a seed without it cannot boot.
 			RefPrice: projection.PricingProfile.InitialOutputPrice,

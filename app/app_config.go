@@ -49,12 +49,12 @@ import (
 )
 
 // BeginBlockOrder is the ordered list of BeginBlocker module names.
-// Frozen per TrueOpen_Node_Spec.md §14.4:
+// Frozen:
 //
 //	distribution -> staking -> trueopen
 //
 // Changes must be paired with a Node spec + Keeper spec update per
-// TrueOpen_Node_Spec.md §14.4 (ABCI Hook Contract).
+// the Node specification (ABCI Hook Contract).
 var BeginBlockOrder = []string{
 	distrtypes.ModuleName,
 	slashingtypes.ModuleName,
@@ -64,7 +64,7 @@ var BeginBlockOrder = []string{
 }
 
 // EndBlockOrder is the ordered list of EndBlocker module names.
-// Frozen per TrueOpen_Node_Spec.md §14.4:
+// Frozen:
 //
 //	gov -> staking -> hub -> task
 //
@@ -93,7 +93,7 @@ var (
 		{Account: hubtypes.TreasuryModuleName},
 		{Account: hubtypes.ServiceBondModuleName},
 		// The warp module account is the single legal mint/burn authority for
-		// business_denom (cross_chain_asset_bridge_protocol.md §5.1). Cosmos
+		// business_denom (the bridge protocol). Cosmos
 		// permissions are not denom-scoped, so app/bridge.GuardedBankKeeper is
 		// what actually closes the set; this grant only makes the one legal
 		// path possible.
@@ -147,7 +147,7 @@ var (
 					// NOTE: staking module is required if HistoricalEntries param > 0
 					// Hook order is frozen in BeginBlockOrder / EndBlockOrder above;
 					// changing the order requires a coordinated Node + Keeper spec update
-					// (see TrueOpen_Node_Spec.md §14.4).
+					// (see the Node specification).
 					BeginBlockers: BeginBlockOrder,
 					EndBlockers:   EndBlockOrder,
 					// The following is mostly only needed when ModuleName != StoreKey name.

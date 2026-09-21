@@ -11,7 +11,7 @@ const (
 )
 
 // RewardBucketForResourceTier is the frozen `profile_resource_tier -> RewardBucket`
-// mapping of parameter_table.md line 143 and model_registration_chain_structure_and_manifest.md §475 / §710:
+// mapping and the model registration contract:
 //
 //	1->P0, 2->P1, 3->P2, 4->P3, 5->P4
 //

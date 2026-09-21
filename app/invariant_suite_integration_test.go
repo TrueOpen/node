@@ -22,41 +22,6 @@ import (
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
 )
 
-func bootAppWithModuleBalances(t *testing.T, moduleBalances map[string]int64) *App {
-	t.Helper()
-	db := dbm.NewMemDB()
-	t.Cleanup(func() { _ = db.Close() })
-	app := New(log.NewNopLogger(), db, nil, true, smokeAppOptions(), baseapp.SetChainID(SimAppChainID))
-	valSet, err := simtestutil.CreateRandomValidatorSet()
-	require.NoError(t, err)
-	priv := secp256k1.GenPrivKey()
-	account := authtypes.NewBaseAccount(priv.PubKey().Address().Bytes(), priv.PubKey(), 0, 0)
-	totalModuleBalance := int64(0)
-	for _, amount := range moduleBalances {
-		require.GreaterOrEqual(t, amount, int64(0))
-		totalModuleBalance += amount
-	}
-	accountCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(100_000_000_000_000)))
-	if totalModuleBalance > 0 {
-		accountCoins = accountCoins.Add(sdk.NewCoin(hubtypes.DefaultBusinessDenom, sdkmath.NewInt(totalModuleBalance)))
-	}
-	balances := []banktypes.Balance{{Address: account.GetAddress().String(), Coins: accountCoins}}
-	genesis, err := simtestutil.GenesisStateWithValSet(app.AppCodec(), app.DefaultGenesis(), valSet, []authtypes.GenesisAccount{account}, balances...)
-	require.NoError(t, err)
-	raw, err := cmtjson.MarshalIndent(genesis, "", " ")
-	require.NoError(t, err)
-	initChainAndCommit(t, app, raw, valSet.Hash())
-	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight() + 1})
-	for name, amount := range moduleBalances {
-		if amount == 0 {
-			continue
-		}
-		require.NoError(t, app.BankKeeper.SendCoinsFromAccountToModule(ctx, account.GetAddress(), name,
-			sdk.NewCoins(sdk.NewCoin(hubtypes.DefaultBusinessDenom, sdkmath.NewInt(amount)))))
-	}
-	return app
-}
-
 func assertSplitInvariants(t *testing.T, app *App, ctx sdk.Context) {
 	t.Helper()
 	hubChecks := app.HubKeeper.InvariantChecks()

@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 
 	"cosmossdk.io/collections"
@@ -424,10 +423,6 @@ func settlementDeadlineHeight(roundsClosedHeight uint64, params types.TaskParams
 		return 0, errorsmod.Wrap(types.ErrInvariantBroken, "settlement deadline is invalid")
 	}
 	return deadline, nil
-}
-
-func equalHash32(left, right []byte) bool {
-	return len(left) == types.Hash32Len && len(right) == types.Hash32Len && bytes.Equal(left, right)
 }
 
 func (k Keeper) taskDataUnavailableConfirmed(

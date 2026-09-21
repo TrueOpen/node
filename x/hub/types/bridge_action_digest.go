@@ -9,7 +9,7 @@ import (
 
 // The five bridge governance actions are x/gov internal actions: they have no
 // Tx route, no AutoCLI entry and no signer field. Their digests are never
-// persisted — keeper_api_contract.md §9.6c keys the bridge rows on proposal_id and
+// persisted — the API contract keys the bridge rows on proposal_id and
 // has the Keeper recompute the digest inside the execution transaction, so
 // replay protection is expressed by the expected_* fields rather than by a
 // stored digest. These functions exist so the Keeper's recomputation and any
