@@ -52,7 +52,7 @@ func TestReadGenesisSeedRejectsRemovedCortexNodeID(t *testing.T) {
   "version": 1,
   "cortex_nodes": [{
     "cortex_node_id": "removed",
-    "operator_address": "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a"
+    "operator_address": "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
   }]
 }`), 0o600))
 

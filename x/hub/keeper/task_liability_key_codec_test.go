@@ -18,7 +18,7 @@ import (
 func TestTaskLiabilityCollectionsUseRawHash32TaskIDs(t *testing.T) {
 	f := initFixture(t)
 	taskID := bytes.Repeat([]byte{0x61}, shared.Hash32KeySize)
-	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
 	duty := shared.DutyWorker
 
 	// Non-terminal Hash32 is exactly 32 bytes with no length prefix and no
@@ -61,7 +61,7 @@ func TestTaskLiabilityPrefixOrderSurvivesTheRawRetype(t *testing.T) {
 	f := initFixture(t)
 	left := append(bytes.Repeat([]byte{0x00}, 31), 0xff)
 	right := append(bytes.Repeat([]byte{0x00}, 30), 0x01, 0x00)
-	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
 	duty := shared.DutyVerifier
 
 	oldByTask := collections.TripleKeyCodec(collections.StringKey, collections.Int32Key, collections.StringKey)

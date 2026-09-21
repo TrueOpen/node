@@ -20,7 +20,7 @@ func TestServiceFaultCollectionsUseRawHash32Keys(t *testing.T) {
 	f := initFixture(t)
 	id := bytes.Repeat([]byte{0x71}, shared.Hash32KeySize)
 	other := bytes.Repeat([]byte{0x72}, shared.Hash32KeySize)
-	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
 
 	for _, tc := range []struct {
 		name  string
@@ -101,7 +101,7 @@ func TestRoleFaultByTaskOrderSurvivesTheRawRetype(t *testing.T) {
 	// makes "which row matures first" observable across blocks.
 	oldMaturity := collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, collections.StringKey)
 	newMaturity := f.keeper.UnbondingMaturityIndex.KeyCodec()
-	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
 	require.Equal(t,
 		signCompare(bytes.Compare(
 			encodeCustodyKey(t, oldMaturity, collections.Join3(uint64(7), operator, hex.EncodeToString(left))),
