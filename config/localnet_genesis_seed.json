@@ -314,82 +314,82 @@
   },
   "builders": [
     {
-      "address": "trueopen1ef4vvszwflrrgg443a3d6qg3f3vxxfu93tg690",
-      "service_address": "trueopen1ef4vvszwflrrgg443a3d6qg3f3vxxfu93tg690",
-      "service_pubkey": "02ca7675c14060f52cfd101cb0f8cc2aca5bd2caa247e10d0ca11746aa4b7bb22a",
+      "address": "trueopen1zxpnl7qm588xhfr4vnh6sunjarl0t83lzhseks",
+      "service_address": "trueopen1zxpnl7qm588xhfr4vnh6sunjarl0t83lzhseks",
+      "service_pubkey": "03f43ccf6784a7fc3d6fd06a263eb8fd0e887fd9226715110f3b7fbe1a58da92dc",
       "descriptor": {
         "endpoints": [
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
-            "uri": "https://167.86.122.49:8080",
+            "uri": "https://217.15.167.12:8080",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+            "tls_pubkey_hash": "1c174d14264b6c0491d28e9717023421e33e197fe35430971c7597525eca99ec"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
-            "uri": "https://167.86.122.49:8080",
+            "uri": "https://217.15.167.12:8080",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+            "tls_pubkey_hash": "1c174d14264b6c0491d28e9717023421e33e197fe35430971c7597525eca99ec"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
-            "uri": "https://167.86.122.49:8080/healthz",
+            "uri": "https://217.15.167.12:8080/healthz",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"
+            "tls_pubkey_hash": "1c174d14264b6c0491d28e9717023421e33e197fe35430971c7597525eca99ec"
           }
         ]
       }
     },
     {
-      "address": "trueopen1t5c7hcc5sg2cavq3fqtq7rj4xjw4lpja9kqgyu",
-      "service_address": "trueopen1t5c7hcc5sg2cavq3fqtq7rj4xjw4lpja9kqgyu",
-      "service_pubkey": "0361f07ada4cdca6746b45ee4cad277f6bf70933c6011a21ec14df88d431f8b6d7",
+      "address": "trueopen1s7xj7hqja40mxgksz8ec3g4rf30ahxddlpd832",
+      "service_address": "trueopen1s7xj7hqja40mxgksz8ec3g4rf30ahxddlpd832",
+      "service_pubkey": "0288d96e81bdec3c067747a429d957cef66127f4f2afb4b41d512cb2b3e992994f",
       "descriptor": {
         "endpoints": [
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
-            "uri": "https://207.180.235.236:8080",
+            "uri": "https://217.15.167.12:8081",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+            "tls_pubkey_hash": "5c0347bfe6cd88a1923f98ca6e71b18bc894ff755e3978ba76c383776df7e517"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
-            "uri": "https://207.180.235.236:8080",
+            "uri": "https://217.15.167.12:8081",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+            "tls_pubkey_hash": "5c0347bfe6cd88a1923f98ca6e71b18bc894ff755e3978ba76c383776df7e517"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
-            "uri": "https://207.180.235.236:8080/healthz",
+            "uri": "https://217.15.167.12:8081/healthz",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"
+            "tls_pubkey_hash": "5c0347bfe6cd88a1923f98ca6e71b18bc894ff755e3978ba76c383776df7e517"
           }
         ]
       }
     },
     {
-      "address": "trueopen1y5umte2nvarxn0vnkv92safjpa3vwcr3kqxr0a",
-      "service_address": "trueopen1y5umte2nvarxn0vnkv92safjpa3vwcr3kqxr0a",
-      "service_pubkey": "038113ed782546cefb88d0a99cdc3c33754d5b1bbb92ecef4fcfb44679a08be803",
+      "address": "trueopen1668vt9fpa97h65c76kskhah0ep6kk39zsv4y05",
+      "service_address": "trueopen1668vt9fpa97h65c76kskhah0ep6kk39zsv4y05",
+      "service_pubkey": "02ef48091c8c932ac9b6684603d5c65a0abf23f4a3b3fbed136f3947479d32ebff",
       "descriptor": {
         "endpoints": [
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
-            "uri": "https://167.86.69.213:8080",
+            "uri": "https://217.15.167.12:8082",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+            "tls_pubkey_hash": "3635c48b05a5552aacd9bba561c83e56de991c6dfc197a9a9542c40dc2d7d43f"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
-            "uri": "https://167.86.69.213:8080",
+            "uri": "https://217.15.167.12:8082",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+            "tls_pubkey_hash": "3635c48b05a5552aacd9bba561c83e56de991c6dfc197a9a9542c40dc2d7d43f"
           },
           {
             "endpoint_kind": "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
-            "uri": "https://167.86.69.213:8080/healthz",
+            "uri": "https://217.15.167.12:8082/healthz",
             "protocol_version": "v1",
-            "tls_pubkey_hash": "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"
+            "tls_pubkey_hash": "3635c48b05a5552aacd9bba561c83e56de991c6dfc197a9a9542c40dc2d7d43f"
           }
         ]
       }

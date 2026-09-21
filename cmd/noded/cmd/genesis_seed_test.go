@@ -248,16 +248,36 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Len(t, seed.CortexNodes, 4)
 	require.Len(t, seed.Models, 1)
 	expectedBuilderEndpoints := []struct {
+		address       string
+		servicePubKey string
 		baseURL       string
 		tlsPubkeyHash string
 	}{
-		{"https://167.86.122.49:8080", "84d9811f36c8d38c11e1b6e20d081f405f8f768c5529d95a9697a451e9c4d091"},
-		{"https://207.180.235.236:8080", "7e45412c8e1539173fdb84e23f10eed19a234fa8e14b97d63f0c2f6f014f9674"},
-		{"https://167.86.69.213:8080", "4bfaf2452b4e84b134e401d58dabdd6e51e3ac1dd14034d36e9392a44fa8e080"},
+		{
+			"trueopen1zxpnl7qm588xhfr4vnh6sunjarl0t83lzhseks",
+			"03f43ccf6784a7fc3d6fd06a263eb8fd0e887fd9226715110f3b7fbe1a58da92dc",
+			"https://217.15.167.12:8080",
+			"1c174d14264b6c0491d28e9717023421e33e197fe35430971c7597525eca99ec",
+		},
+		{
+			"trueopen1s7xj7hqja40mxgksz8ec3g4rf30ahxddlpd832",
+			"0288d96e81bdec3c067747a429d957cef66127f4f2afb4b41d512cb2b3e992994f",
+			"https://217.15.167.12:8081",
+			"5c0347bfe6cd88a1923f98ca6e71b18bc894ff755e3978ba76c383776df7e517",
+		},
+		{
+			"trueopen1668vt9fpa97h65c76kskhah0ep6kk39zsv4y05",
+			"02ef48091c8c932ac9b6684603d5c65a0abf23f4a3b3fbed136f3947479d32ebff",
+			"https://217.15.167.12:8082",
+			"3635c48b05a5552aacd9bba561c83e56de991c6dfc197a9a9542c40dc2d7d43f",
+		},
 	}
 	for i, builder := range seed.Builders {
 		require.NotNil(t, builder.Descriptor)
 		expected := expectedBuilderEndpoints[i]
+		require.Equal(t, expected.address, builder.Address)
+		require.Equal(t, expected.address, builder.ServiceAddress)
+		require.Equal(t, expected.servicePubKey, builder.ServicePubKey)
 		require.Equal(t, []genesisSeedServiceEndpoint{
 			{
 				EndpointKind: "SERVICE_ENDPOINT_KIND_NEXUS_GRPC", URI: expected.baseURL,
