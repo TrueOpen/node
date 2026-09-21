@@ -28,7 +28,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // MsgSettleTask is the only normal-settlement entry point. The exact request wire
-// is frozen by keeper_api_contract.md §9.6a and §10.10a: task_id is the only business
+// is frozen: task_id is the only business
 // locator, and submitter_address exists solely for Cosmos Tx authorization,
 // account sequence and gas. submitter_address never enters the settlement ID, the
 // facts hash, the plan hash or any Store row.
@@ -110,7 +110,7 @@ func (m *MsgSettleTask) GetSubmitterAddress() string {
 }
 
 // MsgSettleTaskResponse is the settlement receipt. Field numbers are frozen by
-// keeper_api_contract.md §9.6a. Every field is Keeper-derived.
+// the API contract. Every field is Keeper-derived.
 // MsgSettleTaskResponse defines the MsgSettleTaskResponse wire type.
 type MsgSettleTaskResponse struct {
 	TaskId              []byte                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`

@@ -25,7 +25,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // CandidatePoolSnapshotStatus is the snapshot lifecycle. Numeric values are
-// frozen by keeper_api_contract.md §9.6b (sole closed-enum authority).
+// frozen (sole closed-enum authority).
 // CandidatePoolSnapshotStatus defines the CandidatePoolSnapshotStatus wire type.
 type CandidatePoolSnapshotStatus int32
 
