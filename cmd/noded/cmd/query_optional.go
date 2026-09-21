@@ -184,6 +184,9 @@ func protoJSONQueryCommand(
 		if err != nil {
 			return err
 		}
+		if err := keepOnlyRequestedOneof(command, options, input); err != nil {
+			return err
+		}
 		clientCtx, err := client.GetClientQueryContext(command)
 		if err != nil {
 			return err
@@ -229,4 +232,130 @@ func printProtoJSONQuery(command *cobra.Command, clientCtx client.Context, messa
 		return fmt.Errorf("marshal response %s: %w", message.ProtoReflect().Descriptor().FullName(), err)
 	}
 	return clientCtx.WithOutput(command.OutOrStdout()).PrintRaw(json.RawMessage(output))
+}
+
+// keepOnlyRequestedOneof repairs what autocli's flag binder does to a oneof.
+//
+// The binder has no notion of oneof: it writes every field it has a value for,
+// and an untouched flag still carries its zero value. Writing any member of a
+// oneof selects that case, so the members overwrite each other and the last one
+// written is the one the server sees. QueryBuilderSetRequest is the case in this
+// repository -- asking for a set by height arrived as an empty builder_set_id,
+// and the height selector was unreachable from the CLI.
+//
+// A flag the user did not type is not a selection, so this clears any oneof case
+// whose flag was not explicitly set. If the user set none, the field is cleared
+// and the server answers with its own "exactly one selector" error rather than a
+// confusing complaint about the selector nobody asked for. Setting more than one
+// is refused here, where the two flag names are known.
+func keepOnlyRequestedOneof(
+	command *cobra.Command,
+	options *autocliv1.RpcCommandOptions,
+	input protoreflect.Message,
+) error {
+	descriptor := input.Descriptor()
+	for i := 0; i < descriptor.Oneofs().Len(); i++ {
+		oneof := descriptor.Oneofs().Get(i)
+		if oneof.IsSynthetic() {
+			// Synthetic oneofs back proto3 `optional` scalars; they carry
+			// presence for one field and are not a selector.
+			continue
+		}
+		set := input.WhichOneof(oneof)
+		if set == nil {
+			continue
+		}
+		var requested []protoreflect.FieldDescriptor
+		for j := 0; j < oneof.Fields().Len(); j++ {
+			field := oneof.Fields().Get(j)
+			if flag := command.Flags().Lookup(oneofFlagName(field, options)); flag != nil && flag.Changed {
+				requested = append(requested, field)
+			}
+		}
+		switch len(requested) {
+		case 0:
+			// Positional args bypass flags entirely, so a case set without any
+			// matching flag was asked for explicitly and must be kept.
+			if !isPositional(set, options) {
+				input.Clear(set)
+			}
+		case 1:
+			if requested[0] != set {
+				// The binder wrote this field before the losing case overwrote
+				// it, so the message no longer holds the value. It has to come
+				// back from the flag the operator actually typed.
+				value, err := oneofFlagValue(command, requested[0], options)
+				if err != nil {
+					return err
+				}
+				input.Clear(set)
+				input.Set(requested[0], value)
+			}
+		default:
+			names := make([]string, 0, len(requested))
+			for _, field := range requested {
+				names = append(names, "--"+oneofFlagName(field, options))
+			}
+			return fmt.Errorf("%s takes one selector, got %s", command.Name(), strings.Join(names, " and "))
+		}
+	}
+	return nil
+}
+
+// oneofFlagName is the flag autocli generated for a field: its kebab-cased name,
+// unless the command catalog renamed it.
+func oneofFlagName(field protoreflect.FieldDescriptor, options *autocliv1.RpcCommandOptions) string {
+	name := string(field.Name())
+	if options != nil {
+		if override, ok := options.FlagOptions[name]; ok && override.GetName() != "" {
+			return override.GetName()
+		}
+	}
+	return strings.ReplaceAll(name, "_", "-")
+}
+
+func isPositional(field protoreflect.FieldDescriptor, options *autocliv1.RpcCommandOptions) bool {
+	if options == nil {
+		return false
+	}
+	for _, arg := range options.PositionalArgs {
+		if arg.GetProtoField() == string(field.Name()) {
+			return true
+		}
+	}
+	return false
+}
+
+// oneofFlagValue reads a selector back out of its flag. Only the scalar kinds a
+// selector can be are handled; anything else is a selector shape this repository
+// does not have, and failing loudly is better than silently sending a zero.
+func oneofFlagValue(
+	command *cobra.Command,
+	field protoreflect.FieldDescriptor,
+	options *autocliv1.RpcCommandOptions,
+) (protoreflect.Value, error) {
+	name := oneofFlagName(field, options)
+	switch field.Kind() {
+	case protoreflect.StringKind:
+		v, err := command.Flags().GetString(name)
+		return protoreflect.ValueOfString(v), err
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		v, err := command.Flags().GetUint64(name)
+		return protoreflect.ValueOfUint64(v), err
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		v, err := command.Flags().GetUint32(name)
+		return protoreflect.ValueOfUint32(v), err
+	case protoreflect.Int64Kind, protoreflect.Sfixed64Kind, protoreflect.Sint64Kind:
+		v, err := command.Flags().GetInt64(name)
+		return protoreflect.ValueOfInt64(v), err
+	case protoreflect.Int32Kind, protoreflect.Sfixed32Kind, protoreflect.Sint32Kind:
+		v, err := command.Flags().GetInt32(name)
+		return protoreflect.ValueOfInt32(v), err
+	case protoreflect.BoolKind:
+		v, err := command.Flags().GetBool(name)
+		return protoreflect.ValueOfBool(v), err
+	default:
+		return protoreflect.Value{}, fmt.Errorf(
+			"--%s selects a %s field, which this command cannot rebuild from its flag", name, field.Kind())
+	}
 }

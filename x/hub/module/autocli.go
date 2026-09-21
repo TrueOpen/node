@@ -33,6 +33,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				{
 					// Rename the state selector so it cannot collide with the SDK's
 					// global historical-query --height flag.
+					//
+					// The request selects by a oneof. autocli's binder has no notion
+					// of one and writes every field it has a value for, so the two
+					// selectors overwrote each other; keepOnlyRequestedOneof in
+					// cmd/noded/cmd/query_optional.go keeps the one the operator
+					// actually typed.
 					RpcMethod: "BuilderSet",
 					Use:       "builder-set",
 					Short:     "Shows the builder set selected by exactly one selector",
