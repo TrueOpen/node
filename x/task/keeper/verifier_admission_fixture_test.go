@@ -31,38 +31,6 @@ type verifierAdmissionHubStub struct {
 	pendingStageDuties        *int
 }
 
-type verifierEligibilityHubStub struct {
-	verifierAdmissionHubStub
-	profileStatus hubtypes.ModelStatus
-	supportActive bool
-	freshUntil    uint64
-	jailStatus    hubtypes.JailStatus
-}
-
-func (s verifierEligibilityHubStub) GetProfileState(sdk.Context, string, uint32) (hubtypes.ProfileStateSnapshot, bool) {
-	return hubtypes.ProfileStateSnapshot{Status: s.profileStatus, MinStake: 1_000_000}, true
-}
-
-func (s verifierEligibilityHubStub) GetModelSupport(_ sdk.Context, address sdk.AccAddress, modelID string, profileVersion uint32) (hubtypes.ModelSupportSnapshot, bool) {
-	return hubtypes.ModelSupportSnapshot{
-		OperatorAddress: address.String(), ModelID: modelID, ProfileVersion: profileVersion,
-		DeclaredSupport: true, SupportActive: s.supportActive,
-		SupportFreshUntilEpoch: s.freshUntil, SupportVersion: 1,
-	}, true
-}
-
-func (s verifierEligibilityHubStub) GetNodeJailStatus(sdk.Context, sdk.AccAddress, string) hubtypes.JailStatus {
-	return s.jailStatus
-}
-
-func (s verifierEligibilityHubStub) GetServiceBond(ctx sdk.Context, address sdk.AccAddress, orderValue uint64) (hubtypes.ServiceBondSnapshot, bool) {
-	bond, ok := s.verifierAdmissionHubStub.GetServiceBond(ctx, address, orderValue)
-	if s.jailStatus == hubtypes.JailStatusJailed {
-		bond.Status = hubtypes.ServiceBondStatusJailed
-	}
-	return bond, ok
-}
-
 func (s verifierAdmissionHubStub) GetCortexNode(_ sdk.Context, address sdk.AccAddress) (hubtypes.CortexNodeSnapshot, bool) {
 	return hubtypes.CortexNodeSnapshot{
 		OperatorAddress: address.String(), ServiceAuthorizationNonce: 1,

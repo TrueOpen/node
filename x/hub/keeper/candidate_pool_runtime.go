@@ -2,10 +2,8 @@ package keeper
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -309,17 +307,6 @@ func candidatePoolContextHeight(ctx context.Context) uint64 {
 }
 
 func candidatePoolChainID(ctx context.Context) string { return sdk.UnwrapSDKContext(ctx).ChainID() }
-
-func candidateHashBytes(field, value string) ([]byte, error) {
-	if value == "" || value != strings.ToLower(value) || len(value) != 64 {
-		return nil, fmt.Errorf("%s must be lowercase 64-hex", field)
-	}
-	decoded, err := hex.DecodeString(value)
-	if err != nil {
-		return nil, fmt.Errorf("%s must be lowercase 64-hex", field)
-	}
-	return decoded, nil
-}
 
 // candidateHashKey used to project a raw Hash32 into the lower-hex text the four
 // candidate-pool collections were keyed on. Those keys are raw now, so the only

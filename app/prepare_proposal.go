@@ -17,7 +17,7 @@ package app
 //      remaining business tx selection.
 //
 // The signature uses the separately registered VRF private key, not the
-// consensus private key (the sampling protocol /).
+// consensus private key (the sampling protocol §3.1).
 // The consensus private key can stay in tmkms / an HSM.
 //
 // Failure policy:

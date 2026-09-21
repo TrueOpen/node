@@ -18,12 +18,6 @@ import (
 // until the parameter contract is extended.
 const maxDeadlineSweepBytesPerBlockV1 = uint64(1 << 20)
 
-// Gate-disabled settlement retries are height-first and deterministic. The
-// original frozen verify deadline remains in VerifierAssignmentState; this
-// interval only advances the derived queue row until production economics are
-// enabled by both modules.
-const verifyDeadlineRetryBlocksV1 = uint64(1)
-
 // deadlineSweepUsage is internal accounting returned by the bounded drivers.
 // Public sweep helpers keep their historical visited-only signatures.
 type deadlineSweepUsage struct {
@@ -391,24 +385,6 @@ func (k Keeper) handleExpiredVerifyOpenDeadline(ctx context.Context, taskID type
 	return deadlineSweepAdvanced, rowBytes, nil
 }
 
-func (k Keeper) rescheduleVerifyOpenDeadline(ctx context.Context, taskID types.TaskKey, deadline, currentHeight uint64) error {
-	retryHeight, overflow := checkedHeightAdd(currentHeight, verifyDeadlineRetryBlocksV1)
-	if overflow {
-		return errorsmod.Wrap(types.ErrInvariantBroken, "verify-open deadline retry height overflow")
-	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	cacheCtx, write := sdkCtx.CacheContext()
-	cache := sdk.WrapSDKContext(cacheCtx)
-	if err := removeDeadlineIndex(cache, k.VerifyOpenDeadlineIndex, taskID, deadline); err != nil {
-		return err
-	}
-	if err := addDeadlineIndex(cache, k.VerifyOpenDeadlineIndex, taskID, retryHeight); err != nil {
-		return err
-	}
-	write()
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // 3. VERIFY_COMMIT (CommitDeadlineIndex, §10.7)
 // ---------------------------------------------------------------------------
@@ -586,24 +562,6 @@ func (k Keeper) advanceToVerifyDeadline(
 		return err
 	}
 	if err := addDeadlineIndex(cache, k.VerifyDeadlineIndex, taskID, verifyHeight); err != nil {
-		return err
-	}
-	write()
-	return nil
-}
-
-func (k Keeper) rescheduleVerifyDeadline(ctx context.Context, taskID types.TaskKey, deadline, currentHeight uint64) error {
-	retryHeight, overflow := checkedHeightAdd(currentHeight, verifyDeadlineRetryBlocksV1)
-	if overflow {
-		return errorsmod.Wrap(types.ErrInvariantBroken, "verify deadline retry height overflow")
-	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	cacheCtx, write := sdkCtx.CacheContext()
-	cache := sdk.WrapSDKContext(cacheCtx)
-	if err := removeDeadlineIndex(cache, k.VerifyDeadlineIndex, taskID, deadline); err != nil {
-		return err
-	}
-	if err := addDeadlineIndex(cache, k.VerifyDeadlineIndex, taskID, retryHeight); err != nil {
 		return err
 	}
 	write()
