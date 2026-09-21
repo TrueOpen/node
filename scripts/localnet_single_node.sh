@@ -10,7 +10,7 @@
 # Chain facts (from app/config.go + app/app.go, do not change lightly):
 #   - binary name : noded
 #   - bond denom  : ubond    (consensus accounting only)
-#   - business    : uusdc    (fees and protocol funds)
+#   - business    : config/localnet_genesis_seed.json phase0.business_denom
 #   - bech32      : trueopen    (AccountAddressPrefix)
 #   - default home: ~/.node
 #
@@ -26,6 +26,7 @@
 #   HOME_DIR=$HOME/.node
 #   KEY_NAME=validator
 #   KEYRING=test
+#   DENOM=uusdc                        # overrides the seed business_denom
 #   GENESIS_BALANCE=100000000000000uusdc,1000000000ubond
 #   SELF_DELEGATION=1000000000ubond
 #   MIN_GAS_PRICES=0uusdc
@@ -56,15 +57,15 @@ MONIKER="${MONIKER:-trueopen-localnode}"
 HOME_DIR="${HOME_DIR:-$HOME/.node}"
 KEY_NAME="${KEY_NAME:-validator}"
 KEYRING="${KEYRING:-test}"
-DENOM="${DENOM:-uusdc}"
-GENESIS_BALANCE="${GENESIS_BALANCE:-100000000000000uusdc,1000000000ubond}"
+GENESIS_SEED_FILE="${GENESIS_SEED_FILE:-$REPO_ROOT/config/localnet_genesis_seed.json}"
+DENOM="${DENOM:-}"
+GENESIS_BALANCE="${GENESIS_BALANCE:-}"
 SELF_DELEGATION="${SELF_DELEGATION:-1000000000ubond}"
-MIN_GAS_PRICES="${MIN_GAS_PRICES:-0uusdc}"
+MIN_GAS_PRICES="${MIN_GAS_PRICES:-}"
 RESET="${RESET:-0}"
 START="${START:-1}"
 BUILD="${BUILD:-0}"
 FAST_BLOCKS="${FAST_BLOCKS:-0}"
-GENESIS_SEED_FILE="${GENESIS_SEED_FILE:-$REPO_ROOT/config/localnet_genesis_seed.json}"
 # BIND_ALL=1 binds REST(1317) / gRPC(9090) / RPC(26657) to 0.0.0.0 so the
 # node is reachable from outside the host (e.g. a VPS). Default 0 = bind to
 # localhost only. NOTE: exposing RPC/gRPC to the public internet is risky —
@@ -122,6 +123,33 @@ warn() { printf '\033[1;33m[localnet]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m[localnet]\033[0m %s\n' "$*" >&2; exit 1; }
 
 noded() { "$NODED" "$@"; }
+
+# The seed owns the localnet business denom. DENOM remains an explicit override
+# for tests that need a different genesis without editing the checked-in seed.
+if [ -z "$DENOM" ] && [ -f "$GENESIS_SEED_FILE" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        DENOM_PYTHON=python3
+    elif command -v python >/dev/null 2>&1; then
+        DENOM_PYTHON=python
+    else
+        die "python3 or python is required to read business_denom from $GENESIS_SEED_FILE"
+    fi
+    DENOM="$($DENOM_PYTHON - "$GENESIS_SEED_FILE" <<'PY'
+import json
+import pathlib
+import sys
+
+seed = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+denom = seed.get("hub_params", {}).get("phase0", {}).get("business_denom", "")
+if not isinstance(denom, str) or not denom or denom != denom.strip():
+    raise SystemExit("hub_params.phase0.business_denom must be a non-empty canonical string")
+print(denom)
+PY
+)"
+fi
+DENOM="${DENOM:-uusdc}"
+GENESIS_BALANCE="${GENESIS_BALANCE:-100000000000000${DENOM},1000000000ubond}"
+MIN_GAS_PRICES="${MIN_GAS_PRICES:-0${DENOM}}"
 
 # --- build if requested or missing -----------------------------------------
 if [ "$BUILD" = "1" ] || [ ! -x "$NODED" ] ||
