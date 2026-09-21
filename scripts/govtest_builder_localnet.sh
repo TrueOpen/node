@@ -50,7 +50,14 @@ log()  { printf '\033[1;34m[govtest]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[govtest]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m[govtest]\033[0m %s\n' "$*" >&2; exit 1; }
 
-command -v python3 >/dev/null 2>&1 || die "python3 is required"
+# Some platforms (Windows/Git Bash in particular) ship only "python".
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
+elif command -v python >/dev/null 2>&1; then
+    PYTHON=python
+else
+    die "python3 or python is required"
+fi
 [ -f "$SEED_TEMPLATE" ] || die "seed template not found: $SEED_TEMPLATE"
 
 # --- resolve the noded binary (same precedence as localnet_single_node.sh) ---
@@ -85,7 +92,7 @@ for i in $(seq 1 "$BUILDER_COUNT"); do
     "$NODED" keys add "$name" --keyring-backend "$KEYRING" --home "$SCRATCH_KEYS" \
         --output json >"$WORK/$name.json" 2>/dev/null
     read -r addr pub mnemonic_file <<<"$(
-        NAME="$name" WORK="$WORK" python3 - "$WORK/$name.json" <<'PYK'
+        NAME="$name" WORK="$WORK" "$PYTHON" - "$WORK/$name.json" <<'PYK'
 import base64, json, os, pathlib, sys
 
 doc = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -113,7 +120,7 @@ PUBS_CSV="$(IFS=,; echo "${PUBS[*]}")"
 
 SEED_TEMPLATE="$SEED_TEMPLATE" SEED_OUT="$SEED_OUT" \
 ADDRS_CSV="$ADDRS_CSV" PUBS_CSV="$PUBS_CSV" \
-python3 - <<'PY'
+"$PYTHON" - <<'PY'
 import json, os
 
 seed = json.load(open(os.environ["SEED_TEMPLATE"], encoding="utf-8"))
