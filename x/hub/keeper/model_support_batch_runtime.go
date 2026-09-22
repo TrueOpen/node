@@ -126,6 +126,13 @@ func (k Keeper) processModelSupportBatch(
 		for _, profile := range confirmation.SupportedProfiles {
 			_, changed, err := k.refreshModelSupport(ctx, operatorAddress, profile.ModelId, profile.ProfileVersion, epoch, height)
 			if err != nil {
+				// An item whose refresh preconditions no longer hold is skipped, not
+				// fatal: it writes nothing, and failing here would discard every other
+				// operator's confirmation in the same batch. See
+				// errSupportRefreshNotApplicable for the full rationale.
+				if errors.Is(err, errSupportRefreshNotApplicable) {
+					continue
+				}
 				return modelSupportBatchResult{}, err
 			}
 			if changed {

@@ -724,6 +724,31 @@ func (k Keeper) WriteModelSupportIndexes(ctx context.Context, state types.ModelS
 	return k.ModelSupportPruneIndex.Set(ctx, types.NewModelSupportPruneIndexKey(pruneEpoch, state.OperatorAddress, state.ModelId, state.ProfileVersion))
 }
 
+// errSupportRefreshNotApplicable marks a daily-refresh precondition that one
+// (operator, model, profile) item simply does not meet, as opposed to a failure.
+// It is the daily-confirmation counterpart of errSupportActivationNotApplicable
+// and exists for the same reason.
+//
+// MsgBatchConfirmModelSupport carries confirmations for many operators, each
+// listing many profiles, and an operator signs its list before the batch is
+// assembled and included. Every precondition marked with this sentinel can stop
+// holding in between: governance can freeze or delist the profile or its parent
+// model, the operator can rotate or revoke its service key, be tombstoned,
+// unstake or be slashed below the profile's min_stake, or let a declaration that
+// never earned an activation lapse. Treating any of those as a hard error aborted
+// the whole transaction, so a single stale item discarded every other operator's
+// confirmation in the same batch. That made a shared batch cheap to deny service
+// to, and it required submitters to track activation and freeze state off-chain
+// just to assemble a list that would be accepted at all.
+//
+// Skipping the item is safe because a skipped item is only denied an extension of
+// its freshness window. Every return marked with this sentinel happens before any
+// write, so a skip grants nothing, stores nothing and moves no aggregate: the
+// support row keeps the freshness it already had and expires on its own schedule
+// through the ordinary expiry sweep. Real failures - store errors, overflow,
+// validation breaks - still propagate and still abort the batch.
+var errSupportRefreshNotApplicable = errors.New("daily support refresh conditions are not met")
+
 func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, epoch, height uint64) (types.ModelSupportState, bool, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -731,18 +756,22 @@ func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelI
 	}
 	profile, err := k.requireSupportScope(ctx, operatorAddress, modelID, profileVersion, epoch)
 	if err != nil {
-		return types.ModelSupportState{}, false, err
+		// Scope covers "is this operator/model/profile still eligible to support at
+		// all", which is a condition rather than a batch failure.
+		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
 	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, profileVersion)
 	if err != nil {
-		return types.ModelSupportState{}, false, err
+		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
 	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID, profileVersion)
 	if err != nil {
-		return types.ModelSupportState{}, false, err
+		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
 	if !oldSupport.DeclaredSupport || oldSupport.ActivationKind == types.ModelSupportActivationNone {
-		return types.ModelSupportState{}, false, fmt.Errorf("support must be declared and activated before daily refresh")
+		return types.ModelSupportState{}, false, fmt.Errorf(
+			"%w: support must be declared and activated before daily refresh", errSupportRefreshNotApplicable,
+		)
 	}
 	freshUntil, err := checkedAdd(epoch, uint64(params.Support.SupportWindowEpochs))
 	if err != nil {
@@ -774,7 +803,9 @@ func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelI
 			return types.ModelSupportState{}, false, err
 		}
 		if bond.Status != types.ServiceBondStatusJailed || bond.JailCount == 0 {
-			return types.ModelSupportState{}, false, fmt.Errorf("operator is not currently eligible for profile support")
+			return types.ModelSupportState{}, false, fmt.Errorf(
+				"%w: operator is not currently eligible for profile support", errSupportRefreshNotApplicable,
+			)
 		}
 		newSupport.SupportActive = false
 	}
