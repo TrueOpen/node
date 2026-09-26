@@ -837,3 +837,94 @@ func verifierWindowForAssignment(assignment tasktypes.VerifierAssignmentState) t
 		GeneratedHeight: assignment.SelectionRandomnessHeight - 10,
 	}
 }
+
+// verifierAssignmentForQueryRound reuses the round 1 fixture values and re-derives
+// only what the round takes part in, so a round 2 row differs from a round 1 row
+// exactly where the protocol says it should.
+func verifierAssignmentForQueryRound(
+	t *testing.T, chainID string, taskID []byte, operators []string, round uint32,
+) tasktypes.VerifierAssignmentState {
+	t.Helper()
+	assignment := verifierAssignmentForQuery(t, chainID, taskID, operators)
+	assignment.VerifyRound = round
+	selectedHash, err := keeper.SelectedVerifierRefsHash(
+		chainID, taskID, round, assignment.VerifierLegalSetHash,
+		assignment.SelectionRandomnessHeight, assignment.SelectionRandomnessBeacon,
+		assignment.SelectedVerifiers,
+	)
+	require.NoError(t, err)
+	assignment.SelectedVerifiersHash = selectedHash
+	return assignment
+}
+
+// TestQueryTaskServesRoundSummaryAndRound2Assignment covers the two
+// TaskActiveBundleV1 members that QueryTask used to leave empty whatever the
+// stored state said, which left a caller unable to read the challenge window
+// close height or the round 2 verifier set from the composite query at all.
+//
+// Both are optional in the bundle, so the test pins presence and absence: the
+// same request must report them missing while no row exists and report the
+// stored row once one does.
+func TestQueryTaskServesRoundSummaryAndRound2Assignment(t *testing.T) {
+	f := initFixture(t)
+	genesis := taskGenesisV1(t, genesisChainID(f))
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+
+	core := genesis.TaskCores[0]
+	core.TaskPhase = tasktypes.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED
+	core.VerificationStatus = tasktypes.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED
+	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKeyOf(core.TaskId), core))
+	taskKey := taskKeyOf(core.TaskId)
+	verifiers := []string{genesisVerifier, genesisVerifier2, genesisVerifier3}
+	round1 := verifierAssignmentForQuery(t, genesisChainID(f), core.TaskId, verifiers)
+	require.NoError(t, f.keeper.VerifierAssignment.Set(
+		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), round1,
+	))
+	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
+		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1),
+		verifierWindowForAssignment(round1),
+	))
+
+	server := keeper.NewQueryServerImpl(f.keeper)
+	task, err := server.Task(f.ctx, &tasktypes.QueryTaskRequest{TaskId: core.TaskId})
+	require.NoError(t, err)
+	require.Nil(t, task.Task.GetActive().RoundSummary,
+		"a task with no round summary row must report the member absent rather than a zero value")
+	require.Nil(t, task.Task.GetActive().Round2VerifierAssignment,
+		"a task that was never challenged has no round 2 row and must report the member absent")
+
+	summary := tasktypes.TaskRoundSummaryState{
+		TaskId: core.TaskId, MaxClosedRound: tasktypes.VerifyRoundV1, OpenRoundCount: 1,
+		EffectiveVerifyRound: tasktypes.ChallengeVerifyRoundV1,
+		XChallengeOpenHeight: &tasktypes.TaskRoundSummaryState_ChallengeOpenHeight{
+			ChallengeOpenHeight: 80,
+		},
+		XChallengeCloseHeight: &tasktypes.TaskRoundSummaryState_ChallengeCloseHeight{
+			ChallengeCloseHeight: 120,
+		},
+	}
+	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, summary))
+	round2 := verifierAssignmentForQueryRound(
+		t, genesisChainID(f), core.TaskId, verifiers, tasktypes.ChallengeVerifyRoundV1,
+	)
+	require.NoError(t, f.keeper.VerifierAssignment.Set(
+		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.ChallengeVerifyRoundV1), round2,
+	))
+	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
+		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.ChallengeVerifyRoundV1),
+		verifierWindowForAssignment(round2),
+	))
+
+	task, err = server.Task(f.ctx, &tasktypes.QueryTaskRequest{TaskId: core.TaskId})
+	require.NoError(t, err)
+	active := task.Task.GetActive()
+	require.NotNil(t, active.RoundSummary)
+	require.Equal(t, summary, *active.RoundSummary)
+	require.Equal(t, uint64(120), active.RoundSummary.GetChallengeCloseHeight(),
+		"the challenge close height is the value a client reads to know the window is open")
+	require.NotNil(t, active.Round2VerifierAssignment)
+	require.Equal(t, round2, *active.Round2VerifierAssignment)
+	require.Equal(t, tasktypes.ChallengeVerifyRoundV1, active.Round2VerifierAssignment.VerifyRound)
+	require.Equal(t, round1, *active.Round1VerifierAssignment,
+		"filling round 2 must not disturb the round 1 member")
+}
