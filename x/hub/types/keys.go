@@ -767,15 +767,6 @@ const (
 const ObjectiveForgerySlashDenom = uint64(10_000)
 
 const (
-	ServiceProviderStatusRegistered = "REGISTERED"
-	ServiceProviderStatusActive     = "ACTIVE"
-	ServiceProviderStatusStale      = "STALE"
-	ServiceProviderStatusUnbonding  = "UNBONDING"
-	ServiceProviderStatusExited     = "EXITED"
-	ServiceProviderStatusTombstoned = "TOMBSTONED"
-)
-
-const (
 	ServiceKeyStatusActive      = ServiceKeyStatus_SERVICE_KEY_STATUS_ACTIVE
 	ServiceKeyStatusRevoked     = ServiceKeyStatus_SERVICE_KEY_STATUS_REVOKED
 	TaskLiabilityStatusReserved = LiabilityStatus_LIABILITY_STATUS_RESERVED
@@ -795,12 +786,6 @@ const (
 const (
 	UnbondingStatusOpen   = UnbondingStatus_UNBONDING_STATUS_OPEN
 	UnbondingStatusMature = UnbondingStatus_UNBONDING_STATUS_MATURE
-)
-
-const (
-	ModelSupportStatusDeclared = "DECLARED"
-	ModelSupportStatusActive   = "ACTIVE"
-	ModelSupportStatusInactive = "INACTIVE"
 )
 
 const (
@@ -855,63 +840,12 @@ const (
 // not a Hub parameter or public protocol field.
 const DebugIntegrationRuleVersion = "DEBUG_KEEPER_INTEGRATION_V1"
 
-// MaxSupportedProfilesPerOperator bounds every synchronous invalidation fan-out
-// caused by bond, jail, tombstone, or provider status changes.
-const MaxSupportedProfilesPerOperator = uint64(256)
-
 // MaxProfilesPerModel also bounds synchronous model-wide invalidation and
 // support-deactivation fan-out.
 const MaxProfilesPerModel = uint32(256)
 
 const (
-	BuilderStageAssign           = "ASSIGN"
-	BuilderStageOpenVerify       = "OPEN_VERIFY"
-	BuilderStageSettle           = "SETTLE"
 	BuilderSelectionProofVersion = "trueopen-builder-selection-v1"
-)
-
-const (
-	RewardEligibilityStatusPendingEpochCheck   = "PENDING_EPOCH_CHECK"
-	RewardEligibilityStatusEligible            = "ELIGIBLE"
-	RewardEligibilityStatusIneligible          = "INELIGIBLE"
-	RewardEpochPhaseHistogramOpen              = "HISTOGRAM_OPEN"
-	RewardEpochPhaseCutoffDerived              = "CUTOFF_DERIVED"
-	RewardEpochPhaseEligibilityRunning         = "ELIGIBILITY_RUNNING"
-	RewardEpochPhaseRandomnessWait             = "RANDOMNESS_WAIT"
-	RewardEpochPhaseMarkRunning                = "MARK_RUNNING"
-	RewardEpochPhaseDone                       = "DONE"
-	CompetitionBootstrapStatusBootstrap        = "BOOTSTRAP"
-	CompetitionBootstrapStatusActive           = "ACTIVE"
-	RewardClassService                         = "SERVICE"
-	RewardClassBuilder                         = "BUILDER"
-	RewardClassInfrastructure                  = "INFRASTRUCTURE"
-	RewardCompetitionIdentityKindPayer         = "PAYER"
-	RewardCompetitionIdentityKindWorker        = "WORKER"
-	RewardEligibilityReasonPendingFinality     = "PENDING_FINALITY"
-	RewardEligibilityReasonChallengeOpen       = "CHALLENGE_OPEN"
-	RewardEligibilityReasonChallengeOverturned = "CHALLENGE_OVERTURNED"
-	RewardEligibilityReasonFault               = "FAULT"
-	RewardEligibilityReasonModelInactive       = "MODEL_INACTIVE"
-	RewardEligibilityReasonProfileInactive     = "PROFILE_INACTIVE"
-	RewardEligibilityReasonBelowTop10p         = "BELOW_TOP10P"
-	RewardEligibilityReasonEligible            = "ELIGIBLE"
-	RewardEligibilityReasonMissingAssignment   = "MISSING_ASSIGNMENT"
-	RewardEligibilityReasonMissingSettlement   = "MISSING_SETTLEMENT"
-)
-
-const (
-	EarningsPendingDeductionPendingCheck = "PENDING_CHECK"
-	EarningsPendingDeductionCleared      = "CLEARED"
-	EarningsPendingDeductionDeducted     = "DEDUCTED"
-	EarningsPendingStatusPending         = "PENDING"
-	EarningsPendingStatusMatured         = "MATURED"
-	EarningsPendingStatusDeducted        = "DEDUCTED"
-	EarningKindTaskFee                   = "TASK_FEE"
-	ClaimClassAll                        = "ALL"
-	ClaimClassTaskFee                    = "TASK_FEE"
-	ClaimClassService                    = "SERVICE"
-	ClaimClassBuilder                    = "BUILDER"
-	ClaimClassInfrastructure             = "INFRASTRUCTURE"
 )
 
 // The custody Store rows spell these four statuses as proto enums, so the
@@ -920,16 +854,6 @@ const (
 // string constants are gone: §9.6b allows one numeric definition per closed
 // enum, and a bare string beside the generated enum is a second one.
 //
-// What survives below is not Store state. Every constant here names a value of
-// a `string` field on a shared payload — SettlementResult.finality_status
-// and ChallengeEconomicReceipt.status cross the module boundary as text, and
-// typing them is the wire PR's job, not this one's.
-const (
-	SettlementFinalityStatusPending    = "PENDING"
-	SettlementFinalityStatusFinal      = "FINAL"
-	SettlementFinalityStatusOverturned = "OVERTURNED"
-	ChallengeEconomicStatusApplied     = "APPLIED"
-)
 
 const (
 	FaultTypeWorkerInferTimeout   = "worker_infer_timeout"
@@ -960,11 +884,7 @@ const (
 	PerformanceScoreDefaultPpm        = uint64(1_000_000)
 	PerformanceScoreMethodVersionV1   = uint64(1)
 	DefaultReferenceBucketKey         = "default"
-	BucketSourceGenesis               = "GENESIS"
-	BucketSourceGovernance            = "GOVERNANCE"
-	BucketSourceDebugAuthority        = "DEBUG_AUTHORITY"
 	MaxPricingBandBps                 = uint64(10_000)
-	DebugEpochStatusClosed            = "CLOSED"
 )
 
 const (
