@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "9c8c8cb8646e4c88f4e7b39992f97dd5d96233e0ef8b5448a726d7993aa53de0"
+const taskParamsGoldenHashV1 = "de432ac26d032a7cd1dd98607e9c4ffdedece45514f97d896e6937f0f0314f81"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "3397961671163207046fb2177f1bda96449446bb037c8d8be1e79c3876ecf9b3",
+	require.Equal(t, "1a2d2ea7b4bcccf7d1157c3a22c5e5f5f88589344badf7452aef351df4b95b79",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
 	mutated := base

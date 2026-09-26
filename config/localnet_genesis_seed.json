@@ -256,7 +256,7 @@
       "evidence_schema_version_supported": [],
       "leaf_ordering_version_supported": [],
       "max_output_mmr_leaves": "65536",
-      "min_output_stream_frame_bytes": 16,
+      "min_output_stream_frame_bytes": 256,
       "max_worker_evidence_bytes_v1": "1048576"
     },
     "cleanup": {
