@@ -316,12 +316,37 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	cdc := codec.NewProtoCodec(interfaceRegistry)
 	hubParams := hubtypes.DefaultHubParams()
 	require.NoError(t, applyHubParamsOverride(cdc, &hubParams, seed.HubParams))
-	require.Equal(t, uint64(60_480_000), hubParams.Epoch.EpochLengthBlocks)
+	// 14400 blocks is four hours under FAST_BLOCKS. The seed previously carried
+	// 60_480_000 - seven hundred days - which meant the epoch counter never
+	// advanced on a localnet, and a freshly registered cortex could never join.
+	// StakeService sets effective_active_bond to zero and effective_bond_epoch to
+	// current_epoch + ServiceBondEffectiveEpochDelay, and candidate eligibility
+	// reads effective_active_bond, so without a rollover a new operator stays at
+	// zero bond forever however much it staked.
+	//
+	// Shorter would onboard faster - the wait is uniform on [0, one epoch] - but
+	// the epoch-denominated retentions are all 30 epochs (builder set, candidate
+	// pool header, slot binding, vrf key history, daily support, support row,
+	// reward audit). Four hours puts those at five days, which outlives a
+	// debugging session; an hour would put them at thirty.
+	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
 	require.Equal(t, uint64(5), hubParams.Epoch.DeltaWBlocks)
 	require.Equal(t, uint64(5), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
 	require.Equal(t, uint64(5), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	// Freshness is epoch-based now; daily_support_window_blocks is gone.
-	require.Equal(t, uint32(2), hubParams.Support.SupportWindowEpochs)
+	//
+	// A rolling epoch also switches support expiry on, and support_fresh_until is
+	// current_epoch + support_window_epochs. At the protocol value of 2 that is
+	// eight hours, after which every support row goes stale and the network stops
+	// admitting tasks unless something keeps calling MsgBatchConfirmModelSupport.
+	// Trading "a new operator can never join" for "every operator drops out
+	// overnight" is not a trade a debugging network wants, so the seed widens the
+	// window to 30 days.
+	//
+	// This one is a governance parameter rather than genesis-only, so narrowing it
+	// back to exercise the expiry path costs a proposal rather than a fresh
+	// genesis - both behaviours are reachable on the same chain.
+	require.Equal(t, uint32(180), hubParams.Support.SupportWindowEpochs)
 	require.Equal(t, uint32(1024), hubParams.Reward.MaxRewardEpochItemsPerBlock)
 	require.Equal(t, uint32(32), hubParams.Support.MaxSupportExpiryItemsPerBlock)
 	requireGenesisSeedListsAllParams(t, cdc, &hubParams, seed.HubParams)

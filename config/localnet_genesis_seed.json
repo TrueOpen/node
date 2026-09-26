@@ -49,7 +49,7 @@
       "candidate_pool_query_hard_limit": 1000
     },
     "epoch": {
-      "epoch_length_blocks": "60480000",
+      "epoch_length_blocks": "14400",
       "delta_w_blocks": "5",
       "delta_m_blocks": "100"
     },
@@ -128,7 +128,7 @@
       "task_liability_order_coverage_bps": 10000
     },
     "support": {
-      "support_window_epochs": 2,
+      "support_window_epochs": 180,
       "active_supporter_min_count": 2,
       "active_support_stake_ratio_numerator": 2,
       "active_support_stake_ratio_denominator": 3,
