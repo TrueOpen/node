@@ -95,7 +95,7 @@ func verifierFinalizeFixture(t *testing.T) (*internalFixture, types.TaskKey, typ
 		ReceiptStatus:      types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED,
 		VerificationStatus: types.VerificationStatus_VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN,
 	}))
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, taskKey, types.TaskBuilderSelectionState{
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, types.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: selectedBuildersHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
@@ -110,11 +110,11 @@ func verifierFinalizeFixture(t *testing.T) (*internalFixture, types.TaskKey, typ
 			SegmentIndex: 0, Bitmap: []byte{0x0e},
 		}))
 	for _, fact := range facts {
-		require.NoError(t, f.keeper.TaskCandidateFact.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteTaskCandidateFact(f.ctx,
 			types.NewTaskCandidateFactKey(taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY, fact.Slot), fact))
 	}
 	for _, member := range members {
-		require.NoError(t, f.keeper.VerifierCandidateWindowMember.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteVerifierWindowMember(f.ctx,
 			types.NewVerifierWindowMemberKey(taskKey, types.VerifyRoundV1, member.RankIndex), member))
 	}
 	require.NoError(t, f.keeper.VerifierHandraiseCloseIndex.Set(f.ctx,
@@ -241,7 +241,7 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 	core.AcceptedTaskHash = bytes.Repeat([]byte{0x51}, types.Hash32Len)
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, core))
 	winner := sdk.AccAddress(bytes.Repeat([]byte{0x61}, 20)).String()
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: window.TaskId, CandidatePoolSnapshotId: window.CandidatePoolSnapshotId,
 		CandidatePoolHash: window.CandidatePoolHash, WinnerWorker: winner,
 	}))

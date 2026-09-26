@@ -169,7 +169,7 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 		TaskPhase:          types.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED,
 		VerificationStatus: types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,
 	}))
-	require.NoError(t, base.keeper.TaskAssignment.Set(ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, base.keeper.WriteTaskAssignment(ctx, taskKey, types.TaskAssignmentState{
 		TaskId: taskID, GenerationParamsDigest: genDigest,
 		CandidatePoolSnapshotId:      poolID,
 		CandidatePoolHash:            poolHash,
@@ -178,7 +178,7 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 		CanonicalEncodingVersion:     "CANONICAL_OUTPUT_TEXT_V1",
 		MetricAggregateProofVersion:  "PREFILL_METRIC_AGGREGATE_PROOF_V1",
 	}))
-	require.NoError(t, base.keeper.VerifierAssignment.Set(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), assignment))
+	require.NoError(t, base.keeper.WriteVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), assignment))
 	return &verificationFixture{
 		internalFixture: base, hub: hub, ctx: ctx, server: msgServer{k: base.keeper},
 		taskID: taskID, taskKey: taskKey, operators: operators, assignment: assignment,
@@ -193,7 +193,7 @@ func (f *verificationFixture) setTaskBuilders(t *testing.T, builders ...string) 
 		sdk.UnwrapSDKContext(f.ctx).ChainID(), f.taskID, "builder-set-v1", builderSetHash, builders,
 	)
 	require.NoError(t, err)
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, f.taskKey, types.TaskBuilderSelectionState{
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, f.taskKey, types.TaskBuilderSelectionState{
 		TaskId: f.taskID, BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: membersHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,

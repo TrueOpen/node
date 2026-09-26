@@ -22,7 +22,7 @@ func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) 
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	state, err := q.k.VrfKey.Get(ctx, operator)
+	state, err := q.k.GetVrfKey(ctx, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "operator %s has no registered vrf key", operator)
@@ -64,7 +64,7 @@ func (q queryServer) ValidatorBridgeSigner(ctx context.Context, req *types.Query
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	state, err := q.k.ValidatorBridgeSigner.Get(ctx, operator)
+	state, err := q.k.getValidatorBridgeSigner(ctx, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "operator %s has no registered bridge signer", operator)

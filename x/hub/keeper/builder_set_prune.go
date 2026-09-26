@@ -34,7 +34,7 @@ func (k Keeper) processBuilderSetPrunes(ctx context.Context, currentHeight, limi
 			return visited, err
 		}
 		visited++
-		set, err := k.BuilderSet.Get(ctx, key.K2())
+		set, err := k.GetBuilderSet(ctx, key.K2())
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.BuilderSetPruneIndex.Remove(ctx, key); err != nil {
 				return visited, err
@@ -59,7 +59,7 @@ func (k Keeper) processBuilderSetPrunes(ctx context.Context, currentHeight, limi
 			set.ActiveBuilders = nil
 			set.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED
 			set.XPrunedHeight = &types.BuilderSetState_PrunedHeight{PrunedHeight: currentHeight}
-			if err := k.BuilderSet.Set(ctx, set.BuilderSetVersion, set); err != nil {
+			if err := k.StoreBuilderSet(ctx, set); err != nil {
 				return visited, err
 			}
 			if err := k.BuilderSetPruneIndex.Remove(ctx, key); err != nil {
@@ -118,7 +118,7 @@ func (k Keeper) builderSetBodyPruneEligible(ctx context.Context, set types.Build
 	if current.BuilderSetVersion == set.BuilderSetVersion {
 		return false, nil
 	}
-	if pending, err := k.PendingBuilderSetReplacement.Get(ctx); err == nil && pending.NextBuilderSetVersion == set.BuilderSetVersion {
+	if pending, err := k.GetPendingBuilderSetReplacement(ctx); err == nil && pending.NextBuilderSetVersion == set.BuilderSetVersion {
 		return false, nil
 	} else if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return false, err

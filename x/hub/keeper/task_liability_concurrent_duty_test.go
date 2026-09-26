@@ -75,7 +75,7 @@ func TestFrozenTaskLiabilityStillRequiresLiveCoverage(t *testing.T) {
 	// One unit short of a single duty, while the frozen fact still claims the
 	// full pre-reservation snapshot.
 	bond.ReservedLiability = bond.EffectiveActiveBond - (req.RequiredTaskLiability - 1)
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(identity.Address), bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(identity.Address), bond))
 
 	_, err = f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, req)
 	require.ErrorContains(t, err, "does not match or cover")

@@ -49,7 +49,7 @@ func TestReserveTaskLiabilityAdmitsJailedAndRejectsOnlyAtTheEjectionThreshold(t 
 			require.NoError(t, err)
 			bond.Status = tc.bondStatus
 			bond.JailCount = tc.jailCount
-			require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(identity.Address), bond))
+			require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(identity.Address), bond))
 
 			reservation, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, req)
 			if tc.wantErr != "" {
@@ -180,7 +180,7 @@ func seedJailAdmissionLiabilityFixture(t *testing.T, salt int) (*fixture, hubTes
 
 	pool, err := f.keeper.CurrentCandidatePool.Get(f.ctx)
 	require.NoError(t, err)
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 
 	taskID, err := hex.DecodeString(hubHash("jail-admission-task-" + modelID))

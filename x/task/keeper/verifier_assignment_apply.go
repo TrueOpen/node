@@ -73,7 +73,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING); err != nil {
 		return false, 0, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
-	workerAssignment, err := k.TaskAssignment.Get(cache, taskKey)
+	workerAssignment, err := k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(workerAssignment.TaskId, core.TaskId) ||
 		!bytes.Equal(workerAssignment.CandidatePoolSnapshotId, window.CandidatePoolSnapshotId) {
 		return false, 0, errorsmod.Wrap(types.ErrInvariantBroken, "verifier selection worker assignment scope is inconsistent")
@@ -102,7 +102,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 			return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "verifier final deadline overflows")
 		}
 	} else {
-		round, err := k.VerificationRound.Get(cache, types.NewVerifyRoundKey(taskKey, window.VerifyRound))
+		round, err := k.ReadVerificationRound(cache, types.NewVerifyRoundKey(taskKey, window.VerifyRound))
 		if err != nil || round.XClosedHeight != nil || round.RoundCloseDeadlineHeight <= window.AssignmentDeadlineHeight {
 			return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "challenge round clock is unavailable")
 		}
@@ -151,7 +151,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 		}
 	}
 	if window.VerifyRound == types.ChallengeVerifyRoundV1 {
-		round, err := k.VerificationRound.Get(cache, types.NewVerifyRoundKey(taskKey, window.VerifyRound))
+		round, err := k.ReadVerificationRound(cache, types.NewVerifyRoundKey(taskKey, window.VerifyRound))
 		if err != nil {
 			return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "challenge round is unavailable at assignment")
 		}
@@ -166,7 +166,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 		}
 		return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "verifier assignment already exists")
 	}
-	if err := k.VerifierAssignment.Set(cache, assignmentKey, assignment); err != nil {
+	if err := k.WriteVerifierAssignment(cache, assignmentKey, assignment); err != nil {
 		return false, rowBytes, err
 	}
 	if window.VerifyRound == types.VerifyRoundV1 {
@@ -187,7 +187,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 			}
 			return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 header already exists")
 		}
-		if err := k.VerificationRound.Set(cache, assignmentKey, round); err != nil {
+		if err := k.WriteVerificationRound(cache, assignmentKey, round); err != nil {
 			return false, rowBytes, err
 		}
 	}
@@ -227,7 +227,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 		}
 	}
 	if window.VerifyRound == types.VerifyRoundV1 {
-		selection, err := k.TaskBuilderSelection.Get(cache, taskKey)
+		selection, err := k.GetTaskBuilderSelection(cache, taskKey)
 		if err != nil {
 			return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "Task Builder selection is unavailable at verifier assignment")
 		}
@@ -278,7 +278,7 @@ func (k Keeper) loadVerifierWindowMembersForAssignment(
 	members := make([]types.VerifierCandidateWindowMemberState, 0, window.WindowSize)
 	var rowBytes uint64
 	for rank := uint32(0); rank < window.WindowSize; rank++ {
-		member, err := k.VerifierCandidateWindowMember.Get(ctx, types.NewVerifierWindowMemberKey(taskID, window.VerifyRound, rank))
+		member, err := k.ReadVerifierWindowMember(ctx, types.NewVerifierWindowMemberKey(taskID, window.VerifyRound, rank))
 		if err != nil {
 			return nil, rowBytes, err
 		}

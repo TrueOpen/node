@@ -74,7 +74,7 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 		TaskId: taskID, AcceptedTaskHash: taskHash, ModelId: "m",
 		TaskPhase: types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
 	}))
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: taskID, WinnerWorker: canonicalWorker,
 	}))
 
@@ -112,7 +112,7 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 
 	// The accepted InferReceipt is the prerequisite the round announced. With it
 	// in place both envelopes hold Task authority and tag 2 is reachable.
-	require.NoError(t, f.keeper.InferReceipt.Set(f.ctx, taskKey, types.InferReceiptState{
+	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, taskKey, types.InferReceiptState{
 		TaskId: taskID, WinnerWorker: canonicalWorker,
 	}))
 	equivocationDigest, err := bus.EquivocationDigest(bus.EquivocationContent{

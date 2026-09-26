@@ -126,7 +126,7 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 		),
 	})
 	require.NoError(t, err)
-	index, err := f.keeper.CurrentServiceAddressIndex.Get(f.ctx, contestedIndexKey)
+	index, err := f.keeper.GetCurrentServiceAddressIndex(f.ctx, contestedIndexKey)
 	require.NoError(t, err)
 	require.Equal(t, victimOfCleanup.Address, index.OperatorAddress)
 
@@ -157,7 +157,7 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 	require.Equal(t, firstOwner.Address, descriptorEvent.Operator)
 	require.Equal(t, uint64(1), descriptorEvent.DescriptorVersion)
 
-	survivor, err := f.keeper.CurrentServiceAddressIndex.Get(f.ctx, contestedIndexKey)
+	survivor, err := f.keeper.GetCurrentServiceAddressIndex(f.ctx, contestedIndexKey)
 	require.NoError(t, err)
 	require.Equal(t, victimOfCleanup.Address, survivor.OperatorAddress, "descriptor update deleted a row it did not own")
 	require.Equal(t, uint64(1), survivor.ServiceAuthorizationNonce)
@@ -184,11 +184,11 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 	require.Equal(t, replacementKey.Address, rotatedEvent.NewServiceAddress)
 	require.Equal(t, uint64(2), rotatedEvent.AuthorizationNonce)
 
-	survivor, err = f.keeper.CurrentServiceAddressIndex.Get(f.ctx, contestedIndexKey)
+	survivor, err = f.keeper.GetCurrentServiceAddressIndex(f.ctx, contestedIndexKey)
 	require.NoError(t, err)
 	require.Equal(t, victimOfCleanup.Address, survivor.OperatorAddress, "the rotation deleted a row it did not own")
 	require.Equal(t, uint64(1), survivor.ServiceAuthorizationNonce)
-	rotatedIndex, err := f.keeper.CurrentServiceAddressIndex.Get(f.ctx, types.NewCurrentServiceAddressIndexKey(
+	rotatedIndex, err := f.keeper.GetCurrentServiceAddressIndex(f.ctx, types.NewCurrentServiceAddressIndexKey(
 		shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, replacementKey.Address,
 	))
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func TestBuilderRotationRequiresAllIdentityCountersToBeZero(t *testing.T) {
 			newKey := hubIdentity(t, byte(181+index*2))
 			builder := registerBuilderIdentityForTest(t, f, operator, 10)
 			test.mutate(&builder)
-			require.NoError(t, f.keeper.Builder.Set(f.ctx, operator.Address, builder))
+			require.NoError(t, f.keeper.StoreBuilder(f.ctx, operator.Address, builder))
 
 			operatorBytes := sdk.MustAccAddressFromBech32(operator.Address).Bytes()
 			proofBytes := serviceKeyRotationProofBytes(
@@ -237,7 +237,7 @@ func TestBuilderRotationRequiresAllIdentityCountersToBeZero(t *testing.T) {
 			require.ErrorIs(t, err, types.ErrPendingResponsibility)
 			require.Len(t, hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceKeyRotated{}), eventsBefore)
 
-			stored, err := f.keeper.Builder.Get(f.ctx, operator.Address)
+			stored, err := f.keeper.GetBuilderState(f.ctx, operator.Address)
 			require.NoError(t, err)
 			require.Equal(t, operator.Address, stored.CurrentServiceAddress)
 			require.Equal(t, uint64(1), stored.ServiceAuthorizationNonce)
@@ -423,13 +423,13 @@ func TestMsgRegisterBuilderPersistsIdentityKeyAndDescriptorAtomically(t *testing
 	require.NoError(t, err)
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, response.Status)
 
-	builder, err := f.keeper.Builder.Get(f.ctx, operator.Address)
+	builder, err := f.keeper.GetBuilderState(f.ctx, operator.Address)
 	require.NoError(t, err)
 	require.Equal(t, serviceKey.Address, builder.CurrentServiceAddress)
 	require.Equal(t, serviceKey.PubKey, builder.CurrentServicePubkey)
 	require.Equal(t, uint64(1), builder.ServiceAuthorizationNonce)
 	require.Equal(t, types.ServiceKeyStatus_SERVICE_KEY_STATUS_ACTIVE, builder.CurrentServiceKeyStatus)
-	descriptor, err := f.keeper.ServiceDescriptor.Get(
+	descriptor, err := f.keeper.GetServiceDescriptor(
 		f.ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, operator.Address),
 	)
 	require.NoError(t, err)
@@ -477,7 +477,7 @@ func TestMsgStakeServicePersistsOperatorBondAndCurrentServiceKeyAtomically(t *te
 	require.Equal(t, serviceKey.PubKey, storedNode.CurrentServicePubkey)
 	require.Equal(t, uint64(1), storedNode.ServiceAuthorizationNonce)
 	require.Equal(t, types.ServiceKeyStatusActive, storedNode.ServiceKeyStatus)
-	index, err := f.keeper.CurrentServiceAddressIndex.Get(
+	index, err := f.keeper.GetCurrentServiceAddressIndex(
 		f.ctx, types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, serviceKey.Address),
 	)
 	require.NoError(t, err)
@@ -603,7 +603,7 @@ func TestMsgStakeServiceTopUpRejectsOldKeyImmediatelyAfterRotation(t *testing.T)
 	)
 	require.NoError(t, err)
 	require.False(t, hasOldIndex)
-	newIndex, err := f.keeper.CurrentServiceAddressIndex.Get(
+	newIndex, err := f.keeper.GetCurrentServiceAddressIndex(
 		f.ctx, types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, newKey.Address),
 	)
 	require.NoError(t, err)

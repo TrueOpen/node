@@ -1,0 +1,26 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// SlashSummaryStoreState stores the operator as codec bytes.
+message SlashSummaryStoreState {
+  bytes slash_summary_id = 1;
+  int32 source_kind = 2;
+  bytes source_id = 3;
+  uint64 effect_index = 4;
+  bytes operator_address = 5;
+  int32 duty = 6;
+  optional bytes task_id = 7;
+  string requested_amount_atomic_units = 8;
+  string pending_task_earnings_debit_atomic_units = 9;
+  string active_bond_debit_atomic_units = 10;
+  string unbonding_debit_atomic_units = 11;
+  string claimable_earnings_debit_atomic_units = 12;
+  string applied_amount_atomic_units = 13;
+  string unfilled_amount_atomic_units = 14;
+  int32 destination = 15;
+  uint32 unbonding_rows_visited = 16;
+  uint64 applied_height = 17;
+  uint64 bond_version = 18;
+}

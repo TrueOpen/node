@@ -138,7 +138,11 @@ func TestServiceFaultInvariantsRejectKeyValueMismatch(t *testing.T) {
 	t.Run("role fault primary vs slash summary sweep", func(t *testing.T) {
 		f := initFixture(t)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
-		require.NoError(t, f.keeper.RoleFault.Set(f.ctx, key, roleFault(other)))
+		require.NoError(t, f.keeper.WriteRoleFaultValue(f.ctx, key, roleFault(key)))
+		stored, err := f.keeper.RoleFault.Get(f.ctx, key)
+		require.NoError(t, err)
+		stored.FaultId = other
+		require.NoError(t, f.keeper.RoleFault.Set(f.ctx, key, stored))
 		require.ErrorContains(t, f.keeper.EnsureSlashSummaryInvariant(f.ctx), "role fault does not match its store key")
 	})
 
@@ -165,15 +169,20 @@ func TestServiceFaultInvariantsRejectKeyValueMismatch(t *testing.T) {
 			BondVersion:              1,
 		}
 		require.NoError(t, summary.Validate())
+		validKey := types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, other, 0)
+		require.NoError(t, f.keeper.WriteSlashSummaryValue(f.ctx, validKey, summary))
+		stored, err := f.keeper.SlashSummary.Get(f.ctx, validKey)
+		require.NoError(t, err)
+		require.NoError(t, f.keeper.SlashSummary.Remove(f.ctx, validKey))
 		require.NoError(t, f.keeper.SlashSummary.Set(f.ctx,
-			types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, key, 0), summary))
+			types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, key, 0), stored))
 		require.ErrorContains(t, f.keeper.EnsureSlashSummaryInvariant(f.ctx), "slash summary does not match its store key")
 	})
 
 	t.Run("role fault by-task index", func(t *testing.T) {
 		f := initFixture(t)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
-		require.NoError(t, f.keeper.RoleFault.Set(f.ctx, key, roleFault(key)))
+		require.NoError(t, f.keeper.WriteRoleFaultValue(f.ctx, key, roleFault(key)))
 		require.NoError(t, f.keeper.RoleFaultByTaskIndex.Set(f.ctx, types.NewRoleFaultByTaskKey(other, key)))
 		require.ErrorContains(t, f.keeper.EnsureRoleFaultByTaskIndexInvariant(f.ctx), "disagrees with primary")
 	})
@@ -184,14 +193,19 @@ func TestServiceFaultInvariantsRejectKeyValueMismatch(t *testing.T) {
 		// Same shape: the row is Validate()-clean and only the key names a different
 		// fault_id, so a mutation of the identity clause is what turns this red.
 		fault := types.BuilderFaultState{
-			BuilderAddress: operator, FaultId: other,
+			BuilderAddress: operator, FaultId: key,
 			FaultKind:   types.BuilderFaultKind_BUILDER_FAULT_KIND_OBJECTIVE_DATA_UNAVAILABLE,
 			FaultStatus: types.BuilderFaultStatus_BUILDER_FAULT_STATUS_RECORDED, FaultHeight: 4,
 			EvidenceId: evidence, CanonicalEvidenceDigest: hubHashBytes("service-fault-canonical"),
 			ScopeId: hubHashBytes("service-fault-scope"), PruneHeight: 5,
 		}
 		require.NoError(t, fault.Validate())
-		require.NoError(t, f.keeper.BuilderFault.Set(f.ctx, types.NewBuilderFaultKey(operator, key), fault))
+		faultKey := types.NewBuilderFaultKey(operator, key)
+		require.NoError(t, f.keeper.WriteBuilderFaultValue(f.ctx, faultKey, fault))
+		stored, err := f.keeper.BuilderFault.Get(f.ctx, faultKey)
+		require.NoError(t, err)
+		stored.FaultId = other
+		require.NoError(t, f.keeper.BuilderFault.Set(f.ctx, faultKey, stored))
 		require.ErrorContains(t, f.keeper.EnsureBuilderFaultPruneInvariant(f.ctx), "builder fault primary is invalid")
 	})
 }

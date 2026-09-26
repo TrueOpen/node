@@ -43,7 +43,7 @@ func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.T
 	}
 	if core.TaskPhase == types.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING &&
 		core.AssignmentStatus == types.AssignmentStatus_ASSIGNMENT_STATUS_NONE {
-		assignment, err := k.TaskAssignment.Get(ctx, taskID)
+		assignment, err := k.ReadTaskAssignment(ctx, taskID)
 		if err != nil || assignment.AssignmentRandomnessHeight != deadline {
 			return deadlineSweepStale, rowBytes, err
 		}
@@ -63,7 +63,7 @@ func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.T
 		core.AssignmentStatus != types.AssignmentStatus_ASSIGNMENT_STATUS_RANDOMNESS_PENDING {
 		return deadlineSweepStale, rowBytes, nil
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskID)
+	assignment, err := k.ReadTaskAssignment(ctx, taskID)
 	if err != nil {
 		if errIsNotFound(err) {
 			return deadlineSweepStale, rowBytes, nil
@@ -127,7 +127,7 @@ func (k Keeper) computeAssignmentWinner(
 	if err != nil {
 		return assignmentWinnerComputation{}, err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, types.NewTaskKey(taskID))
+	assignment, err := k.ReadTaskAssignment(ctx, types.NewTaskKey(taskID))
 	if err != nil {
 		return assignmentWinnerComputation{}, err
 	}
@@ -221,7 +221,7 @@ func (k Keeper) commitAssignmentWinner(
 	assignment.WinnerDrawDigest = computation.Digest[:]
 	assignment.WinnerConfirmHeight = currentHeight
 	assignment.InferDeadlineHeight = inferDeadline
-	if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
 
@@ -314,7 +314,7 @@ func (k Keeper) failAssignmentRandomness(
 		return err
 	}
 	assignment.AssignmentFailReason = reason
-	if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
 	// The §10.2 "winner cannot serve" failure path sets assignment_status =
@@ -366,7 +366,11 @@ func (k Keeper) loadWorkerCandidateFacts(ctx context.Context, taskID types.TaskK
 	defer iter.Close()
 	facts := make([]types.TaskCandidateFactState, 0, expected)
 	for ; iter.Valid(); iter.Next() {
-		fact, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		fact, err := k.ProjectTaskCandidateFactStore(stored)
 		if err != nil {
 			return nil, err
 		}

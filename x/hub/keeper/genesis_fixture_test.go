@@ -14,6 +14,26 @@ func TestModelProfileGenesisRebuildsCanonicalRegistration(t *testing.T) {
 	f := initFixture(t)
 	genesis := hubGenesisWithIndexes()
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+	bond := genesis.ServiceBonds[0]
+	storedBond, err := f.keeper.ServiceBond.Get(f.ctx, bond.OperatorAddress)
+	require.NoError(t, err)
+	operatorBytes, err := sdk.AccAddressFromBech32(bond.OperatorAddress)
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedBond.OperatorAddress)
+	unbonding := genesis.ServiceUnbondings[0]
+	storedUnbonding, err := f.keeper.Unbonding.Get(f.ctx, types.NewUnbondingKey(unbonding.OperatorAddress, shared.Hash32Key(unbonding.UnbondingId)))
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedUnbonding.OperatorAddress)
+	liability := genesis.TaskLiabilityReservations[0]
+	liabilityKey := types.NewTaskLiabilityReservationKey(shared.Hash32Key(liability.TaskId), liability.Duty, liability.OperatorAddress)
+	storedLiability, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, liabilityKey)
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedLiability.OperatorAddress)
+	responsibility := genesis.ServiceKeyResponsibilities[0]
+	responsibilityKey := types.NewServiceKeyResponsibilityKey(responsibility.ParticipantType, responsibility.OperatorAddress, shared.Hash32Key(responsibility.ResponsibilityId))
+	storedResponsibility, err := f.keeper.ServiceKeyResponsibility.Get(f.ctx, responsibilityKey)
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedResponsibility.OperatorAddress)
 
 	receipt, err := f.keeper.RegistrationReceipt.Get(f.ctx, genesis.Profiles[0].RegistrationDigest)
 	require.NoError(t, err)

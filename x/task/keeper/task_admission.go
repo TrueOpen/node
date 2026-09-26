@@ -97,7 +97,7 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err != nil {
 		return err
 	}
-	stream, err := k.Stream.Get(ctx, types.NewSessionKey(order.SessionId))
+	stream, err := k.ReadStream(ctx, types.NewSessionKey(order.SessionId))
 	if err != nil {
 		if errIsNotFound(err) {
 			return fmt.Errorf("session does not exist")
@@ -282,10 +282,10 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err := k.TaskCore.Set(ctx, taskKey, core); err != nil {
 		return err
 	}
-	if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
-	if err := k.TaskBuilderSelection.Set(ctx, taskKey, selection); err != nil {
+	if err := k.StoreTaskBuilderSelection(ctx, taskKey, selection); err != nil {
 		return err
 	}
 	if err := k.acquireTaskBuilderEvidenceResponsibilities(ctx, core, selection); err != nil {

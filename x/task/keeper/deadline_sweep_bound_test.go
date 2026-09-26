@@ -271,7 +271,7 @@ func TestTaskDeadlineLocatorTargetsRequestedTask(t *testing.T) {
 	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.InferDeadlineIndex, headTask, 5))
 	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.InferDeadlineIndex, targetTask, 10))
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, targetTask, types.TaskCoreState{TaskId: targetID}))
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, targetTask, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, targetTask, types.TaskAssignmentState{
 		TaskId: targetID, InferDeadlineHeight: 10,
 	}))
 

@@ -203,7 +203,7 @@ func (k Keeper) applyTaskGasReimbursement(
 		return fmt.Errorf("task gas reimbursement budget is unavailable")
 	}
 	key := types.NewTaskGasReimbursementKey(taskKey, txHash, intent.itemIndex)
-	if _, err := k.TaskGasReimbursement.Get(ctx, key); err == nil {
+	if _, err := k.ReadGasReimbursement(ctx, key); err == nil {
 		return fmt.Errorf("task gas reimbursement receipt already exists without replay intent")
 	} else if !errIsNotFound(err) {
 		return err
@@ -231,7 +231,7 @@ func (k Keeper) applyTaskGasReimbursement(
 		ReimbursedAmount: shared.NewAmount(amount), FeePolicyVersion: budget.FeePolicyVersionSnapshot,
 		AcceptedHeight: height,
 	}
-	if err := k.TaskGasReimbursement.Set(ctx, key, receipt); err != nil {
+	if err := k.WriteGasReimbursement(ctx, key, receipt); err != nil {
 		return err
 	}
 	budget.TxFeeReserveRemaining = shared.NewAmount(reserve - amount)

@@ -91,5 +91,5 @@ func setGenesisVrfKey(t *testing.T, application *App, ctx sdk.Context, operator 
 		}
 		state.XPendingFromEpoch = &hubtypes.VrfKeyState_PendingFromEpoch{PendingFromEpoch: 1}
 	}
-	require.NoError(t, application.HubKeeper.VrfKey.Set(ctx, operator, state))
+	require.NoError(t, application.HubKeeper.StoreVrfKey(ctx, state))
 }

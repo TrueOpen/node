@@ -68,7 +68,7 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 	// consequence of the store shape. What still needs deciding is what a second
 	// execution means: the same proposal item re-run under the same digest is the
 	// exact replay §9.6c calls a no-op, everything else is a conflict.
-	existing, err := k.PendingBuilderSetReplacement.Get(ctx)
+	existing, err := k.GetPendingBuilderSetReplacement(ctx)
 	switch {
 	case err == nil:
 		if existing.ProposalId != action.ProposalId || !bytes.Equal(existing.ActionDigest, actionDigest) {
@@ -154,7 +154,7 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 		AcceptedHeight:            height,
 		EffectiveHeight:           action.EffectiveHeight,
 	}
-	if err := k.PendingBuilderSetReplacement.Set(ctx, pending); err != nil {
+	if err := k.StorePendingBuilderSetReplacement(ctx, pending); err != nil {
 		return BuilderSetReplacementResult{}, err
 	}
 	// The index is what BeginBlock reads; genesis writes the same pair, so the
@@ -202,7 +202,7 @@ func (k Keeper) requireAdmissibleBuilder(ctx context.Context, builder string) er
 	if !isRegisteredBuilderState(state) {
 		return fmt.Errorf("builder set member %s does not hold an ACTIVE service key binding", builder)
 	}
-	descriptor, err := k.ServiceDescriptor.Get(ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder))
+	descriptor, err := k.GetServiceDescriptor(ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder))
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("builder set member %s has no service descriptor", builder)
 	} else if err != nil {
@@ -260,7 +260,7 @@ func (k Keeper) ActivateDueBuilderSetReplacements(ctx context.Context, height ui
 // the block's BeginBlock back rather than leaving a half-switched set, which is
 // why nothing is written through ctx directly.
 func (k Keeper) activateBuilderSetReplacement(ctx context.Context, key types.BuilderSetReplacementKeyPair) error {
-	pending, err := k.PendingBuilderSetReplacement.Get(ctx)
+	pending, err := k.GetPendingBuilderSetReplacement(ctx)
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("builder set replacement index row (%d,%d) has no pending replacement", key.K1(), key.K2())
 	} else if err != nil {
@@ -282,7 +282,7 @@ func (k Keeper) activateBuilderSetReplacement(ctx context.Context, key types.Bui
 		!bytes.Equal(current.BuilderSetHash, pending.ExpectedCurrentSetHash) {
 		return fmt.Errorf("pending builder set replacement no longer matches current builder set version %d", current.BuilderSetVersion)
 	}
-	previous, err := k.BuilderSet.Get(cache, current.BuilderSetVersion)
+	previous, err := k.GetBuilderSet(cache, current.BuilderSetVersion)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (k Keeper) activateBuilderSetReplacement(ctx context.Context, key types.Bui
 	if err := k.validateBuilderSetState(cache, next, next.BuilderSetVersion); err != nil {
 		return err
 	}
-	if err := k.BuilderSet.Set(cache, next.BuilderSetVersion, next); err != nil {
+	if err := k.StoreBuilderSet(cache, next); err != nil {
 		return err
 	}
 	if err := k.BuilderSetByIDIndex.Set(cache, next.BuilderSetId, next.BuilderSetVersion); err != nil {
@@ -347,7 +347,7 @@ func (k Keeper) activateBuilderSetReplacement(ctx context.Context, key types.Bui
 	}
 
 	previous.XSupersededHeight = &types.BuilderSetState_SupersededHeight{SupersededHeight: pending.EffectiveHeight}
-	if err := k.BuilderSet.Set(cache, previous.BuilderSetVersion, previous); err != nil {
+	if err := k.StoreBuilderSet(cache, previous); err != nil {
 		return err
 	}
 	if err := k.PendingBuilderSetReplacement.Remove(cache); err != nil {
@@ -383,7 +383,7 @@ func (k Keeper) setBuilderAdmission(
 	status types.BuilderStatus,
 	builderSetVersion, proposalID, height uint64,
 ) error {
-	return k.BuilderAdmission.Set(ctx, builder, types.BuilderAdmissionState{
+	return k.storeBuilderAdmission(ctx, types.BuilderAdmissionState{
 		BuilderAddress:           builder,
 		Status:                   status,
 		CurrentBuilderSetVersion: builderSetVersion,

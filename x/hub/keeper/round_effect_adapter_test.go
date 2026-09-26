@@ -53,7 +53,7 @@ func TestApplyRoundEconomicEffectServiceSlashIsAuditedAndReplaySafe(t *testing.T
 	require.Equal(t, beforeBond.ActiveBond-100, afterBond.ActiveBond)
 	require.Equal(t, uint64(100), f.bank.moduleBalance(shared.TaskChallengeEffectModuleName))
 
-	summary, err := f.keeper.SlashSummary.Get(f.ctx, types.NewSlashSummaryKey(
+	summary, err := f.keeper.ReadSlashSummaryValue(f.ctx, types.NewSlashSummaryKey(
 		types.SlashSourceKind_SLASH_SOURCE_KIND_CHALLENGE_EFFECT, roundID, 1,
 	))
 	require.NoError(t, err)

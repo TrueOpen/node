@@ -145,7 +145,7 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
 	}
-	nonceState, err := m.k.SessionNonce.Get(ctx, owner)
+	nonceState, err := m.k.ReadSessionNonce(ctx, owner)
 	if err != nil {
 		if !errors.Is(err, collections.ErrNotFound) {
 			return nil, err
@@ -190,7 +190,7 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 	}
 	nonceState.UserAddress = owner
 	nonceState.NextSessionNonce = nonce + 1
-	if err := m.k.SessionNonce.Set(ctx, owner, nonceState); err != nil {
+	if err := m.k.WriteSessionNonce(ctx, owner, nonceState); err != nil {
 		return nil, err
 	}
 	if err := emitTypedEvent(ctx, &types.EventSessionCreated{SessionId: sessionID, Owner: owner, Nonce: nonce}); err != nil {
@@ -226,7 +226,7 @@ func (m *msgServer) cancelOrder(ctx context.Context, req *types.MsgCancelOrder) 
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
 	}
-	stream, err := m.k.Stream.Get(ctx, sessionKey)
+	stream, err := m.k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "session not found")

@@ -267,7 +267,7 @@ func (k Keeper) requireBridgeOperable(ctx context.Context) error {
 // BridgeSignerProjectionHash recomputes §4.2's projection from the current
 // Validator bridge signer table.
 func (k Keeper) BridgeSignerProjectionHash(ctx context.Context) ([32]byte, error) {
-	signers, err := collectMapValues[string, types.ValidatorBridgeSignerState](ctx, k.ValidatorBridgeSigner)
+	signers, err := k.exportValidatorBridgeSigners(ctx)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -427,7 +427,7 @@ func (k Keeper) emitBridgeTransferEvent(
 // one-way: once CONSUMED, no later message can re-arm it, so the fee exemption
 // cannot become a standing relayer privilege.
 func (k Keeper) consumeBridgeBootstrapIfBound(ctx context.Context, route types.BridgeRouteState, transfer BridgeTransferContext) (bool, error) {
-	bootstrap, err := k.BridgeBootstrap.Get(ctx)
+	bootstrap, err := k.ReadBridgeBootstrapValue(ctx)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return false, nil
@@ -446,7 +446,7 @@ func (k Keeper) consumeBridgeBootstrapIfBound(ctx context.Context, route types.B
 	}
 	bootstrap.Mode = types.BridgeBootstrapModeV1_BRIDGE_BOOTSTRAP_MODE_V1_CONSUMED
 	bootstrap.XConsumedHeight = &types.BridgeBootstrapState_ConsumedHeight{ConsumedHeight: height}
-	if err := k.BridgeBootstrap.Set(ctx, bootstrap); err != nil {
+	if err := k.WriteBridgeBootstrapValue(ctx, bootstrap); err != nil {
 		return false, err
 	}
 	return true, nil

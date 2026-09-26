@@ -8,6 +8,7 @@ import (
 	corestore "cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
 
+	internaltypes "github.com/TrueOpen/node/x/task/internal/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -48,14 +49,14 @@ type Keeper struct {
 	// summary -> deleted pipeline.
 	// SessionNonce is the one map in this block still keyed by a string: its key is
 	// the owner's bech32 account address, not a session_id.
-	SessionNonce                     collections.Map[string, types.SessionNonceState]
-	Stream                           collections.Map[types.SessionKey, types.StreamState]
+	SessionNonce                     collections.Map[string, internaltypes.SessionNonceStoreState]
+	Stream                           collections.Map[types.SessionKey, internaltypes.StreamStoreState]
 	SessionByOwnerIndex              collections.KeySet[types.SessionByOwnerKey]
 	SessionLifecycleIndex            collections.KeySet[types.SessionLifecycleIndexKey]
 	OrderSequence                    collections.Map[types.OrderSequenceStateKeyPair, types.OrderSequenceState]
 	SessionHistoryPruneCursor        collections.Map[types.SessionKey, types.SessionHistoryPruneCursorState]
 	SessionHistoryPruneIndex         collections.KeySet[types.SessionHeightIndexKey]
-	SessionTerminalSummary           collections.Map[types.SessionKey, types.SessionTerminalSummaryState]
+	SessionTerminalSummary           collections.Map[types.SessionKey, internaltypes.SessionTerminalSummaryStoreState]
 	SessionTerminalSummaryPruneIndex collections.KeySet[types.SessionHeightIndexKey]
 	TaskBudget                       collections.Map[types.TaskBudgetKey, types.TaskBudgetState]
 
@@ -70,14 +71,14 @@ type Keeper struct {
 	// (task_id, stage, slot). AssignmentCandidateSet keeps only the commitment
 	// header, and the union bitmap segment bodies are deleted at finalize.
 	TaskCore                       collections.Map[types.TaskKey, types.TaskCoreState]
-	TaskAssignment                 collections.Map[types.TaskKey, types.TaskAssignmentState]
+	TaskAssignment                 collections.Map[types.TaskKey, internaltypes.TaskAssignmentStoreState]
 	AssignmentCandidateSet         collections.Map[types.TaskKey, types.AssignmentCandidateSetState]
-	TaskCandidateFact              collections.Map[types.TaskCandidateFactKeyTriple, types.TaskCandidateFactState]
-	BuilderStageProposal           collections.Map[types.BuilderStageProposalKeyTriple, types.BuilderStageProposalState]
+	TaskCandidateFact              collections.Map[types.TaskCandidateFactKeyTriple, internaltypes.TaskCandidateFactStoreState]
+	BuilderStageProposal           collections.Map[types.BuilderStageProposalKeyTriple, internaltypes.BuilderStageProposalStoreState]
 	TaskStageHandraiseUnion        collections.Map[types.TaskStageKey, types.TaskStageHandraiseUnionState]
 	TaskStageHandraiseUnionSegment collections.Map[types.TaskStageSegmentKeyTriple, types.TaskStageHandraiseUnionSegmentState]
 	TaskCandidateFinalizeCursor    collections.Map[types.TaskStageKey, types.TaskCandidateFinalizeCursorState]
-	TaskBuilderSelection           collections.Map[types.TaskKey, types.TaskBuilderSelectionState]
+	TaskBuilderSelection           collections.Map[types.TaskKey, internaltypes.TaskBuilderSelectionStoreState]
 
 	// TaskBucketRef is the reference-count-only side of the versioned governance
 	// parameter buckets (§2.4/§6.7): the bodies and the current/pending pointers
@@ -90,16 +91,16 @@ type Keeper struct {
 	// with a frozen fixed-length eligibility bitmap plus dense rank members.
 	// Commit / ResultReceipt / FullResultReveal are keyed by the §10.9 commit_key,
 	// which is the only registered derivation and the only one that binds chain_id.
-	InferReceipt                        collections.Map[types.TaskKey, types.InferReceiptState]
+	InferReceipt                        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
-	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateWindowMemberState]
-	VerifierAssignment                  collections.Map[types.VerifyRoundKey, types.VerifierAssignmentState]
-	CommitState                         collections.Map[types.CommitKey, types.CommitState]
-	ResultReceiptState                  collections.Map[types.CommitKey, types.ResultReceiptState]
-	DataUnavailableReport               collections.Map[types.VerifyActorKey, types.DataUnavailableReportState]
-	BuilderDataUnavailableAggregate     collections.Map[types.VerifyActorKey, types.BuilderDataUnavailableAggregateState]
-	WorkerEvidenceReceipt               collections.Map[types.WorkerEvidenceReceiptKey, types.WorkerEvidenceReceiptState]
+	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
+	VerifierAssignment                  collections.Map[types.VerifyRoundKey, internaltypes.VerifierAssignmentStoreState]
+	CommitState                         collections.Map[types.CommitKey, internaltypes.CommitStoreState]
+	ResultReceiptState                  collections.Map[types.CommitKey, internaltypes.ResultReceiptStoreState]
+	DataUnavailableReport               collections.Map[types.VerifyActorKey, internaltypes.DataUnavailableReportStoreState]
+	BuilderDataUnavailableAggregate     collections.Map[types.VerifyActorKey, internaltypes.BuilderDataUnavailableAggregateStoreState]
+	WorkerEvidenceReceipt               collections.Map[types.WorkerEvidenceReceiptKey, internaltypes.WorkerEvidenceReceiptStoreState]
 
 	// ---- Settlement facts, failure class and challenge summary (§6.6) ----
 	//
@@ -109,19 +110,19 @@ type Keeper struct {
 	// Genesis field 71
 	// carrying it. The non-amount SettlementFactsV1 stays a pure value object;
 	// only the amounts live in the stored row.
-	VerificationRound                    collections.Map[types.VerifyRoundKey, types.VerificationRoundState]
-	RoundFunding                         collections.Map[types.VerifyRoundKey, types.RoundFundingState]
+	VerificationRound                    collections.Map[types.VerifyRoundKey, internaltypes.VerificationRoundStoreState]
+	RoundFunding                         collections.Map[types.VerifyRoundKey, internaltypes.RoundFundingStoreState]
 	RoundEconomicEffect                  collections.Map[types.RoundEconomicEffectKey, types.RoundEconomicEffectState]
 	RoundEconomicEffectApplyCursor       collections.Map[types.VerifyRoundKey, types.RoundEconomicEffectApplyCursorState]
 	TaskRoundSummary                     collections.Map[types.TaskKey, types.TaskRoundSummaryState]
-	TaskGasReimbursement                 collections.Map[types.TaskGasReimbursementKey, types.TaskGasReimbursementV1]
-	VerifierPayout                       collections.Map[types.VerifierPayoutKey, types.VerifierPayoutState]
-	TaskSettlement                       collections.Map[types.TaskKey, types.TaskSettlementState]
-	SettlementFactsRetained              collections.Map[types.TaskKey, types.SettlementFactsRetainedState]
+	TaskGasReimbursement                 collections.Map[types.TaskGasReimbursementKey, internaltypes.TaskGasReimbursementStoreState]
+	VerifierPayout                       collections.Map[types.VerifierPayoutKey, internaltypes.VerifierPayoutStoreState]
+	TaskSettlement                       collections.Map[types.TaskKey, internaltypes.TaskSettlementStoreState]
+	SettlementFactsRetained              collections.Map[types.TaskKey, internaltypes.SettlementFactsStoreState]
 	TaskFailureClass                     collections.Map[types.VerifyRoundKey, types.TaskFailureClassState]
 	TaskFailureClassByProfileWindowIndex collections.KeySet[types.TaskFailureClassByProfileWindowKey]
 	TaskCleanupCursor                    collections.Map[types.TaskKey, types.TaskCleanupCursorState]
-	TaskTerminalSummary                  collections.Map[types.TaskKey, types.TaskTerminalSummaryState]
+	TaskTerminalSummary                  collections.Map[types.TaskKey, internaltypes.TaskTerminalSummaryStoreState]
 	TaskTerminalSummaryPruneIndex        collections.KeySet[types.DeadlineIndexKey]
 	EpochTaskSummaryCursor               collections.Map[uint64, types.EpochTaskSummaryCursorState]
 	EpochTaskSummaryReceipt              collections.Map[uint64, types.EpochTaskSummaryReceiptState]
@@ -216,52 +217,52 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		Params:     collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.TaskParamsV1](cdc)),
 		ParamsMeta: collections.NewItem(sb, types.ParamsMetaKey, "params_meta", codec.CollValue[types.TaskParamsMetaState](cdc)),
 
-		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", collections.StringKey, codec.CollValue[types.SessionNonceState](cdc)),
-		Stream:                           collections.NewMap(sb, types.StreamStateKey, "stream_state", types.Hash32KeyCodec, codec.CollValue[types.StreamState](cdc)),
+		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", collections.StringKey, codec.CollValue[internaltypes.SessionNonceStoreState](cdc)),
+		Stream:                           collections.NewMap(sb, types.StreamStateKey, "stream_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.StreamStoreState](cdc)),
 		SessionByOwnerIndex:              collections.NewKeySet(sb, types.SessionByOwnerIndexKey, "session_by_owner_index", sessionOwnerKeyCodec),
 		SessionLifecycleIndex:            collections.NewKeySet(sb, types.SessionLifecycleIndexKeyPrefix, "session_lifecycle_index", sessionLifecycleKeyCodec),
 		OrderSequence:                    collections.NewMap(sb, types.OrderSequenceStateKey, "order_sequence", orderSequenceKeyCodec, codec.CollValue[types.OrderSequenceState](cdc)),
 		SessionHistoryPruneCursor:        collections.NewMap(sb, types.SessionHistoryPruneCursorKey, "session_history_prune_cursor", types.Hash32KeyCodec, codec.CollValue[types.SessionHistoryPruneCursorState](cdc)),
 		SessionHistoryPruneIndex:         collections.NewKeySet(sb, types.SessionHistoryPruneIndexKey, "session_history_prune_index", sessionHeightIndexKeyCodec),
-		SessionTerminalSummary:           collections.NewMap(sb, types.SessionTerminalSummaryKey, "session_terminal_summary", types.Hash32KeyCodec, codec.CollValue[types.SessionTerminalSummaryState](cdc)),
+		SessionTerminalSummary:           collections.NewMap(sb, types.SessionTerminalSummaryKey, "session_terminal_summary", types.Hash32KeyCodec, codec.CollValue[internaltypes.SessionTerminalSummaryStoreState](cdc)),
 		SessionTerminalSummaryPruneIndex: collections.NewKeySet(sb, types.SessionTerminalSummaryPruneIndexKey, "session_terminal_summary_prune_index", sessionHeightIndexKeyCodec),
 		TaskBudget:                       collections.NewMap(sb, types.TaskBudgetKeyPrefix, "task_budget", types.Hash32KeyCodec, codec.CollValue[types.TaskBudgetState](cdc)),
 
 		TaskCore:                       collections.NewMap(sb, types.TaskCoreKey, "task_core", types.Hash32KeyCodec, codec.CollValue[types.TaskCoreState](cdc)),
-		TaskAssignment:                 collections.NewMap(sb, types.TaskAssignmentKey, "task_assignment", types.Hash32KeyCodec, codec.CollValue[types.TaskAssignmentState](cdc)),
+		TaskAssignment:                 collections.NewMap(sb, types.TaskAssignmentKey, "task_assignment", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskAssignmentStoreState](cdc)),
 		AssignmentCandidateSet:         collections.NewMap(sb, types.AssignmentCandidateSetKey, "assignment_candidate_set", types.Hash32KeyCodec, codec.CollValue[types.AssignmentCandidateSetState](cdc)),
-		TaskCandidateFact:              collections.NewMap(sb, types.TaskCandidateFactKey, "task_candidate_fact", taskStageSlotKeyCodec, codec.CollValue[types.TaskCandidateFactState](cdc)),
-		BuilderStageProposal:           collections.NewMap(sb, types.BuilderStageProposalKey, "builder_stage_proposal", taskStageDigestKeyCodec, codec.CollValue[types.BuilderStageProposalState](cdc)),
+		TaskCandidateFact:              collections.NewMap(sb, types.TaskCandidateFactKey, "task_candidate_fact", taskStageSlotKeyCodec, codec.CollValue[internaltypes.TaskCandidateFactStoreState](cdc)),
+		BuilderStageProposal:           collections.NewMap(sb, types.BuilderStageProposalKey, "builder_stage_proposal", taskStageDigestKeyCodec, codec.CollValue[internaltypes.BuilderStageProposalStoreState](cdc)),
 		TaskStageHandraiseUnion:        collections.NewMap(sb, types.TaskStageHandraiseUnionKey, "task_stage_handraise_union", taskStageKeyCodec, codec.CollValue[types.TaskStageHandraiseUnionState](cdc)),
 		TaskStageHandraiseUnionSegment: collections.NewMap(sb, types.TaskStageHandraiseUnionSegmentKey, "task_stage_handraise_union_segment", taskStageSlotKeyCodec, codec.CollValue[types.TaskStageHandraiseUnionSegmentState](cdc)),
 		TaskCandidateFinalizeCursor:    collections.NewMap(sb, types.TaskCandidateFinalizeCursorKey, "task_candidate_finalize_cursor", taskStageKeyCodec, codec.CollValue[types.TaskCandidateFinalizeCursorState](cdc)),
-		TaskBuilderSelection:           collections.NewMap(sb, types.TaskBuilderSelectionKey, "task_builder_selection", types.Hash32KeyCodec, codec.CollValue[types.TaskBuilderSelectionState](cdc)),
+		TaskBuilderSelection:           collections.NewMap(sb, types.TaskBuilderSelectionKey, "task_builder_selection", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskBuilderSelectionStoreState](cdc)),
 		TaskBucketRef:                  collections.NewMap(sb, types.TaskBucketRefKey, "task_bucket_ref", taskBucketRefKeyCodec, codec.CollValue[types.TaskBucketRefState](cdc)),
 
-		InferReceipt:                        collections.NewMap(sb, types.InferReceiptKey, "infer_receipt", types.Hash32KeyCodec, codec.CollValue[types.InferReceiptState](cdc)),
+		InferReceipt:                        collections.NewMap(sb, types.InferReceiptKey, "infer_receipt", types.Hash32KeyCodec, codec.CollValue[internaltypes.InferReceiptStoreState](cdc)),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
-		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateWindowMemberState](cdc)),
-		VerifierAssignment:                  collections.NewMap(sb, types.VerifierAssignmentKey, "verifier_assignment", verifyRoundKeyCodec, codec.CollValue[types.VerifierAssignmentState](cdc)),
-		CommitState:                         collections.NewMap(sb, types.CommitStateKey, "commit_state", types.Hash32KeyCodec, codec.CollValue[types.CommitState](cdc)),
-		ResultReceiptState:                  collections.NewMap(sb, types.ResultReceiptStateKey, "result_receipt_state", types.Hash32KeyCodec, codec.CollValue[types.ResultReceiptState](cdc)),
-		DataUnavailableReport:               collections.NewMap(sb, types.DataUnavailableReportKey, "data_unavailable_report", verifyActorKeyCodec, codec.CollValue[types.DataUnavailableReportState](cdc)),
-		BuilderDataUnavailableAggregate:     collections.NewMap(sb, types.BuilderDataUnavailableAggregateKey, "builder_data_unavailable_aggregate", verifyActorKeyCodec, codec.CollValue[types.BuilderDataUnavailableAggregateState](cdc)),
-		WorkerEvidenceReceipt:               collections.NewMap(sb, types.WorkerEvidenceReceiptStateKey, "worker_evidence_receipt", workerEvidenceReceiptKeyCodec, codec.CollValue[types.WorkerEvidenceReceiptState](cdc)),
+		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),
+		VerifierAssignment:                  collections.NewMap(sb, types.VerifierAssignmentKey, "verifier_assignment", verifyRoundKeyCodec, codec.CollValue[internaltypes.VerifierAssignmentStoreState](cdc)),
+		CommitState:                         collections.NewMap(sb, types.CommitStateKey, "commit_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.CommitStoreState](cdc)),
+		ResultReceiptState:                  collections.NewMap(sb, types.ResultReceiptStateKey, "result_receipt_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.ResultReceiptStoreState](cdc)),
+		DataUnavailableReport:               collections.NewMap(sb, types.DataUnavailableReportKey, "data_unavailable_report", verifyActorKeyCodec, codec.CollValue[internaltypes.DataUnavailableReportStoreState](cdc)),
+		BuilderDataUnavailableAggregate:     collections.NewMap(sb, types.BuilderDataUnavailableAggregateKey, "builder_data_unavailable_aggregate", verifyActorKeyCodec, codec.CollValue[internaltypes.BuilderDataUnavailableAggregateStoreState](cdc)),
+		WorkerEvidenceReceipt:               collections.NewMap(sb, types.WorkerEvidenceReceiptStateKey, "worker_evidence_receipt", workerEvidenceReceiptKeyCodec, codec.CollValue[internaltypes.WorkerEvidenceReceiptStoreState](cdc)),
 
-		VerificationRound:                    collections.NewMap(sb, types.VerificationRoundStateKey, "verification_round", verifyRoundKeyCodec, codec.CollValue[types.VerificationRoundState](cdc)),
-		RoundFunding:                         collections.NewMap(sb, types.RoundFundingStateKey, "round_funding", verifyRoundKeyCodec, codec.CollValue[types.RoundFundingState](cdc)),
+		VerificationRound:                    collections.NewMap(sb, types.VerificationRoundStateKey, "verification_round", verifyRoundKeyCodec, codec.CollValue[internaltypes.VerificationRoundStoreState](cdc)),
+		RoundFunding:                         collections.NewMap(sb, types.RoundFundingStateKey, "round_funding", verifyRoundKeyCodec, codec.CollValue[internaltypes.RoundFundingStoreState](cdc)),
 		RoundEconomicEffect:                  collections.NewMap(sb, types.RoundEconomicEffectStateKey, "round_economic_effect", verifyRoundSegmentKeyCodec, codec.CollValue[types.RoundEconomicEffectState](cdc)),
 		RoundEconomicEffectApplyCursor:       collections.NewMap(sb, types.RoundEconomicEffectApplyCursorStateKey, "round_economic_effect_apply_cursor", verifyRoundKeyCodec, codec.CollValue[types.RoundEconomicEffectApplyCursorState](cdc)),
 		TaskRoundSummary:                     collections.NewMap(sb, types.TaskRoundSummaryStateKey, "task_round_summary", types.Hash32KeyCodec, codec.CollValue[types.TaskRoundSummaryState](cdc)),
-		TaskGasReimbursement:                 collections.NewMap(sb, types.TaskGasReimbursementStateKey, "task_gas_reimbursement", taskGasReimbursementKeyCodec, codec.CollValue[types.TaskGasReimbursementV1](cdc)),
-		VerifierPayout:                       collections.NewMap(sb, types.VerifierPayoutStateKey, "verifier_payout", verifyRoundKeyCodec, codec.CollValue[types.VerifierPayoutState](cdc)),
-		TaskSettlement:                       collections.NewMap(sb, types.TaskSettlementStateKey, "task_settlement", types.Hash32KeyCodec, codec.CollValue[types.TaskSettlementState](cdc)),
-		SettlementFactsRetained:              collections.NewMap(sb, types.SettlementFactsRetainedStateKey, "settlement_facts_retained", types.Hash32KeyCodec, codec.CollValue[types.SettlementFactsRetainedState](cdc)),
+		TaskGasReimbursement:                 collections.NewMap(sb, types.TaskGasReimbursementStateKey, "task_gas_reimbursement", taskGasReimbursementKeyCodec, codec.CollValue[internaltypes.TaskGasReimbursementStoreState](cdc)),
+		VerifierPayout:                       collections.NewMap(sb, types.VerifierPayoutStateKey, "verifier_payout", verifyRoundKeyCodec, codec.CollValue[internaltypes.VerifierPayoutStoreState](cdc)),
+		TaskSettlement:                       collections.NewMap(sb, types.TaskSettlementStateKey, "task_settlement", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskSettlementStoreState](cdc)),
+		SettlementFactsRetained:              collections.NewMap(sb, types.SettlementFactsRetainedStateKey, "settlement_facts_retained", types.Hash32KeyCodec, codec.CollValue[internaltypes.SettlementFactsStoreState](cdc)),
 		TaskFailureClass:                     collections.NewMap(sb, types.TaskFailureClassStateKey, "task_failure_class", verifyRoundKeyCodec, codec.CollValue[types.TaskFailureClassState](cdc)),
 		TaskFailureClassByProfileWindowIndex: collections.NewKeySet(sb, types.TaskFailureClassByProfileWindowIndexKey, "task_failure_class_by_profile_window_index", failureClassWindowKeyCodec),
 		TaskCleanupCursor:                    collections.NewMap(sb, types.TaskCleanupCursorStateKey, "task_cleanup_cursor", types.Hash32KeyCodec, codec.CollValue[types.TaskCleanupCursorState](cdc)),
-		TaskTerminalSummary:                  collections.NewMap(sb, types.TaskTerminalSummaryStateKey, "task_terminal_summary", types.Hash32KeyCodec, codec.CollValue[types.TaskTerminalSummaryState](cdc)),
+		TaskTerminalSummary:                  collections.NewMap(sb, types.TaskTerminalSummaryStateKey, "task_terminal_summary", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskTerminalSummaryStoreState](cdc)),
 		TaskTerminalSummaryPruneIndex:        collections.NewKeySet(sb, types.TaskTerminalSummaryPruneIndexKey, "task_terminal_summary_prune_index", deadlineKeyCodec),
 		EpochTaskSummaryCursor:               collections.NewMap(sb, types.EpochTaskSummaryCursorStateKey, "epoch_task_summary_cursor", collections.Uint64Key, codec.CollValue[types.EpochTaskSummaryCursorState](cdc)),
 		EpochTaskSummaryReceipt:              collections.NewMap(sb, types.EpochTaskSummaryReceiptStateKey, "epoch_task_summary_receipt", collections.Uint64Key, codec.CollValue[types.EpochTaskSummaryReceiptState](cdc)),

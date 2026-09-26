@@ -55,7 +55,7 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 			core.VerificationStatus != types.VerificationStatus_VERIFICATION_STATUS_VERIFY_FAILED) {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task is not in the closed round-1 challenge window")
 	}
-	round1, err := m.k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	round1, err := m.k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil || round1.XClosedHeight == nil || !isExplicitRoundVerdict(round1.GetVerdict()) ||
 		len(round1.GetRoundFactsHash()) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "round 1 has no explicit closed verdict")
@@ -79,7 +79,7 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 	if params.Challenge.MaxVerifyRound != types.ChallengeVerifyRoundV1 || params.Challenge.MaxOpenRoundPerTask != 1 {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "challenge round limits are invalid")
 	}
-	assignment1, err := m.k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	assignment1, err := m.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil || assignment1.SelectedVerifierCount == 0 ||
 		assignment1.SelectedVerifierCount != uint32(len(assignment1.SelectedVerifiers)) {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 verifier assignment is unavailable")
@@ -105,11 +105,11 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
-	workerAssignment, err := m.k.TaskAssignment.Get(ctx, taskKey)
+	workerAssignment, err := m.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || len(workerAssignment.CandidatePoolSnapshotId) != types.Hash32Len || len(workerAssignment.CandidatePoolHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "task assignment is unavailable")
 	}
-	infer, err := m.k.InferReceipt.Get(ctx, taskKey)
+	infer, err := m.k.ReadInferReceipt(ctx, taskKey)
 	if err != nil || len(infer.InferReceiptHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "infer receipt is unavailable")
 	}
@@ -172,10 +172,10 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 		}
 	}
 	key2 := types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)
-	if err := m.k.VerificationRound.Set(cache, key2, round2); err != nil {
+	if err := m.k.WriteVerificationRound(cache, key2, round2); err != nil {
 		return nil, err
 	}
-	if err := m.k.RoundFunding.Set(cache, key2, funding); err != nil {
+	if err := m.k.WriteRoundFunding(cache, key2, funding); err != nil {
 		return nil, err
 	}
 	summary.OpenRoundCount = 1
@@ -316,14 +316,14 @@ func roundFundingQuote(funding types.RoundFundingState) shared.RoundFundingQuote
 
 func (k Keeper) challengeRoundReplay(ctx context.Context, taskKey types.TaskKey, opener string, maxDebit uint64) (*types.MsgOpenChallengeRoundResponse, bool, error) {
 	key := types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)
-	round, err := k.VerificationRound.Get(ctx, key)
+	round, err := k.ReadVerificationRound(ctx, key)
 	if err != nil {
 		if errIsNotFound(err) {
 			return nil, false, nil
 		}
 		return nil, false, err
 	}
-	funding, err := k.RoundFunding.Get(ctx, key)
+	funding, err := k.ReadRoundFunding(ctx, key)
 	if err != nil || round.GetOpenerAddress() != opener || funding.OpenerAddress != opener ||
 		!bytes.Equal(round.TaskId, taskKey) || !bytes.Equal(round.GetFundingLockHash(), funding.FundingLockHash) {
 		return nil, false, errorsmod.Wrap(types.ErrInvalidOpenVerify, "conflicting challenge round replay")

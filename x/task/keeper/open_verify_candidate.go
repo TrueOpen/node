@@ -409,7 +409,7 @@ func (k Keeper) materializeVerifierWindowAtHeight(
 			}
 			return false, rowBytes, fmt.Errorf("SOURCE_FROZEN verifier window already has a member row")
 		}
-		if err := k.VerifierCandidateWindowMember.Set(cache, memberKey, member); err != nil {
+		if err := k.WriteVerifierWindowMember(cache, memberKey, member); err != nil {
 			return false, rowBytes, err
 		}
 		rowBytes += uint64(member.Size())

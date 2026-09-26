@@ -1,0 +1,39 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BuilderSetPendingReplacementStoreState stores future member addresses as bytes.
+message BuilderSetPendingReplacementStoreState {
+  uint64 proposal_id = 1;
+  bytes action_digest = 2;
+  uint64 expected_current_version = 3;
+  bytes expected_current_set_hash = 4;
+  uint64 next_builder_set_version = 5;
+  string next_builder_set_id = 6;
+  bytes next_builder_set_hash = 7;
+  bytes next_builder_set_members_hash = 8;
+  repeated bytes next_active_builders = 9;
+  uint32 next_active_builder_count = 10;
+  uint64 accepted_height = 11;
+  uint64 effective_height = 12;
+}
+
+// BuilderSetStoreState stores retained member addresses as bytes.
+message BuilderSetStoreState {
+  uint64 builder_set_version = 1;
+  string builder_set_id = 2;
+  bytes builder_set_hash = 3;
+  bytes builder_set_members_hash = 4;
+  uint64 effective_height = 5;
+  repeated bytes active_builders = 6;
+  uint32 active_builder_count = 7;
+  uint32 task_ref_count = 8;
+  uint64 superseded_height = 9;
+  uint64 source_proposal_id = 10;
+  int32 body_status = 11;
+  uint64 pruned_height = 12;
+  bool has_superseded_height = 13;
+  bool has_source_proposal_id = 14;
+  bool has_pruned_height = 15;
+}

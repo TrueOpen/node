@@ -159,7 +159,7 @@ func (k Keeper) applyServiceSlashInCache(ctx context.Context, req ApplyServiceSl
 		return ApplyServiceSlashResult{}, err
 	}
 	summaryKey := types.NewSlashSummaryKey(req.SourceKind, sourceID, req.EffectIndex)
-	if existing, getErr := k.SlashSummary.Get(ctx, summaryKey); getErr == nil {
+	if existing, getErr := k.ReadSlashSummaryValue(ctx, summaryKey); getErr == nil {
 		return serviceSlashReplayResult(existing, req, operatorAddress)
 	} else if !errors.Is(getErr, collections.ErrNotFound) {
 		return ApplyServiceSlashResult{}, getErr
@@ -242,7 +242,7 @@ func (k Keeper) applyServiceSlashInCache(ctx context.Context, req ApplyServiceSl
 		if err := bond.Validate(); err != nil {
 			return ApplyServiceSlashResult{}, err
 		}
-		if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+		if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 			return ApplyServiceSlashResult{}, err
 		}
 		result.BondVersion = bond.BondVersion
@@ -272,7 +272,7 @@ func (k Keeper) applyServiceSlashInCache(ctx context.Context, req ApplyServiceSl
 	if err := summary.Validate(); err != nil {
 		return ApplyServiceSlashResult{}, fmt.Errorf("invalid slash summary: %w", err)
 	}
-	if err := k.SlashSummary.Set(ctx, summaryKey, summary); err != nil {
+	if err := k.WriteSlashSummaryValue(ctx, summaryKey, summary); err != nil {
 		return ApplyServiceSlashResult{}, err
 	}
 	if err := k.transferServiceSlashCustody(ctx, req.Destination, result); err != nil {
@@ -496,7 +496,7 @@ func (k Keeper) slashServiceUnbondingQueue(ctx context.Context, chainID string, 
 			if err := k.terminateServiceUnbonding(ctx, chainID, row, 0, height); err != nil {
 				return 0, 0, err
 			}
-		} else if err := k.Unbonding.Set(ctx, types.NewUnbondingKey(operatorAddress, row.UnbondingId), row); err != nil {
+		} else if err := k.WriteUnbondingValue(ctx, types.NewUnbondingKey(operatorAddress, row.UnbondingId), row); err != nil {
 			return 0, 0, err
 		}
 		remaining -= take
@@ -524,7 +524,11 @@ func (k Keeper) boundedServiceUnbondingRows(ctx context.Context, operatorAddress
 				operatorAddress, limit,
 			)
 		}
-		row, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		row, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return nil, err
 		}

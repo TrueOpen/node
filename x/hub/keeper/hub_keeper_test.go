@@ -100,7 +100,7 @@ func registerBuilderIdentityForTest(t *testing.T, f *fixture, identity hubTestId
 		"grpc://builder.invalid/"+hubHash(identity.Address), height,
 	)
 	require.NoError(t, descriptor.Validate())
-	require.NoError(t, f.keeper.ServiceDescriptor.Set(
+	require.NoError(t, f.keeper.StoreServiceDescriptor(
 		f.ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, identity.Address), descriptor,
 	))
 	state.CurrentServiceAddress = identity.Address
@@ -108,8 +108,8 @@ func registerBuilderIdentityForTest(t *testing.T, f *fixture, identity hubTestId
 	state.ServiceAuthorizationNonce = 1
 	state.CurrentServiceKeyStatus = types.ServiceKeyStatusActive
 	state.CurrentDescriptorVersion = 1
-	require.NoError(t, f.keeper.Builder.Set(f.ctx, identity.Address, state))
-	require.NoError(t, f.keeper.CurrentServiceAddressIndex.Set(
+	require.NoError(t, f.keeper.StoreBuilder(f.ctx, identity.Address, state))
+	require.NoError(t, f.keeper.StoreCurrentServiceAddressIndex(
 		f.ctx,
 		types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, identity.Address),
 		types.CurrentServiceAddressIndexState{OperatorAddress: identity.Address, ServiceAuthorizationNonce: 1},
@@ -171,7 +171,7 @@ func registerCortexNodeIdentityForTest(t *testing.T, f *fixture, operator string
 		require.NoError(t, err)
 	}
 	bond.EffectiveBondEpoch = epoch + types.ServiceBondEffectiveEpochDelay
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(operator), bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(operator), bond))
 	if bond.EffectiveActiveBond != bond.ActiveBond {
 		require.NoError(t, f.keeper.ServiceBondEffectiveIndex.Set(
 			f.ctx, types.NewServiceBondEffectiveKey(bond.EffectiveBondEpoch, operator),
@@ -203,7 +203,7 @@ func activateServiceBondForTest(t *testing.T, f *fixture, operator string, epoch
 	}
 	bond.EffectiveActiveBond = bond.ActiveBond
 	bond.EffectiveBondEpoch = epoch
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(operator), bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(operator), bond))
 }
 
 // declareTaskLiabilitySupportForTest brings one operator to the point where

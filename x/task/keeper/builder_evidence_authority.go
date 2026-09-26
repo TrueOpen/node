@@ -149,7 +149,7 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 		if err := k.validateBuilderWorkerActor(ctx, taskKey, scope.PayloadActor); err != nil {
 			return err
 		}
-		receipt, err := k.InferReceipt.Get(ctx, taskKey)
+		receipt, err := k.ReadInferReceipt(ctx, taskKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			return fmt.Errorf("%w: OPEN_VERIFY requires an accepted InferReceipt", errBuilderEvidenceWrongStage)
 		}
@@ -219,7 +219,7 @@ func (k Keeper) validateBuilderWorkerActor(ctx context.Context, taskKey types.Ta
 	if err != nil {
 		return err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("%w: finalized Worker assignment", errBuilderEvidenceWrongStage)
 	}
@@ -246,7 +246,11 @@ func (k Keeper) validateBuilderCandidateActor(ctx context.Context, taskKey types
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		fact, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		fact, err := k.ProjectTaskCandidateFactStore(stored)
 		if err != nil {
 			return err
 		}
@@ -261,7 +265,7 @@ func (k Keeper) validateBuilderVerifierAssignment(ctx context.Context, taskKey t
 	if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
 		return fmt.Errorf("%w: verifier action verify_round", errBuilderEvidenceWrongStage)
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, *scope.VerifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, *scope.VerifyRound))
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("%w: finalized Verifier assignment", errBuilderEvidenceWrongStage)
 	}

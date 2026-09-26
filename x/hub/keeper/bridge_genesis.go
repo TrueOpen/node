@@ -38,7 +38,7 @@ func (k Keeper) initBridgeGenesis(ctx context.Context, genState types.GenesisSta
 		return fmt.Errorf("bridge genesis: %w", err)
 	}
 	for _, signer := range genState.ValidatorBridgeSigners {
-		if err := k.ValidatorBridgeSigner.Set(ctx, signer.OperatorAddress, signer); err != nil {
+		if err := k.storeValidatorBridgeSigner(ctx, signer); err != nil {
 			return err
 		}
 	}
@@ -104,7 +104,7 @@ func (k Keeper) initBridgeGenesis(ctx context.Context, genState types.GenesisSta
 	}); err != nil {
 		return err
 	}
-	if err := k.BridgeBootstrap.Set(ctx, bridgeBootstrapStateFromGenesis(genesis.Bootstrap)); err != nil {
+	if err := k.WriteBridgeBootstrapValue(ctx, bridgeBootstrapStateFromGenesis(genesis.Bootstrap)); err != nil {
 		return err
 	}
 	for _, usage := range genesis.Usages {
@@ -290,7 +290,7 @@ func (k Keeper) exportBridgeGenesis(ctx context.Context, genesis *types.GenesisS
 	if err != nil {
 		return err
 	}
-	bootstrap, err := k.BridgeBootstrap.Get(ctx)
+	bootstrap, err := k.ReadBridgeBootstrapValue(ctx)
 	if err != nil {
 		return err
 	}
@@ -337,7 +337,7 @@ func (k Keeper) exportBridgeGenesis(ctx context.Context, genesis *types.GenesisS
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
-	genesis.ValidatorBridgeSigners, err = collectMapValues[string, types.ValidatorBridgeSignerState](ctx, k.ValidatorBridgeSigner)
+	genesis.ValidatorBridgeSigners, err = k.exportValidatorBridgeSigners(ctx)
 	if err != nil {
 		return err
 	}

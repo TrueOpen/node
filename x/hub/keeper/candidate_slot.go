@@ -34,9 +34,9 @@ func (k Keeper) syncCandidateSlotMembershipForEpoch(ctx context.Context, operato
 	if err != nil {
 		return err
 	}
-	reverse, reverseErr := k.OperatorCandidateSlot.Get(ctx, operatorAddress)
+	reverse, reverseErr := k.ReadOperatorCandidateSlot(ctx, operatorAddress)
 	if reverseErr == nil {
-		current, getErr := k.CandidateSlotCurrent.Get(ctx, reverse.Slot)
+		current, getErr := k.ReadCandidateSlotCurrent(ctx, reverse.Slot)
 		if getErr != nil {
 			return getErr
 		}
@@ -52,7 +52,7 @@ func (k Keeper) syncCandidateSlotMembershipForEpoch(ctx context.Context, operato
 			}
 			current.Status = candidateSlotAllocated
 			current.RetiredHeight = 0
-			if err := k.CandidateSlotCurrent.Set(ctx, current.Slot, current); err != nil {
+			if err := k.WriteCandidateSlotCurrent(ctx, current.Slot, current); err != nil {
 				return err
 			}
 			return k.noteCandidateMembershipChange(ctx, current.Slot, height)
@@ -65,7 +65,7 @@ func (k Keeper) syncCandidateSlotMembershipForEpoch(ctx context.Context, operato
 		}
 		current.Status = candidateSlotRetiring
 		current.RetiredHeight = height
-		if err := k.CandidateSlotCurrent.Set(ctx, current.Slot, current); err != nil {
+		if err := k.WriteCandidateSlotCurrent(ctx, current.Slot, current); err != nil {
 			return err
 		}
 		if err := k.noteCandidateMembershipChange(ctx, current.Slot, height); err != nil {
@@ -102,14 +102,14 @@ func (k Keeper) retryCandidateSlotRelease(ctx context.Context, operatorAddress s
 	if err != nil {
 		return err
 	}
-	reverse, err := k.OperatorCandidateSlot.Get(ctx, operatorAddress)
+	reverse, err := k.ReadOperatorCandidateSlot(ctx, operatorAddress)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	current, err := k.CandidateSlotCurrent.Get(ctx, reverse.Slot)
+	current, err := k.ReadCandidateSlotCurrent(ctx, reverse.Slot)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (k Keeper) isGlobalCandidateMember(ctx context.Context, operatorAddress str
 func (k Keeper) allocateCandidateSlot(ctx context.Context, operatorAddress string, operatorBytes []byte, epoch, height uint64, capacity uint32) error {
 	for candidate := uint64(0); candidate < uint64(capacity); candidate++ {
 		slot := uint32(candidate)
-		current, err := k.CandidateSlotCurrent.Get(ctx, slot)
+		current, err := k.ReadCandidateSlotCurrent(ctx, slot)
 		if errors.Is(err, collections.ErrNotFound) {
 			return k.bindCandidateSlot(ctx, slot, 1, operatorAddress, operatorBytes, epoch, height)
 		}
@@ -209,13 +209,13 @@ func (k Keeper) bindCandidateSlot(ctx context.Context, slot uint32, slotVersion 
 		AllocatedEpoch: epoch, BindingHash: bindingHash,
 	}
 	reverse := types.OperatorCandidateSlotState{OperatorAddress: operatorAddress, Slot: slot, SlotVersion: slotVersion}
-	if err := k.CandidateSlotBinding.Set(ctx, bindingKey, binding); err != nil {
+	if err := k.WriteCandidateSlotBinding(ctx, bindingKey, binding); err != nil {
 		return err
 	}
-	if err := k.CandidateSlotCurrent.Set(ctx, slot, current); err != nil {
+	if err := k.WriteCandidateSlotCurrent(ctx, slot, current); err != nil {
 		return err
 	}
-	if err := k.OperatorCandidateSlot.Set(ctx, operatorAddress, reverse); err != nil {
+	if err := k.WriteOperatorCandidateSlot(ctx, operatorAddress, reverse); err != nil {
 		return err
 	}
 	return k.noteCandidateMembershipChange(ctx, slot, height)
@@ -291,7 +291,7 @@ func (k Keeper) tryReleaseCandidateSlot(ctx context.Context, current types.Candi
 		return nil
 	}
 	bindingKey := types.NewCandidateSlotBindingKey(current.Slot, current.SlotVersion)
-	binding, err := k.CandidateSlotBinding.Get(ctx, bindingKey)
+	binding, err := k.ReadCandidateSlotBinding(ctx, bindingKey)
 	if err != nil {
 		return err
 	}
@@ -312,7 +312,7 @@ func (k Keeper) tryReleaseCandidateSlot(ctx context.Context, current types.Candi
 		return fmt.Errorf("candidate binding prune epoch overflow")
 	}
 	binding.ReleasedHeight = height
-	if err := k.CandidateSlotBinding.Set(ctx, bindingKey, binding); err != nil {
+	if err := k.WriteCandidateSlotBinding(ctx, bindingKey, binding); err != nil {
 		return err
 	}
 	if err := k.CandidateSlotBindingPruneIndex.Set(ctx, types.NewCandidateSlotBindingPruneIndexKey(pruneEpoch, current.Slot, current.SlotVersion)); err != nil {
@@ -323,7 +323,7 @@ func (k Keeper) tryReleaseCandidateSlot(ctx context.Context, current types.Candi
 	}
 	current.OperatorAddress = ""
 	current.Status = candidateSlotFree
-	if err := k.CandidateSlotCurrent.Set(ctx, current.Slot, current); err != nil {
+	if err := k.WriteCandidateSlotCurrent(ctx, current.Slot, current); err != nil {
 		return err
 	}
 	return k.noteCandidateMembershipChange(ctx, current.Slot, height)

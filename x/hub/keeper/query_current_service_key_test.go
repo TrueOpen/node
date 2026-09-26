@@ -111,20 +111,27 @@ func TestCortexNodeQueryFailsClosedOnMissingOrMismatchedBinding(t *testing.T) {
 	// NotFound, already covered by
 	// TestCurrentServiceKeyQueryRejectsInvalidOrMissingIdentity. Only the
 	// mismatch half of this test stays representable.
-	node, err := f.keeper.CortexNode.Get(f.ctx, operator)
+	node, err := f.keeper.ReadCortexNodeStore(f.ctx, operator)
 	require.NoError(t, err)
 
 	mismatched := node
 	mismatched.OperatorAddress = hubAddress(t, 177)
 	require.NoError(t, mismatched.Validate())
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, mismatched))
+	storedMismatch, err := f.keeper.CortexNode.Get(f.ctx, operator)
+	require.NoError(t, err)
+	storedMismatch.OperatorAddress = hubAddressBytes(t, mismatched.OperatorAddress)
+	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, storedMismatch))
 	_, err = queries.CortexNode(f.ctx, &types.QueryCortexNodeRequest{OperatorAddress: operator})
 	require.Equal(t, codes.Internal, status.Code(err))
 
 	corrupt := node
 	corrupt.ServiceAuthorizationNonce = 0
 	require.Error(t, corrupt.Validate())
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, corrupt))
+	storedCorrupt, err := f.keeper.CortexNode.Get(f.ctx, operator)
+	require.NoError(t, err)
+	storedCorrupt.OperatorAddress = hubAddressBytes(t, operator)
+	storedCorrupt.ServiceAuthorizationNonce = 0
+	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, storedCorrupt))
 	_, err = queries.CortexNode(f.ctx, &types.QueryCortexNodeRequest{OperatorAddress: operator})
 	require.Equal(t, codes.Internal, status.Code(err))
 }
@@ -135,13 +142,13 @@ func TestCurrentServiceKeyQueryReturnsRevokedBindingAndRejectsOrphanBinding(t *t
 	operator := hubAddress(t, 178)
 	service := hubIdentity(t, 179)
 	registerCortexNodeIdentityForTest(t, f, operator, service, testServiceBondMinInitial, 10, 1)
-	revoked, err := f.keeper.CortexNode.Get(f.ctx, operator)
+	revoked, err := f.keeper.ReadCortexNodeStore(f.ctx, operator)
 	require.NoError(t, err)
 	revoked.ServiceAuthorizationNonce = 2
 	revoked.UpdatedHeight = 12
 	revoked.ServiceKeyStatus = types.ServiceKeyStatusRevoked
 	require.NoError(t, revoked.Validate())
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, revoked))
+	require.NoError(t, f.keeper.StoreCortexNode(f.ctx, operator, revoked))
 
 	queries := keeper.NewQueryServerImpl(f.keeper)
 	current, err := queries.CurrentServiceKey(f.ctx, &types.QueryCurrentServiceKeyRequest{
@@ -167,7 +174,9 @@ func TestCurrentServiceKeyQueryReturnsRevokedBindingAndRejectsOrphanBinding(t *t
 	orphanOperator := hubAddress(t, 180)
 	orphanNode := revoked
 	require.NoError(t, orphanNode.Validate())
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, orphanOperator, orphanNode))
+	storedOrphan, err := f.keeper.CortexNode.Get(f.ctx, operator)
+	require.NoError(t, err)
+	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, orphanOperator, storedOrphan))
 	_, err = queries.CurrentServiceKey(f.ctx, &types.QueryCurrentServiceKeyRequest{
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_CORTEX,
 		OperatorAddress: orphanOperator,

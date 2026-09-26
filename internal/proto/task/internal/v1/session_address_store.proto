@@ -1,0 +1,35 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// SessionNonceStoreState stores the user address as codec bytes.
+message SessionNonceStoreState {
+  bytes user_address = 1;
+  uint64 next_session_nonce = 2;
+}
+
+// StreamStoreState stores the owner address as codec bytes.
+message StreamStoreState {
+  bytes session_id = 1;
+  bytes owner_user_address = 2;
+  uint64 next_expected_sequence = 3;
+  uint64 last_active_height = 4;
+  uint32 open_pending_count = 5;
+  int32 status = 6;
+}
+
+// SessionTerminalSummaryStoreState stores the owner address as codec bytes.
+message SessionTerminalSummaryStoreState {
+  bytes session_id = 1;
+  bytes owner_user_address = 2;
+  uint64 final_next_expected_sequence = 3;
+  uint32 sequence_count = 4;
+  bytes sequence_root = 5;
+  uint32 consumed_count = 6;
+  uint32 cancelled_count = 7;
+  uint32 refunded_count = 8;
+  uint32 settled_count = 9;
+  uint64 closed_height = 10;
+  uint64 compacted_height = 11;
+}

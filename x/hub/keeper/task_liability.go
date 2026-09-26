@@ -101,7 +101,7 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 	}
 
 	reservationKey := types.NewTaskLiabilityReservationKey(taskID, req.Duty, operator)
-	existing, err := k.TaskLiabilityReservation.Get(ctx, reservationKey)
+	existing, err := k.ReadTaskLiabilityValue(ctx, reservationKey)
 	if err == nil {
 		if existing.Status != types.TaskLiabilityStatusReserved ||
 			!bytes.Equal(existing.TaskId, taskID) || existing.OperatorAddress != operator || existing.Duty != req.Duty ||
@@ -137,7 +137,7 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 		!bytes.Equal(member.BindingHash, binding.BindingHash) {
 		return types.TaskLiabilityReservationState{}, fmt.Errorf("frozen candidate member binding is unavailable")
 	}
-	current, err := k.CandidateSlotCurrent.Get(ctx, req.Slot)
+	current, err := k.ReadCandidateSlotCurrent(ctx, req.Slot)
 	if err != nil || current.Status != candidateSlotAllocated || current.SlotVersion != req.SlotVersion || current.OperatorAddress != operator {
 		return types.TaskLiabilityReservationState{}, fmt.Errorf("candidate slot is no longer allocated to the frozen operator")
 	}
@@ -149,7 +149,7 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 	if req.Duty == shared.DutyWorker {
 		oppositeDuty = shared.DutyVerifier
 	}
-	if _, err := k.TaskLiabilityReservation.Get(ctx, types.NewTaskLiabilityReservationKey(taskID, oppositeDuty, operator)); err == nil {
+	if _, err := k.ReadTaskLiabilityValue(ctx, types.NewTaskLiabilityReservationKey(taskID, oppositeDuty, operator)); err == nil {
 		return types.TaskLiabilityReservationState{}, fmt.Errorf("same cortex node cannot reserve both WORKER and VERIFIER liability for one task")
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return types.TaskLiabilityReservationState{}, err
@@ -266,13 +266,13 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 	if err := k.ReserveCandidateSlotTaskRef(ctx, req.CandidatePoolSnapshotID, req.Slot, req.SlotVersion, taskID); err != nil {
 		return types.TaskLiabilityReservationState{}, err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operator), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operator), bond); err != nil {
 		return types.TaskLiabilityReservationState{}, err
 	}
-	if err := k.CortexNode.Set(ctx, operator, node); err != nil {
+	if err := k.StoreCortexNode(ctx, operator, node); err != nil {
 		return types.TaskLiabilityReservationState{}, err
 	}
-	if err := k.TaskLiabilityReservation.Set(ctx, reservationKey, reservation); err != nil {
+	if err := k.WriteTaskLiabilityValue(ctx, reservationKey, reservation); err != nil {
 		return types.TaskLiabilityReservationState{}, err
 	}
 	if err := k.ActiveLiabilityByOperatorIndex.Set(ctx, types.NewActiveLiabilityByOperatorKey(operator, taskID, req.Duty)); err != nil {
@@ -386,7 +386,7 @@ func (k Keeper) requireTaskLiabilitySlotOwnership(
 		!bytes.Equal(member.BindingHash, binding.BindingHash) {
 		return fmt.Errorf("task liability candidate slot ownership does not match the frozen snapshot")
 	}
-	current, err := k.CandidateSlotCurrent.Get(ctx, reservation.Slot)
+	current, err := k.ReadCandidateSlotCurrent(ctx, reservation.Slot)
 	if err != nil || current.SlotVersion != reservation.SlotVersion || current.OperatorAddress != reservation.OperatorAddress ||
 		current.ActiveTaskRefs == 0 {
 		return fmt.Errorf("task liability candidate slot ownership is not active")
@@ -511,7 +511,11 @@ func (k Keeper) DeleteOneClosedTaskLiability(ctx context.Context, taskID string)
 			iter.Close()
 			return false, fmt.Errorf("task liability count exceeds V1 hard bound")
 		}
-		reservation := entry.Value
+		reservation, err := k.ProjectTaskLiabilityStore(entry.Value)
+		if err != nil {
+			iter.Close()
+			return false, err
+		}
 		if !bytes.Equal(reservation.TaskId, taskKey) ||
 			reservation.Duty != shared.Duty(entry.Key.K2()) || reservation.OperatorAddress != entry.Key.K3() {
 			iter.Close()
@@ -567,7 +571,7 @@ func (k Keeper) closeTaskLiabilityReservationInCache(
 		return ApplyServiceSlashResult{}, fmt.Errorf("task liability close height must be > 0")
 	}
 	key := types.NewTaskLiabilityReservationKey(taskID, duty, operatorAddress)
-	reservation, err := k.TaskLiabilityReservation.Get(ctx, key)
+	reservation, err := k.ReadTaskLiabilityValue(ctx, key)
 	if err != nil {
 		return ApplyServiceSlashResult{}, fmt.Errorf("task liability reservation not found: %w", err)
 	}
@@ -645,18 +649,18 @@ func (k Keeper) closeTaskLiabilityReservationInCache(
 	if err := k.ReleaseCandidateSlotTaskRef(ctx, reservation.Slot, reservation.SlotVersion, height); err != nil {
 		return ApplyServiceSlashResult{}, err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return ApplyServiceSlashResult{}, err
 	}
 	// Never resurrect a retired identity: writing the row back would restore an
 	// operator the terminal transition already deleted and break the genesis
 	// pairing this branch exists to respect.
 	if identityLive {
-		if err := k.CortexNode.Set(ctx, operatorAddress, node); err != nil {
+		if err := k.StoreCortexNode(ctx, operatorAddress, node); err != nil {
 			return ApplyServiceSlashResult{}, err
 		}
 	}
-	if err := k.TaskLiabilityReservation.Set(ctx, key, reservation); err != nil {
+	if err := k.WriteTaskLiabilityValue(ctx, key, reservation); err != nil {
 		return ApplyServiceSlashResult{}, err
 	}
 	if err := k.ActiveLiabilityByOperatorIndex.Remove(ctx, types.NewActiveLiabilityByOperatorKey(operatorAddress, taskID, duty)); err != nil {

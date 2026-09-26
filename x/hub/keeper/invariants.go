@@ -236,12 +236,17 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			nodeRows.Close()
 			return err
 		}
-		if entry.Key != entry.Value.OperatorAddress {
+		state, err := k.ProjectCortexNodeStore(entry.Value)
+		if err != nil {
+			nodeRows.Close()
+			return err
+		}
+		if entry.Key != state.OperatorAddress {
 			nodeRows.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "cortex node %s identity does not match its key", entry.Key)
 		}
-		nodes[entry.Key] = entry.Value
-		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX), 10)+"\x00"+entry.Key] = participant{entry.Value.CurrentDescriptorVersion}
+		nodes[entry.Key] = state
+		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX), 10)+"\x00"+entry.Key] = participant{state.CurrentDescriptorVersion}
 	}
 	if err := nodeRows.Close(); err != nil {
 		return err
@@ -258,9 +263,14 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			bonds.Close()
 			return err
 		}
+		bond, err := k.ProjectServiceBondStore(entry.Value)
+		if err != nil {
+			bonds.Close()
+			return err
+		}
 		seenBonds[entry.Key] = struct{}{}
 		node, hasNode := nodes[entry.Key]
-		terminal := entry.Value.Status == types.ServiceBondStatusExited || entry.Value.Status == types.ServiceBondStatusTombstoned
+		terminal := bond.Status == types.ServiceBondStatusExited || bond.Status == types.ServiceBondStatusTombstoned
 		validProofOnly := terminal && hasNode && node.ServiceKeyStatus == types.ServiceKeyStatusRevoked &&
 			node.CurrentDescriptorVersion == 0 &&
 			(node.ActiveTaskLiabilityCount != 0 || node.PendingStageDutyCount != 0 || node.PendingEvidenceSubmissionCount != 0)
@@ -288,7 +298,12 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			builders.Close()
 			return err
 		}
-		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER), 10)+"\x00"+entry.Key] = participant{entry.Value.CurrentDescriptorVersion}
+		state, err := k.ProjectBuilderStore(entry.Value)
+		if err != nil {
+			builders.Close()
+			return err
+		}
+		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER), 10)+"\x00"+entry.Key] = participant{state.CurrentDescriptorVersion}
 	}
 	if err := builders.Close(); err != nil {
 		return err
@@ -305,9 +320,14 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			descriptors.Close()
 			return err
 		}
+		state, err := k.ProjectServiceDescriptorStore(entry.Value)
+		if err != nil {
+			descriptors.Close()
+			return err
+		}
 		id := strconv.FormatInt(int64(entry.Key.K1()), 10) + "\x00" + entry.Key.K2()
 		owner, exists := participants[id]
-		if !exists || entry.Value.OperatorAddress != entry.Key.K2() || int32(entry.Value.ParticipantType) != entry.Key.K1() || owner.descriptorVersion != entry.Value.DescriptorVersion {
+		if !exists || state.OperatorAddress != entry.Key.K2() || int32(state.ParticipantType) != entry.Key.K1() || owner.descriptorVersion != state.DescriptorVersion {
 			descriptors.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "service descriptor %s has no matching participant primary", id)
 		}
@@ -488,7 +508,11 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := k.ProjectSlashSummaryStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if err := state.Validate(); err != nil {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "invalid slash summary: "+err.Error())
@@ -525,7 +549,11 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			faults.Close()
 			return err
 		}
-		fault := entry.Value
+		fault, err := k.ProjectRoleFaultStore(entry.Value)
+		if err != nil {
+			faults.Close()
+			return err
+		}
 		if err := fault.Validate(); err != nil {
 			faults.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "invalid role fault: "+err.Error())
@@ -583,7 +611,10 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		if err != nil {
 			return err
 		}
-		state := entry.Value
+		state, err := k.ProjectCandidateSlotCurrentStore(entry.Value)
+		if err != nil {
+			return err
+		}
 		if state.Slot != entry.Key {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate slot %d does not match its store key %d", state.Slot, entry.Key)
 		}
@@ -612,7 +643,7 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		// A slot that names an operator must resolve its immutable binding, and
 		// the binding must name the same operator (§3.3 line 223).
 		if state.OperatorAddress != "" {
-			binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
+			binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 			if err != nil {
 				return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate slot %d/%d has no immutable binding", state.Slot, state.SlotVersion)
 			}
@@ -639,11 +670,15 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		if !exists {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "operator candidate slot index entry %s has no live slot", entry.Key)
 		}
-		if entry.Value.OperatorAddress != entry.Key || entry.Value.Slot != want.Slot || entry.Value.SlotVersion != want.SlotVersion {
+		state, err := k.ProjectOperatorCandidateSlotStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		if state.OperatorAddress != entry.Key || state.Slot != want.Slot || state.SlotVersion != want.SlotVersion {
 			return errorsmod.Wrapf(
 				types.ErrInvariantBroken,
 				"operator candidate slot index entry %s points at %d/%d but the slot table says %d/%d",
-				entry.Key, entry.Value.Slot, entry.Value.SlotVersion, want.Slot, want.SlotVersion,
+				entry.Key, state.Slot, state.SlotVersion, want.Slot, want.SlotVersion,
 			)
 		}
 		seen++
@@ -930,7 +965,11 @@ func (k Keeper) EnsureServiceBondEpochInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectServiceBondStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1332,7 +1371,10 @@ func (k Keeper) EnsureTaskLiabilityIndexInvariant(ctx context.Context) error {
 			return err
 		}
 		taskID, duty, operator := entry.Key.K1(), shared.Duty(entry.Key.K2()), entry.Key.K3()
-		state := entry.Value
+		state, err := k.ProjectTaskLiabilityStore(entry.Value)
+		if err != nil {
+			return err
+		}
 		if !bytes.Equal(state.TaskId, taskID) || state.Duty != duty || state.OperatorAddress != operator {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "task liability %s/%d/%s does not match its store key", hexRef(taskID), duty, operator)
 		}
@@ -1416,7 +1458,11 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 	}
 	defer nodes.Close()
 	for ; nodes.Valid(); nodes.Next() {
-		state, err := nodes.Value()
+		stored, err := nodes.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectCortexNodeStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1439,7 +1485,11 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 	}
 	defer builders.Close()
 	for ; builders.Valid(); builders.Next() {
-		state, err := builders.Value()
+		stored, err := builders.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectBuilderStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1471,11 +1521,15 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 		if !exists {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "current service address index entry %s has no active participant", entry.Key.K2())
 		}
-		if entry.Value.OperatorAddress != want.operator || entry.Value.ServiceAuthorizationNonce != want.nonce {
+		state, err := k.ProjectCurrentServiceAddressIndexStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		if state.OperatorAddress != want.operator || state.ServiceAuthorizationNonce != want.nonce {
 			return errorsmod.Wrapf(
 				types.ErrInvariantBroken,
 				"current service address index entry %s points at %s/%d but the identity is %s/%d",
-				entry.Key.K2(), entry.Value.OperatorAddress, entry.Value.ServiceAuthorizationNonce, want.operator, want.nonce,
+				entry.Key.K2(), state.OperatorAddress, state.ServiceAuthorizationNonce, want.operator, want.nonce,
 			)
 		}
 		indexed++
@@ -1520,9 +1574,20 @@ func (k Keeper) EnsureRewardsEarningsInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		key, err := iter.Key()
 		if err != nil {
 			return err
+		}
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.earningsStorePublicProjection(stored)
+		if err != nil {
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "earnings projection: %s", err)
+		}
+		if key != state.Address {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "earnings key/address mismatch")
 		}
 		taskFee, err := shared.ParseAmount(state.ClaimableTaskFee)
 		if err != nil {
@@ -1574,7 +1639,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectServiceBondStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1594,7 +1663,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer unbondings.Close()
 	for ; unbondings.Valid(); unbondings.Next() {
-		state, err := unbondings.Value()
+		stored, err := unbondings.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1618,7 +1691,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer liabilities.Close()
 	for ; liabilities.Valid(); liabilities.Next() {
-		state, err := liabilities.Value()
+		stored, err := liabilities.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectTaskLiabilityStore(stored)
 		if err != nil {
 			return err
 		}

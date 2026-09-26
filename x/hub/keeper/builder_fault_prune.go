@@ -44,7 +44,7 @@ func (k Keeper) ProcessBuilderFaultPrunes(ctx context.Context, currentHeight, vi
 		cacheCtx, commit := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
 		primaryKey := types.NewBuilderFaultKey(key.K2(), key.K3())
-		fault, err := k.BuilderFault.Get(cache, primaryKey)
+		fault, err := k.ReadBuilderFaultValue(cache, primaryKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.BuilderFaultPruneIndex.Remove(cache, key); err != nil {
 				return uint64(index + 1), err
@@ -81,12 +81,17 @@ func (k Keeper) EnsureBuilderFaultPruneInvariant(ctx context.Context) error {
 			faults.Close()
 			return err
 		}
-		faultID := entry.Value.FaultId
-		if err := entry.Value.Validate(); err != nil || entry.Key.K1() != entry.Value.BuilderAddress || !bytes.Equal(entry.Key.K2(), faultID) {
+		fault, err := k.ProjectBuilderFaultStore(entry.Value)
+		if err != nil {
+			faults.Close()
+			return err
+		}
+		faultID := fault.FaultId
+		if err := fault.Validate(); err != nil || entry.Key.K1() != fault.BuilderAddress || !bytes.Equal(entry.Key.K2(), faultID) {
 			faults.Close()
 			return fmt.Errorf("builder fault primary is invalid")
 		}
-		has, err := k.BuilderFaultPruneIndex.Has(ctx, types.NewBuilderFaultPruneKey(entry.Value.PruneHeight, entry.Value.BuilderAddress, faultID))
+		has, err := k.BuilderFaultPruneIndex.Has(ctx, types.NewBuilderFaultPruneKey(fault.PruneHeight, fault.BuilderAddress, faultID))
 		if err != nil || !has {
 			faults.Close()
 			return fmt.Errorf("builder fault primary is missing its prune index")
@@ -106,7 +111,7 @@ func (k Keeper) EnsureBuilderFaultPruneInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		fault, err := k.BuilderFault.Get(ctx, types.NewBuilderFaultKey(key.K2(), key.K3()))
+		fault, err := k.ReadBuilderFaultValue(ctx, types.NewBuilderFaultKey(key.K2(), key.K3()))
 		if err != nil || fault.PruneHeight != key.K1() || fault.BuilderAddress != key.K2() ||
 			!bytes.Equal(fault.FaultId, key.K3()) {
 			return fmt.Errorf("builder fault prune index is orphaned or mismatched")

@@ -143,7 +143,7 @@ func (m msgServer) sweepDeadline(ctx context.Context, req *types.MsgSweepDeadlin
 			return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task-round locator is invalid")
 		}
 		taskKey := types.NewTaskKey(locator.TaskRound.TaskId)
-		assignment, err := m.k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, locator.TaskRound.VerifyRound))
+		assignment, err := m.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, locator.TaskRound.VerifyRound))
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +192,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 	var visited, advanced uint64
 	switch locator.DeadlineKind {
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:
-		assignment, loadErr := k.TaskAssignment.Get(ctx, taskKey)
+		assignment, loadErr := k.ReadTaskAssignment(ctx, taskKey)
 		if loadErr != nil {
 			return nil, loadErr
 		}
@@ -203,7 +203,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 			},
 		)
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:
-		assignment, loadErr := k.TaskAssignment.Get(ctx, taskKey)
+		assignment, loadErr := k.ReadTaskAssignment(ctx, taskKey)
 		if loadErr != nil {
 			return nil, loadErr
 		}
@@ -255,7 +255,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 			},
 		)
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:
-		assignment, loadErr := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		assignment, loadErr := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 		if loadErr != nil {
 			return nil, loadErr
 		}

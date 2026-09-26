@@ -56,7 +56,7 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 	}
 	switch participantType {
 	case shared.ParticipantType_PARTICIPANT_TYPE_CORTEX:
-		state, err := k.CortexNode.Get(ctx, operatorAddress)
+		state, err := k.ReadCortexNodeStore(ctx, operatorAddress)
 		if err != nil {
 			return participantIdentityState{}, err
 		}
@@ -73,7 +73,7 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 			PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
 		}, nil
 	case shared.ParticipantType_PARTICIPANT_TYPE_BUILDER:
-		state, err := k.Builder.Get(ctx, operatorAddress)
+		state, err := k.GetBuilderState(ctx, operatorAddress)
 		if err != nil {
 			return participantIdentityState{}, err
 		}
@@ -133,7 +133,7 @@ func (k Keeper) persistParticipantIdentity(
 	}
 	switch identity.ParticipantType {
 	case shared.ParticipantType_PARTICIPANT_TYPE_CORTEX:
-		state, err := k.CortexNode.Get(ctx, identity.OperatorAddress)
+		state, err := k.ReadCortexNodeStore(ctx, identity.OperatorAddress)
 		if err != nil {
 			return err
 		}
@@ -143,11 +143,11 @@ func (k Keeper) persistParticipantIdentity(
 		state.ServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
 		state.UpdatedHeight = identity.UpdatedHeight
-		if err := k.CortexNode.Set(ctx, identity.OperatorAddress, state); err != nil {
+		if err := k.StoreCortexNode(ctx, identity.OperatorAddress, state); err != nil {
 			return err
 		}
 	case shared.ParticipantType_PARTICIPANT_TYPE_BUILDER:
-		state, err := k.Builder.Get(ctx, identity.OperatorAddress)
+		state, err := k.GetBuilderState(ctx, identity.OperatorAddress)
 		if err != nil {
 			return err
 		}
@@ -156,7 +156,7 @@ func (k Keeper) persistParticipantIdentity(
 		state.ServiceAuthorizationNonce = identity.AuthorizationNonce
 		state.CurrentServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
-		if err := k.Builder.Set(ctx, identity.OperatorAddress, state); err != nil {
+		if err := k.StoreBuilder(ctx, identity.OperatorAddress, state); err != nil {
 			return err
 		}
 	}
@@ -170,7 +170,7 @@ func (k Keeper) persistParticipantIdentity(
 			identity.AuthorizationNonce,
 		)
 	}
-	return k.CurrentServiceAddressIndex.Set(ctx, indexKey, types.CurrentServiceAddressIndexState{
+	return k.StoreCurrentServiceAddressIndex(ctx, indexKey, types.CurrentServiceAddressIndexState{
 		OperatorAddress: identity.OperatorAddress, ServiceAuthorizationNonce: identity.AuthorizationNonce,
 	})
 }
@@ -186,7 +186,7 @@ func (k Keeper) removeCurrentServiceAddressIndexIfOwned(
 	authorizationNonce uint64,
 ) error {
 	key := types.NewCurrentServiceAddressIndexKey(participantType, serviceAddress)
-	indexed, err := k.CurrentServiceAddressIndex.Get(ctx, key)
+	indexed, err := k.GetCurrentServiceAddressIndex(ctx, key)
 	switch {
 	case errors.Is(err, collections.ErrNotFound):
 		return nil
@@ -245,7 +245,7 @@ func (k Keeper) requireServiceAddressAvailable(ctx context.Context, serviceAddre
 		shared.ParticipantType_PARTICIPANT_TYPE_CORTEX,
 		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
 	} {
-		existing, err := k.CurrentServiceAddressIndex.Get(ctx, types.NewCurrentServiceAddressIndexKey(otherType, serviceAddress))
+		existing, err := k.GetCurrentServiceAddressIndex(ctx, types.NewCurrentServiceAddressIndexKey(otherType, serviceAddress))
 		if errors.Is(err, collections.ErrNotFound) {
 			continue
 		}
@@ -373,7 +373,7 @@ func (k Keeper) GetWorkerEvidenceProofKey(
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, err
 	}
-	state, err := k.ServiceKeyResponsibility.Get(ctx, types.NewServiceKeyResponsibilityKey(
+	state, err := k.ReadServiceKeyResponsibilityValue(ctx, types.NewServiceKeyResponsibilityKey(
 		shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress, responsibilityID,
 	))
 	if err != nil {
@@ -590,7 +590,7 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
 
-	existing, err := k.ServiceKeyResponsibility.Get(cache, key)
+	existing, err := k.ReadServiceKeyResponsibilityValue(cache, key)
 	if err == nil {
 		if err := existing.Validate(); err != nil {
 			return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
@@ -600,7 +600,7 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 				"bus objective evidence responsibility id already exists with different state",
 			)
 		}
-		builder, err := k.Builder.Get(cache, prepared.operator)
+		builder, err := k.GetBuilderState(cache, prepared.operator)
 		if err != nil {
 			return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(types.ErrInvariantBroken, "responsibility owner is missing")
 		}
@@ -633,7 +633,7 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
 
-	builder, err := k.Builder.Get(cache, prepared.operator)
+	builder, err := k.GetBuilderState(cache, prepared.operator)
 	if err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, fmt.Errorf("Builder responsibility owner not found: %w", err)
 	}
@@ -680,7 +680,7 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 		)
 	}
 	builder.PendingEvidenceSubmissionCount = nextCount
-	if err := k.Builder.Set(cache, prepared.operator, builder); err != nil {
+	if err := k.StoreBuilder(cache, prepared.operator, builder); err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
 	commit()
@@ -709,7 +709,7 @@ func (k Keeper) ReleaseBusObjectiveEvidenceResponsibility(
 	if err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
-	state, err := k.ServiceKeyResponsibility.Get(cache, key)
+	state, err := k.ReadServiceKeyResponsibilityValue(cache, key)
 	if errors.Is(err, collections.ErrNotFound) {
 		return prepared.receipt(false, shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP), nil
 	}
@@ -724,7 +724,7 @@ func (k Keeper) ReleaseBusObjectiveEvidenceResponsibility(
 			"bus objective evidence responsibility does not match the stored locator",
 		)
 	}
-	builder, err := k.Builder.Get(cache, prepared.operator)
+	builder, err := k.GetBuilderState(cache, prepared.operator)
 	if err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(types.ErrInvariantBroken, "responsibility owner is missing")
 	}
@@ -755,7 +755,7 @@ func (k Keeper) ReleaseBusObjectiveEvidenceResponsibility(
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
 	builder.PendingEvidenceSubmissionCount--
-	if err := k.Builder.Set(cache, prepared.operator, builder); err != nil {
+	if err := k.StoreBuilder(cache, prepared.operator, builder); err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, err
 	}
 	commit()
@@ -820,7 +820,7 @@ func (k Keeper) ReserveServiceKeyResponsibility(ctx context.Context, responsibil
 		return err
 	}
 	if responsibility.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE {
-		node, err := k.CortexNode.Get(cache, operatorAddress)
+		node, err := k.ReadCortexNodeStore(cache, operatorAddress)
 		if err != nil || node.ServiceAuthorizationNonce != responsibility.ServiceAuthorizationNonce {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence responsibility owner is unavailable")
 		}
@@ -829,7 +829,7 @@ func (k Keeper) ReserveServiceKeyResponsibility(ctx context.Context, responsibil
 			if err != nil {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence pending count overflow")
 			}
-			if err := k.CortexNode.Set(cache, operatorAddress, node); err != nil {
+			if err := k.StoreCortexNode(cache, operatorAddress, node); err != nil {
 				return err
 			}
 		} else if node.PendingEvidenceSubmissionCount == 0 {
@@ -856,7 +856,7 @@ func (k Keeper) reserveServiceKeyResponsibilityState(ctx context.Context, respon
 	}
 	// A frozen selection may materialize its duty after an emergency revoke.
 	// Keep that duty so a replacement key cannot complete the old work.
-	existing, err := k.ServiceKeyResponsibility.Get(ctx, key)
+	existing, err := k.ReadServiceKeyResponsibilityValue(ctx, key)
 	if err == nil {
 		if serviceKeyResponsibilitiesEqual(existing, responsibility) {
 			if err := k.ServiceKeyResponsibilityByTaskIndex.Set(ctx, indexKey); err != nil {
@@ -869,7 +869,7 @@ func (k Keeper) reserveServiceKeyResponsibilityState(ctx context.Context, respon
 	if !errors.Is(err, collections.ErrNotFound) {
 		return false, err
 	}
-	if err := k.ServiceKeyResponsibility.Set(ctx, key, responsibility); err != nil {
+	if err := k.WriteServiceKeyResponsibilityValue(ctx, key, responsibility); err != nil {
 		return false, err
 	}
 	if err := k.ServiceKeyResponsibilityByTaskIndex.Set(ctx, indexKey); err != nil {
@@ -900,7 +900,7 @@ func (k Keeper) ReleaseServiceKeyResponsibility(ctx context.Context, participant
 	if err != nil {
 		return err
 	}
-	responsibility, err := k.ServiceKeyResponsibility.Get(cache, key)
+	responsibility, err := k.ReadServiceKeyResponsibilityValue(cache, key)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil
 	}
@@ -918,7 +918,7 @@ func (k Keeper) ReleaseServiceKeyResponsibility(ctx context.Context, participant
 		if responsibility.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence responsibility has the wrong owner type")
 		}
-		node, err := k.CortexNode.Get(cache, operatorAddress)
+		node, err := k.ReadCortexNodeStore(cache, operatorAddress)
 		if err != nil || node.ServiceAuthorizationNonce != responsibility.ServiceAuthorizationNonce || node.PendingEvidenceSubmissionCount == 0 {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence pending count cannot be released")
 		}
@@ -926,10 +926,10 @@ func (k Keeper) ReleaseServiceKeyResponsibility(ctx context.Context, participant
 			return err
 		}
 		node.PendingEvidenceSubmissionCount--
-		if err := k.CortexNode.Set(cache, operatorAddress, node); err != nil {
+		if err := k.StoreCortexNode(cache, operatorAddress, node); err != nil {
 			return err
 		}
-		bond, err := k.ServiceBond.Get(cache, operatorAddress)
+		bond, err := k.ReadServiceBondValue(cache, operatorAddress)
 		if err != nil {
 			return err
 		}
@@ -989,7 +989,7 @@ func (k Keeper) ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID
 		// is an alias of ServiceKeyResponsibilityKeyTriple), so it is used as-is
 		// rather than being taken apart and rebuilt.
 		primaryKey := key.K3()
-		responsibility, err := k.ServiceKeyResponsibility.Get(ctx, primaryKey)
+		responsibility, err := k.ReadServiceKeyResponsibilityValue(ctx, primaryKey)
 		if err != nil {
 			return fmt.Errorf("service key responsibility task index references missing primary row: %w", err)
 		}
@@ -1065,7 +1065,7 @@ func (k Keeper) AcquirePendingStageDuty(ctx context.Context, operatorAddress str
 		return errorsmod.Wrap(types.ErrInvariantBroken, "pending stage duty count overflow")
 	}
 	node.PendingStageDutyCount++
-	return k.CortexNode.Set(ctx, node.OperatorAddress, node)
+	return k.StoreCortexNode(ctx, node.OperatorAddress, node)
 }
 
 func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress string) error {
@@ -1093,7 +1093,7 @@ func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress str
 		return errorsmod.Wrap(types.ErrInvariantBroken, "pending stage duty count underflow")
 	}
 	node.PendingStageDutyCount--
-	return k.CortexNode.Set(ctx, node.OperatorAddress, node)
+	return k.StoreCortexNode(ctx, node.OperatorAddress, node)
 }
 
 // removeCortexIdentityOnTerminalBond releases the reusable online identity
@@ -1101,14 +1101,14 @@ func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress str
 // retained audit rows remain; only the online primary, its current-address
 // projection, and the current descriptor are owned by the live participant.
 func (k Keeper) removeCortexIdentityOnTerminalBond(ctx context.Context, operatorAddress string) error {
-	bond, err := k.ServiceBond.Get(ctx, operatorAddress)
+	bond, err := k.ReadServiceBondValue(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
 	if bond.Status != types.ServiceBondStatusTombstoned && bond.Status != types.ServiceBondStatusExited {
 		return fmt.Errorf("cortex identity can only be retired with a terminal service bond")
 	}
-	node, err := k.CortexNode.Get(ctx, operatorAddress)
+	node, err := k.ReadCortexNodeStore(ctx, operatorAddress)
 	if err != nil {
 		if !errors.Is(err, collections.ErrNotFound) {
 			return err
@@ -1116,7 +1116,7 @@ func (k Keeper) removeCortexIdentityOnTerminalBond(ctx context.Context, operator
 		return k.removeServiceDescriptorIfPresent(ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress)
 	}
 	indexKey := types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, node.CurrentServiceAddress)
-	indexed, err := k.CurrentServiceAddressIndex.Get(ctx, indexKey)
+	indexed, err := k.GetCurrentServiceAddressIndex(ctx, indexKey)
 	switch {
 	case err == nil:
 		// A revoked address may already have been rebound. Only the row that still
@@ -1140,7 +1140,7 @@ func (k Keeper) removeCortexIdentityOnTerminalBond(ctx context.Context, operator
 		if height := sdkWrappedContextHeight(ctx); height != 0 {
 			node.UpdatedHeight = height
 		}
-		return k.CortexNode.Set(ctx, operatorAddress, node)
+		return k.StoreCortexNode(ctx, operatorAddress, node)
 	}
 	return k.CortexNode.Remove(ctx, operatorAddress)
 }

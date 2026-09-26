@@ -144,7 +144,7 @@ func (k Keeper) executeLoadedTaskSettlement(
 // §10.10a keeps the terminal summary as a second source so a compacted task
 // still replays instead of being rebuilt.
 func (k Keeper) settleTaskReplay(ctx context.Context, taskKey types.TaskKey) (*types.MsgSettleTaskResponse, bool, error) {
-	settlement, err := k.TaskSettlement.Get(ctx, taskKey)
+	settlement, err := k.ReadTaskSettlement(ctx, taskKey)
 	if err == nil {
 		plan, err := k.reconstructSettlementPlan(ctx, settlement)
 		if err != nil {
@@ -155,7 +155,7 @@ func (k Keeper) settleTaskReplay(ctx context.Context, taskKey types.TaskKey) (*t
 	if !errors.Is(err, collections.ErrNotFound) {
 		return nil, false, err
 	}
-	terminal, err := k.TaskTerminalSummary.Get(ctx, taskKey)
+	terminal, err := k.ReadTaskTerminalSummary(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, false, nil
@@ -220,7 +220,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if summary.XSettlementFactsCutoffHeight == nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "settlement facts cutoff height is not frozen")
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task assignment is unavailable")
 	}
@@ -232,7 +232,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil || budget.BudgetStatus != types.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task budget is not reserved")
 	}
-	infer, err := k.InferReceipt.Get(ctx, taskKey)
+	infer, err := k.ReadInferReceipt(ctx, taskKey)
 	if err != nil || len(infer.InferReceiptHash) != types.Hash32Len {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "infer receipt is unavailable")
 	}
@@ -241,13 +241,13 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if !isPhase0VerifyRound(effectiveRound) {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "effective verify round is not frozen")
 	}
-	round1, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	round1, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil || round1.XClosedHeight == nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 is not closed")
 	}
 	effectiveRoundState := round1
 	if effectiveRound != types.VerifyRoundV1 {
-		effectiveRoundState, err = k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, effectiveRound))
+		effectiveRoundState, err = k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, effectiveRound))
 		if err != nil || effectiveRoundState.XClosedHeight == nil {
 			return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "effective round is not closed")
 		}
@@ -256,7 +256,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil {
 		return settlementInputs{}, err
 	}
-	round1Assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	round1Assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 verifier assignment is unavailable")
 	}
@@ -303,7 +303,7 @@ func (k Keeper) loadAppliedRoundDisqualifications(
 	if summary.MaxClosedRound < types.ChallengeVerifyRoundV1 {
 		return nil, nil
 	}
-	round, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1))
+	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1))
 	if err != nil || round.XClosedHeight == nil || round.XRoundEffectPlanRoot == nil || round.XRoundEffectRoot == nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "challenge round effects are not closed")
 	}
@@ -358,7 +358,7 @@ func (k Keeper) rebuildClosedRound(
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task is unavailable")
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "verifier assignment is unavailable")
 	}
@@ -490,7 +490,11 @@ func (k Keeper) collectTaskGasReimbursements(ctx context.Context, taskKey types.
 		if !bytes.Equal(key.K1(), taskKey) {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "gas reimbursement prefix scan left the task")
 		}
-		item, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		item, err := k.ProjectGasReimbursementStore(stored)
 		if err != nil {
 			return nil, err
 		}
@@ -579,14 +583,14 @@ func (k Keeper) applySettlementPlan(
 			WorkerOperatorAddress: inputs.Assignment.WinnerWorker,
 		}
 	}
-	if err := k.TaskSettlement.Set(ctx, taskKey, settlement); err != nil {
+	if err := k.WriteTaskSettlement(ctx, taskKey, settlement); err != nil {
 		return types.TaskSettlementState{}, err
 	}
 	paidRolesHash, err := types.PaidRolesHash(sdkCtx.ChainID(), inputs.Core.TaskId, settlementID, facts.PaidRoles)
 	if err != nil {
 		return types.TaskSettlementState{}, err
 	}
-	if err := k.SettlementFactsRetained.Set(ctx, taskKey, types.SettlementFactsRetainedState{
+	if err := k.WriteSettlementFacts(ctx, taskKey, types.SettlementFactsRetainedState{
 		TaskId: append([]byte(nil), inputs.Core.TaskId...), TaskHash: append([]byte(nil), inputs.Core.AcceptedTaskHash...),
 		SettlementId: append([]byte(nil), settlementID...), SettlementFactsHash: factsHash[:],
 		SettlementFactsCutoffHeight: facts.SettlementFactsCutoffHeight, SettlementHeight: facts.SettlementHeight,
@@ -614,7 +618,7 @@ func (k Keeper) applySettlementPlan(
 		return types.TaskSettlementState{}, err
 	}
 	for _, payout := range plan.VerifierPayouts {
-		if err := k.VerifierPayout.Set(ctx, types.NewVerifierPayoutKey(taskKey, payout.SelectedVerifierIndex), types.VerifierPayoutState{
+		if err := k.WriteVerifierPayout(ctx, types.NewVerifierPayoutKey(taskKey, payout.SelectedVerifierIndex), types.VerifierPayoutState{
 			TaskId: append([]byte(nil), inputs.Core.TaskId...), SettlementId: append([]byte(nil), settlementID...),
 			OperatorAddress: payout.OperatorAddress, SelectedVerifierIndex: payout.SelectedVerifierIndex,
 			Gross: payout.Gross, Maintenance: payout.Maintenance, Net: payout.Net,

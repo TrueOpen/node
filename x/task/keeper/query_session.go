@@ -24,7 +24,7 @@ func (q *queryServer) Session(ctx context.Context, req *types.QuerySessionReques
 	if err != nil {
 		return nil, err
 	}
-	stream, err := q.k.Stream.Get(ctx, sessionKey)
+	stream, err := q.k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "session not found")
@@ -47,7 +47,7 @@ func (q *queryServer) SessionNonce(ctx context.Context, req *types.QuerySessionN
 	if err != nil {
 		return nil, err
 	}
-	state, err := q.k.SessionNonce.Get(ctx, owner)
+	state, err := q.k.ReadSessionNonce(ctx, owner)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return &types.QuerySessionNonceResponse{}, nil
@@ -121,7 +121,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		stream, err := q.k.Stream.Get(ctx, key.K2())
+		stream, err := q.k.ReadStream(ctx, key.K2())
 		if err != nil {
 			// §16.1: a stale index row inside a page is an invariant break.
 			return nil, status.Errorf(codes.Internal, "session_by_owner index points at missing stream %s", hex32(key.K2()))
@@ -173,7 +173,7 @@ func (q *queryServer) SessionTerminalSummary(ctx context.Context, req *types.Que
 	if err != nil {
 		return nil, err
 	}
-	summary, err := q.k.SessionTerminalSummary.Get(ctx, sessionKey)
+	summary, err := q.k.ReadSessionTerminalSummary(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "session terminal summary not found")

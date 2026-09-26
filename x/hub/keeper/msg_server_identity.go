@@ -226,7 +226,7 @@ func (m msgServer) UpdateServiceDescriptor(ctx context.Context, msg *types.MsgUp
 		DescriptorVersion: nextVersion, EndpointCount: uint32(len(endpoints)), Endpoints: endpoints,
 		DescriptorHash: append([]byte(nil), descriptorHash...), UpdatedHeight: sdkContextHeight(cacheCtx),
 	}
-	if err := m.k.ServiceDescriptor.Set(cache, types.NewParticipantKey(msg.ParticipantType, operatorAddress), descriptor); err != nil {
+	if err := m.k.StoreServiceDescriptor(cache, types.NewParticipantKey(msg.ParticipantType, operatorAddress), descriptor); err != nil {
 		return nil, err
 	}
 	current.CurrentDescriptorVersion = nextVersion

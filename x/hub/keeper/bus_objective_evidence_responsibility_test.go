@@ -64,7 +64,7 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	primaryKey := types.NewServiceKeyResponsibilityKey(
 		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, locator.BuilderOperator, acquired.ResponsibilityId,
 	)
-	stored, err := f.keeper.ServiceKeyResponsibility.Get(f.ctx, primaryKey)
+	stored, err := f.keeper.ReadServiceKeyResponsibilityValue(f.ctx, primaryKey)
 	require.NoError(t, err)
 	require.Equal(t, hex.EncodeToString(locator.SessionId), stored.SessionId)
 	require.Equal(t, hex.EncodeToString(locator.TaskId), stored.TaskId)
@@ -76,7 +76,7 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	has, err := f.keeper.ServiceKeyResponsibilityByTaskIndex.Has(f.ctx, indexKey)
 	require.NoError(t, err)
 	require.True(t, has)
-	builder, err := f.keeper.Builder.Get(f.ctx, locator.BuilderOperator)
+	builder, err := f.keeper.GetBuilderState(f.ctx, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), builder.PendingEvidenceSubmissionCount)
 
@@ -84,14 +84,14 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, replayed.Active)
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP, replayed.Status)
-	builder, err = f.keeper.Builder.Get(f.ctx, locator.BuilderOperator)
+	builder, err = f.keeper.GetBuilderState(f.ctx, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), builder.PendingEvidenceSubmissionCount)
 	wrongNonce := locator
 	wrongNonce.ServiceAuthorizationNonce++
 	_, err = f.keeper.AcquireBusObjectiveEvidenceResponsibility(f.ctx, wrongNonce)
 	require.ErrorContains(t, err, "id already exists with different state")
-	builder, err = f.keeper.Builder.Get(f.ctx, locator.BuilderOperator)
+	builder, err = f.keeper.GetBuilderState(f.ctx, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), builder.PendingEvidenceSubmissionCount)
 
@@ -108,7 +108,7 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 
 	_, err = f.keeper.ReleaseBusObjectiveEvidenceResponsibility(f.ctx, wrongNonce)
 	require.ErrorContains(t, err, "does not match the stored locator")
-	builder, err = f.keeper.Builder.Get(f.ctx, locator.BuilderOperator)
+	builder, err = f.keeper.GetBuilderState(f.ctx, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), builder.PendingEvidenceSubmissionCount)
 
@@ -142,7 +142,7 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	has, err = f.keeper.ServiceKeyResponsibilityByTaskIndex.Has(f.ctx, indexKey)
 	require.NoError(t, err)
 	require.False(t, has)
-	builder, err = f.keeper.Builder.Get(f.ctx, locator.BuilderOperator)
+	builder, err = f.keeper.GetBuilderState(f.ctx, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Zero(t, builder.PendingEvidenceSubmissionCount)
 
@@ -163,7 +163,7 @@ func TestBusObjectiveEvidenceResponsibilityAtomicFailures(t *testing.T) {
 		identity := hubIdentity(t, 202)
 		builder := registerBuilderIdentityForTest(t, f, identity, 10)
 		builder.PendingEvidenceSubmissionCount = math.MaxUint32
-		require.NoError(t, f.keeper.Builder.Set(f.ctx, identity.Address, builder))
+		require.NoError(t, f.keeper.StoreBuilder(f.ctx, identity.Address, builder))
 		locator := busObjectiveEvidenceLocator(identity, "overflow-session", "overflow-task")
 		expectedID := expectedBusObjectiveEvidenceResponsibilityID(t, locator)
 
@@ -196,7 +196,7 @@ func TestBusObjectiveEvidenceResponsibilityAtomicFailures(t *testing.T) {
 				primaryKey := types.NewServiceKeyResponsibilityKey(
 					shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, identity.Address, receipt.ResponsibilityId,
 				)
-				state, err := f.keeper.ServiceKeyResponsibility.Get(f.ctx, primaryKey)
+				state, err := f.keeper.ReadServiceKeyResponsibilityValue(f.ctx, primaryKey)
 				require.NoError(t, err)
 				indexKey := types.NewServiceKeyResponsibilityByTaskKey(
 					state.SessionId, state.TaskId, state.ParticipantType, state.OperatorAddress, state.ResponsibilityId,
@@ -204,10 +204,10 @@ func TestBusObjectiveEvidenceResponsibilityAtomicFailures(t *testing.T) {
 				if mutate == "index" {
 					require.NoError(t, f.keeper.ServiceKeyResponsibilityByTaskIndex.Remove(f.ctx, indexKey))
 				} else {
-					builder, err := f.keeper.Builder.Get(f.ctx, identity.Address)
+					builder, err := f.keeper.GetBuilderState(f.ctx, identity.Address)
 					require.NoError(t, err)
 					builder.PendingEvidenceSubmissionCount = 0
-					require.NoError(t, f.keeper.Builder.Set(f.ctx, identity.Address, builder))
+					require.NoError(t, f.keeper.StoreBuilder(f.ctx, identity.Address, builder))
 				}
 
 				_, err = f.keeper.ReleaseBusObjectiveEvidenceResponsibility(f.ctx, locator)
@@ -229,11 +229,30 @@ func TestBusObjectiveEvidenceResponsibilityGenesisConsistency(t *testing.T) {
 	locator := busObjectiveEvidenceLocator(identity, "genesis-session", "genesis-task")
 	receipt, err := f.keeper.AcquireBusObjectiveEvidenceResponsibility(f.ctx, locator)
 	require.NoError(t, err)
+	fault := types.BuilderFaultState{
+		BuilderAddress:          identity.Address,
+		FaultId:                 hubHashBytes("genesis-builder-fault"),
+		FaultKind:               types.BuilderFaultKind_BUILDER_FAULT_KIND_OBJECTIVE_DATA_UNAVAILABLE,
+		FaultStatus:             types.BuilderFaultStatus_BUILDER_FAULT_STATUS_RECORDED,
+		FaultHeight:             200,
+		EvidenceId:              hubHashBytes("genesis-builder-evidence"),
+		CanonicalEvidenceDigest: hubHashBytes("genesis-builder-digest"),
+		ScopeId:                 hubHashBytes("genesis-builder-scope"),
+		PruneHeight:             250,
+	}
+	require.NoError(t, f.keeper.WriteBuilderFaultValue(f.ctx, types.NewBuilderFaultKey(fault.BuilderAddress, fault.FaultId), fault))
+	require.NoError(t, f.keeper.BuilderFaultPruneIndex.Set(f.ctx, types.NewBuilderFaultPruneKey(fault.PruneHeight, fault.BuilderAddress, fault.FaultId)))
+	storedFault, err := f.keeper.BuilderFault.Get(f.ctx, types.NewBuilderFaultKey(fault.BuilderAddress, fault.FaultId))
+	require.NoError(t, err)
+	rawBuilder, err := sdk.AccAddressFromBech32(fault.BuilderAddress)
+	require.NoError(t, err)
+	require.Equal(t, []byte(rawBuilder), storedFault.BuilderAddress)
 
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.NoError(t, exported.Validate())
 	require.Len(t, exported.ServiceKeyResponsibilities, 1)
+	require.Len(t, exported.BuilderFaults, 1)
 	require.Equal(t, uint32(1), exported.Builders[0].PendingEvidenceSubmissionCount)
 	restarted := initFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))

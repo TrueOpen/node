@@ -105,14 +105,14 @@ func TestCreateSessionIncrementsNonceAcrossCalls(t *testing.T) {
 	require.Equal(t, uint64(2), resp3.SessionNonce)
 
 	// SessionNonce state persists next_session_nonce.
-	nonceState, err := app.TaskKeeper.SessionNonce.Get(ctx, signerAddr.String())
+	nonceState, err := app.TaskKeeper.ReadSessionNonce(ctx, signerAddr.String())
 	require.NoError(t, err)
 	require.Equal(t, uint64(3), nonceState.NextSessionNonce,
 		"persisted next_session_nonce must equal one past the last issued nonce")
 
 	// StreamState for each session persists with owner + active status.
 	for i, resp := range []*tasktypes.MsgCreateSessionResponse{resp1, resp2, resp3} {
-		stream, err := app.TaskKeeper.Stream.Get(ctx, resp.SessionId)
+		stream, err := app.TaskKeeper.ReadStream(ctx, resp.SessionId)
 		require.NoErrorf(t, err, "session %d state must persist", i)
 		require.Equal(t, resp.SessionId, stream.SessionId)
 		require.Equal(t, signerAddr.String(), stream.OwnerUserAddress)

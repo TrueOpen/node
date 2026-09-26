@@ -110,7 +110,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		core.TaskPhase != types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED || core.ReceiptStatus != types.ReceiptStatus_RECEIPT_STATUS_NONE {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "infer receipt task scope does not match")
 	}
-	assignment, err := m.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || assignment.WinnerWorker != receipt.WorkerOperatorAddress ||
 		!bytes.Equal(assignment.GenerationParamsDigest, receipt.GenerationParamsDigest) ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
@@ -222,7 +222,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	core.ReceiptStatus = types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING
 	core.UpdatedHeight = height
-	if err := m.k.InferReceipt.Set(cache, taskKey, receiptState); err != nil {
+	if err := m.k.WriteInferReceipt(cache, taskKey, receiptState); err != nil {
 		return nil, err
 	}
 	if err := m.k.VerifierCandidateWindow.Set(cache, windowKey, header); err != nil {
@@ -273,7 +273,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	); err != nil {
 		return nil, err
 	}
-	selection, err := m.k.TaskBuilderSelection.Get(cache, taskKey)
+	selection, err := m.k.GetTaskBuilderSelection(cache, taskKey)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Task Builder selection is unavailable at verifier-window freeze")
 	}
@@ -421,7 +421,7 @@ func inferReceiptReplayMatches(
 }
 
 func (k Keeper) getInferReceiptIfExists(ctx context.Context, taskKey types.TaskKey) (types.InferReceiptState, bool, error) {
-	state, err := k.InferReceipt.Get(ctx, taskKey)
+	state, err := k.ReadInferReceipt(ctx, taskKey)
 	if err != nil {
 		if errIsNotFound(err) {
 			return types.InferReceiptState{}, false, nil

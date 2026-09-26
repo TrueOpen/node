@@ -58,7 +58,7 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	require.NoError(t, err)
 	bond.JailCount = threshold - 1
 	bond.Status = types.ServiceBondStatusJailed
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(identity.Address), bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(identity.Address), bond))
 
 	_, err = f.keeper.ApplyTaskRoleFault(f.ctx, types.TaskRoleFaultFact{
 		SessionID: hubHashBytes("session-tombstone-ladder"), TaskID: ladderTaskID,
@@ -78,10 +78,10 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	hasNode, err := f.keeper.CortexNode.Has(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.True(t, hasNode, "the remaining liability keeps proof-only identity material")
-	proofOnly, err := f.keeper.CortexNode.Get(f.ctx, identity.Address)
+	proofOnly, err := f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceKeyStatusRevoked, proofOnly.ServiceKeyStatus)
-	orphan, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, survivorKey)
+	orphan, err := f.keeper.ReadTaskLiabilityValue(f.ctx, survivorKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReserved, orphan.Status)
 
@@ -90,7 +90,7 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	require.NoError(t, f.keeper.ReleaseTaskLiabilities(
 		f.ctx, "session-tombstone-orphan", hex.EncodeToString(survivor.TaskID), 4,
 	))
-	closed, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, survivorKey)
+	closed, err := f.keeper.ReadTaskLiabilityValue(f.ctx, survivorKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReleased, closed.Status)
 	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)

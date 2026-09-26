@@ -56,7 +56,7 @@ func (b BootstrapFeeExemption) IsExempt(ctx sdk.Context, tx sdk.Tx) bool {
 	if !feeTx.GetFee().IsZero() {
 		return false
 	}
-	bootstrap, err := b.hub.BridgeBootstrap.Get(ctx)
+	bootstrap, err := b.hub.ReadBridgeBootstrapValue(ctx)
 	if err != nil || bootstrap.Mode != hubtypes.BridgeBootstrapModeV1_BRIDGE_BOOTSTRAP_MODE_V1_ARMED {
 		return false
 	}

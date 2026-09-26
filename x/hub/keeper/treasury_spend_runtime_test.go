@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -245,6 +246,18 @@ func TestTreasuryCleanupCursorGenesisRoundTrip(t *testing.T) {
 		_, err := f.keeper.ExecuteTreasurySpendV1(f.ctx, acceptedTreasuryContext(f, 110, item), action)
 		require.NoError(t, err)
 	}
+	rows, err := f.keeper.TreasurySpendRecipientEpoch.Iterate(f.ctx, nil)
+	require.NoError(t, err)
+	require.True(t, rows.Valid())
+	recipientKey, err := rows.Key()
+	require.NoError(t, err)
+	storedRecipient, err := rows.Value()
+	require.NoError(t, err)
+	encodedRecipient, err := storedRecipient.Marshal()
+	require.NoError(t, err)
+	require.False(t, bytes.Contains(encodedRecipient, []byte(sdk.AccAddress(recipientKey.K2()).String())))
+	require.True(t, bytes.Contains(encodedRecipient, recipientKey.K2()))
+	require.NoError(t, rows.Close())
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(24))
 	visited, err := f.keeper.ProcessTreasurySpendEpochCleanups(f.ctx, 24, 2)
 	require.NoError(t, err)
@@ -253,6 +266,13 @@ func TestTreasuryCleanupCursorGenesisRoundTrip(t *testing.T) {
 	genesis, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.Len(t, genesis.TreasurySpendEpochCleanupCursors, 1)
+	storedCursor, err := f.keeper.TreasurySpendEpochCleanupCursor.Get(f.ctx, genesis.TreasurySpendEpochCleanupCursors[0].RewardEpoch)
+	require.NoError(t, err)
+	encodedCursor, err := storedCursor.Marshal()
+	require.NoError(t, err)
+	lastRecipient := genesis.TreasurySpendEpochCleanupCursors[0].GetLastRecipientAddress()
+	require.False(t, bytes.Contains(encodedCursor, []byte(lastRecipient)))
+	require.True(t, bytes.Contains(encodedCursor, hubAddressBytes(t, lastRecipient)))
 	require.Len(t, genesis.TreasurySpendRecipientEpochs, 1)
 	restarted := initFixture(t)
 	restarted.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restarted.ctx).WithChainID(sdk.UnwrapSDKContext(f.ctx).ChainID()))
@@ -347,6 +367,12 @@ func TestTreasurySpendReceiptGenesisRoundTripAndTamperRejection(t *testing.T) {
 	action := treasurySpendAction(t, 17, 3, 25)
 	_, err := f.keeper.ExecuteTreasurySpendV1(f.ctx, acceptedTreasuryContext(f, 17, 3), action)
 	require.NoError(t, err)
+	storedReceipt, err := f.keeper.TreasurySpendReceipt.Get(f.ctx, types.NewTreasurySpendReceiptKey(17, 3))
+	require.NoError(t, err)
+	encodedReceipt, err := storedReceipt.Marshal()
+	require.NoError(t, err)
+	require.False(t, bytes.Contains(encodedReceipt, []byte(action.Recipient)))
+	require.True(t, bytes.Contains(encodedReceipt, hubAddressBytes(t, action.Recipient)))
 	genesis, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.Len(t, genesis.TreasurySpendReceipts, 1)

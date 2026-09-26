@@ -1,0 +1,33 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BuilderFaultStoreState stores the Builder as codec bytes.
+message BuilderFaultStoreState {
+  bytes builder_address = 1;
+  bytes fault_id = 2;
+  int32 fault_kind = 3;
+  int32 fault_status = 4;
+  uint64 fault_height = 5;
+  bytes evidence_id = 6;
+  bytes canonical_evidence_digest = 7;
+  bytes scope_id = 8;
+  uint64 prune_height = 9;
+  uint32 frozen_slash_bps = 14;
+}
+
+// RoleFaultStoreState stores the operator as codec bytes.
+message RoleFaultStoreState {
+  bytes fault_id = 1;
+  bytes task_id = 2;
+  bytes operator_address = 3;
+  int32 duty = 4;
+  int32 fault_class = 5;
+  int32 classification_source = 6;
+  bytes evidence_digest = 7;
+  uint32 jail_delta = 8;
+  optional bytes slash_summary_id = 9;
+  uint64 recorded_height = 10;
+  int32 status = 11;
+}

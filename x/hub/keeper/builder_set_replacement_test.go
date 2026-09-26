@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 
+	internaltypes "github.com/TrueOpen/node/x/hub/internal/types"
 	"github.com/TrueOpen/node/x/hub/keeper"
 	"github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
@@ -61,6 +62,82 @@ func newBuilderSetReplacementFixture(t *testing.T) *builderSetReplacementFixture
 	return fixture
 }
 
+func TestBuilderAdmissionStoresRawAddress(t *testing.T) {
+	f := newBuilderSetReplacementFixture(t)
+	member := f.members[0]
+	stored, err := f.keeper.BuilderAdmission.Get(f.ctx, member)
+	require.NoError(t, err)
+	encoded, err := stored.Marshal()
+	require.NoError(t, err)
+	require.False(t, bytes.Contains(encoded, []byte(member)))
+	require.True(t, bytes.Contains(encoded, hubAddressBytes(t, member)))
+}
+
+func TestBuilderAdmissionGenesisRoundTrip(t *testing.T) {
+	f := newBuilderSetReplacementFixture(t)
+	exported, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, exported.BuilderAdmissions, 3)
+	for _, state := range exported.BuilderAdmissions {
+		require.NotEmpty(t, state.BuilderAddress)
+		require.Equal(t, types.BuilderStatus_BUILDER_STATUS_ADMITTED, state.Status)
+		require.Nil(t, state.XSourceProposalId)
+	}
+
+	restarted := initFixture(t)
+	restarted.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restarted.ctx).WithChainID(builderSetTestChainID))
+	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
+	reexported, err := restarted.keeper.ExportGenesis(restarted.ctx)
+	require.NoError(t, err)
+	require.Equal(t, exported.BuilderAdmissions, reexported.BuilderAdmissions)
+}
+
+func TestBuilderAdmissionProposalPresenceRoundTrip(t *testing.T) {
+	f := newBuilderSetReplacementFixture(t)
+	_, err := f.keeper.ExecuteReplaceBuilderSetV1(f.ctx, f.accepted(7), f.action(t, 7))
+	require.NoError(t, err)
+	due := f.atHeight(f.leadFor)
+	require.NoError(t, due.keeper.BeginBlocker(due.ctx))
+
+	exported, err := due.keeper.ExportGenesis(due.ctx)
+	require.NoError(t, err)
+	require.Len(t, exported.BuilderAdmissions, 4)
+	for _, state := range exported.BuilderAdmissions {
+		require.Equal(t, uint64(7), state.GetSourceProposalId())
+		require.NotNil(t, state.XSourceProposalId)
+	}
+
+	restarted := initFixture(t)
+	restarted.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restarted.ctx).WithChainID(builderSetTestChainID))
+	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
+	reexported, err := restarted.keeper.ExportGenesis(restarted.ctx)
+	require.NoError(t, err)
+	require.Equal(t, exported.BuilderAdmissions, reexported.BuilderAdmissions)
+}
+
+func TestBuilderSetValuesStoreRawMemberAddresses(t *testing.T) {
+	f := newBuilderSetReplacementFixture(t)
+	set, err := f.keeper.BuilderSet.Get(f.ctx, 1)
+	require.NoError(t, err)
+	encodedSet, err := set.Marshal()
+	require.NoError(t, err)
+	for _, member := range f.members[:3] {
+		require.False(t, bytes.Contains(encodedSet, []byte(member)))
+		require.True(t, bytes.Contains(encodedSet, hubAddressBytes(t, member)))
+	}
+
+	_, err = f.keeper.ExecuteReplaceBuilderSetV1(f.ctx, f.accepted(7), f.action(t, 7))
+	require.NoError(t, err)
+	pending, err := f.keeper.PendingBuilderSetReplacement.Get(f.ctx)
+	require.NoError(t, err)
+	encodedPending, err := pending.Marshal()
+	require.NoError(t, err)
+	for _, member := range f.members[1:] {
+		require.False(t, bytes.Contains(encodedPending, []byte(member)))
+		require.True(t, bytes.Contains(encodedPending, hubAddressBytes(t, member)))
+	}
+}
+
 // seedGenesisBuilderSet installs the version 1 set the way InitGenesis would:
 // the snapshot, both derived indexes, the admission rows and the current pointer.
 func (f *builderSetReplacementFixture) seedGenesisBuilderSet(t *testing.T) {
@@ -77,14 +154,14 @@ func (f *builderSetReplacementFixture) seedGenesisBuilderSet(t *testing.T) {
 		EffectiveHeight: 1, ActiveBuilders: genesisMembers, ActiveBuilderCount: 3,
 		BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}
-	require.NoError(t, f.keeper.BuilderSet.Set(f.ctx, set.BuilderSetVersion, set))
+	require.NoError(t, f.keeper.StoreBuilderSet(f.ctx, set))
 	require.NoError(t, f.keeper.BuilderSetByIDIndex.Set(f.ctx, set.BuilderSetId, set.BuilderSetVersion))
 	require.NoError(t, f.keeper.BuilderSetByHeightIndex.Set(
 		f.ctx, types.NewBuilderSetByHeightKey(set.EffectiveHeight, set.BuilderSetVersion), set.BuilderSetId,
 	))
 	for _, member := range genesisMembers {
-		require.NoError(t, f.keeper.BuilderAdmission.Set(f.ctx, member, types.BuilderAdmissionState{
-			BuilderAddress: member, Status: types.BuilderStatus_BUILDER_STATUS_ADMITTED,
+		require.NoError(t, f.keeper.BuilderAdmission.Set(f.ctx, member, internaltypes.BuilderAdmissionStoreState{
+			BuilderAddress: hubAddressBytes(t, member), Status: int32(types.BuilderStatus_BUILDER_STATUS_ADMITTED),
 			CurrentBuilderSetVersion: 1, UpdatedHeight: 1,
 		}))
 	}
@@ -162,7 +239,7 @@ func TestExecuteReplaceBuilderSetV1SchedulesWithoutSwitching(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), current.BuilderSetVersion, "acceptance must not switch the current set")
 
-	_, err = f.keeper.BuilderSet.Get(f.ctx, 2)
+	_, err = f.keeper.GetBuilderSet(f.ctx, 2)
 	require.ErrorIs(t, err, collections.ErrNotFound, "the next snapshot exists only from effective_height")
 
 	proposalID, err := f.keeper.BuilderSetReplacementIndex.Get(f.ctx, types.NewBuilderSetReplacementKey(f.leadFor, 2))
@@ -258,10 +335,10 @@ func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 		},
 		"member whose service key is not ACTIVE": {
 			mutate: func(f *builderSetReplacementFixture, _ *types.ReplaceBuilderSetV1) {
-				state, err := f.keeper.Builder.Get(f.ctx, f.members[2])
+				state, err := f.keeper.GetBuilderState(f.ctx, f.members[2])
 				require.NoError(t, err)
 				state.CurrentServiceKeyStatus = types.ServiceKeyStatusRevoked
-				require.NoError(t, f.keeper.Builder.Set(f.ctx, f.members[2], state))
+				require.NoError(t, f.keeper.StoreBuilder(f.ctx, f.members[2], state))
 			},
 			message: "ACTIVE service key binding",
 		},
@@ -293,7 +370,7 @@ func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 			_, err := f.keeper.ExecuteReplaceBuilderSetV1(f.ctx, execution, action)
 			require.ErrorContains(t, err, testCase.message)
 
-			_, err = f.keeper.PendingBuilderSetReplacement.Get(f.ctx)
+			_, err = f.keeper.GetPendingBuilderSetReplacement(f.ctx)
 			require.ErrorIs(t, err, collections.ErrNotFound, "a rejected action must not leave a pending row")
 		})
 	}
@@ -313,7 +390,7 @@ func TestExecuteReplaceBuilderSetV1TreatsAnUnchangedMemberSetAsNoop(t *testing.T
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP, result.Status)
 	require.Zero(t, result.Pending.NextBuilderSetVersion)
 
-	_, err = f.keeper.PendingBuilderSetReplacement.Get(f.ctx)
+	_, err = f.keeper.GetPendingBuilderSetReplacement(f.ctx)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	has, err := f.keeper.BuilderSetReplacementIndex.Has(f.ctx, types.NewBuilderSetReplacementKey(f.leadFor, 2))
 	require.NoError(t, err)
@@ -348,7 +425,7 @@ func TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight(t *testing.T
 	require.Equal(t, pending.Pending.NextBuilderSetHash, current.BuilderSetHash)
 	require.Equal(t, f.leadFor, current.EffectiveHeight)
 
-	next, err := due.keeper.BuilderSet.Get(due.ctx, 2)
+	next, err := due.keeper.GetBuilderSet(due.ctx, 2)
 	require.NoError(t, err)
 	require.Equal(t, shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE, next.BodyStatus)
 	require.Equal(t, f.members[1:], next.ActiveBuilders)
@@ -363,7 +440,7 @@ func TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, builderSetTestNextID, setID)
 
-	previous, err := due.keeper.BuilderSet.Get(due.ctx, 1)
+	previous, err := due.keeper.GetBuilderSet(due.ctx, 1)
 	require.NoError(t, err)
 	require.Equal(t, f.leadFor, previous.GetSupersededHeight(),
 		"superseded_height is effective_height, not the height the sweep happened to run")
@@ -371,16 +448,17 @@ func TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight(t *testing.T
 	for _, member := range f.members[1:] {
 		admission, err := due.keeper.BuilderAdmission.Get(due.ctx, member)
 		require.NoError(t, err)
-		require.Equal(t, types.BuilderStatus_BUILDER_STATUS_ADMITTED, admission.Status)
+		require.Equal(t, int32(types.BuilderStatus_BUILDER_STATUS_ADMITTED), admission.Status)
 		require.Equal(t, uint64(2), admission.CurrentBuilderSetVersion)
-		require.Equal(t, uint64(7), admission.GetSourceProposalId())
+		require.True(t, admission.HasSourceProposalId)
+		require.Equal(t, uint64(7), admission.SourceProposalId)
 		require.Equal(t, f.leadFor, admission.UpdatedHeight)
 	}
 	removed, err := due.keeper.BuilderAdmission.Get(due.ctx, f.members[0])
 	require.NoError(t, err)
-	require.Equal(t, types.BuilderStatus_BUILDER_STATUS_REVOKED, removed.Status)
+	require.Equal(t, int32(types.BuilderStatus_BUILDER_STATUS_REVOKED), removed.Status)
 
-	_, err = due.keeper.PendingBuilderSetReplacement.Get(due.ctx)
+	_, err = due.keeper.GetPendingBuilderSetReplacement(due.ctx)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	has, err := due.keeper.BuilderSetReplacementIndex.Has(due.ctx, types.NewBuilderSetReplacementKey(f.leadFor, 2))
 	require.NoError(t, err)

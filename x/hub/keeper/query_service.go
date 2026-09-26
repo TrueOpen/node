@@ -22,7 +22,7 @@ func (q queryServer) CortexNode(ctx context.Context, req *types.QueryCortexNodeR
 	if err != nil {
 		return nil, err
 	}
-	node, err := q.k.CortexNode.Get(ctx, operatorAddress)
+	node, err := q.k.ReadCortexNodeStore(ctx, operatorAddress)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "cortex node not found")
 	}
@@ -37,7 +37,7 @@ func (q queryServer) ServiceBond(ctx context.Context, req *types.QueryServiceBon
 	if err != nil {
 		return nil, err
 	}
-	bond, err := q.k.ServiceBond.Get(ctx, types.NewServiceBondKey(operatorAddress))
+	bond, err := q.k.ReadServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service bond not found")
 	}
@@ -139,7 +139,7 @@ func (q queryServer) ServiceDescriptor(ctx context.Context, req *types.QueryServ
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	descriptor, err := q.k.ServiceDescriptor.Get(ctx, types.NewParticipantKey(req.ParticipantType, operatorAddress))
+	descriptor, err := q.k.GetServiceDescriptor(ctx, types.NewParticipantKey(req.ParticipantType, operatorAddress))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service descriptor not found")
 	}
@@ -157,8 +157,8 @@ func (q queryServer) ServiceLifecycle(ctx context.Context, req *types.QueryServi
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	bond, bondErr := q.k.ServiceBond.Get(ctx, operatorAddress)
-	node, nodeErr := q.k.CortexNode.Get(ctx, operatorAddress)
+	bond, bondErr := q.k.ReadServiceBondValue(ctx, operatorAddress)
+	node, nodeErr := q.k.ReadCortexNodeStore(ctx, operatorAddress)
 	if errors.Is(bondErr, collections.ErrNotFound) && errors.Is(nodeErr, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service lifecycle not found")
 	}
@@ -266,7 +266,11 @@ func (k Keeper) unbondingsForQuery(ctx context.Context, operatorAddress string, 
 	defer iter.Close()
 	rows := make([]types.UnbondingState, 0)
 	for ; iter.Valid(); iter.Next() {
-		row, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		row, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return nil, err
 		}

@@ -1,0 +1,30 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// TaskAssignmentStoreState mirrors public tags with a codec-byte Worker.
+message TaskAssignmentStoreState {
+  bytes task_id = 1;
+  uint64 assign_accept_height = 2;
+  uint64 assignment_randomness_height = 3;
+  uint64 winner_confirm_height = 4;
+  uint64 infer_deadline_height = 5;
+  int32 assignment_fail_reason = 6;
+  bytes candidate_pool_snapshot_id = 7;
+  bytes candidate_pool_hash = 8;
+  bytes assignment_candidate_set_hash = 9;
+  bytes winner_worker = 10;
+  bytes winner_draw_digest = 11;
+  bytes profile_execution_snapshot_hash = 12;
+  string judgment_function_version = 13;
+  bytes evidence_schema_hash = 14;
+  string canonical_encoding_version = 15;
+  bytes generation_params_digest = 16;
+  string metric_aggregate_proof_version = 17;
+  bool candidate_pool_ref_released = 18;
+  uint64 infer_timeout_blocks = 19;
+  uint64 challenge_open_window_blocks_snapshot = 20;
+  uint32 worker_infer_timeout_slash_bps = 21;
+  uint32 result_reveal_missing_slash_bps = 22;
+}

@@ -27,7 +27,7 @@ func (q *queryServer) InferReceipt(ctx context.Context, req *types.QueryInferRec
 	if err != nil {
 		return nil, err
 	}
-	receipt, err := q.k.InferReceipt.Get(ctx, taskKey)
+	receipt, err := q.k.ReadInferReceipt(ctx, taskKey)
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "infer receipt")
 	}
@@ -73,7 +73,7 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 		}
 		responseBytes := window.Size()
 		for rank := uint32(0); rank < window.WindowSize; rank++ {
-			member, err := q.k.VerifierCandidateWindowMember.Get(ctx, types.NewVerifierWindowMemberKey(taskKey, req.VerifyRound, rank))
+			member, err := q.k.ReadVerifierWindowMember(ctx, types.NewVerifierWindowMemberKey(taskKey, req.VerifyRound, rank))
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "READY verifier candidate window has no dense member at rank %d", rank)
 			}
@@ -153,7 +153,7 @@ func (q *queryServer) VerifyCommit(ctx context.Context, req *types.QueryVerifyCo
 	if err != nil {
 		return nil, err
 	}
-	commit, err := q.k.CommitState.Get(ctx, commitKey)
+	commit, err := q.k.ReadCommit(ctx, commitKey)
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "verify commit")
 	}
@@ -183,7 +183,7 @@ func (q *queryServer) ResultReceipt(ctx context.Context, req *types.QueryResultR
 	if err != nil {
 		return nil, err
 	}
-	receipt, err := q.k.ResultReceiptState.Get(ctx, commitKey)
+	receipt, err := q.k.ReadResultReceipt(ctx, commitKey)
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "result receipt")
 	}
@@ -250,7 +250,7 @@ func (q *queryServer) DataUnavailableReports(ctx context.Context, req *types.Que
 	primaryKeys := make([][]byte, 0, len(assignment.SelectedVerifiers)-start)
 	for i := start; i < len(assignment.SelectedVerifiers); i++ {
 		selected := assignment.SelectedVerifiers[i]
-		report, err := q.k.DataUnavailableReport.Get(ctx, types.NewVerifyActorKey(taskKey, req.VerifyRound, selected.OperatorAddress))
+		report, err := q.k.ReadDataUnavailableReport(ctx, types.NewVerifyActorKey(taskKey, req.VerifyRound, selected.OperatorAddress))
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
 				continue
@@ -326,7 +326,7 @@ func (q *queryServer) BuilderDataUnavailable(ctx context.Context, req *types.Que
 	if err != nil {
 		return nil, err
 	}
-	aggregate, err := q.k.BuilderDataUnavailableAggregate.Get(ctx, types.NewVerifyActorKey(types.NewTaskKey(req.TaskId), req.VerifyRound, builder))
+	aggregate, err := q.k.ReadDataUnavailableAggregate(ctx, types.NewVerifyActorKey(types.NewTaskKey(req.TaskId), req.VerifyRound, builder))
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "builder data unavailable aggregate")
 	}
@@ -375,7 +375,7 @@ func (q *queryServer) TaskFailureClass(ctx context.Context, req *types.QueryTask
 // below cannot be pointed at two different tasks by a caller that renders one of
 // them differently.
 func (q *queryServer) loadVerifierAssignment(ctx context.Context, taskKey types.TaskKey, verifyRound uint32) (types.VerifierAssignmentState, error) {
-	assignment, err := q.k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+	assignment, err := q.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 	if err != nil {
 		return types.VerifierAssignmentState{}, queryVerificationStoreError(err, "verifier assignment")
 	}
@@ -531,7 +531,7 @@ func (q *queryServer) EvidenceCleanup(ctx context.Context, req *types.QueryEvide
 		return nil, err
 	}
 	cursor, cursorErr := q.k.TaskCleanupCursor.Get(ctx, taskKey)
-	summary, summaryErr := q.k.TaskTerminalSummary.Get(ctx, taskKey)
+	summary, summaryErr := q.k.ReadTaskTerminalSummary(ctx, taskKey)
 	cursorFound := cursorErr == nil
 	summaryFound := summaryErr == nil
 	if cursorErr != nil && !errors.Is(cursorErr, collections.ErrNotFound) {

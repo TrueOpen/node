@@ -75,7 +75,7 @@ func TestQueryTaskAndVerifierAssignmentUseTheSingleV1Round(t *testing.T) {
 	core.VerificationStatus = tasktypes.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKeyOf(core.TaskId), core))
 	assignment := verifierAssignmentForQuery(t, genesisChainID(f), core.TaskId, []string{genesisVerifier, genesisVerifier2, genesisVerifier3})
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKeyOf(core.TaskId), tasktypes.VerifyRoundV1), assignment,
 	))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
@@ -95,10 +95,11 @@ func TestQueryTaskAndVerifierAssignmentUseTheSingleV1Round(t *testing.T) {
 	require.Equal(t, tasktypes.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT, stage.Stage.GetNextDeadlineKind())
 	require.Equal(t, assignment.CommitDeadlineHeight, stage.Stage.GetNextDeadlineHeight())
 
-	assignment.VerifyRound = 2
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
-		f.ctx, tasktypes.NewVerifyRoundKey(taskKeyOf(core.TaskId), tasktypes.VerifyRoundV1), assignment,
-	))
+	assignmentKey := tasktypes.NewVerifyRoundKey(taskKeyOf(core.TaskId), tasktypes.VerifyRoundV1)
+	stored, err := f.keeper.VerifierAssignment.Get(f.ctx, assignmentKey)
+	require.NoError(t, err)
+	stored.VerifyRound = 2
+	require.NoError(t, f.keeper.VerifierAssignment.Set(f.ctx, assignmentKey, stored))
 	_, err = server.VerifierAssignment(f.ctx, &tasktypes.QueryVerifierAssignmentRequest{TaskId: core.TaskId, VerifyRound: tasktypes.VerifyRoundV1})
 	require.Equal(t, codes.Internal, status.Code(err))
 }
@@ -132,7 +133,7 @@ func TestQueryTaskProjectsVerifyFailedBeforeAndAfterVerifierAssignment(t *testin
 	assignment := verifierAssignmentForQuery(
 		t, genesisChainID(f), taskID, []string{genesisVerifier, genesisVerifier2, genesisVerifier3},
 	)
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), assignment,
 	))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
@@ -212,7 +213,7 @@ func TestQueryTaskStageNeverNamesAConsumedDeadline(t *testing.T) {
 	assignment := verifierAssignmentForQuery(
 		t, genesisChainID(f), core.TaskId, []string{genesisVerifier, genesisVerifier2, genesisVerifier3},
 	)
-	require.NoError(t, f.keeper.VerifierAssignment.Set(f.ctx, roundKey, assignment))
+	require.NoError(t, f.keeper.WriteVerifierAssignment(f.ctx, roundKey, assignment))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, roundKey, verifierWindowForAssignment(assignment)))
 
 	server := keeper.NewQueryServerImpl(f.keeper)
@@ -319,7 +320,7 @@ func TestQueryTaskStageProjectsPostVerificationDeadlines(t *testing.T) {
 		XChallengeOpenHeight:  &tasktypes.TaskRoundSummaryState_ChallengeOpenHeight{ChallengeOpenHeight: challengeOpenHeight},
 		XChallengeCloseHeight: &tasktypes.TaskRoundSummaryState_ChallengeCloseHeight{ChallengeCloseHeight: challengeCloseHeight},
 	}
-	require.NoError(t, f.keeper.VerificationRound.Set(
+	require.NoError(t, f.keeper.WriteVerificationRound(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), round,
 	))
 	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, summary))
@@ -342,7 +343,7 @@ func TestQueryTaskStageProjectsPostVerificationDeadlines(t *testing.T) {
 	} {
 		t.Run("challenge window after "+testCase.name, func(t *testing.T) {
 			round.XVerdict = &tasktypes.VerificationRoundState_Verdict{Verdict: testCase.verdict}
-			require.NoError(t, f.keeper.VerificationRound.Set(
+			require.NoError(t, f.keeper.WriteVerificationRound(
 				f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), round,
 			))
 			core.VerificationStatus = testCase.status
@@ -409,7 +410,7 @@ func TestQueryTaskBuildersTriStateSemantics(t *testing.T) {
 	pruned := selection
 	pruned.SelectedTaskBuilders = nil
 	pruned.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, taskKey, pruned))
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, pruned))
 	response, err := server.TaskBuilders(f.ctx, &tasktypes.QueryTaskBuildersRequest{TaskId: selection.TaskId})
 	require.NoError(t, err)
 	require.Empty(t, response.Selection.SelectedTaskBuilders)
@@ -424,14 +425,14 @@ func TestQueryTaskBuildersTriStateSemantics(t *testing.T) {
 	broken := selection
 	broken.SelectedTaskBuilders = nil
 	broken.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, taskKey, broken))
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, broken))
 	_, err = server.TaskBuilders(f.ctx, &tasktypes.QueryTaskBuildersRequest{TaskId: selection.TaskId})
 	require.Equal(t, codes.Internal, status.Code(err))
 
 	// A body whose hash cannot be recomputed from its members is Internal.
 	drifted := selection
 	drifted.SelectedTaskBuildersHash = repeatByte(0x0f)
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, taskKey, drifted))
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, drifted))
 	_, err = server.TaskBuilders(f.ctx, &tasktypes.QueryTaskBuildersRequest{TaskId: selection.TaskId})
 	require.Equal(t, codes.Internal, status.Code(err))
 
@@ -547,7 +548,7 @@ func TestEvidenceCleanupProjectsAuthoritativeLifecycleStates(t *testing.T) {
 
 	require.NoError(t, f.keeper.TaskCleanupCursor.Remove(f.ctx, taskKey))
 	require.NoError(t, f.keeper.TaskCore.Remove(f.ctx, taskKey))
-	require.NoError(t, f.keeper.TaskTerminalSummary.Set(f.ctx, taskKey, tasktypes.TaskTerminalSummaryState{
+	require.NoError(t, f.keeper.WriteTaskTerminalSummary(f.ctx, taskKey, tasktypes.TaskTerminalSummaryState{
 		TaskId: taskID, SummaryHash: repeatByte(0x5a),
 	}))
 	response, err = server.EvidenceCleanup(f.ctx, &tasktypes.QueryEvidenceCleanupRequest{TaskId: taskID})
@@ -565,7 +566,7 @@ func TestVerificationQueriesProjectAuthoritativeRows(t *testing.T) {
 	const verifyRound = tasktypes.VerifyRoundV1
 
 	receipt := tasktypes.InferReceiptState{TaskId: taskID, WinnerWorker: genesisWorker, InferReceiptHash: repeatByte(0x31)}
-	require.NoError(t, f.keeper.InferReceipt.Set(f.ctx, taskKey, receipt))
+	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, taskKey, receipt))
 	window := tasktypes.VerifierCandidateWindowState{
 		SchemaVersion: 1, TaskId: taskID, VerifyRound: verifyRound,
 		VerifierWindowSourceHash: repeatByte(0x32), WindowSize: 1,
@@ -577,18 +578,21 @@ func TestVerificationQueriesProjectAuthoritativeRows(t *testing.T) {
 		SchemaVersion: 1, TaskId: taskID, VerifyRound: verifyRound,
 		RankIndex: 0, Slot: 7, SlotVersion: 2, OperatorAddress: verifier, VerifierWindowRank: repeatByte(0x34),
 	}
-	require.NoError(t, f.keeper.VerifierCandidateWindowMember.Set(f.ctx, tasktypes.NewVerifierWindowMemberKey(taskKey, verifyRound, 0), member))
+	require.NoError(t, f.keeper.WriteVerifierWindowMember(f.ctx, tasktypes.NewVerifierWindowMemberKey(taskKey, verifyRound, 0), member))
 
 	commitKey, err := tasktypes.DeriveCommitKey(genesisChainID(f), taskID, verifyRound, verifier)
 	require.NoError(t, err)
 	commitStoreKey := tasktypes.NewCommitKey(commitKey[:])
-	commit := tasktypes.CommitState{CommitKey: commitKey[:], TaskId: taskID, VerifyRound: verifyRound, VerifierOperatorAddress: verifier}
-	require.NoError(t, f.keeper.CommitState.Set(f.ctx, commitStoreKey, commit))
+	commit := tasktypes.CommitState{
+		CommitKey: commitKey[:], TaskId: taskID, VerifyRound: verifyRound,
+		VerifierOperatorAddress: verifier, Status: tasktypes.CommitStatusV1_COMMIT_STATUS_V1_ACCEPTED,
+	}
+	require.NoError(t, f.keeper.WriteCommit(f.ctx, commitStoreKey, commit))
 	result := tasktypes.ResultReceiptState{
 		CommitKey: commitKey[:], TaskId: taskID, VerifyRound: verifyRound,
 		VerifierOperatorAddress: verifier, MetricRoot: repeatByte(0x35),
 	}
-	require.NoError(t, f.keeper.ResultReceiptState.Set(f.ctx, commitStoreKey, result))
+	require.NoError(t, f.keeper.WriteResultReceipt(f.ctx, commitStoreKey, result))
 
 	server := keeper.NewQueryServerImpl(f.keeper)
 	gotReceipt, err := server.InferReceipt(f.ctx, &tasktypes.QueryInferReceiptRequest{TaskId: taskID})
@@ -696,7 +700,7 @@ func TestDataUnavailableReportsUsesCanonicalBoundPageTokens(t *testing.T) {
 	taskKey := taskKeyOf(taskID)
 	selectedOrder := []string{genesisVerifier3, genesisVerifier, genesisVerifier2}
 	assignment := verifierAssignmentForQuery(t, genesisChainID(f), taskID, selectedOrder)
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), assignment,
 	))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
@@ -717,7 +721,7 @@ func TestDataUnavailableReportsUsesCanonicalBoundPageTokens(t *testing.T) {
 			ServiceAuthorizationNonceSnapshot: attempt.ServiceAuthorizationNonceSnapshot,
 			ReportHeight:                      uint64(46 + i), ReportDigest: digest,
 		}
-		require.NoError(t, f.keeper.DataUnavailableReport.Set(
+		require.NoError(t, f.keeper.WriteDataUnavailableReport(
 			f.ctx, tasktypes.NewVerifyActorKey(taskKey, tasktypes.VerifyRoundV1, operator), report,
 		))
 	}
@@ -788,10 +792,10 @@ func TestDataUnavailableReportsUsesCanonicalBoundPageTokens(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 
 	firstKey := tasktypes.NewVerifyActorKey(taskKey, tasktypes.VerifyRoundV1, selectedOrder[0])
-	drifted, err := f.keeper.DataUnavailableReport.Get(f.ctx, firstKey)
+	drifted, err := f.keeper.ReadDataUnavailableReport(f.ctx, firstKey)
 	require.NoError(t, err)
 	drifted.ReportDigest = repeatByte(0x92)
-	require.NoError(t, f.keeper.DataUnavailableReport.Set(f.ctx, firstKey, drifted))
+	require.NoError(t, f.keeper.WriteDataUnavailableReport(f.ctx, firstKey, drifted))
 	req.Page.PageToken = nil
 	_, err = server.DataUnavailableReports(f.ctx, req)
 	require.Equal(t, codes.Internal, status.Code(err))
@@ -877,7 +881,7 @@ func TestQueryTaskServesRoundSummaryAndRound2Assignment(t *testing.T) {
 	taskKey := taskKeyOf(core.TaskId)
 	verifiers := []string{genesisVerifier, genesisVerifier2, genesisVerifier3}
 	round1 := verifierAssignmentForQuery(t, genesisChainID(f), core.TaskId, verifiers)
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1), round1,
 	))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(
@@ -907,7 +911,7 @@ func TestQueryTaskServesRoundSummaryAndRound2Assignment(t *testing.T) {
 	round2 := verifierAssignmentForQueryRound(
 		t, genesisChainID(f), core.TaskId, verifiers, tasktypes.ChallengeVerifyRoundV1,
 	)
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.ChallengeVerifyRoundV1), round2,
 	))
 	require.NoError(t, f.keeper.VerifierCandidateWindow.Set(

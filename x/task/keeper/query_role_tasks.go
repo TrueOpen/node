@@ -149,12 +149,12 @@ func (q *queryServer) activeTaskRef(ctx context.Context, taskKey types.TaskKey, 
 	}
 	switch duty {
 	case shared.Duty_DUTY_WORKER:
-		assignment, err := q.k.TaskAssignment.Get(ctx, taskKey)
+		assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || assignment.WinnerWorker != operator {
 			return types.ActiveTaskRefV1{}, status.Errorf(codes.Internal, "worker active task index is inconsistent for task %s", hex32(taskKey))
 		}
 	case shared.Duty_DUTY_VERIFIER:
-		assignment, err := q.k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		assignment, err := q.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 		if err != nil {
 			return types.ActiveTaskRefV1{}, status.Errorf(codes.Internal, "verifier active task index has no V1 assignment for task %s", hex32(taskKey))
 		}

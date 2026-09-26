@@ -103,7 +103,7 @@ func seedRoleFaultForTest(t *testing.T, f *fixture, operator string, duty shared
 	}
 	require.NoError(t, state.Validate())
 	key := shared.Hash32Key(state.FaultId)
-	require.NoError(t, f.keeper.RoleFault.Set(f.ctx, key, state))
+	require.NoError(t, f.keeper.WriteRoleFaultValue(f.ctx, key, state))
 	params, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.RoleFaultPruneIndex.Set(

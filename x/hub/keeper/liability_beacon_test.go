@@ -58,7 +58,7 @@ func TestBeaconPaths(t *testing.T) {
 	// have an active public key first, otherwise the whole block is rejected.
 	operator := hubAddress(t, 0x42)
 	registeredPubkey := vrfPubkey(0x9A)
-	require.NoError(t, f2.keeper.VrfKey.Set(f2.ctx, operator, types.VrfKeyState{
+	require.NoError(t, f2.keeper.StoreVrfKey(f2.ctx, types.VrfKeyState{
 		OperatorAddress:       operator,
 		ActiveVrfPubkey:       registeredPubkey,
 		ActiveFromEpoch:       0,

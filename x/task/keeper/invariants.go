@@ -207,7 +207,11 @@ func (k Keeper) EnsureSessionOpenPendingInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		stream, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		stream, err := k.ProjectStreamStore(stored)
 		if err != nil {
 			return err
 		}

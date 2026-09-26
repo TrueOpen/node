@@ -47,7 +47,7 @@ func (q queryServer) BridgeStatus(ctx context.Context, req *types.QueryBridgeSta
 	if err != nil {
 		return nil, status.Error(codes.Internal, "bridge supply state is unavailable")
 	}
-	bootstrap, err := q.k.BridgeBootstrap.Get(ctx)
+	bootstrap, err := q.k.ReadBridgeBootstrapValue(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "bridge bootstrap state is unavailable")
 	}

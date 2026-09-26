@@ -1,0 +1,16 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// VerifierWindowMemberStoreState stores the verifier operator as codec bytes.
+message VerifierWindowMemberStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  uint32 verify_round = 3;
+  uint32 rank_index = 4;
+  uint32 slot = 5;
+  uint64 slot_version = 6;
+  bytes operator_address = 7;
+  bytes verifier_window_rank = 8;
+}

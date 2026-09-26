@@ -22,7 +22,7 @@ func (q *queryServer) SettlementFacts(ctx context.Context, req *types.QuerySettl
 	if err != nil {
 		return nil, err
 	}
-	facts, err := q.k.SettlementFactsRetained.Get(ctx, taskKey)
+	facts, err := q.k.ReadSettlementFacts(ctx, taskKey)
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "settlement facts")
 	}
@@ -40,7 +40,7 @@ func (q *queryServer) Settlement(ctx context.Context, req *types.QuerySettlement
 	if err != nil {
 		return nil, err
 	}
-	settlement, err := q.k.TaskSettlement.Get(ctx, taskKey)
+	settlement, err := q.k.ReadTaskSettlement(ctx, taskKey)
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "task settlement")
 	}
@@ -65,7 +65,7 @@ func (q *queryServer) VerificationRound(ctx context.Context, req *types.QueryVer
 	if !isPhase0VerifyRound(req.VerifyRound) {
 		return nil, status.Error(codes.InvalidArgument, "verify_round must be 1 or 2")
 	}
-	round, err := q.k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, req.VerifyRound))
+	round, err := q.k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, req.VerifyRound))
 	if err != nil {
 		return nil, queryVerificationStoreError(err, "verification round")
 	}
@@ -134,7 +134,11 @@ func (q *queryServer) TaskGasReimbursements(ctx context.Context, req *types.Quer
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		item, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		item, err := q.k.ProjectGasReimbursementStore(stored)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -200,7 +204,12 @@ func (k Keeper) reconstructSettlementPlan(ctx context.Context, settlement types.
 			payoutIter.Close()
 			return types.SettlementPlanV1{}, err
 		}
-		state, err := payoutIter.Value()
+		stored, err := payoutIter.Value()
+		if err != nil {
+			payoutIter.Close()
+			return types.SettlementPlanV1{}, err
+		}
+		state, err := k.ProjectVerifierPayoutStore(stored)
 		if err != nil || !bytes.Equal(state.TaskId, settlement.TaskId) ||
 			!bytes.Equal(state.SettlementId, settlement.SettlementId) || key.K2() != state.SelectedVerifierIndex {
 			payoutIter.Close()
@@ -223,7 +232,12 @@ func (k Keeper) reconstructSettlementPlan(ctx context.Context, settlement types.
 	}
 	reimbursements := make([]types.TaskGasReimbursementV1, 0, settlement.GasReimbursementCount)
 	for ; gasIter.Valid(); gasIter.Next() {
-		item, err := gasIter.Value()
+		stored, err := gasIter.Value()
+		if err != nil {
+			gasIter.Close()
+			return types.SettlementPlanV1{}, err
+		}
+		item, err := k.ProjectGasReimbursementStore(stored)
 		if err != nil {
 			gasIter.Close()
 			return types.SettlementPlanV1{}, err

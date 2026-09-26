@@ -384,7 +384,7 @@ func (k Keeper) nextEpochTaskSummarySource(ctx context.Context, cursor types.Epo
 }
 
 func (k Keeper) epochTaskSummarySource(ctx context.Context, taskKey types.TaskKey) (types.TaskTerminalSummaryState, error) {
-	if summary, err := k.TaskTerminalSummary.Get(ctx, taskKey); err == nil {
+	if summary, err := k.ReadTaskTerminalSummary(ctx, taskKey); err == nil {
 		return summary, nil
 	} else if errors.Is(err, collections.ErrNotFound) {
 		return types.TaskTerminalSummaryState{}, errorsmod.Wrap(types.ErrInvariantBroken, "epoch source is missing terminal summary")

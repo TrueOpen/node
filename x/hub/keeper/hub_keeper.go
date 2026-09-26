@@ -40,7 +40,7 @@ func (k Keeper) GetNodeTombstone(ctx sdk.Context, addr sdk.AccAddress) bool {
 }
 
 func (k Keeper) GetCortexNode(ctx sdk.Context, addr sdk.AccAddress) (types.CortexNodeSnapshot, bool) {
-	state, err := k.CortexNode.Get(ctx, addr.String())
+	state, err := k.ReadCortexNodeStore(ctx, addr.String())
 	if err != nil {
 		return types.CortexNodeSnapshot{}, false
 	}
@@ -163,7 +163,7 @@ func (k Keeper) GetServiceBond(ctx sdk.Context, cortexNode sdk.AccAddress, order
 	if orderValue == 0 {
 		return types.ServiceBondSnapshot{}, false
 	}
-	state, err := k.ServiceBond.Get(ctx, types.NewServiceBondKey(cortexNode.String()))
+	state, err := k.ReadServiceBondValue(ctx, types.NewServiceBondKey(cortexNode.String()))
 	if err != nil {
 		return types.ServiceBondSnapshot{}, false
 	}

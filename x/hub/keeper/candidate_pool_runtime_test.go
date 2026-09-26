@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -45,7 +46,7 @@ func TestGenesisSeededCandidatesBuildWithoutRuntimeMembershipMutation(t *testing
 	}}
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
 
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), reverse.Slot)
 	require.Equal(t, uint64(1), reverse.SlotVersion)
@@ -88,7 +89,7 @@ func TestGlobalCandidatePoolBuildActivateQueryAndTaskRef(t *testing.T) {
 	f.bank.seedAccount(identity.Address, 1)
 	_, err := f.keeper.StakeService(f.ctx, identity.Address, 1, 5, 1)
 	require.NoError(t, err)
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), reverse.Slot)
 	require.Equal(t, uint64(1), reverse.SlotVersion)
@@ -146,7 +147,7 @@ func TestGlobalCandidatePoolBuildActivateQueryAndTaskRef(t *testing.T) {
 	require.Equal(t, uint32(1), segmentBytes)
 	require.Equal(t, uint32(1), segmentCount)
 	require.NoError(t, f.keeper.ReserveCandidateSlotTaskRef(f.ctx, current.SnapshotId, reverse.Slot, reverse.SlotVersion, taskID))
-	slotState, err := f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slotState, err := f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), slotState.ActiveTaskRefs)
 	require.NoError(t, f.keeper.ReleaseCandidateSlotTaskRef(f.ctx, reverse.Slot, reverse.SlotVersion, 3))
@@ -187,7 +188,7 @@ func TestCandidateMembershipChangesOnlyWhenEffectiveBondReachesZero(t *testing.T
 	f.bank.seedAccount(identity.Address, 1)
 	_, err := f.keeper.StakeService(f.ctx, identity.Address, 1, 5, 1)
 	require.NoError(t, err)
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 	before, err := f.keeper.CandidatePoolBuildStatus.Get(f.ctx)
 	require.NoError(t, err)
@@ -199,7 +200,7 @@ func TestCandidateMembershipChangesOnlyWhenEffectiveBondReachesZero(t *testing.T
 	partialBond, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Positive(t, partialBond.EffectiveActiveBond)
-	reverseAfterPartial, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverseAfterPartial, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, reverse, reverseAfterPartial)
 	afterPartial, err := f.keeper.CandidatePoolBuildStatus.Get(f.ctx)
@@ -213,7 +214,7 @@ func TestCandidateMembershipChangesOnlyWhenEffectiveBondReachesZero(t *testing.T
 	zeroBond, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Zero(t, zeroBond.EffectiveActiveBond)
-	_, err = f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	_, err = f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	afterExit, err := f.keeper.CandidatePoolBuildStatus.Get(f.ctx)
 	require.NoError(t, err)
@@ -401,6 +402,35 @@ func candidatePoolGenesisWithPublishedBody(t *testing.T) *types.GenesisState {
 	require.Len(t, exported.CandidatePoolMembers, 1)
 	require.Len(t, exported.CandidateSlotBindings, 1)
 	return exported
+}
+
+func TestCandidatePoolAddressValuesUseCodecBytes(t *testing.T) {
+	genesis := candidatePoolGenesisWithPublishedBody(t)
+	f := initCandidatePoolFixture(t)
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+	member := genesis.CandidatePoolMembers[0]
+	address := member.OperatorAddress
+	raw := hubAddressBytes(t, address)
+
+	rows := []interface{ Marshal() ([]byte, error) }{}
+	storedMember, err := f.keeper.CandidatePoolMember.Get(f.ctx, types.NewCandidatePoolMemberKey(member.Epoch, member.Slot))
+	require.NoError(t, err)
+	rows = append(rows, &storedMember)
+	storedSlot, err := f.keeper.CandidateSlotCurrent.Get(f.ctx, member.Slot)
+	require.NoError(t, err)
+	rows = append(rows, &storedSlot)
+	storedBinding, err := f.keeper.CandidateSlotBinding.Get(f.ctx, types.NewCandidateSlotBindingKey(member.Slot, member.SlotVersion))
+	require.NoError(t, err)
+	rows = append(rows, &storedBinding)
+	storedReverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, address)
+	require.NoError(t, err)
+	rows = append(rows, &storedReverse)
+	for _, row := range rows {
+		encoded, err := row.Marshal()
+		require.NoError(t, err)
+		require.False(t, bytes.Contains(encoded, []byte(address)))
+		require.True(t, bytes.Contains(encoded, raw))
+	}
 }
 
 func TestCandidatePoolGenesisRejectsBindingSnapshotRefCountDrift(t *testing.T) {

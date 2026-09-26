@@ -51,11 +51,11 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 	if err != nil || !bytes.Equal(core.TaskId, evidence.TaskId) {
 		return nil, errorsmod.Wrap(types.ErrTaskNotFound, "Worker evidence Task is unavailable")
 	}
-	assignment, err := m.k.TaskAssignment.Get(cache, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || assignment.WinnerWorker == "" {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Worker assignment is unavailable")
 	}
-	receipt, err := m.k.InferReceipt.Get(cache, taskKey)
+	receipt, err := m.k.ReadInferReceipt(cache, taskKey)
 	if err != nil || receipt.WinnerWorker != assignment.WinnerWorker || !bytes.Equal(receipt.TaskId, core.TaskId) ||
 		!bytes.Equal(receipt.InferReceiptHash, evidence.AcceptedInferReceiptHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "accepted InferReceipt does not match Worker evidence")
@@ -67,7 +67,7 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 	_ = workerBytes
 	kind := types.WorkerEvidenceKindV1_WORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION
 	receiptKey := types.NewWorkerEvidenceReceiptKey(taskKey, worker, kind, evidence.Seq)
-	if existing, err := m.k.WorkerEvidenceReceipt.Get(cache, receiptKey); err == nil {
+	if existing, err := m.k.ReadWorkerEvidenceReceipt(cache, receiptKey); err == nil {
 		if !bytes.Equal(existing.TaskId, core.TaskId) || existing.WorkerOperatorAddress != worker || existing.EvidenceKind != kind ||
 			existing.Seq != evidence.Seq || !bytes.Equal(existing.AcceptedInferReceiptHash, evidence.AcceptedInferReceiptHash) ||
 			!bytes.Equal(existing.EvidenceDigest, evidenceDigest[:]) || len(existing.FaultId) != types.Hash32Len {
@@ -149,7 +149,7 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 		AcceptedInferReceiptHash: append([]byte(nil), evidence.AcceptedInferReceiptHash...),
 		EvidenceDigest:           evidenceDigest[:], FaultId: faultID, AcceptedHeight: currentHeight,
 	}
-	if err := m.k.WorkerEvidenceReceipt.Set(cache, receiptKey, state); err != nil {
+	if err := m.k.WriteWorkerEvidenceReceipt(cache, receiptKey, state); err != nil {
 		return nil, err
 	}
 	if err := emitTypedEvent(cache, &types.EventWorkerEvidenceAccepted{
@@ -177,7 +177,11 @@ func (k Keeper) firstWorkerEvidenceReceipt(
 	if limit == 0 {
 		return types.WorkerEvidenceReceiptState{}, false, fmt.Errorf("Worker evidence scan limit is zero")
 	}
-	state, err := iter.Value()
+	stored, err := iter.Value()
+	if err != nil {
+		return types.WorkerEvidenceReceiptState{}, false, err
+	}
+	state, err := k.ProjectWorkerEvidenceReceiptStore(stored)
 	if err != nil {
 		return types.WorkerEvidenceReceiptState{}, false, err
 	}

@@ -65,14 +65,14 @@ func (m msgServer) RegisterBuilder(ctx context.Context, req *types.MsgRegisterBu
 	// current binding. Keep this provisional row inside the same cache so any
 	// later proof, descriptor or invariant failure still rolls the whole
 	// registration back atomically.
-	if err := m.k.Builder.Set(cache, builder, state); err != nil {
+	if err := m.k.StoreBuilder(cache, builder, state); err != nil {
 		return nil, err
 	}
 	identity, err := m.k.registerServiceKey(cache, shared.ParticipantTypeBuilder, builder, req.ServicePubkey, req.ServiceKeyProof, initialServiceKeyNonce, height, registrationDigest)
 	if err != nil {
 		return nil, err
 	}
-	if err := m.k.ServiceDescriptor.Set(cache, types.NewParticipantKey(participantType, builder), descriptor); err != nil {
+	if err := m.k.StoreServiceDescriptor(cache, types.NewParticipantKey(participantType, builder), descriptor); err != nil {
 		return nil, err
 	}
 	state.CurrentServiceAddress = identity.ServiceAddress
@@ -83,7 +83,7 @@ func (m msgServer) RegisterBuilder(ctx context.Context, req *types.MsgRegisterBu
 	if err := state.Validate(); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
-	if err := m.k.Builder.Set(cache, builder, state); err != nil {
+	if err := m.k.StoreBuilder(cache, builder, state); err != nil {
 		return nil, err
 	}
 	mustEmitHubEvent(cache, &types.EventBuilderRegistered{
@@ -109,7 +109,7 @@ func (m msgServer) registerBuilderReplay(
 		!bytes.Equal(state.CurrentServicePubkey, req.ServicePubkey) {
 		return nil, errorsmod.Wrap(types.ErrInvalidBuilder, "builder already exists with different identity facts")
 	}
-	descriptor, err := m.k.ServiceDescriptor.Get(ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, state.BuilderAddress))
+	descriptor, err := m.k.GetServiceDescriptor(ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, state.BuilderAddress))
 	if err != nil || descriptor.DescriptorVersion != 1 || !bytes.Equal(descriptor.DescriptorHash, descriptorHash) {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "builder descriptor replay mismatch")
 	}

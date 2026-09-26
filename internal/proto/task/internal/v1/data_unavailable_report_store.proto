@@ -1,0 +1,15 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// DataUnavailableReportStoreState stores the verifier operator as codec bytes.
+message DataUnavailableReportStoreState {
+  bytes task_id = 1;
+  uint32 verify_round = 2;
+  bytes verifier_operator_address = 3;
+  bytes unavailable_task_builder_bitmap = 4;
+  uint64 service_authorization_nonce_snapshot = 5;
+  uint64 report_height = 6;
+  bytes report_digest = 7;
+}

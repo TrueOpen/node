@@ -1,0 +1,15 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// VerifierPayoutStoreState stores the operator address as codec bytes.
+message VerifierPayoutStoreState {
+  bytes task_id = 1;
+  bytes settlement_id = 2;
+  bytes operator_address = 3;
+  uint32 selected_verifier_index = 4;
+  string gross_atomic_units = 5;
+  string maintenance_atomic_units = 6;
+  string net_atomic_units = 7;
+}

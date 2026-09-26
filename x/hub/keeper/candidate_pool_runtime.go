@@ -103,7 +103,7 @@ func (k Keeper) ResolveCandidatePoolMember(ctx context.Context, snapshotID []byt
 	if err != nil {
 		return types.CandidatePoolMemberState{}, types.CandidateSlotBindingState{}, err
 	}
-	binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(slot, member.SlotVersion))
+	binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(slot, member.SlotVersion))
 	if err != nil {
 		return types.CandidatePoolMemberState{}, types.CandidateSlotBindingState{}, err
 	}
@@ -265,7 +265,7 @@ func (k Keeper) ReserveCandidateSlotTaskRef(ctx context.Context, snapshotID []by
 	if err != nil || member.SlotVersion != slotVersion {
 		return fmt.Errorf("candidate slot/version is not a snapshot member")
 	}
-	current, err := k.CandidateSlotCurrent.Get(ctx, slot)
+	current, err := k.ReadCandidateSlotCurrent(ctx, slot)
 	if err != nil || current.SlotVersion != slotVersion || current.OperatorAddress != member.OperatorAddress {
 		return fmt.Errorf("candidate current slot no longer matches immutable member")
 	}
@@ -273,11 +273,11 @@ func (k Keeper) ReserveCandidateSlotTaskRef(ctx context.Context, snapshotID []by
 		return fmt.Errorf("candidate slot active_task_refs overflow")
 	}
 	current.ActiveTaskRefs++
-	return k.CandidateSlotCurrent.Set(ctx, slot, current)
+	return k.WriteCandidateSlotCurrent(ctx, slot, current)
 }
 
 func (k Keeper) ReleaseCandidateSlotTaskRef(ctx context.Context, slot uint32, slotVersion uint64, height uint64) error {
-	current, err := k.CandidateSlotCurrent.Get(ctx, slot)
+	current, err := k.ReadCandidateSlotCurrent(ctx, slot)
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (k Keeper) ReleaseCandidateSlotTaskRef(ctx context.Context, slot uint32, sl
 		return fmt.Errorf("candidate slot task ref mismatch or underflow")
 	}
 	current.ActiveTaskRefs--
-	if err := k.CandidateSlotCurrent.Set(ctx, slot, current); err != nil {
+	if err := k.WriteCandidateSlotCurrent(ctx, slot, current); err != nil {
 		return err
 	}
 	if current.Status == candidateSlotRetiring {

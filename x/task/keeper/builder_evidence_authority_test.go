@@ -31,7 +31,7 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 		AggregateHash: bytes.Repeat([]byte{0xa7}, types.Hash32Len), ThresholdReachedHeight: 10,
 		Status: types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED,
 	}
-	require.NoError(t, f.keeper.BuilderDataUnavailableAggregate.Set(f.ctx, aggregateKey, aggregate))
+	require.NoError(t, f.keeper.WriteDataUnavailableAggregate(f.ctx, aggregateKey, aggregate))
 
 	fact, err := f.keeper.canonicalBuilderDataUnavailable(f.ctx, bus.DataUnavailableStateReferenceV1{
 		TaskID: f.taskID, VerifyRound: types.VerifyRoundV1, BuilderOperator: builder,
@@ -54,7 +54,7 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 	require.NoError(t, f.keeper.TaskStageHandraiseUnion.Set(f.ctx, unionKey, union))
 
 	aggregate.Status = types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING
-	require.NoError(t, f.keeper.BuilderDataUnavailableAggregate.Set(f.ctx, aggregateKey, aggregate))
+	require.NoError(t, f.keeper.WriteDataUnavailableAggregate(f.ctx, aggregateKey, aggregate))
 	_, err = f.keeper.canonicalBuilderDataUnavailable(f.ctx, bus.DataUnavailableStateReferenceV1{
 		TaskID: f.taskID, VerifyRound: types.VerifyRoundV1, BuilderOperator: builder,
 	})

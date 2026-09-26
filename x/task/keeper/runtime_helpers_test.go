@@ -26,17 +26,17 @@ func TestRoleActiveTaskIndexesAddAndRemove(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hasWorker, "genesis must rebuild WorkerActiveTaskIndex from the assignment")
 
-	require.NoError(t, f.keeper.AddVerifierActiveJobIndex(f.ctx, "verifier-a", taskID))
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.AddVerifierActiveJobIndex(f.ctx, genesisVerifier, taskID))
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx,
 		tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1),
 		tasktypes.VerifierAssignmentState{
 			TaskId:            taskID,
 			VerifyRound:       tasktypes.VerifyRoundV1,
-			SelectedVerifiers: []tasktypes.SelectedVerifierV1{{OperatorAddress: "verifier-a"}},
+			SelectedVerifiers: []tasktypes.SelectedVerifierV1{{OperatorAddress: genesisVerifier}},
 		},
 	))
-	hasVerifier, err := f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey("verifier-a", taskKey))
+	hasVerifier, err := f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey(genesisVerifier, taskKey))
 	require.NoError(t, err)
 	require.True(t, hasVerifier)
 
@@ -44,7 +44,7 @@ func TestRoleActiveTaskIndexesAddAndRemove(t *testing.T) {
 	hasWorker, err = f.keeper.WorkerActiveTaskIndex.Has(f.ctx, tasktypes.NewWorkerActiveTaskKey(genesisWorker, taskKey))
 	require.NoError(t, err)
 	require.False(t, hasWorker)
-	hasVerifier, err = f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey("verifier-a", taskKey))
+	hasVerifier, err = f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey(genesisVerifier, taskKey))
 	require.NoError(t, err)
 	require.False(t, hasVerifier)
 }

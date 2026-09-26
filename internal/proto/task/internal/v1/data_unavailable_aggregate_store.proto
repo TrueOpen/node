@@ -1,0 +1,23 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// DataUnavailableSlotStoreState preserves optional report digest presence.
+message DataUnavailableSlotStoreState {
+  bool has_report_digest = 1;
+  bytes report_digest = 2;
+}
+
+// BuilderDataUnavailableAggregateStoreState stores the Builder as codec bytes.
+message BuilderDataUnavailableAggregateStoreState {
+  bytes task_id = 1;
+  uint32 verify_round = 2;
+  bytes builder_operator_address = 3;
+  uint32 valid_report_count = 4;
+  uint32 required_report_count = 5;
+  repeated DataUnavailableSlotStoreState report_digests_by_verifier_slot = 6;
+  bytes aggregate_hash = 7;
+  uint64 threshold_reached_height = 8;
+  int32 status = 9;
+}

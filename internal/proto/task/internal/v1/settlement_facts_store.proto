@@ -1,0 +1,36 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// SettlementFactsStoreState stores the duty Builder as codec bytes.
+message SettlementFactsStoreState {
+  bytes task_id = 1;
+  bytes task_hash = 2;
+  bytes settlement_id = 3;
+  bytes settlement_facts_hash = 4;
+  uint64 settlement_facts_cutoff_height = 5;
+  uint64 settlement_height = 6;
+  bytes settlement_duty_builder_operator = 7;
+  bytes consensus_cluster_hash = 8;
+  int32 recomputed_verdict = 9;
+  int32 failure_class = 10;
+  bytes fault_summary_hash = 11;
+  bytes paid_roles_hash = 12;
+  uint32 paid_role_count = 13;
+  bytes infer_receipt_ref_or_zero32 = 14;
+  bytes result_receipt_refs_hash = 15;
+  uint64 challenge_close_height = 16;
+  uint32 effective_verify_round = 17;
+  uint64 fee_rule_version = 18;
+  uint64 generated_token_count = 19;
+  uint64 work_unit = 20;
+  bytes settlement_bill_hash_or_zero32 = 21;
+  bytes task_round_summary_hash = 22;
+  bytes evidence_schema_hash = 23;
+  string judgment_function_version = 24;
+  string canonical_encoding_version = 25;
+  bytes profile_execution_snapshot_hash = 26;
+  bytes generation_params_digest = 27;
+  string metric_aggregate_proof_version = 28;
+}

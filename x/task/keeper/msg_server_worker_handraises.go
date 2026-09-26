@@ -98,7 +98,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		len(core.AcceptedTaskHash) != types.Hash32Len || !bytes.Equal(core.AcceptedTaskHash, existing.TaskHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker proposal task scope is unavailable")
 	}
-	assignment, err := m.k.TaskAssignment.Get(cache, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, existing.TaskId) ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
 		assignment.CandidatePoolRefReleased {
@@ -197,7 +197,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		}
 		facts[index] = fact
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
-		if persisted, err := m.k.TaskCandidateFact.Get(cache, factKey); err == nil {
+		if persisted, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			// An accepted fact is immutable; a second proposal may re-list the same
 			// slot only if it reproduces the accepted-time fact byte for byte.
 			if !proto.Equal(&persisted, &fact) {
@@ -265,7 +265,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		if _, added := newSlotSet[fact.Slot]; !added {
 			continue
 		}
-		if err := m.k.TaskCandidateFact.Set(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
+		if err := m.k.WriteTaskCandidateFact(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
 			return nil, err
 		}
 	}
@@ -284,7 +284,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err := m.k.TaskStageHandraiseUnion.Set(cache, stageKey, union); err != nil {
 		return nil, err
 	}
-	if err := m.k.BuilderStageProposal.Set(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
+	if err := m.k.WriteBuilderStageProposal(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
 		return nil, err
 	}
 	// No Builder contribution is credited here. the API contract:3398 says a
@@ -366,7 +366,11 @@ func (k Keeper) findAcceptedWorkerProposalReplay(
 		if err != nil {
 			return nil, false, err
 		}
-		retained, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, false, err
+		}
+		retained, err := k.ProjectBuilderStageProposalStore(stored)
 		if err != nil {
 			return nil, false, err
 		}

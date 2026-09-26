@@ -37,7 +37,7 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 	proof, err := f.keeper.GetWorkerEvidenceProofKey(f.ctx, sessionHex, taskHex, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), proof.AuthorizationNonce)
-	node, err := f.keeper.CortexNode.Get(f.ctx, identity.Address)
+	node, err := f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), node.PendingEvidenceSubmissionCount)
 
@@ -46,7 +46,7 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 		SessionId: sessionID, TaskId: request.TaskID, WorkerOperatorAddress: identity.Address,
 		EvidenceDigest: hubHashBytes("worker-output-equivocation"), FrozenSlashBps: 300,
 	}
-	before, err := f.keeper.ServiceBond.Get(f.ctx, identity.Address)
+	before, err := f.keeper.ReadServiceBondValue(f.ctx, identity.Address)
 	require.NoError(t, err)
 	fault, err := f.keeper.ApplyWorkerObjectiveEvidence(f.ctx, fact)
 	require.NoError(t, err)
@@ -54,21 +54,21 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 	require.Equal(t, types.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
 	require.Equal(t, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE, fault.ClassificationSource)
 	require.True(t, bytes.Equal(fact.EvidenceDigest, fault.EvidenceDigest))
-	after, err := f.keeper.ServiceBond.Get(f.ctx, identity.Address)
+	after, err := f.keeper.ReadServiceBondValue(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Less(t, after.ActiveBond, before.ActiveBond)
 
 	replayed, err := f.keeper.ApplyWorkerObjectiveEvidence(f.ctx, fact)
 	require.NoError(t, err)
 	require.Equal(t, fault, replayed)
-	afterReplay, err := f.keeper.ServiceBond.Get(f.ctx, identity.Address)
+	afterReplay, err := f.keeper.ReadServiceBondValue(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, after.ActiveBond, afterReplay.ActiveBond)
 
 	require.NoError(t, f.keeper.ReleaseServiceKeyResponsibility(
 		f.ctx, shared.ParticipantTypeCortexNode, identity.Address, hex.EncodeToString(responsibilityID),
 	))
-	_, err = f.keeper.CortexNode.Get(f.ctx, identity.Address)
+	_, err = f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
 	require.ErrorIs(t, err, collections.ErrNotFound, "proof-only identity retires when its final responsibility closes")
 }
 

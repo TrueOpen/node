@@ -30,7 +30,7 @@ func validateActiveTaskBuilderSelection(chainID string, selection types.TaskBuil
 }
 
 func (k Keeper) loadActiveTaskBuilderSelection(ctx context.Context, taskKey types.TaskKey, taskID []byte) (types.TaskBuilderSelectionState, error) {
-	selection, err := k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil {
 		return types.TaskBuilderSelectionState{}, err
 	}

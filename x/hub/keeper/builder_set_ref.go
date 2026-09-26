@@ -45,7 +45,7 @@ func (k Keeper) AcquireBuilderSetTaskRef(ctx context.Context, taskID []byte, bui
 		if err := validateBuilderSetTaskRef(existing, taskID, version); err != nil {
 			return false, fmt.Errorf("builder set task reference replay differs: %w", err)
 		}
-		set, err := k.BuilderSet.Get(ctx, version)
+		set, err := k.GetBuilderSet(ctx, version)
 		if err != nil || !bytes.Equal(set.BuilderSetHash, builderSetHash) {
 			return false, fmt.Errorf("builder set task reference replay hash differs")
 		}
@@ -53,7 +53,7 @@ func (k Keeper) AcquireBuilderSetTaskRef(ctx context.Context, taskID []byte, bui
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return false, err
 	}
-	set, err := k.BuilderSet.Get(ctx, version)
+	set, err := k.GetBuilderSet(ctx, version)
 	if err != nil {
 		return false, err
 	}
@@ -70,7 +70,7 @@ func (k Keeper) AcquireBuilderSetTaskRef(ctx context.Context, taskID []byte, bui
 	cacheCtx, commit := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	set.TaskRefCount++
-	if err := k.BuilderSet.Set(cache, version, set); err != nil {
+	if err := k.StoreBuilderSet(cache, set); err != nil {
 		return false, err
 	}
 	if err := k.BuilderSetTaskRef.Set(cache, key, types.BuilderSetTaskRefState{
@@ -101,7 +101,7 @@ func (k Keeper) ReleaseBuilderSetTaskRef(ctx context.Context, taskID []byte, bui
 	if err := validateBuilderSetTaskRef(ref, taskID, version); err != nil {
 		return false, err
 	}
-	set, err := k.BuilderSet.Get(ctx, version)
+	set, err := k.GetBuilderSet(ctx, version)
 	if err != nil || set.BuilderSetId != builderSetID || !bytes.Equal(set.BuilderSetHash, builderSetHash) {
 		return false, fmt.Errorf("builder set reference does not match retained state")
 	}
@@ -112,7 +112,7 @@ func (k Keeper) ReleaseBuilderSetTaskRef(ctx context.Context, taskID []byte, bui
 	cacheCtx, commit := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	set.TaskRefCount--
-	if err := k.BuilderSet.Set(cache, version, set); err != nil {
+	if err := k.StoreBuilderSet(cache, set); err != nil {
 		return false, err
 	}
 	if err := k.BuilderSetTaskRef.Remove(cache, key); err != nil {

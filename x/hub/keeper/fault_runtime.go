@@ -55,7 +55,7 @@ type roleFaultApplyResult struct {
 }
 
 func (k Keeper) recordRoleFaultState(ctx context.Context, state types.RoleFaultState, key shared.Hash32Key, sessionID string) (bool, error) {
-	if existing, err := k.RoleFault.Get(ctx, key); err == nil {
+	if existing, err := k.ReadRoleFaultValue(ctx, key); err == nil {
 		if !sameRoleFault(existing, state) {
 			return false, fmt.Errorf("role fault %s replay facts differ", hexRef(key))
 		}
@@ -63,7 +63,7 @@ func (k Keeper) recordRoleFaultState(ctx context.Context, state types.RoleFaultS
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return false, err
 	}
-	if err := k.RoleFault.Set(ctx, key, state); err != nil {
+	if err := k.WriteRoleFaultValue(ctx, key, state); err != nil {
 		return false, err
 	}
 	// The by-task direction is written in the same transition as the primary so
@@ -187,7 +187,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 	if err != nil {
 		return roleFaultApplyResult{}, err
 	}
-	if existing, err := k.RoleFault.Get(ctx, faultKey); err == nil {
+	if existing, err := k.ReadRoleFaultValue(ctx, faultKey); err == nil {
 		if !sameRoleFaultIdentity(existing, prospective) || existing.Status != prospective.Status {
 			return roleFaultApplyResult{}, fmt.Errorf("role fault %s replay facts differ", hexRef(faultKey))
 		}
@@ -196,7 +196,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 			if !bytes.Equal(existing.GetSlashSummaryId(), existing.FaultId) {
 				return roleFaultApplyResult{}, fmt.Errorf("role fault %s replay slash summary is invalid", hexRef(faultKey))
 			}
-			summary, summaryErr := k.SlashSummary.Get(ctx, types.NewSlashSummaryKey(
+			summary, summaryErr := k.ReadSlashSummaryValue(ctx, types.NewSlashSummaryKey(
 				types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, faultKey, 0,
 			))
 			if summaryErr != nil {
@@ -223,7 +223,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 		if idErr != nil {
 			return roleFaultApplyResult{}, idErr
 		}
-		reservation, reservationErr := k.TaskLiabilityReservation.Get(ctx, types.NewTaskLiabilityReservationKey(canonicalTaskID, duty, roleAddress))
+		reservation, reservationErr := k.ReadTaskLiabilityValue(ctx, types.NewTaskLiabilityReservationKey(canonicalTaskID, duty, roleAddress))
 		if reservationErr != nil {
 			return roleFaultApplyResult{}, reservationErr
 		}
@@ -299,7 +299,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 		result.Tombstoned = tombstoned
 		if jail.JailCount > jailBefore.JailCount {
 			prospective.JailDelta = 1
-			if err := k.RoleFault.Set(ctx, faultKey, prospective); err != nil {
+			if err := k.WriteRoleFaultValue(ctx, faultKey, prospective); err != nil {
 				return roleFaultApplyResult{}, err
 			}
 			// The returned row has to be the one now in the Store: Task frames
@@ -370,7 +370,7 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	if err := bond.Validate(); err != nil {
 		return ServiceJailSnapshot{}, false, err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return ServiceJailSnapshot{}, false, err
 	}
 	// the data-structure contract lists jail and tombstone together, both as a path
@@ -497,7 +497,7 @@ func (k Keeper) advanceJailClearCounter(ctx context.Context, operatorAddress str
 	if err := bond.Validate(); err != nil {
 		return ServiceJailSnapshot{}, err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return ServiceJailSnapshot{}, err
 	}
 	// The bond write above is what makes SupportVoteWeight eligible again, so the
@@ -517,7 +517,7 @@ func (k Keeper) advanceJailClearCounter(ctx context.Context, operatorAddress str
 		if err := bond.Validate(); err != nil {
 			return ServiceJailSnapshot{}, err
 		}
-		if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+		if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 			return ServiceJailSnapshot{}, err
 		}
 	}
@@ -612,7 +612,7 @@ func (k Keeper) SetTombstone(ctx context.Context, roleAddress string, height uin
 		if err := bond.Validate(); err != nil {
 			return err
 		}
-		if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(roleAddress), bond); err != nil {
+		if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(roleAddress), bond); err != nil {
 			return err
 		}
 	}

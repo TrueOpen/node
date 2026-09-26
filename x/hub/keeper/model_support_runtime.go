@@ -241,7 +241,7 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 	if err := types.ValidateModelID(modelID); err != nil {
 		return err
 	}
-	liability, err := k.TaskLiabilityReservation.Get(
+	liability, err := k.ReadTaskLiabilityValue(
 		ctx, types.NewTaskLiabilityReservationKey(fact.TaskID, fact.Duty, operatorAddress),
 	)
 	if err != nil {
@@ -1026,7 +1026,7 @@ func (k Keeper) syncLiveServiceBondStatus(ctx context.Context, operatorAddress s
 	if err := bond.Validate(); err != nil {
 		return err
 	}
-	return k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond)
+	return k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond)
 }
 
 func (k Keeper) deriveProfileAndModelStatus(ctx context.Context, profile *types.ProfileState, height uint64) error {

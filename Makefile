@@ -129,6 +129,11 @@ proto-go:
 			mkdir -p x/hub/internal/types; \
 			cp $$internal_dir/*.go x/hub/internal/types/; \
 		fi; \
+		internal_dir=github.com/TrueOpen/node/x/task/internal/types; \
+		if [ -d $$internal_dir ] && ls $$internal_dir/*.go >/dev/null 2>&1; then \
+			mkdir -p x/task/internal/types; \
+			cp $$internal_dir/*.go x/task/internal/types/; \
+		fi; \
 		rm -rf github.com; \
 	fi
 

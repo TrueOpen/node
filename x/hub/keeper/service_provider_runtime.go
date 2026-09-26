@@ -289,16 +289,16 @@ func (k Keeper) persistStakeService(ctx context.Context, result StakeServiceResu
 		return fmt.Errorf("cortex node and service bond operators do not match")
 	}
 	var previous *types.ServiceBondState
-	stored, err := k.ServiceBond.Get(ctx, types.NewServiceBondKey(result.Bond.OperatorAddress))
+	stored, err := k.ReadServiceBondValue(ctx, types.NewServiceBondKey(result.Bond.OperatorAddress))
 	if err == nil {
 		previous = &stored
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
-	if err := k.CortexNode.Set(ctx, result.Node.OperatorAddress, result.Node); err != nil {
+	if err := k.StoreCortexNode(ctx, result.Node.OperatorAddress, result.Node); err != nil {
 		return err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(result.Bond.OperatorAddress), result.Bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(result.Bond.OperatorAddress), result.Bond); err != nil {
 		return err
 	}
 	if err := k.replaceServiceBondEffectiveIndex(ctx, previous, result.Bond); err != nil {
@@ -307,7 +307,7 @@ func (k Keeper) persistStakeService(ctx context.Context, result StakeServiceResu
 	if result.Node.ServiceKeyStatus == types.ServiceKeyStatus_SERVICE_KEY_STATUS_REVOKED {
 		return nil
 	}
-	return k.CurrentServiceAddressIndex.Set(
+	return k.StoreCurrentServiceAddressIndex(
 		ctx,
 		types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, result.Node.CurrentServiceAddress),
 		types.CurrentServiceAddressIndexState{
@@ -388,7 +388,7 @@ func validateCortexNodeState(state types.CortexNodeState) error {
 }
 
 func (k Keeper) loadCortexNode(ctx context.Context, operatorAddress string) (types.CortexNodeState, bool, error) {
-	state, err := k.CortexNode.Get(ctx, strings.TrimSpace(operatorAddress))
+	state, err := k.ReadCortexNodeStore(ctx, strings.TrimSpace(operatorAddress))
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return types.CortexNodeState{}, false, nil

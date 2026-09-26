@@ -10,6 +10,7 @@ package keeper_test
 // available (MsgRegisterVrfKey itself needs a block to be produced first).
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -72,7 +73,7 @@ func TestVrfKeyGenesisRebuildsTheActivationIndex(t *testing.T) {
 	require.True(t, has, "a pending rotation must rebuild its activation index row")
 
 	require.NoError(t, f.keeper.ActivateDueVrfKeys(f.ctx, 4))
-	state, err := f.keeper.VrfKey.Get(f.ctx, rotating)
+	state, err := f.keeper.GetVrfKey(f.ctx, rotating)
 	require.NoError(t, err)
 	require.Equal(t, vrfPubkey(0x03), state.ActiveVrfPubkey, "the rebuilt index must make the rotation actually take effect at its epoch")
 	require.Nil(t, state.XPendingVrfPubkey)
@@ -82,8 +83,14 @@ func TestVrfKeyGenesisRebuildsTheActivationIndex(t *testing.T) {
 // import: the upgrade / state-export paths depend on it.
 func TestVrfKeyGenesisRoundTrips(t *testing.T) {
 	f := initFixture(t)
-	gs, _, _ := genesisWithVrfKeys(t)
+	gs, _, rotating := genesisWithVrfKeys(t)
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
+	stored, err := f.keeper.VrfKey.Get(f.ctx, rotating)
+	require.NoError(t, err)
+	encoded, err := stored.Marshal()
+	require.NoError(t, err)
+	require.False(t, bytes.Contains(encoded, []byte(rotating)))
+	require.True(t, bytes.Contains(encoded, hubAddressBytes(t, rotating)))
 
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)

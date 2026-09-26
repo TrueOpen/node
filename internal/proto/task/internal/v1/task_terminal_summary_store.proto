@@ -1,0 +1,53 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// TaskTerminalSummaryStoreState mirrors public tags with a codec-byte Worker.
+message TaskTerminalSummaryStoreState {
+  bytes task_id = 1;
+  bytes session_id = 2;
+  uint64 order_sequence = 3;
+  bytes task_hash = 4;
+  int32 terminal_phase = 5;
+  int32 verdict = 6;
+  int32 failure_class = 7;
+  int32 settlement_status = 8;
+  int32 finality_status = 9;
+  uint32 effective_verify_round = 10;
+  string model_id = 11;
+  uint32 profile_version = 12;
+  int32 task_type = 13;
+  bytes candidate_pool_snapshot_id = 14;
+  bytes candidate_pool_hash = 15;
+  bytes assignment_candidate_set_hash = 16;
+  bool candidate_pool_ref_released = 17;
+  optional bytes winner_worker = 18;
+  bytes round1_selected_verifiers_hash_or_zero32 = 19;
+  bytes round2_selected_verifiers_hash_or_zero32 = 20;
+  uint64 builder_set_version = 21;
+  string builder_set_id = 22;
+  bytes builder_set_hash = 23;
+  bytes selected_task_builders_hash = 24;
+  bytes profile_execution_snapshot_hash = 25;
+  bytes generation_params_digest = 26;
+  bytes infer_receipt_ref_or_zero32 = 27;
+  uint64 generated_token_count = 28;
+  bytes settlement_id = 29;
+  uint64 settlement_facts_cutoff_height = 30;
+  uint64 settlement_height = 31;
+  uint64 task_finality_height = 32;
+  bytes settlement_facts_hash = 33;
+  bytes settlement_plan_hash = 34;
+  bytes settlement_bill_hash_or_zero32 = 35;
+  bytes task_round_summary_hash = 36;
+  bytes round1_facts_hash_or_zero32 = 37;
+  bytes round2_facts_hash_or_zero32 = 38;
+  optional int32 round2_outcome = 39;
+  bytes round_effect_root = 40;
+  bytes round2_funding_resolution_hash_or_zero32 = 41;
+  bytes fault_summary_hash = 42;
+  uint64 created_height = 43;
+  uint64 compacted_height = 44;
+  bytes summary_hash = 45;
+}

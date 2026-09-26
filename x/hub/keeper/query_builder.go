@@ -62,7 +62,7 @@ func (q queryServer) Builder(ctx context.Context, req *types.QueryBuilderRequest
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	builder, err := q.k.Builder.Get(ctx, address)
+	builder, err := q.k.GetBuilderState(ctx, address)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "builder not found")
 	}
@@ -97,7 +97,11 @@ func (q queryServer) Builders(ctx context.Context, req *types.QueryBuildersReque
 		if err != nil {
 			return nil, status.Error(codes.Internal, "builder key unavailable")
 		}
-		builder, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, status.Error(codes.Internal, "builder state unavailable")
+		}
+		builder, err := q.k.ProjectBuilderStore(stored)
 		if err != nil || !q.validBuilderRegistryRow(builder, key) {
 			return nil, status.Error(codes.Internal, "builder key disagrees with primary state")
 		}
@@ -148,7 +152,7 @@ func (q queryServer) Fault(ctx context.Context, req *types.QueryFaultRequest) (*
 	if req == nil || len(req.FaultId) != shared.Hash32KeySize {
 		return nil, status.Error(codes.InvalidArgument, "fault_id must be a 32-byte hash")
 	}
-	fault, err := q.k.RoleFault.Get(ctx, types.NewRoleFaultKey(req.FaultId))
+	fault, err := q.k.ReadRoleFaultValue(ctx, types.NewRoleFaultKey(req.FaultId))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "fault not found")
 	}
@@ -160,7 +164,7 @@ func (q queryServer) Fault(ctx context.Context, req *types.QueryFaultRequest) (*
 	}
 	response := &types.QueryFaultResponse{Fault: fault}
 	if len(fault.GetSlashSummaryId()) != 0 {
-		summary, err := q.k.SlashSummary.Get(ctx, types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, fault.FaultId, 0))
+		summary, err := q.k.ReadSlashSummaryValue(ctx, types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, fault.FaultId, 0))
 		if err != nil || summary.Validate() != nil || !bytes.Equal(summary.SlashSummaryId, fault.GetSlashSummaryId()) ||
 			!bytes.Equal(summary.SourceId, fault.FaultId) || !bytes.Equal(summary.GetTaskId(), fault.TaskId) ||
 			summary.OperatorAddress != fault.OperatorAddress || summary.Duty != fault.Duty {

@@ -98,7 +98,7 @@ func (k Keeper) persistDataUnavailableAggregates(
 			state.ThresholdReachedHeight = assignment.CommitDeadlineHeight
 		}
 		key := types.NewVerifyActorKey(taskKey, assignment.VerifyRound, fact.BuilderOperatorAddress)
-		existing, err := k.BuilderDataUnavailableAggregate.Get(ctx, key)
+		existing, err := k.ReadDataUnavailableAggregate(ctx, key)
 		if err == nil {
 			if !proto.Equal(&existing, &state) {
 				return false, fmt.Errorf("conflicting Builder data unavailable aggregate replay")
@@ -108,7 +108,7 @@ func (k Keeper) persistDataUnavailableAggregates(
 		if !errIsNotFound(err) {
 			return false, err
 		}
-		if err := k.BuilderDataUnavailableAggregate.Set(ctx, key, state); err != nil {
+		if err := k.WriteDataUnavailableAggregate(ctx, key, state); err != nil {
 			return false, err
 		}
 		if fact.ThresholdReached && faultEligible[builderIndex] {

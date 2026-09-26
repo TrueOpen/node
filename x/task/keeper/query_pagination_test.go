@@ -91,7 +91,7 @@ func TestSessionsByOwnerCanonicalPageTokenDoesNotSkipRows(t *testing.T) {
 	}
 	for _, sessionID := range sessionIDs {
 		sessionKey := types.NewSessionKey(sessionID)
-		require.NoError(t, f.keeper.Stream.Set(f.ctx, sessionKey, types.StreamState{
+		require.NoError(t, f.keeper.WriteStream(f.ctx, sessionKey, types.StreamState{
 			SessionId: sessionID, OwnerUserAddress: owner,
 			Status: types.SessionStatus_SESSION_STATUS_ACTIVE,
 		}))
@@ -155,7 +155,7 @@ func TestRoleActiveTasksCanonicalPageTokenBindsDuty(t *testing.T) {
 		require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{
 			TaskId: taskID, TaskPhase: types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
 		}))
-		require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+		require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 			TaskId: taskID, WinnerWorker: operator,
 		}))
 		require.NoError(t, f.keeper.WorkerActiveTaskIndex.Set(f.ctx, types.NewWorkerActiveTaskKey(operator, taskKey)))
@@ -199,17 +199,22 @@ func TestRoleActiveTasksRejectsZeroRoundVerifierAssignment(t *testing.T) {
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{
 		TaskId: taskID, TaskPhase: types.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED,
 	}))
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	assignmentKey := types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1)
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx,
-		types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1),
+		assignmentKey,
 		types.VerifierAssignmentState{
-			TaskId: taskID, VerifyRound: 0,
+			TaskId: taskID, VerifyRound: types.VerifyRoundV1,
 			SelectedVerifiers: []types.SelectedVerifierV1{{OperatorAddress: operator}},
 		},
 	))
+	stored, err := f.keeper.VerifierAssignment.Get(f.ctx, assignmentKey)
+	require.NoError(t, err)
+	stored.VerifyRound = 0
+	require.NoError(t, f.keeper.VerifierAssignment.Set(f.ctx, assignmentKey, stored))
 	require.NoError(t, f.keeper.VerifierActiveJobIndex.Set(f.ctx, types.NewVerifierActiveJobKey(operator, taskKey)))
 
-	_, err := server.RoleActiveTasks(f.ctx, &types.QueryRoleActiveTasksRequest{
+	_, err = server.RoleActiveTasks(f.ctx, &types.QueryRoleActiveTasksRequest{
 		OperatorAddress: operator,
 		Duty:            shared.Duty_DUTY_VERIFIER,
 		Page:            shared.QueryPageRequestV1{Limit: 1},

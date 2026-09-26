@@ -348,7 +348,16 @@ func TestQueryBuildersFailsOnCorruptRow(t *testing.T) {
 			address := hubAddress(t, 61)
 			state := builderRegistryState(t, address, 61)
 			corrupt(&state)
-			require.NoError(t, f.keeper.Builder.Set(f.ctx, address, state))
+			if name == "key disagrees with body" {
+				original := builderRegistryState(t, address, 61)
+				require.NoError(t, f.keeper.StoreBuilder(f.ctx, address, original))
+				stored, err := f.keeper.Builder.Get(f.ctx, address)
+				require.NoError(t, err)
+				stored.BuilderAddress = hubAddressBytes(t, state.BuilderAddress)
+				require.NoError(t, f.keeper.Builder.Set(f.ctx, address, stored))
+			} else {
+				require.NoError(t, f.keeper.StoreBuilder(f.ctx, address, state))
+			}
 
 			_, err := queries.Builders(f.ctx, &types.QueryBuildersRequest{})
 			require.Equal(t, codes.Internal, status.Code(err))
@@ -363,7 +372,7 @@ func TestQueryBuildersReturnsRevokedServiceKeyRows(t *testing.T) {
 	address := hubAddress(t, 62)
 	state := builderRegistryState(t, address, 62)
 	state.CurrentServiceKeyStatus = types.ServiceKeyStatus_SERVICE_KEY_STATUS_REVOKED
-	require.NoError(t, f.keeper.Builder.Set(f.ctx, address, state))
+	require.NoError(t, f.keeper.StoreBuilder(f.ctx, address, state))
 
 	response, err := queries.Builders(f.ctx, &types.QueryBuildersRequest{})
 	require.NoError(t, err)
@@ -382,7 +391,7 @@ func seedBuilderRegistry(t *testing.T, f *fixture, fills ...byte) []string {
 	addresses := make([]string, 0, len(fills))
 	for _, fill := range fills {
 		address := hubAddress(t, fill)
-		require.NoError(t, f.keeper.Builder.Set(f.ctx, address, builderRegistryState(t, address, fill)))
+		require.NoError(t, f.keeper.StoreBuilder(f.ctx, address, builderRegistryState(t, address, fill)))
 		addresses = append(addresses, address)
 	}
 	return addresses

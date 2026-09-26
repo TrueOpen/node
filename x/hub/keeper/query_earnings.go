@@ -21,7 +21,7 @@ func (q queryServer) Earnings(ctx context.Context, req *types.QueryEarningsReque
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	earnings, err := q.k.Earnings.Get(ctx, address)
+	earnings, err := q.k.getEarnings(ctx, address)
 	if errors.Is(err, collections.ErrNotFound) {
 		return &types.QueryEarningsResponse{Earnings: emptyEarnings(address)}, nil
 	}

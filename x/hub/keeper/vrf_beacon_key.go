@@ -71,7 +71,7 @@ func (k Keeper) ActiveVrfPubkeyForHeight(ctx context.Context, operator string, h
 	}
 	epoch := epochForHeight(height, epochLength)
 
-	state, err := k.VrfKey.Get(ctx, operator)
+	state, err := k.GetVrfKey(ctx, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, fmt.Errorf("%w: operator %s", ErrNoActiveVrfKey, operator)

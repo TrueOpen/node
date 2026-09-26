@@ -23,8 +23,12 @@ func TestRoleFaultConsumerGateRequiresFinalityAndExactEvidence(t *testing.T) {
 		TaskId: taskID, FinalityStatus: shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
 		XTaskFinalityHeight: &types.TaskCoreState_TaskFinalityHeight{TaskFinalityHeight: 20},
 	}))
-	require.NoError(t, f.keeper.TaskSettlement.Set(f.ctx, taskKey, types.TaskSettlementState{
+	require.NoError(t, f.keeper.WriteTaskSettlement(f.ctx, taskKey, types.TaskSettlementState{
 		TaskId: taskID, SettlementId: settlementID, TaskFinalityHeight: 20,
+		WorkerGross: shared.NewAmount(0), WorkerMaintenance: shared.NewAmount(0),
+		WorkerNet: shared.NewAmount(0), VerifierSlotGross: shared.NewAmount(0),
+		MaintenanceFee: shared.NewAmount(0), RefundAmount: shared.NewAmount(0),
+		OriginalReservedAmount: shared.NewAmount(0), GasReimbursedTotal: shared.NewAmount(0),
 	}))
 	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, types.TaskRoundSummaryState{
 		TaskId:              taskID,
@@ -121,10 +125,11 @@ func TestTaskCleanupProposalPhaseDeletesOneRowPerVisit(t *testing.T) {
 	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK
 	for _, marker := range []byte{0x62, 0x63} {
 		digest := bytes32(marker)
-		require.NoError(t, f.keeper.BuilderStageProposal.Set(
+		require.NoError(t, f.keeper.WriteBuilderStageProposal(
 			f.ctx, types.NewBuilderStageProposalKey(taskKey, stage, digest),
 			types.BuilderStageProposalState{
 				TaskId: taskID, Stage: stage, ProposalDigest: digest,
+				ProposerOperator: sessionTestOwner(t, f),
 			},
 		))
 	}

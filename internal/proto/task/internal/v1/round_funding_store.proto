@@ -1,0 +1,32 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// RoundFundingStoreState stores the opener as codec bytes.
+message RoundFundingStoreState {
+  bytes task_id = 1;
+  uint32 verify_round = 2;
+  bytes opener_address = 3;
+  string challenge_open_bond_atomic_units = 4;
+  string challenge_slot_fee_atomic_units = 5;
+  uint32 challenge_verifier_count = 6;
+  string verifier_budget_atomic_units = 7;
+  string total_lock_atomic_units = 8;
+  string bond_locked_amount_atomic_units = 9;
+  string verifier_budget_remaining_atomic_units = 10;
+  string verifier_paid_atomic_units = 11;
+  string bond_refund_atomic_units = 12;
+  string bond_slash_atomic_units = 13;
+  string opener_recovery_atomic_units = 14;
+  string treasury_residual_atomic_units = 15;
+  uint32 challenge_inconclusive_bond_slash_bps_snapshot = 16;
+  uint32 challenge_fault_slash_bps_snapshot = 17;
+  bytes funding_lock_hash = 18;
+  bool has_round_outcome = 19;
+  int32 round_outcome = 20;
+  bool has_funding_resolution_hash = 21;
+  bytes funding_resolution_hash = 22;
+  bool has_closed_height = 23;
+  uint64 closed_height = 24;
+}

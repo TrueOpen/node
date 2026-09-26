@@ -110,17 +110,21 @@ func TestTaskLiabilityIndexInvariantRejectsMismatchAndOneSidedIndexes(t *testing
 	t.Run("key does not match value", func(t *testing.T) {
 		f := initFixture(t)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
-		require.NoError(t, f.keeper.TaskLiabilityReservation.Set(f.ctx,
-			types.NewTaskLiabilityReservationKey(taskID, shared.DutyWorker, operator),
-			reserved(hubHashBytes("liability-index-other")),
+		key := types.NewTaskLiabilityReservationKey(taskID, shared.DutyWorker, operator)
+		require.NoError(t, f.keeper.WriteTaskLiabilityValue(f.ctx,
+			key, reserved(taskID),
 		))
+		stored, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, key)
+		require.NoError(t, err)
+		stored.TaskId = hubHashBytes("liability-index-other")
+		require.NoError(t, f.keeper.TaskLiabilityReservation.Set(f.ctx, key, stored))
 		require.ErrorContains(t, f.keeper.EnsureTaskLiabilityIndexInvariant(f.ctx), "does not match its store key")
 	})
 
 	t.Run("reserved row without indexes", func(t *testing.T) {
 		f := initFixture(t)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
-		require.NoError(t, f.keeper.TaskLiabilityReservation.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteTaskLiabilityValue(f.ctx,
 			types.NewTaskLiabilityReservationKey(taskID, shared.DutyWorker, operator), reserved(taskID),
 		))
 		require.ErrorContains(t, f.keeper.EnsureTaskLiabilityIndexInvariant(f.ctx), "disagrees with its indexes")

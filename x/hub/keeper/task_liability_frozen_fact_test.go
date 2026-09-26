@@ -44,27 +44,27 @@ func seedOwnedTaskLiabilityForTest(
 	t.Helper()
 	taskIDRaw, err := hex.DecodeString(taskID)
 	require.NoError(t, err)
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, operator)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, operator)
 	if err != nil {
 		operatorBytes := sdk.MustAccAddressFromBech32(operator).Bytes()
 		bindingHash, hashErr := types.CandidateSlotBindingHash(0, 1, operatorBytes, height)
 		require.NoError(t, hashErr)
 		reverse = types.OperatorCandidateSlotState{OperatorAddress: operator, Slot: 0, SlotVersion: 1}
-		require.NoError(t, f.keeper.CandidateSlotBinding.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteCandidateSlotBinding(f.ctx,
 			types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion),
 			types.CandidateSlotBindingState{
 				Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
 				OperatorAddress: operator, AllocatedEpoch: height, BindingHash: bindingHash,
 			},
 		))
-		require.NoError(t, f.keeper.CandidateSlotCurrent.Set(f.ctx, reverse.Slot, types.CandidateSlotCurrentState{
+		require.NoError(t, f.keeper.WriteCandidateSlotCurrent(f.ctx, reverse.Slot, types.CandidateSlotCurrentState{
 			SchemaVersion: 1, Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
 			OperatorAddress: operator, Status: types.CandidateSlotStatus_CANDIDATE_SLOT_STATUS_ALLOCATED,
 			AllocatedEpoch: height,
 		}))
-		require.NoError(t, f.keeper.OperatorCandidateSlot.Set(f.ctx, operator, reverse))
+		require.NoError(t, f.keeper.WriteOperatorCandidateSlot(f.ctx, operator, reverse))
 	}
-	current, err := f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	current, err := f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, reverse.SlotVersion, current.SlotVersion)
 	snapshotID := hubHashBytes("owned-liability-snapshot-" + taskID)
@@ -78,12 +78,12 @@ func seedOwnedTaskLiabilityForTest(
 		MemberSetHash:    hubHashBytes("owned-liability-members-" + taskID),
 		EffectiveHeight:  height, ExpiresHeight: height + 100, TaskRefCount: 1,
 	}))
-	binding, err := f.keeper.CandidateSlotBinding.Get(f.ctx, types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion))
+	binding, err := f.keeper.ReadCandidateSlotBinding(f.ctx, types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion))
 	require.NoError(t, err)
 	binding.SnapshotRefCount++
-	require.NoError(t, f.keeper.CandidateSlotBinding.Set(f.ctx,
+	require.NoError(t, f.keeper.WriteCandidateSlotBinding(f.ctx,
 		types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion), binding))
-	require.NoError(t, f.keeper.CandidatePoolMember.Set(f.ctx, types.NewCandidatePoolMemberKey(epoch, reverse.Slot), types.CandidatePoolMemberState{
+	require.NoError(t, f.keeper.WriteCandidatePoolMember(f.ctx, types.NewCandidatePoolMemberKey(epoch, reverse.Slot), types.CandidatePoolMemberState{
 		Epoch: epoch, Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
 		OperatorAddress: operator, BindingHash: append([]byte(nil), binding.BindingHash...),
 	}))
@@ -102,13 +102,13 @@ func seedOwnedTaskLiabilityForTest(
 	)
 	require.NoError(t, err)
 	bond.ReservedLiability += amount
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, types.NewServiceBondKey(operator), bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, types.NewServiceBondKey(operator), bond))
 	node, err := f.keeper.GetCortexNodeState(f.ctx, operator)
 	require.NoError(t, err)
 	node.ActiveTaskLiabilityCount++
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, node))
+	require.NoError(t, f.keeper.StoreCortexNode(f.ctx, operator, node))
 	current.ActiveTaskRefs++
-	require.NoError(t, f.keeper.CandidateSlotCurrent.Set(f.ctx, reverse.Slot, current))
+	require.NoError(t, f.keeper.WriteCandidateSlotCurrent(f.ctx, reverse.Slot, current))
 	reservation := types.TaskLiabilityReservationState{
 		SchemaVersion: 1, TaskId: taskIDRaw, OperatorAddress: operator, Duty: duty,
 		BondVersion: bond.BondVersion, CapabilityVersion: capabilityVersion,
@@ -116,7 +116,7 @@ func seedOwnedTaskLiabilityForTest(
 		CandidatePoolSnapshotId: snapshotID, Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
 	}
 	require.NoError(t, reservation.Validate())
-	require.NoError(t, f.keeper.TaskLiabilityReservation.Set(f.ctx,
+	require.NoError(t, f.keeper.WriteTaskLiabilityValue(f.ctx,
 		types.NewTaskLiabilityReservationKey(taskIDRaw, duty, operator), reservation))
 	require.NoError(t, f.keeper.ActiveLiabilityByOperatorIndex.Set(f.ctx,
 		types.NewActiveLiabilityByOperatorKey(operator, taskIDRaw, duty)))
@@ -155,7 +155,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	require.Equal(t, uint64(1), visited)
 	pool, err := f.keeper.CurrentCandidatePool.Get(f.ctx)
 	require.NoError(t, err)
-	reverse, err := f.keeper.OperatorCandidateSlot.Get(f.ctx, identity.Address)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
 	require.NoError(t, err)
 
 	taskID, err := hex.DecodeString(hubHash("frozen-liability-task"))
@@ -185,7 +185,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	require.Equal(t, reverse.Slot, reservation.Slot)
 	require.Equal(t, reverse.SlotVersion, reservation.SlotVersion)
 
-	slot, err := f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err := f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), slot.ActiveTaskRefs)
 	bondState, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
@@ -198,7 +198,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	replayed, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, req)
 	require.NoError(t, err)
 	require.Equal(t, reservation, replayed)
-	slot, err = f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err = f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), slot.ActiveTaskRefs)
 
@@ -206,11 +206,11 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	require.NoError(t, err)
 	restarted := initCandidatePoolFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
-	restored, err := restarted.keeper.TaskLiabilityReservation.Get(restarted.ctx,
+	restored, err := restarted.keeper.ReadTaskLiabilityValue(restarted.ctx,
 		types.NewTaskLiabilityReservationKey(taskID, shared.DutyVerifier, identity.Address))
 	require.NoError(t, err)
 	require.Equal(t, reservation, restored)
-	restoredSlot, err := restarted.keeper.CandidateSlotCurrent.Get(restarted.ctx, reverse.Slot)
+	restoredSlot, err := restarted.keeper.ReadCandidateSlotCurrent(restarted.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), restoredSlot.ActiveTaskRefs)
 	restoredRef, err := restarted.keeper.CandidatePoolTaskRef.Get(restarted.ctx,
@@ -281,7 +281,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	conflict.CapabilityVersionSnapshot++
 	_, err = f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, conflict)
 	require.ErrorContains(t, err, "incompatible frozen facts")
-	slot, err = f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err = f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), slot.ActiveTaskRefs)
 
@@ -291,11 +291,11 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 
 	require.NoError(t, f.keeper.ReleaseTaskLiabilities(f.ctx, "session-frozen-liability", hex.EncodeToString(taskID), 3))
 	require.NoError(t, f.keeper.ReleaseTaskLiabilities(f.ctx, "session-frozen-liability", hex.EncodeToString(taskID), 3))
-	terminal, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, types.NewTaskLiabilityReservationKey(taskID, shared.DutyVerifier, identity.Address))
+	terminal, err := f.keeper.ReadTaskLiabilityValue(f.ctx, types.NewTaskLiabilityReservationKey(taskID, shared.DutyVerifier, identity.Address))
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReleased, terminal.Status)
 	require.Equal(t, pool.SnapshotId, terminal.CandidatePoolSnapshotId)
-	slot, err = f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err = f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Zero(t, slot.ActiveTaskRefs)
 	bondState, err = f.keeper.GetServiceBondState(f.ctx, identity.Address)
@@ -328,7 +328,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 	has, err = f.keeper.TaskLiabilityReservation.Has(f.ctx, types.NewTaskLiabilityReservationKey(badTaskID, shared.DutyVerifier, identity.Address))
 	require.NoError(t, err)
 	require.False(t, has)
-	slot, err = f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err = f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Zero(t, slot.ActiveTaskRefs, "failed reservation must not leave a slot reference")
 
@@ -349,11 +349,11 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 		EvidenceDigest:       hubHashBytes("frozen-liability-slash-evidence"), SlashBps: uint32(types.ObjectiveForgerySlashDenom), Height: 5,
 	})
 	require.NoError(t, err)
-	slashed, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, types.NewTaskLiabilityReservationKey(slashTaskID, shared.DutyVerifier, identity.Address))
+	slashed, err := f.keeper.ReadTaskLiabilityValue(f.ctx, types.NewTaskLiabilityReservationKey(slashTaskID, shared.DutyVerifier, identity.Address))
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusSlashed, slashed.Status)
 	require.Equal(t, pool.SnapshotId, slashed.CandidatePoolSnapshotId)
-	slot, err = f.keeper.CandidateSlotCurrent.Get(f.ctx, reverse.Slot)
+	slot, err = f.keeper.ReadCandidateSlotCurrent(f.ctx, reverse.Slot)
 	require.NoError(t, err)
 	require.Zero(t, slot.ActiveTaskRefs)
 }

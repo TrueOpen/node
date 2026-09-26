@@ -66,7 +66,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 		if !equalCandidateBytes(want, state.BindingHash) {
 			return fmt.Errorf("candidate slot binding %d/%d binding_hash mismatch", state.Slot, state.SlotVersion)
 		}
-		if err := k.CandidateSlotBinding.Set(ctx, key, state); err != nil {
+		if err := k.WriteCandidateSlotBinding(ctx, key, state); err != nil {
 			return err
 		}
 		if state.ReleasedHeight != 0 && state.SnapshotRefCount == 0 {
@@ -110,7 +110,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			if prior, exists := reverseByOperator[state.OperatorAddress]; exists {
 				return fmt.Errorf("operator %s holds candidate slots %d and %d", state.OperatorAddress, prior, state.Slot)
 			}
-			binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
+			binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 			if err != nil {
 				return fmt.Errorf("candidate slot %d/%d has no imported binding", state.Slot, state.SlotVersion)
 			}
@@ -121,7 +121,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 				return fmt.Errorf("candidate slot %d/%d is live but its binding is released", state.Slot, state.SlotVersion)
 			}
 			reverseByOperator[state.OperatorAddress] = state.Slot
-			if err := k.OperatorCandidateSlot.Set(ctx, state.OperatorAddress, types.OperatorCandidateSlotState{
+			if err := k.WriteOperatorCandidateSlot(ctx, state.OperatorAddress, types.OperatorCandidateSlotState{
 				OperatorAddress: state.OperatorAddress, Slot: state.Slot, SlotVersion: state.SlotVersion,
 			}); err != nil {
 				return err
@@ -133,7 +133,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 		default:
 			return fmt.Errorf("candidate slot %d has invalid status %s", state.Slot, state.Status)
 		}
-		if err := k.CandidateSlotCurrent.Set(ctx, state.Slot, state); err != nil {
+		if err := k.WriteCandidateSlotCurrent(ctx, state.Slot, state); err != nil {
 			return err
 		}
 	}
@@ -177,14 +177,14 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 		} else if has {
 			return fmt.Errorf("duplicate candidate member %d/%d", state.Epoch, state.Slot)
 		}
-		binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
+		binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 		if err != nil {
 			return fmt.Errorf("candidate member %d/%d has no imported binding", state.Epoch, state.Slot)
 		}
 		if binding.OperatorAddress != state.OperatorAddress || !equalCandidateBytes(binding.BindingHash, state.BindingHash) {
 			return fmt.Errorf("candidate member %d/%d disagrees with its immutable binding", state.Epoch, state.Slot)
 		}
-		if err := k.CandidatePoolMember.Set(ctx, key, state); err != nil {
+		if err := k.WriteCandidatePoolMember(ctx, key, state); err != nil {
 			return err
 		}
 		if bodyMemberCounts[state.Epoch] == ^uint32(0) {
@@ -526,13 +526,13 @@ func (k Keeper) exportCandidatePoolGenesis(ctx context.Context, genesis *types.G
 			genesis.CandidatePoolActiveSegments = append(genesis.CandidatePoolActiveSegments, segment)
 		}
 	}
-	if genesis.CandidatePoolMembers, err = collectMapValues[types.CandidatePoolMemberKeyPair, types.CandidatePoolMemberState](ctx, k.CandidatePoolMember); err != nil {
+	if genesis.CandidatePoolMembers, err = k.exportCandidatePoolMembers(ctx); err != nil {
 		return err
 	}
-	if genesis.CandidateSlotCurrents, err = collectMapValues[uint32, types.CandidateSlotCurrentState](ctx, k.CandidateSlotCurrent); err != nil {
+	if genesis.CandidateSlotCurrents, err = k.exportCandidateSlotCurrents(ctx); err != nil {
 		return err
 	}
-	if genesis.CandidateSlotBindings, err = collectMapValues[types.CandidateSlotBindingKeyPair, types.CandidateSlotBindingState](ctx, k.CandidateSlotBinding); err != nil {
+	if genesis.CandidateSlotBindings, err = k.exportCandidateSlotBindings(ctx); err != nil {
 		return err
 	}
 	if genesis.CandidatePoolBuildCursors, err = collectMapValues[uint64, types.CandidatePoolBuildCursorState](ctx, k.CandidatePoolBuildCursor); err != nil {

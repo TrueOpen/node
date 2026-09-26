@@ -114,7 +114,7 @@ func (k Keeper) requireTaskFinalityReached(ctx context.Context, taskID []byte) e
 	if !errIsNotFound(err) {
 		return err
 	}
-	summary, err := k.TaskTerminalSummary.Get(ctx, taskKey)
+	summary, err := k.ReadTaskTerminalSummary(ctx, taskKey)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrTaskNotFound, "data-unavailable Task is unavailable")
 	}
@@ -261,7 +261,7 @@ func (k Keeper) canonicalBuilderDataUnavailable(ctx context.Context, evidence bu
 	if err := k.requireDataReadyAttester(ctx, taskKey, evidence.TaskID, selection, builderIndex); err != nil {
 		return shared.BuilderObjectiveEvidenceFactV2{}, err
 	}
-	aggregate, err := k.BuilderDataUnavailableAggregate.Get(ctx, types.NewVerifyActorKey(taskKey, evidence.VerifyRound, builder))
+	aggregate, err := k.ReadDataUnavailableAggregate(ctx, types.NewVerifyActorKey(taskKey, evidence.VerifyRound, builder))
 	if err != nil {
 		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("confirmed data-unavailable aggregate is unavailable: %w", err)
 	}
@@ -304,7 +304,7 @@ func (k Keeper) dataReadyAttesterSet(
 	retained := make([]bool, len(selection.SelectedTaskBuilders))
 	hasRetained := false
 	for index, builder := range selection.SelectedTaskBuilders {
-		aggregate, aggregateErr := k.BuilderDataUnavailableAggregate.Get(ctx,
+		aggregate, aggregateErr := k.ReadDataUnavailableAggregate(ctx,
 			types.NewVerifyActorKey(taskKey, types.VerifyRoundV1, builder))
 		if aggregateErr == nil {
 			hasRetained = true

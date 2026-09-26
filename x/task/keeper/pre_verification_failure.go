@@ -37,7 +37,7 @@ func (k Keeper) writePreVerificationFailure(
 	if err != nil {
 		return preVerificationFailureResult{}, err
 	}
-	if existing, err := k.TaskSettlement.Get(ctx, taskKey); err == nil {
+	if existing, err := k.ReadTaskSettlement(ctx, taskKey); err == nil {
 		storedCore, coreErr := k.TaskCore.Get(ctx, taskKey)
 		if coreErr != nil || storedCore.FinalityStatus != shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL ||
 			storedCore.EffectiveVerifyRound != 0 {
@@ -71,7 +71,7 @@ func (k Keeper) applyPreVerificationFailure(
 	failureClass types.TaskFailureClass,
 ) (preVerificationFailureResult, error) {
 	taskKey := types.NewTaskKey(core.TaskId)
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return preVerificationFailureResult{}, err
 	}
@@ -79,7 +79,7 @@ func (k Keeper) applyPreVerificationFailure(
 	if err != nil || budget.BudgetStatus != types.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED {
 		return preVerificationFailureResult{}, fmt.Errorf("pre-verification task budget is not reserved")
 	}
-	selection, err := k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil || len(selection.SelectedTaskBuilders) == 0 {
 		return preVerificationFailureResult{}, fmt.Errorf("pre-verification Task Builder selection is unavailable")
 	}
@@ -96,7 +96,7 @@ func (k Keeper) applyPreVerificationFailure(
 	worker := ""
 	billHash := make([]byte, types.Hash32Len)
 	if kind == types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN {
-		receipt, err := k.InferReceipt.Get(ctx, taskKey)
+		receipt, err := k.ReadInferReceipt(ctx, taskKey)
 		if err != nil || len(receipt.InferReceiptHash) != types.Hash32Len {
 			return preVerificationFailureResult{}, fmt.Errorf("verify-open failure has no canonical infer receipt")
 		}
@@ -270,10 +270,10 @@ func (k Keeper) applyPreVerificationFailure(
 	if err := k.TaskRoundSummary.Set(ctx, taskKey, roundSummary); err != nil {
 		return preVerificationFailureResult{}, err
 	}
-	if err := k.TaskSettlement.Set(ctx, taskKey, settlement); err != nil {
+	if err := k.WriteTaskSettlement(ctx, taskKey, settlement); err != nil {
 		return preVerificationFailureResult{}, err
 	}
-	if err := k.SettlementFactsRetained.Set(ctx, taskKey, types.SettlementFactsRetainedState{
+	if err := k.WriteSettlementFacts(ctx, taskKey, types.SettlementFactsRetainedState{
 		TaskId: append([]byte(nil), core.TaskId...), TaskHash: append([]byte(nil), core.AcceptedTaskHash...),
 		SettlementId: settlementID[:], SettlementFactsHash: factsHash[:],
 		SettlementFactsCutoffHeight: currentHeight, SettlementHeight: currentHeight,

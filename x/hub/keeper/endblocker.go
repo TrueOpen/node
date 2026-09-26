@@ -538,7 +538,7 @@ func (k Keeper) ProcessUnbondingMaturities(ctx context.Context, currentHeight, v
 		}
 		matureHeight, operator, id := key.K1(), key.K2(), key.K3()
 		stateKey := types.NewUnbondingKey(operator, id)
-		state, err := k.Unbonding.Get(ctx, stateKey)
+		state, err := k.ReadUnbondingValue(ctx, stateKey)
 		if err != nil {
 			visited, consumed := budget.result()
 			return visited, consumed, errorsmod.Wrap(types.ErrInvariantBroken, "unbonding maturity index references missing primary")
@@ -551,7 +551,7 @@ func (k Keeper) ProcessUnbondingMaturities(ctx context.Context, currentHeight, v
 		if state.Status == types.UnbondingStatusOpen {
 			oldStatusKey := types.NewUnbondingByOperatorStatusKey(operator, state.Status, state.MatureHeight, id)
 			state.Status = types.UnbondingStatusMature
-			if err := k.Unbonding.Set(ctx, stateKey, state); err != nil {
+			if err := k.WriteUnbondingValue(ctx, stateKey, state); err != nil {
 				visited, consumed := budget.result()
 				return visited, consumed, err
 			}

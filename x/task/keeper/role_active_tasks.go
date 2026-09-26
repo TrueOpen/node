@@ -46,7 +46,7 @@ func (k Keeper) RemoveRoleActiveTaskIndexes(ctx context.Context, taskID []byte) 
 		return err
 	}
 
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil && !errIsNotFound(err) {
 		return err
 	}
@@ -60,7 +60,7 @@ func (k Keeper) RemoveRoleActiveTaskIndexes(ctx context.Context, taskID []byte) 
 
 	// V1 has exactly one verify round, so the authoritative verifier vector is an
 	// O(1) lookup followed by at most selected_verifier_count removals.
-	verifiers, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	verifiers, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil && !errIsNotFound(err) {
 		return err
 	}

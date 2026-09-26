@@ -13,6 +13,13 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
+func sessionTestOwner(t *testing.T, f *internalFixture) string {
+	t.Helper()
+	owner, err := f.keeper.addressCodec.BytesToString(bytes.Repeat([]byte{0x31}, 20))
+	require.NoError(t, err)
+	return owner
+}
+
 func TestCancelOrderGasGuardIsZeroWriteAndRetryable(t *testing.T) {
 	f := initInternalFixture(t)
 	owner := sdk.AccAddress(bytes.Repeat([]byte{0x31}, 20))
@@ -34,7 +41,7 @@ func TestCancelOrderGasGuardIsZeroWriteAndRetryable(t *testing.T) {
 		WithGasMeter(storetypes.NewGasMeter(params.Session.CancelOrderMinGas - 1))
 	_, err = server.CancelOrder(sdk.WrapSDKContext(lowSDKCtx), req)
 	require.ErrorIs(t, err, types.ErrInvalidOrderSequence)
-	stream, err := f.keeper.Stream.Get(f.ctx, sessionKey)
+	stream, err := f.keeper.ReadStream(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Zero(t, stream.NextExpectedSequence)
 	has, err := f.keeper.OrderSequence.Has(f.ctx, types.NewOrderSequenceStateKey(sessionKey, 0))
@@ -53,7 +60,7 @@ func TestCancelOrderGasGuardIsZeroWriteAndRetryable(t *testing.T) {
 		WithGasMeter(storetypes.NewGasMeter(highLimit))
 	_, err = server.CancelOrder(sdk.WrapSDKContext(replaySDKCtx), req)
 	require.ErrorIs(t, err, types.ErrInvalidOrderSequence)
-	stream, err = f.keeper.Stream.Get(f.ctx, sessionKey)
+	stream, err = f.keeper.ReadStream(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), stream.NextExpectedSequence)
 }
@@ -65,7 +72,7 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId:            sessionID,
-		OwnerUserAddress:     "owner",
+		OwnerUserAddress:     sessionTestOwner(t, f),
 		NextExpectedSequence: 2,
 		LastActiveHeight:     9,
 		Status:               types.SessionStatus_SESSION_STATUS_CLOSED,
@@ -89,9 +96,9 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.NoError(t, err)
 	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
-	_, err = f.keeper.Stream.Get(f.ctx, sessionKey)
+	_, err = f.keeper.ReadStream(f.ctx, sessionKey)
 	require.ErrorIs(t, err, collections.ErrNotFound)
-	summary, err := f.keeper.SessionTerminalSummary.Get(f.ctx, sessionKey)
+	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Equal(t, uint32(2), summary.SequenceCount)
 	require.Equal(t, uint32(2), summary.CancelledCount)
@@ -104,7 +111,7 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
-		SessionId: sessionID, OwnerUserAddress: "owner", NextExpectedSequence: 1,
+		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
 		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
 	}))
 	require.NoError(t, f.keeper.SessionHistoryPruneIndex.Set(f.ctx, types.NewSessionHistoryPruneIndexKey(10, sessionKey)))
@@ -118,7 +125,7 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 		require.Zero(t, cursor.NextOrderSequence)
 		require.Equal(t, expectedVisited, cursor.VisitedCount)
 		require.Equal(t, make([]byte, types.Hash32Len), cursor.RollingSequenceRoot)
-		_, err = f.keeper.SessionTerminalSummary.Get(f.ctx, sessionKey)
+		_, err = f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 		require.ErrorIs(t, err, collections.ErrNotFound)
 	}
 }
@@ -129,7 +136,7 @@ func TestSessionHistoryPrunePrecompletedCursorStillConsumesVisited(t *testing.T)
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
-		SessionId: sessionID, OwnerUserAddress: "owner", NextExpectedSequence: 1,
+		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
 		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
 	}))
 	require.NoError(t, f.keeper.SessionHistoryPruneCursor.Set(f.ctx, sessionKey, types.SessionHistoryPruneCursorState{
@@ -149,7 +156,7 @@ func TestSessionHistoryPruneEmptySessionConsumesVisited(t *testing.T) {
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
-		SessionId: sessionID, OwnerUserAddress: "owner", LastActiveHeight: 9,
+		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
 		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
 	}))
 	require.NoError(t, f.keeper.SessionHistoryPruneIndex.Set(f.ctx, types.NewSessionHistoryPruneIndexKey(10, sessionKey)))
@@ -157,7 +164,7 @@ func TestSessionHistoryPruneEmptySessionConsumesVisited(t *testing.T) {
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 1)
 	require.NoError(t, err)
 	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
-	summary, err := f.keeper.SessionTerminalSummary.Get(f.ctx, sessionKey)
+	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Zero(t, summary.SequenceCount)
 }
@@ -168,7 +175,7 @@ func TestSessionHistoryPruneRejectsVisitedOverflow(t *testing.T) {
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
-		SessionId: sessionID, OwnerUserAddress: "owner", LastActiveHeight: 9,
+		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
 		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
 	}))
 	require.NoError(t, f.keeper.SessionHistoryPruneCursor.Set(f.ctx, sessionKey, types.SessionHistoryPruneCursorState{
@@ -222,7 +229,7 @@ func TestSessionLifecycleClosesAndSchedulesHistoryPrune(t *testing.T) {
 	require.NoError(t, err)
 	stream := types.StreamState{
 		SessionId:        sessionID,
-		OwnerUserAddress: "owner",
+		OwnerUserAddress: sessionTestOwner(t, f),
 		LastActiveHeight: 1,
 		Status:           types.SessionStatus_SESSION_STATUS_ACTIVE,
 	}
@@ -238,7 +245,7 @@ func TestSessionLifecycleClosesAndSchedulesHistoryPrune(t *testing.T) {
 	result, err = f.keeper.SweepExpiredSessionLifecycle(f.ctx, closeHeight, 10)
 	require.NoError(t, err)
 	require.Equal(t, SessionLifecycleSweepResult{SweptCount: 1, ClosedCount: 1}, result)
-	stream, err = f.keeper.Stream.Get(f.ctx, sessionKey)
+	stream, err = f.keeper.ReadStream(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Equal(t, types.SessionStatus_SESSION_STATUS_CLOSED, stream.Status)
 	require.Equal(t, closeHeight, stream.LastActiveHeight)

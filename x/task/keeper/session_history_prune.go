@@ -92,7 +92,7 @@ func (k Keeper) ensureOrderBudgetTerminal(ctx context.Context, state types.Order
 	budget, err := k.TaskBudget.Get(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
-			summary, summaryErr := k.TaskTerminalSummary.Get(ctx, taskKey)
+			summary, summaryErr := k.ReadTaskTerminalSummary(ctx, taskKey)
 			if summaryErr != nil {
 				if errors.Is(summaryErr, collections.ErrNotFound) {
 					// Absence is a normal end state, not a contradiction. Both
@@ -140,7 +140,7 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 	if err != nil {
 		return false, err
 	}
-	stream, err := k.Stream.Get(ctx, sessionKey)
+	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			if *remaining > 0 {
@@ -249,7 +249,7 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 	if overflow {
 		return false, errorsmod.Wrap(types.ErrInvariantBroken, "session terminal summary retention height overflow")
 	}
-	if err := k.SessionTerminalSummary.Set(ctx, sessionKey, summary); err != nil {
+	if err := k.WriteSessionTerminalSummary(ctx, sessionKey, summary); err != nil {
 		return false, err
 	}
 	if err := k.SessionTerminalSummaryPruneIndex.Set(ctx, types.NewSessionTerminalSummaryPruneIndexKey(pruneHeight, sessionKey)); err != nil {

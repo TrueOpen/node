@@ -42,7 +42,7 @@ func sessionLifecycleDueHeights(params types.TaskParamsV1, lastActiveHeight uint
 // removed the index row it is reporting, so this function is responsible for
 // re-arming the authoritative row when the transition does not apply.
 func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey types.SessionKey, action types.SessionLifecycleAction, dueHeight, currentHeight uint64) (sessionLifecycleResult, error) {
-	stream, err := k.Stream.Get(ctx, sessionKey)
+	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			// Provably stale row: the primary is gone. Nothing to re-arm.
@@ -211,7 +211,7 @@ func (k Keeper) SweepExpiredSessionLifecycle(ctx context.Context, currentHeight,
 // SessionLifecycleLocator. It resolves the due row from the authoritative
 // StreamState instead of scanning the index, so it is O(1).
 func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.SessionKey, currentHeight uint64) (SessionLifecycleSweepResult, error) {
-	stream, err := k.Stream.Get(ctx, sessionKey)
+	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return SessionLifecycleSweepResult{}, errorsmod.Wrapf(types.ErrInvalidSessionID, "session %s", hex32(sessionKey))

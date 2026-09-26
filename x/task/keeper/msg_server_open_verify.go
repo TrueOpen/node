@@ -85,13 +85,13 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 	if err != nil || !bytes.Equal(core.TaskId, msg.TaskId) || len(core.AcceptedTaskHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal task scope is unavailable")
 	}
-	assignment, err := m.k.TaskAssignment.Get(cache, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, msg.TaskId) || assignment.WinnerWorker == "" ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
 		assignment.CandidatePoolRefReleased {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier proposal assignment scope is unavailable")
 	}
-	receipt, err := m.k.InferReceipt.Get(cache, taskKey)
+	receipt, err := m.k.ReadInferReceipt(cache, taskKey)
 	if err != nil || !bytes.Equal(receipt.TaskId, msg.TaskId) || len(receipt.InferReceiptHash) != types.Hash32Len ||
 		len(receipt.OutputHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "accepted infer receipt is unavailable")
@@ -166,7 +166,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 
 	members := make(map[uint32]types.VerifierCandidateWindowMemberState, window.WindowSize)
 	for rank := uint32(0); rank < window.WindowSize; rank++ {
-		member, err := m.k.VerifierCandidateWindowMember.Get(cache, types.NewVerifierWindowMemberKey(taskKey, verifyRound, rank))
+		member, err := m.k.ReadVerifierWindowMember(cache, types.NewVerifierWindowMemberKey(taskKey, verifyRound, rank))
 		if err != nil || member.RankIndex != rank || !bytes.Equal(member.TaskId, msg.TaskId) || member.VerifyRound != verifyRound {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier window member body is unavailable")
 		}
@@ -188,7 +188,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		}
 		facts[index] = fact
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
-		if existing, err := m.k.TaskCandidateFact.Get(cache, factKey); err == nil {
+		if existing, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			if !proto.Equal(&existing, &fact) {
 				return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier slot already has a conflicting accepted fact")
 			}
@@ -221,7 +221,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "accepted verifier fact is absent from the union bitmap")
 		}
 	}
-	if existing, err := m.k.BuilderStageProposal.Get(cache, proposalKey); err == nil {
+	if existing, err := m.k.ReadBuilderStageProposal(cache, proposalKey); err == nil {
 		if replay, replayErr := verifierProposalExactReplay(existing, proposedReceipt); replayErr != nil || !replay {
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "conflicting verifier proposal replay")
 		}
@@ -270,7 +270,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		if _, added := newSlotSet[fact.Slot]; !added {
 			continue
 		}
-		if err := m.k.TaskCandidateFact.Set(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
+		if err := m.k.WriteTaskCandidateFact(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
 			return nil, err
 		}
 	}
@@ -289,7 +289,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 	if err := m.k.TaskStageHandraiseUnion.Set(cache, stageKey, union); err != nil {
 		return nil, err
 	}
-	if err := m.k.BuilderStageProposal.Set(cache, proposalKey, proposedReceipt); err != nil {
+	if err := m.k.WriteBuilderStageProposal(cache, proposalKey, proposedReceipt); err != nil {
 		return nil, err
 	}
 	actor := assignment.WinnerWorker
@@ -356,7 +356,11 @@ func (k Keeper) findAcceptedVerifierProposalReplay(
 		if err != nil {
 			return nil, false, err
 		}
-		existing, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, false, err
+		}
+		existing, err := k.ProjectBuilderStageProposalStore(stored)
 		if err != nil {
 			return nil, false, err
 		}

@@ -45,11 +45,11 @@ func TestCrossModuleReferencesRequireExactRoleFaultEvidenceScope(t *testing.T) {
 		EvidenceDigest:       evidenceDigest, RecordedHeight: 1,
 		Status: hubtypes.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED,
 	}
-	require.NoError(t, application.HubKeeper.RoleFault.Set(ctx, faultID, fault))
+	require.NoError(t, application.HubKeeper.WriteRoleFaultValue(ctx, faultID, fault))
 	require.NoError(t, application.EnsureCrossModuleReferences(ctx))
 
 	fault.EvidenceDigest = bytes.Repeat([]byte{0x65}, 32)
-	require.NoError(t, application.HubKeeper.RoleFault.Set(ctx, faultID, fault))
+	require.NoError(t, application.HubKeeper.WriteRoleFaultValue(ctx, faultID, fault))
 	require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx), "evidence_digest disagrees")
 
 	// classification_source is the other half of the same reference. A Hub that
@@ -58,7 +58,7 @@ func TestCrossModuleReferencesRequireExactRoleFaultEvidenceScope(t *testing.T) {
 	// which must fail before it can reach an export.
 	fault.EvidenceDigest = evidenceDigest
 	fault.ClassificationSource = shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE
-	require.NoError(t, application.HubKeeper.RoleFault.Set(ctx, faultID, fault))
+	require.NoError(t, application.HubKeeper.WriteRoleFaultValue(ctx, faultID, fault))
 	require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx), "evidence_digest disagrees")
 }
 
@@ -98,13 +98,13 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 		TaskId: taskID, SessionId: sessionID,
 		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED,
 	}))
-	require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
+	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: selectedHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}))
-	require.NoError(t, application.TaskKeeper.InferReceipt.Set(ctx, taskKey, tasktypes.InferReceiptState{
-		TaskId: taskID, ReceiptHeight: 10,
+	require.NoError(t, application.TaskKeeper.WriteInferReceipt(ctx, taskKey, tasktypes.InferReceiptState{
+		TaskId: taskID, WinnerWorker: sdk.AccAddress(bytes.Repeat([]byte{0x87}, 20)).String(), ReceiptHeight: 10,
 	}))
 	require.ErrorContains(t, application.ensureBuilderDutyResponsibilities(ctx), "missing 3 Hub responsibilities")
 
@@ -116,7 +116,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 				shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER)),
 				shared.EnumBE(uint32(kind)), []byte(hex.EncodeToString(sessionID)), []byte(taskHex), nil, []byte(builder),
 			)
-			require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx,
+			require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx,
 				hubtypes.NewServiceKeyResponsibilityKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder, responsibilityID),
 				hubtypes.ServiceKeyResponsibilityState{
 					ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
@@ -146,7 +146,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 		hex.EncodeToString(openVerifyIDs[0]),
 		"TRUEOPEN_SERVICE_KEY_RESPONSIBILITY_ID_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
 	require.NoError(t, application.ensureBuilderDutyResponsibilities(ctx))
-	require.NoError(t, application.TaskKeeper.VerifierAssignment.Set(
+	require.NoError(t, application.TaskKeeper.WriteVerifierAssignment(
 		ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1),
 		tasktypes.VerifierAssignmentState{TaskId: taskID, VerifyRound: tasktypes.VerifyRoundV1, OpenVerifyHeight: 20},
 	))
@@ -155,10 +155,10 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 	setResponsibilities(hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_SETTLE_BUILDER, 20)
 	require.NoError(t, application.ensureBuilderDutyResponsibilities(ctx))
 
-	selection, err := application.TaskKeeper.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := application.TaskKeeper.GetTaskBuilderSelection(ctx, taskKey)
 	require.NoError(t, err)
 	selection.BuilderSetRefReleased = true
-	require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, selection))
+	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, selection))
 	require.ErrorContains(t, application.ensureBuilderDutyResponsibilities(ctx), "no exact Task-owned authority")
 	removeResponsibilities(hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_SETTLE_BUILDER)
 	require.NoError(t, application.ensureBuilderDutyResponsibilities(ctx))
@@ -185,12 +185,12 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 		SelectedTaskBuildersHash: selectedHash, CreatedHeight: 7,
 		BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}
-	require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, selection))
+	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, selection))
 	builderState := hubtypes.BuilderState{
 		BuilderAddress: builder, ServiceAuthorizationNonce: 9,
 		CurrentServiceKeyStatus: hubtypes.ServiceKeyStatusActive,
 	}
-	require.NoError(t, application.HubKeeper.Builder.Set(ctx, builder, builderState))
+	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, builderState))
 	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "missing 1 BUS")
 
 	locator := shared.BusObjectiveEvidenceResponsibilityV1{
@@ -212,27 +212,27 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 	indexKey := hubtypes.NewServiceKeyResponsibilityByTaskKey(
 		state.SessionId, state.TaskId, state.ParticipantType, state.OperatorAddress, state.ResponsibilityId,
 	)
-	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx, primaryKey, state))
+	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx, primaryKey, state))
 	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "missing its ByTask index")
 	require.NoError(t, application.HubKeeper.ServiceKeyResponsibilityByTaskIndex.Set(ctx, indexKey))
 	builderState.PendingEvidenceSubmissionCount = 1
-	require.NoError(t, application.HubKeeper.Builder.Set(ctx, builder, builderState))
+	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, builderState))
 	require.NoError(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx))
 
 	state.ServiceAuthorizationNonce++
-	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx, primaryKey, state))
+	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx, primaryKey, state))
 	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "no exact Task-owned authority")
 	state.ServiceAuthorizationNonce--
-	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx, primaryKey, state))
+	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx, primaryKey, state))
 
 	selection.SelectedTaskBuilders = nil
 	selection.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED
-	require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, selection))
+	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, selection))
 	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "no exact Task-owned authority")
 	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Remove(ctx, primaryKey))
 	require.NoError(t, application.HubKeeper.ServiceKeyResponsibilityByTaskIndex.Remove(ctx, indexKey))
 	builderState.PendingEvidenceSubmissionCount = 0
-	require.NoError(t, application.HubKeeper.Builder.Set(ctx, builder, builderState))
+	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, builderState))
 	require.NoError(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx))
 }
 
@@ -271,7 +271,7 @@ func TestCrossModuleReferencesRejectOrphanTaskRetentionReferences(t *testing.T) 
 		ctx := application.NewContextLegacy(true, cmtproto.Header{Height: application.LastBlockHeight() + 1})
 		taskID := bytes.Repeat([]byte{0x55}, 32)
 		taskKey := tasktypes.NewTaskKey(taskID)
-		require.NoError(t, application.TaskKeeper.TaskAssignment.Set(ctx, taskKey, tasktypes.TaskAssignmentState{
+		require.NoError(t, application.TaskKeeper.WriteTaskAssignment(ctx, taskKey, tasktypes.TaskAssignmentState{
 			TaskId: taskID, CandidatePoolSnapshotId: bytes.Repeat([]byte{0x56}, 32),
 		}))
 		require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx), "has no matching candidate pool reference")
@@ -310,7 +310,7 @@ func TestCrossModuleReferencesRejectOrphanTaskRetentionReferences(t *testing.T) 
 		require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, taskKey, tasktypes.TaskCoreState{
 			TaskId: taskID, TaskPhase: tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
 		}))
-		require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
+		require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
 			TaskId: taskID, BuilderSetId: "1", BuilderSetHash: bytes.Repeat([]byte{0x66}, 32),
 		}))
 		require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx), "has no matching BuilderSet reference")
@@ -359,7 +359,7 @@ func TestCrossModuleReferencesRejectOrphanTaskRetentionReferences(t *testing.T) 
 			TaskId: taskID, TaskPhase: tasktypes.TaskPhase_TASK_PHASE_SETTLED,
 		}))
 		assignment := tasktypes.TaskAssignmentState{TaskId: taskID, CandidatePoolSnapshotId: snapshotID}
-		require.NoError(t, application.TaskKeeper.TaskAssignment.Set(ctx, taskKey, assignment))
+		require.NoError(t, application.TaskKeeper.WriteTaskAssignment(ctx, taskKey, assignment))
 		require.NoError(t, application.HubKeeper.CandidatePoolTaskRef.Set(ctx,
 			hubtypes.NewCandidatePoolTaskRefKey(taskID, snapshotID),
 			hubtypes.CandidatePoolTaskRefState{TaskId: taskID, SnapshotId: snapshotID, AcquiredHeight: 1,
@@ -381,7 +381,7 @@ func TestCrossModuleReferencesRejectOrphanTaskRetentionReferences(t *testing.T) 
 
 		// Once the release is recorded, the rows must be gone with it.
 		assignment.CandidatePoolRefReleased = true
-		require.NoError(t, application.TaskKeeper.TaskAssignment.Set(ctx, taskKey, assignment))
+		require.NoError(t, application.TaskKeeper.WriteTaskAssignment(ctx, taskKey, assignment))
 		require.NoError(t, application.HubKeeper.CandidatePoolTaskRef.Remove(ctx,
 			hubtypes.NewCandidatePoolTaskRefKey(taskID, snapshotID)))
 		require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx),
@@ -396,7 +396,7 @@ func TestCrossModuleReferencesRejectOrphanSettlementAndLiability(t *testing.T) {
 		ctx := application.NewContextLegacy(true, cmtproto.Header{Height: application.LastBlockHeight() + 1})
 		taskID := bytes.Repeat([]byte{0x41}, 32)
 		operator := sdk.AccAddress(bytes.Repeat([]byte{0x42}, 20)).String()
-		require.NoError(t, application.HubKeeper.TaskLiabilityReservation.Set(ctx,
+		require.NoError(t, application.HubKeeper.WriteTaskLiabilityValue(ctx,
 			hubtypes.NewTaskLiabilityReservationKey(taskID, shared.DutyWorker, operator),
 			hubtypes.TaskLiabilityReservationState{
 				SchemaVersion: 1, TaskId: taskID, OperatorAddress: operator, Duty: shared.DutyWorker,

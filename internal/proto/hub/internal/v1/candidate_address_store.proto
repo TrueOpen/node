@@ -1,0 +1,43 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// CandidateSlotCurrentStoreState stores the operator as codec bytes.
+message CandidateSlotCurrentStoreState {
+  uint32 schema_version = 1;
+  uint32 slot = 2;
+  uint64 slot_version = 3;
+  bytes operator_address = 4;
+  int32 status = 5;
+  uint64 allocated_epoch = 6;
+  uint64 retired_height = 7;
+  uint32 active_task_refs = 8;
+}
+
+// CandidateSlotBindingStoreState stores the operator as codec bytes.
+message CandidateSlotBindingStoreState {
+  uint32 slot = 1;
+  uint64 slot_version = 2;
+  bytes operator_address = 3;
+  uint64 allocated_epoch = 4;
+  uint64 released_height = 5;
+  uint32 snapshot_ref_count = 6;
+  bytes binding_hash = 7;
+}
+
+// OperatorCandidateSlotStoreState stores the operator as codec bytes.
+message OperatorCandidateSlotStoreState {
+  bytes operator_address = 1;
+  uint32 slot = 2;
+  uint64 slot_version = 3;
+}
+
+// CandidatePoolMemberStoreState stores the operator as codec bytes.
+message CandidatePoolMemberStoreState {
+  uint64 epoch = 1;
+  uint32 slot = 2;
+  uint64 slot_version = 3;
+  bytes operator_address = 4;
+  bytes binding_hash = 5;
+}

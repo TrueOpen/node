@@ -1,0 +1,16 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BuilderAdmissionStoreState stores the address as canonical codec bytes.
+// Public Query and Genesis boundaries use hub.v1.BuilderAdmissionState.
+message BuilderAdmissionStoreState {
+  bytes builder_address = 1;
+  int32 status = 2;
+  uint64 current_builder_set_version = 3;
+  uint64 source_proposal_id = 4;
+  uint64 updated_height = 5;
+  // Genesis admission leaves the governance proposal identifier absent.
+  bool has_source_proposal_id = 6;
+}

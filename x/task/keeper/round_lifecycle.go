@@ -22,7 +22,7 @@ func (k Keeper) closeRoundOnce(
 	forcedOutcome shared.RoundOutcomeV1,
 ) (types.VerificationRoundState, bool, error) {
 	roundKey := types.NewVerifyRoundKey(taskKey, verifyRound)
-	existing, err := k.VerificationRound.Get(ctx, roundKey)
+	existing, err := k.ReadVerificationRound(ctx, roundKey)
 	if err != nil {
 		return types.VerificationRoundState{}, false, err
 	}
@@ -48,7 +48,7 @@ func (k Keeper) closeRoundOnce(
 
 	var outcome shared.RoundOutcomeV1
 	if verifyRound == types.ChallengeVerifyRoundV1 {
-		round1, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		round1, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 		if err != nil || round1.XClosedHeight == nil || !isExplicitRoundVerdict(round1.GetVerdict()) {
 			return types.VerificationRoundState{}, false, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 terminal verdict is unavailable")
 		}
@@ -71,7 +71,7 @@ func (k Keeper) closeRoundOnce(
 		closed.XRoundOutcome = &types.VerificationRoundState_RoundOutcome{RoundOutcome: outcome}
 	}
 
-	if err := k.VerificationRound.Set(ctx, roundKey, closed); err != nil {
+	if err := k.WriteVerificationRound(ctx, roundKey, closed); err != nil {
 		return types.VerificationRoundState{}, false, err
 	}
 	if err := k.removeRoundDeadlineIndexes(ctx, taskKey, verifyRound); err != nil {
@@ -98,7 +98,7 @@ func (k Keeper) closeUnavailableChallengeRound(
 	closedHeight uint64,
 ) error {
 	key := types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)
-	round, err := k.VerificationRound.Get(ctx, key)
+	round, err := k.ReadVerificationRound(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (k Keeper) closeUnavailableChallengeRound(
 		return err
 	}
 	round.XRoundFactsHash = &types.VerificationRoundState_RoundFactsHash{RoundFactsHash: factsHash[:]}
-	if err := k.VerificationRound.Set(ctx, key, round); err != nil {
+	if err := k.WriteVerificationRound(ctx, key, round); err != nil {
 		return err
 	}
 	result := roundCloseResult{
@@ -133,7 +133,7 @@ func (k Keeper) closeUnavailableChallengeRound(
 }
 
 func (k Keeper) removeRoundDeadlineIndexes(ctx context.Context, taskKey types.TaskKey, verifyRound uint32) error {
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (k Keeper) removeRoundDeadlineIndexes(ctx context.Context, taskKey types.Ta
 }
 
 func (k Keeper) removeVerifierActiveJobs(ctx context.Context, taskKey types.TaskKey, verifyRound uint32) error {
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (k Keeper) closeRoundOneSummary(
 		Round2EffectRootOrZero32: make([]byte, types.Hash32Len),
 	}
 	if isExplicitRoundVerdict(result.Verdict) {
-		assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+		assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || assignment.ChallengeOpenWindowBlocksSnapshot == 0 {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "challenge window snapshot is unavailable")
 		}
@@ -267,7 +267,7 @@ func (k Keeper) freezeRoundDivergenceClassification(
 	core types.TaskCoreState,
 	round types.VerificationRoundState,
 ) ([]byte, error) {
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, round.VerifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, round.VerifyRound))
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func (k Keeper) freezeRoundDivergenceClassification(
 	if err != nil {
 		return nil, err
 	}
-	infer, err := k.InferReceipt.Get(ctx, taskKey)
+	infer, err := k.ReadInferReceipt(ctx, taskKey)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 	var effectiveRound uint32
 	var roundsClosedHeight uint64
 	if summary.MaxClosedRound == types.VerifyRoundV1 {
-		round1, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		round1, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 		if err != nil || round1.XClosedHeight == nil {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "closed round 1 is unavailable")
 		}
@@ -365,7 +365,7 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 			roundsClosedHeight = round1.GetClosedHeight()
 		}
 	} else if summary.MaxClosedRound == types.ChallengeVerifyRoundV1 {
-		round2, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1))
+		round2, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1))
 		if err != nil || round2.XClosedHeight == nil || len(round2.GetRoundEffectRoot()) != types.Hash32Len {
 			return errorsmod.Wrap(types.ErrInvalidTaskStatus, "challenge round effects are not closed")
 		}
@@ -462,7 +462,7 @@ func (k Keeper) taskDataUnavailableConfirmed(
 		if !required[index] {
 			continue
 		}
-		aggregate, err := k.BuilderDataUnavailableAggregate.Get(ctx,
+		aggregate, err := k.ReadDataUnavailableAggregate(ctx,
 			types.NewVerifyActorKey(taskKey, assignment.VerifyRound, builder))
 		if err != nil {
 			return false, nil

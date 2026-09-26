@@ -21,7 +21,7 @@ func TestChallengeVerifierStageKeepsTaskPhaseMonotonic(t *testing.T) {
 	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, types.TaskRoundSummaryState{
 		TaskId: taskID, MaxClosedRound: types.VerifyRoundV1, OpenRoundCount: 1,
 	}))
-	require.NoError(t, f.keeper.VerificationRound.Set(f.ctx,
+	require.NoError(t, f.keeper.WriteVerificationRound(f.ctx,
 		types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1),
 		types.VerificationRoundState{TaskId: taskID, VerifyRound: types.ChallengeVerifyRoundV1},
 	))

@@ -22,7 +22,7 @@ func closedSessionWithTerminalOrder(t *testing.T, f *internalFixture, tag byte) 
 	taskKey, err := taskStoreKey(taskID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
-		SessionId: sessionID, OwnerUserAddress: "owner", NextExpectedSequence: 1,
+		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
 		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
 	}))
 	require.NoError(t, f.keeper.OrderSequence.Set(
@@ -61,7 +61,7 @@ func TestSessionHistoryPruneToleratesPrunedTaskRecords(t *testing.T) {
 	// Folding without the assertion is state-identical: the check fed neither the
 	// rolling root nor the status counts, so the compacted summary is exactly what
 	// a session with intact task records would have produced.
-	summary, err := f.keeper.SessionTerminalSummary.Get(f.ctx, sessionKey)
+	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), summary.SequenceCount)
 	require.Equal(t, uint32(1), summary.ConsumedCount)
@@ -74,12 +74,14 @@ func TestSessionHistoryPruneToleratesPrunedTaskRecords(t *testing.T) {
 func TestSessionHistoryPruneStillRejectsForeignTerminalSummary(t *testing.T) {
 	f := initInternalFixture(t)
 	_, taskKey, _ := closedSessionWithTerminalOrder(t, f, 0x52)
-	require.NoError(t, f.keeper.TaskTerminalSummary.Set(f.ctx, taskKey, types.TaskTerminalSummaryState{
+	stored, err := f.keeper.taskTerminalSummaryToStore(types.TaskTerminalSummaryState{
 		TaskId:        bytes.Repeat([]byte{0x99}, types.Hash32Len),
 		TerminalPhase: types.TaskPhase_TASK_PHASE_SETTLED,
-	}))
+	})
+	require.NoError(t, err)
+	require.NoError(t, f.keeper.TaskTerminalSummary.Set(f.ctx, taskKey, stored))
 
-	_, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
+	_, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.ErrorIs(t, err, types.ErrInvariantBroken)
 }
 

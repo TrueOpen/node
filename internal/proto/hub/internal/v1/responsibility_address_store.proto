@@ -1,0 +1,31 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// TaskLiabilityStoreState stores the reserved operator as codec bytes.
+message TaskLiabilityStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  bytes operator_address = 3;
+  int32 duty = 4;
+  uint64 bond_version = 5;
+  uint64 capability_version = 6;
+  uint64 reserved_amount = 7;
+  int32 status = 8;
+  bytes candidate_pool_snapshot_id = 9;
+  uint32 slot = 10;
+  uint64 slot_version = 11;
+}
+
+// ServiceKeyResponsibilityStoreState stores the operator as codec bytes.
+message ServiceKeyResponsibilityStoreState {
+  int32 participant_type = 1;
+  bytes operator_address = 2;
+  bytes responsibility_id = 3;
+  int32 responsibility_kind = 4;
+  string session_id = 5;
+  string task_id = 6;
+  uint64 created_height = 7;
+  uint64 service_authorization_nonce = 8;
+}

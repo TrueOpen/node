@@ -1,0 +1,30 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// EvidenceCommitmentStoreState preserves the ordered evidence commitment facts.
+message EvidenceCommitmentStoreState {
+  int32 evidence_kind = 1;
+  bytes evidence_hash_or_root = 2;
+  uint64 encoded_size_bytes = 3;
+}
+
+// InferReceiptStoreState stores the winning Worker as codec bytes.
+message InferReceiptStoreState {
+  bytes task_id = 1;
+  bytes winner_worker = 2;
+  bytes infer_receipt_hash = 3;
+  bytes generation_params_digest = 4;
+  bytes output_hash = 5;
+  uint64 output_size_bytes = 6;
+  uint64 generated_token_count = 7;
+  bytes evidence_commitments_hash = 8;
+  repeated EvidenceCommitmentStoreState required_evidence_commitments = 9;
+  uint32 evidence_commitment_count = 10;
+  bytes infer_receipt_signing_digest = 11;
+  bytes signature_digest = 12;
+  uint64 expiry_height = 13;
+  uint64 receipt_height = 14;
+  uint64 output_leaf_count = 15;
+}

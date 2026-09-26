@@ -72,7 +72,7 @@ func TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent(t *testing.T) {
 	}
 	require.NoError(t, slashedRow.Validate())
 	slashedID := shared.Hash32Key(slashedRow.UnbondingId)
-	require.NoError(t, f.keeper.Unbonding.Set(f.ctx, types.NewUnbondingKey(operator.Address, slashedID), slashedRow))
+	require.NoError(t, f.keeper.WriteUnbondingValue(f.ctx, types.NewUnbondingKey(operator.Address, slashedID), slashedRow))
 	require.NoError(t, f.keeper.UnbondingMaturityIndex.Set(
 		f.ctx, types.NewUnbondingMaturityIndexKey(slashedRow.MatureHeight, operator.Address, slashedID),
 	))
@@ -118,9 +118,9 @@ func TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent(t *testing.T) {
 
 	// The row is retired through the same terminal writer as a paying withdraw,
 	// which is why APPLIED is the honest answer.
-	_, err = f.keeper.Unbonding.Get(f.ctx, types.NewUnbondingKey(operator.Address, slashedID))
+	_, err = f.keeper.ReadUnbondingValue(f.ctx, types.NewUnbondingKey(operator.Address, slashedID))
 	require.Error(t, err)
-	receipt, err := f.keeper.UnbondingReceipt.Get(f.ctx, slashedID)
+	receipt, err := f.keeper.ReadUnbondingReceiptValue(f.ctx, slashedID)
 	require.NoError(t, err)
 	require.Equal(t, types.UnbondingReceiptTerminalStatus_UNBONDING_RECEIPT_TERMINAL_STATUS_FULLY_SLASHED, receipt.TerminalStatus)
 	require.Equal(t, testServiceBondMinInitial, receipt.OriginalAmount)
@@ -161,7 +161,7 @@ func TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent(t *testing.T) {
 	require.Equal(t, shared.NewAmount(testServiceBondMinInitial), withdrawnEvent.WithdrawnAmount)
 	require.Equal(t, uint32(1), withdrawnEvent.WithdrawnItems)
 
-	payingReceipt, err := f.keeper.UnbondingReceipt.Get(f.ctx, payingID)
+	payingReceipt, err := f.keeper.ReadUnbondingReceiptValue(f.ctx, payingID)
 	require.NoError(t, err)
 	require.Equal(t, types.UnbondingReceiptTerminalStatus_UNBONDING_RECEIPT_TERMINAL_STATUS_WITHDRAWN, payingReceipt.TerminalStatus)
 	require.Equal(t, operatorBefore+testServiceBondMinInitial, f.bank.accountBalance(operator.Address))
