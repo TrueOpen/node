@@ -70,6 +70,24 @@ func (q *queryServer) Task(ctx context.Context, req *types.QueryTaskRequest) (*t
 			bundle.Round1VerifierAssignment = &verifierAssignment
 		}
 	}
+	roundSummary, err := q.k.TaskRoundSummary.Get(ctx, taskKey)
+	if err == nil {
+		if !bytes.Equal(roundSummary.TaskId, core.TaskId) {
+			return nil, status.Error(codes.Internal, "task round summary scope does not match task")
+		}
+		bundle.RoundSummary = &roundSummary
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	// Round 2 exists only once a challenge has opened, so unlike round 1 there is
+	// no verification status that makes it mandatory: NotFound is the ordinary
+	// answer for a task that was never challenged, not a broken invariant.
+	round2Assignment, err := q.loadVerifierAssignment(ctx, taskKey, types.ChallengeVerifyRoundV1)
+	if err == nil {
+		bundle.Round2VerifierAssignment = &round2Assignment
+	} else if status.Code(err) != codes.NotFound {
+		return nil, err
+	}
 	return &types.QueryTaskResponse{Task: types.TaskViewV1{
 		Value: &types.TaskViewV1_Active{Active: bundle},
 	}}, nil
