@@ -363,10 +363,10 @@ func validatePhase0ExecutionProfile(profile hubtypes.ProfileStateSnapshot) error
 	verification := profile.ExecutionSnapshot.VerificationProfile
 	batch := profile.ExecutionSnapshot.BatchVerification
 	if len(profile.ExecutionSnapshotHash) != types.Hash32Len || len(verification.EvidenceSchemaHash) != types.Hash32Len ||
-		profile.ExecutionSnapshot.RuntimeClass != "CAUSAL_LM_PREFILL_LOGPROBS_V1" ||
-		verification.JudgmentFunctionVersion != "PREFILL_GENERATED_TOKEN_METRICS_V1" ||
-		verification.CanonicalEncodingVersion != "CANONICAL_OUTPUT_TEXT_V1" ||
-		verification.MetricAggregateProofVersion != "PREFILL_METRIC_AGGREGATE_PROOF_V1" ||
+		profile.ExecutionSnapshot.RuntimeClass != shared.RuntimeClassV1 ||
+		verification.JudgmentFunctionVersion != shared.JudgmentFunctionVersionV1 ||
+		verification.CanonicalEncodingVersion != shared.CanonicalEncodingVersionV1 ||
+		verification.MetricAggregateProofVersion != shared.MetricAggregateProofVersionV1 ||
 		verification.VerificationMode != shared.VerificationMode_VERIFICATION_MODE_SINGLE_SAMPLE ||
 		verification.TokenScope != shared.TokenScope_TOKEN_SCOPE_ALL_GENERATED_OUTPUT_TOKENS || batch.Enabled {
 		return fmt.Errorf("verification profile is unsupported by the Phase 0 executor")

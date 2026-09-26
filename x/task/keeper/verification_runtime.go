@@ -470,7 +470,7 @@ func (k Keeper) validateMetricSummaryAgainstFrozenProfile(sdkCtx sdk.Context, co
 	verification := profile.ExecutionSnapshot.VerificationProfile
 	if verification.MetricAggregateProofVersion != assignment.MetricAggregateProofVersion ||
 		verification.CanonicalEncodingVersion != assignment.CanonicalEncodingVersion ||
-		verification.MetricAggregateProofVersion != "PREFILL_METRIC_AGGREGATE_PROOF_V1" ||
+		verification.MetricAggregateProofVersion != shared.MetricAggregateProofVersionV1 ||
 		verification.TokenScope != shared.TokenScope_TOKEN_SCOPE_ALL_GENERATED_OUTPUT_TOKENS {
 		return fmt.Errorf("verification profile versions do not match task assignment")
 	}

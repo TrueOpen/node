@@ -69,7 +69,7 @@ const (
 	DefaultMaxSupportedEvidenceSchemaVersions          = uint32(16)
 	DefaultMaxSupportedLeafOrderingVersions            = uint32(16)
 	DefaultMaxOutputMMRLeaves                          = uint64(65_536)
-	DefaultMinOutputStreamFrameBytes                   = uint32(16)
+	DefaultMinOutputStreamFrameBytes                   = uint32(256)
 	DefaultMaxWorkerEvidenceBytesV1                    = uint64(1 << 20)
 	DefaultMaxTaskCleanupItemsPerBlock                 = uint32(1024)
 	DefaultTaskTerminalSummaryRetentionBlocks          = uint64(60_480)

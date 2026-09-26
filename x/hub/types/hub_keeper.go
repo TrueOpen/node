@@ -16,10 +16,10 @@ type ProfileStateSnapshot struct {
 	ProfileVersion            uint32
 	Status                    ModelProfileStatus
 	TaskTypes                 []shared.TaskType
-	ResourceTier              uint64
+	ResourceTier              uint32
 	MinStake                  uint64
 	ChallengeOpenWindowBlocks uint64
-	ActiveSupporterCount      uint64
+	ActiveSupporterCount      uint32
 	ActiveSupportStake        uint64
 	StatusSource              ProfileStatusSource
 	ExecutionSnapshot         shared.ProfileExecutionSnapshot

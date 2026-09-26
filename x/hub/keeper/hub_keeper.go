@@ -119,9 +119,9 @@ func (k Keeper) GetProfileState(ctx sdk.Context, modelID string, profileVersion 
 	}
 	return types.ProfileStateSnapshot{
 		ModelID: state.ModelId, ProfileVersion: state.ProfileVersion, Status: state.Status,
-		TaskTypes: append([]shared.TaskType(nil), state.TaskTypes...), ResourceTier: uint64(state.ResourceTier),
+		TaskTypes: append([]shared.TaskType(nil), state.TaskTypes...), ResourceTier: state.ResourceTier,
 		MinStake: state.MinStake, ChallengeOpenWindowBlocks: state.ChallengeOpenWindowBlocks,
-		ActiveSupporterCount: uint64(state.ActiveSupporterCount), ActiveSupportStake: state.ActiveSupportStake,
+		ActiveSupporterCount: state.ActiveSupporterCount, ActiveSupportStake: state.ActiveSupportStake,
 		StatusSource: state.StatusSource, ExecutionSnapshot: execution, ExecutionSnapshotHash: executionHash,
 		PricingProfile: state.PricingProfile, RefPrice: state.RefPrice,
 	}, true

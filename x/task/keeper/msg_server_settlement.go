@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 
 	"cosmossdk.io/collections"
@@ -938,12 +937,10 @@ func (k Keeper) recordTaskSupportCompletions(
 	if !found {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "settled task references an unknown profile")
 	}
-	// the parameter tablefreezes tier 1..5 -> P0..P4 as a table; RewardBucketForResourceTier
-	// reproduces it literally rather than inferring it from coincident enum values.
-	if profile.ResourceTier > math.MaxUint32 {
-		return errorsmod.Wrap(types.ErrInvariantBroken, "profile resource_tier is out of range")
-	}
-	bucket, err := hubtypes.RewardBucketForResourceTier(uint32(profile.ResourceTier))
+	// The tier 1..5 -> P0..P4 mapping is frozen as a table; RewardBucketForResourceTier
+	// reproduces it literally rather than inferring it from coincident enum values,
+	// and rejects any tier outside that range.
+	bucket, err := hubtypes.RewardBucketForResourceTier(profile.ResourceTier)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
