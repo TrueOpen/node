@@ -114,7 +114,7 @@ func (s ProfileState) Validate() error {
 	if strings.TrimSpace(s.RuntimeClass) != s.RuntimeClass || s.RuntimeClass == "" {
 		return fmt.Errorf("profile runtime_class must be canonical and non-empty")
 	}
-	if s.RuntimeClass != "CAUSAL_LM_PREFILL_LOGPROBS_V1" {
+	if s.RuntimeClass != shared.RuntimeClassV1 {
 		return fmt.Errorf("unsupported profile runtime_class %q", s.RuntimeClass)
 	}
 	if s.RequiredTopK == 0 || s.VerificationProfile.Metrics.ComparedTopK != s.RequiredTopK {
@@ -143,9 +143,9 @@ func (s ProfileState) Validate() error {
 		s.BatchVerification.RejectMinSampleRejectRatioBps != 0 {
 		return fmt.Errorf("only SINGLE_SAMPLE with disabled zero batch configuration is supported")
 	}
-	if s.VerificationProfile.JudgmentFunctionVersion != "PREFILL_GENERATED_TOKEN_METRICS_V1" ||
-		s.VerificationProfile.CanonicalEncodingVersion != "CANONICAL_OUTPUT_TEXT_V1" ||
-		s.VerificationProfile.MetricAggregateProofVersion != "PREFILL_METRIC_AGGREGATE_PROOF_V1" {
+	if s.VerificationProfile.JudgmentFunctionVersion != shared.JudgmentFunctionVersionV1 ||
+		s.VerificationProfile.CanonicalEncodingVersion != shared.CanonicalEncodingVersionV1 ||
+		s.VerificationProfile.MetricAggregateProofVersion != shared.MetricAggregateProofVersionV1 {
 		return fmt.Errorf("unsupported profile verification wire identifiers")
 	}
 	if s.VerificationProfile.TokenScope != shared.TokenScope_TOKEN_SCOPE_ALL_GENERATED_OUTPUT_TOKENS ||
