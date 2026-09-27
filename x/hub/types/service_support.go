@@ -398,24 +398,6 @@ func IsCandidateEligibleBondStatus(status ServiceBondStatus) bool {
 	return IsLiveServiceBondStatus(status) || status == ServiceBondStatusJailed
 }
 
-func validateProviderProfile(scope, operatorAddress, modelID string, profileVersion uint32) (string, string, uint32, error) {
-	provider, err := requireCanonicalNonEmpty(scope+" operator_address", operatorAddress)
-	if err != nil {
-		return "", "", 0, err
-	}
-	model, err := requireCanonicalNonEmpty(scope+" model_id", modelID)
-	if err != nil {
-		return "", "", 0, err
-	}
-	if err := ValidateModelID(model); err != nil {
-		return "", "", 0, fmt.Errorf("%s: %w", scope, err)
-	}
-	if profileVersion == 0 {
-		return "", "", 0, fmt.Errorf("%s profile_version must be greater than 0", scope)
-	}
-	return provider, model, profileVersion, nil
-}
-
 func IsValidServiceBondStatus(status ServiceBondStatus) bool {
 	switch status {
 	case ServiceBondStatusRegistered, ServiceBondStatusActive, ServiceBondStatusJailed,

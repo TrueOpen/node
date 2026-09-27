@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"sort"
 )
 
 // The fully-qualified protobuf method names of every §16.1 paginated Query.
@@ -80,27 +79,6 @@ var QueryPageSelectorSchemaV1 = map[string]QueryPageSelectorV1{
 	QueryRPCTaskRoleActiveTasksV1:        {Fields: []string{"operator_address", "duty"}},
 	QueryRPCTaskSessionsByOwnerV1:        {Fields: []string{"user_address"}},
 	QueryRPCTaskGasReimbursementsV1:      {Fields: []string{"task_id"}},
-}
-
-// querySelectorVariantsV1 projects QueryPageSelectorSchemaV1 into the registry's
-// variant shape, sorted by RPC literal.
-//
-// It is a projection rather than a second table on purpose. The registry row and
-// the production schema would otherwise be two hand-maintained lists of the same
-// eleven RPCs, and the only thing standing between them would be a test that
-// noticed after the fact; deriving one from the other removes the failure mode
-// instead of detecting it. What the differential still checks independently is
-// the pair this cannot collapse: these variants against the proto descriptors,
-// and against the golden vectors.
-func querySelectorVariantsV1() []DomainVariantV1 {
-	variants := make([]DomainVariantV1, 0, len(QueryPageSelectorSchemaV1))
-	for rpcMethod, schema := range QueryPageSelectorSchemaV1 {
-		variants = append(variants, DomainVariantV1{
-			Key: rpcMethod, Fields: schema.Fields, Note: schema.Note,
-		})
-	}
-	sort.Slice(variants, func(i, j int) bool { return variants[i].Key < variants[j].Key })
-	return variants
 }
 
 // QueryRPCDigestV1 is the sole producer of TRUEOPEN_QUERY_RPC_V1: H_FIELDS_V1 over

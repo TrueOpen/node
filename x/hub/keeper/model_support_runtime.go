@@ -923,27 +923,11 @@ func (k Keeper) syncLiveServiceBondStatus(ctx context.Context, operatorAddress s
 	return k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond)
 }
 
-func (k Keeper) deriveProfileAndModelStatus(ctx context.Context, profile *types.ProfileState, height uint64) error {
-	if profile == nil {
-		return fmt.Errorf("profile is required")
-	}
-	profile.UpdatedHeight = height
-	if err := k.setProfileState(ctx, *profile); err != nil {
-		return err
-	}
-	model, err := k.GetModel(ctx, profile.ModelId)
-	if err != nil {
-		return err
-	}
-	return k.deriveModelStatus(ctx, &model, height)
-}
-
 // deriveModelStatus recomputes ModelState.status from active_profile_count and
-// persists the row. It is the model half of deriveProfileAndModelStatus, split out
-// so the governance unfreeze entry (setModelStatusWithSource) can re-run it on its
-// own: a model-level unfreeze resets status_source to AUTO_PROFILE and therefore
-// owes the same recomputation, but it has no profile in hand to drive the profile
-// half with.
+// persists the row, so the governance unfreeze entry (setModelStatusWithSource)
+// can re-run it on its own: a model-level unfreeze resets status_source to
+// AUTO_PROFILE and therefore owes the same recomputation, with no profile to
+// drive it from.
 //
 // The write is unconditional because the caller may have adjusted
 // active_profile_count without changing the status; the event is not, because the

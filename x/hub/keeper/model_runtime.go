@@ -333,10 +333,10 @@ func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID []byte, 
 	// before the write and the profile became permanently ungovernable. A
 	// parameter change must not reinterpret an already-admitted profile; the
 	// clamp belongs solely to RegisterModelProfileState. The asymmetry made this
-	// worse rather than safer: setProfileEmergencyFrozen and
-	// deriveProfileAndModelStatus only ever validated structurally, so the floor
-	// bricked the governance entry alone and left the validator freeze quorum as
-	// the only way to move such a profile.
+	// worse rather than safer: setProfileEmergencyFrozen and deriveModelStatus
+	// only ever validated structurally, so the floor bricked the governance
+	// entry alone and left the validator freeze quorum as the only way to move
+	// such a profile.
 	if err := state.Validate(); err != nil {
 		return types.ProfileState{}, err
 	}
@@ -400,9 +400,8 @@ func statusDisablesSupport(status types.ModelProfileStatus) bool {
 
 // statusReturnsToAutoDerivation reports whether landing on `status` hands the row
 // back to the automatic status derivation, i.e. whether status_source must be
-// reset to AUTO_PROFILE / AUTO_SUPPORT. Model and profile share the predicate for
-// the same reason isParentModelOpenForProfile and isProfileOpenForOrders do: the
-// two sides must not drift apart.
+// reset to AUTO_PROFILE / AUTO_SUPPORT. Model and profile share the predicate so
+// the two sides cannot drift apart.
 //
 // REGISTERED is the only such status. It is the base status that
 // deriveProfileAndModelStatus itself writes whenever the aggregates fall back
@@ -433,13 +432,8 @@ func statusReturnsToAutoDerivation(status types.ModelProfileStatus) bool {
 	return status == types.ModelStatusRegistered
 }
 
-// isParentModelOpenForProfile and isProfileOpenForOrders are named views of one
-// predicate, types.IsModelProfileStatusOpen, so the model and profile sides can
-// never drift apart.
+// isParentModelOpenForProfile is a named view of types.IsModelProfileStatusOpen.
 func isParentModelOpenForProfile(status types.ModelProfileStatus) bool {
-	return types.IsModelProfileStatusOpen(status)
-}
-func isProfileOpenForOrders(status types.ModelProfileStatus) bool {
 	return types.IsModelProfileStatusOpen(status)
 }
 

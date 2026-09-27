@@ -36,17 +36,3 @@ func tokenIDsHashV1(domain string, tokenIDs []uint32) ([32]byte, uint64, error) 
 	}
 	return digest, rawSize, nil
 }
-
-func validateTokenIDsRawSizeV1(name string, size uint64, expectedCount *uint64) error {
-	if size < 4 || size > shared.MaxCanonicalFieldBytesV1 || (size-4)%4 != 0 {
-		return fmt.Errorf("%s is not a canonical token_ids_raw size", name)
-	}
-	count := (size - 4) / 4
-	if count > MaxCanonicalTokenIDsV1 {
-		return fmt.Errorf("%s encodes too many token IDs", name)
-	}
-	if expectedCount != nil && count != *expectedCount {
-		return fmt.Errorf("%s does not match generated_token_count", name)
-	}
-	return nil
-}
