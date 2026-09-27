@@ -2,10 +2,12 @@ package app
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	nodeante "github.com/TrueOpen/node/app/ante"
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
 )
 
@@ -23,4 +25,23 @@ func TestVrfPoPVerifierIsProvidedAndVerifies(t *testing.T) {
 	alpha := bytes.Repeat([]byte{0x03}, 32)
 	require.Error(t, verifier.VerifyVrfPossession(pubkey, alpha, bytes.Repeat([]byte{0x04}, 80)))
 	require.Error(t, verifier.VerifyVrfPossession(pubkey, alpha, nil))
+}
+
+// TestVrfPoPVerifierAcceptsAGenuineProof pins the other half of "a real ECVRF
+// check": the same Prove this repo's own vrf-pop CLI and FileVrfProposerSigner
+// use must verify here. Only checking rejection (above) let Prove and
+// VerifyVrfPossession run on two different ECVRF suite versions (final RFC
+// 9381 vs. the withdrawn IETF draft v10, which use different domain
+// separators) without either test noticing: every rejection test still
+// passed, and no genuine key could ever complete MsgRegisterVrfKey.
+func TestVrfPoPVerifierAcceptsAGenuineProof(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	alpha := bytes.Repeat([]byte{0x03}, 32)
+
+	proof, _, err := nodeante.Prove(priv, alpha)
+	require.NoError(t, err)
+
+	verifier := ProvideVrfPoPVerifier()
+	require.NoError(t, verifier.VerifyVrfPossession(pub, alpha, proof))
 }
