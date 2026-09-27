@@ -87,7 +87,7 @@ func (k Keeper) scheduleNextFreezeRiskWindow(ctx context.Context, profile types.
 	return k.FreezeRiskWindowScheduleIndex.Set(ctx, types.NewFreezeRiskWindowScheduleKey(end+1, profile.ModelId, profile.ProfileVersion))
 }
 
-func (k Keeper) EnqueueNextFreezeRiskWindow(ctx context.Context, modelID string, profileVersion uint32, currentHeight uint64) (freezeSignalBuildResult, error) {
+func (k Keeper) EnqueueNextFreezeRiskWindow(ctx context.Context, modelID []byte, profileVersion uint32, currentHeight uint64) (freezeSignalBuildResult, error) {
 	profile, err := k.GetProfile(ctx, modelID, profileVersion)
 	if err != nil {
 		return freezeSignalBuildResult{}, err
@@ -446,12 +446,12 @@ func freezeFailureRefsRoot(
 // only thing that can tell them apart is calling this with known values and checking
 // the digest.
 func freezeSignalID(
-	chainID, modelID string, profileVersion uint32,
+	chainID string, modelID []byte, profileVersion uint32,
 	riskWindowID, riskWindowStartHeight, riskWindowEndHeight uint64,
 	includedFailureTaskRefCount uint32, includedFailureTaskRefsHash []byte,
 ) ([]byte, error) {
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainFreezeSignalV1)).Raw(
-		[]byte(chainID), []byte(modelID),
+		[]byte(chainID), modelID,
 		shared.Uint32BE(profileVersion), shared.Uint64BE(riskWindowID),
 		shared.Uint64BE(riskWindowStartHeight), shared.Uint64BE(riskWindowEndHeight),
 		shared.Uint32BE(includedFailureTaskRefCount), includedFailureTaskRefsHash,
@@ -485,8 +485,8 @@ func (k Keeper) rescheduleFreezeSignalBuild(
 	}, nil
 }
 
-func (k Keeper) openFreezeSignalForProfile(ctx context.Context, modelID string, profileVersion uint32) (types.FreezeSignalState, bool, error) {
-	rangeValue := collections.NewSuperPrefixedQuadRange3[string, uint32, int32, types.FreezeSignalWindowOrderKey](modelID, profileVersion, int32(types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_OPEN))
+func (k Keeper) openFreezeSignalForProfile(ctx context.Context, modelID []byte, profileVersion uint32) (types.FreezeSignalState, bool, error) {
+	rangeValue := collections.NewSuperPrefixedQuadRange3[shared.Hash32Key, uint32, int32, types.FreezeSignalWindowOrderKey](modelID, profileVersion, int32(types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_OPEN))
 	iter, err := k.FreezeSignalByProfileIndex.Iterate(ctx, rangeValue)
 	if err != nil {
 		return types.FreezeSignalState{}, false, err
@@ -514,7 +514,10 @@ func (k Keeper) openFreezeSignalForProfile(ctx context.Context, modelID string, 
 	return signal, true, nil
 }
 
-func (k Keeper) IsFreezeFailureWindowProtected(ctx context.Context, modelID string, profileVersion uint32, finalityHeight uint64) (bool, error) {
+func (k Keeper) IsFreezeFailureWindowProtected(ctx context.Context, modelID []byte, profileVersion uint32, finalityHeight uint64) (bool, error) {
+	if len(modelID) != shared.Hash32KeySize {
+		return false, errorsmod.Wrap(types.ErrInvalidModel, "model_id must be Hash32")
+	}
 	if cursor, err := k.FreezeSignalBuildCursor.Get(ctx, types.NewFreezeSignalBuildCursorKey(modelID, profileVersion)); err == nil {
 		return finalityHeight >= cursor.RiskWindowStartHeight && finalityHeight <= cursor.RiskWindowEndHeight, nil
 	} else if !errors.Is(err, collections.ErrNotFound) {
@@ -525,12 +528,4 @@ func (k Keeper) IsFreezeFailureWindowProtected(ctx context.Context, modelID stri
 		return false, err
 	}
 	return finalityHeight >= signal.RiskWindowStartHeight && finalityHeight <= signal.RiskWindowEndHeight, nil
-}
-
-func (k Keeper) deactivateModelSupports(ctx context.Context, modelID, reason string, height uint64) error {
-	return k.EnqueueModelSupportDeactivation(ctx, modelID, reason, height)
-}
-
-func (k Keeper) deactivateProfileSupports(ctx context.Context, modelID string, profileVersion uint32, reason string, height uint64) error {
-	return k.EnqueueSupportDeactivation(ctx, modelID, profileVersion, reason, height)
 }

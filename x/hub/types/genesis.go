@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
@@ -71,7 +73,10 @@ func (gs GenesisState) Validate() error {
 	if err := validateSupportGenesis(gs, nodes, bonds, models, profiles); err != nil {
 		return err
 	}
-	if err := validateSupportDeactivateCursorGenesis(gs.SupportDeactivateCursors, profiles); err != nil {
+	if err := validateModelSupportRecheckCursorGenesis(gs.ModelSupportRecheckCursors, models); err != nil {
+		return err
+	}
+	if err := validateModelSupportDeactivateCursorGenesis(gs.ModelSupportDeactivateCursors, gs.ModelSupportRecheckCursors, models); err != nil {
 		return err
 	}
 	if err := validateFaultGenesis(gs.RoleFaults, gs.SlashSummaries, nodes, bonds); err != nil {
@@ -635,10 +640,11 @@ func validateModelProfileGenesis(modelRows []ModelState, profileRows []ProfileSt
 		if err := state.Validate(); err != nil {
 			return nil, nil, fmt.Errorf("model: %w", err)
 		}
-		if _, exists := models[state.ModelId]; exists {
-			return nil, nil, fmt.Errorf("duplicate model %s", state.ModelId)
+		modelID := hex.EncodeToString(state.ModelId)
+		if _, exists := models[modelID]; exists {
+			return nil, nil, fmt.Errorf("duplicate model %s", modelID)
 		}
-		models[state.ModelId] = state
+		models[modelID] = state
 	}
 	profiles := make(map[string]ProfileState, len(profileRows))
 	versions := map[string]map[uint32]ProfileState{}
@@ -647,8 +653,9 @@ func validateModelProfileGenesis(modelRows []ModelState, profileRows []ProfileSt
 		if err := state.Validate(); err != nil {
 			return nil, nil, fmt.Errorf("profile: %w", err)
 		}
-		if _, exists := models[state.ModelId]; !exists {
-			return nil, nil, fmt.Errorf("profile %s/%d references missing model", state.ModelId, state.ProfileVersion)
+		modelID := hex.EncodeToString(state.ModelId)
+		if _, exists := models[modelID]; !exists {
+			return nil, nil, fmt.Errorf("profile %s/%d references missing model", modelID, state.ProfileVersion)
 		}
 		key := profileStateID(state.ModelId, state.ProfileVersion)
 		if _, exists := profiles[key]; exists {
@@ -660,33 +667,29 @@ func validateModelProfileGenesis(modelRows []ModelState, profileRows []ProfileSt
 		}
 		digests[digest] = key
 		profiles[key] = state
-		if versions[state.ModelId] == nil {
-			versions[state.ModelId] = map[uint32]ProfileState{}
+		if versions[modelID] == nil {
+			versions[modelID] = map[uint32]ProfileState{}
 		}
-		versions[state.ModelId][state.ProfileVersion] = state
+		versions[modelID][state.ProfileVersion] = state
 	}
 	for modelID, model := range models {
 		modelProfiles := versions[modelID]
 		if uint32(len(modelProfiles)) != model.LatestProfileVersion {
 			return nil, nil, fmt.Errorf("model %s latest_profile_version does not match contiguous profile count", modelID)
 		}
-		active := uint32(0)
 		fees := uint64(0)
 		for version := uint32(1); version <= model.LatestProfileVersion; version++ {
 			profile, exists := modelProfiles[version]
 			if !exists {
 				return nil, nil, fmt.Errorf("model %s profile versions are not contiguous", modelID)
 			}
-			if profile.Status == ModelStatusActive {
-				active++
-			}
 			if ^uint64(0)-fees < profile.RegistrationFeePaid {
 				return nil, nil, fmt.Errorf("model %s registration fees overflow", modelID)
 			}
 			fees += profile.RegistrationFeePaid
 		}
-		if active != model.ActiveProfileCount || fees != model.RegistrationFeePaid {
-			return nil, nil, fmt.Errorf("model %s profile aggregates do not match", modelID)
+		if fees != model.RegistrationFeePaid {
+			return nil, nil, fmt.Errorf("model %s registration fees do not match profiles", modelID)
 		}
 	}
 	return models, profiles, nil
@@ -964,12 +967,11 @@ func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) 
 	return nil
 }
 
-func decodeCanonicalResponsibilityHash32(name, value string) ([]byte, error) {
-	raw, err := hex.DecodeString(value)
-	if err != nil || hex.EncodeToString(raw) != value || len(raw) != 32 || bytes.Equal(raw, make([]byte, 32)) {
-		return nil, fmt.Errorf("%s must be canonical lowercase hex of a non-zero raw32 value", name)
+func decodeCanonicalResponsibilityHash32(name string, value []byte) ([]byte, error) {
+	if len(value) != 32 || bytes.Equal(value, make([]byte, 32)) {
+		return nil, fmt.Errorf("%s must be a non-zero raw32 value", name)
 	}
-	return raw, nil
+	return value, nil
 }
 
 func validateBuilderGenesis(gs GenesisState) error {
@@ -1009,6 +1011,7 @@ func validateBuilderGenesis(gs GenesisState) error {
 	setIDs := make(map[string]struct{}, len(gs.BuilderSets))
 	for _, state := range gs.BuilderSets {
 		if state.BuilderSetVersion == 0 || state.BuilderSetId == "" ||
+			uint64(len(state.BuilderSetId)) > uint64(gs.Params.Builder.MaxBuilderSetIdBytes) ||
 			state.BuilderSetId != strings.TrimSpace(state.BuilderSetId) ||
 			state.EffectiveHeight == 0 || state.ActiveBuilderCount == 0 ||
 			len(state.BuilderSetHash) != shared.Hash32KeySize ||
@@ -1058,7 +1061,7 @@ func validateBuilderGenesis(gs GenesisState) error {
 		}
 	} else {
 		current := gs.CurrentBuilderSet
-		if current.Mode != "GOVERNED_FIXED_V1" {
+		if current.Mode != BuilderSetModeV1_BUILDER_SET_MODE_V1_GOVERNED_FIXED_V1 {
 			return fmt.Errorf("current builder set mode must be GOVERNED_FIXED_V1")
 		}
 		state, exists := sets[current.BuilderSetVersion]
@@ -1113,47 +1116,59 @@ func validateSupportGenesis(
 	models map[string]ModelState,
 	profiles map[string]ProfileState,
 ) error {
-	capabilityRows := gs.ProfileCapabilities
+	capabilityRows := gs.ModelCapabilities
 	supportRows := gs.ModelSupports
 	dailyRows := gs.DailySupports
-	maxPerOperator := gs.Params.Support.MaxSupportedProfilesPerOperator
-	capabilities := map[string]ProfileCapabilityState{}
+	maxPerOperator := gs.Params.Support.MaxSupportedModelsPerOperator
+	deactivating := make(map[string][]byte, len(gs.ModelSupportDeactivateCursors))
+	for _, cursor := range gs.ModelSupportDeactivateCursors {
+		if cursor.LastOperatorAddress == "" {
+			deactivating[hex.EncodeToString(cursor.ModelId)] = nil
+			continue
+		}
+		address, err := sdk.AccAddressFromBech32(cursor.LastOperatorAddress)
+		if err != nil {
+			return fmt.Errorf("model support deactivate cursor address is invalid: %w", err)
+		}
+		deactivating[hex.EncodeToString(cursor.ModelId)] = address
+	}
+	capabilities := map[string]ModelCapabilityState{}
 	countByOperator := map[string]uint32{}
 	for _, state := range capabilityRows {
 		if err := state.Validate(); err != nil {
-			return fmt.Errorf("profile capability: %w", err)
+			return fmt.Errorf("model capability: %w", err)
 		}
 		if _, exists := nodes[state.OperatorAddress]; !exists {
 			bond, bondExists := bonds[state.OperatorAddress]
 			if !bondExists || bond.Status != ServiceBondStatusExited && bond.Status != ServiceBondStatusTombstoned {
-				return fmt.Errorf("profile capability references missing cortex node %s", state.OperatorAddress)
+				return fmt.Errorf("model capability references missing cortex node %s", state.OperatorAddress)
 			}
 		}
-		if _, exists := profiles[profileStateID(state.ModelId, state.ProfileVersion)]; !exists {
-			return fmt.Errorf("profile capability references missing profile %s/%d", state.ModelId, state.ProfileVersion)
+		modelID := hex.EncodeToString(state.ModelId)
+		if _, exists := models[modelID]; !exists {
+			return fmt.Errorf("model capability references missing model %s", modelID)
 		}
-		key := supportStateID(state.OperatorAddress, state.ModelId, state.ProfileVersion)
+		key := modelSupportStateID(state.OperatorAddress, state.ModelId)
 		if _, exists := capabilities[key]; exists {
-			return fmt.Errorf("duplicate profile capability %s", key)
+			return fmt.Errorf("duplicate model capability %s", key)
 		}
 		capabilities[key] = state
 		countByOperator[state.OperatorAddress]++
 		if countByOperator[state.OperatorAddress] > maxPerOperator {
-			return fmt.Errorf("operator %s exceeds max supported profiles", state.OperatorAddress)
+			return fmt.Errorf("operator %s exceeds max supported models", state.OperatorAddress)
 		}
 	}
 	activeStake := map[string]uint64{}
-	eligibleStake := map[string]uint64{}
 	activeCount := map[string]uint32{}
 	supports := map[string]struct{}{}
 	for _, state := range supportRows {
 		if err := state.Validate(); err != nil {
 			return fmt.Errorf("model support: %w", err)
 		}
-		key := supportStateID(state.OperatorAddress, state.ModelId, state.ProfileVersion)
+		key := modelSupportStateID(state.OperatorAddress, state.ModelId)
 		capability, exists := capabilities[key]
 		if !exists {
-			return fmt.Errorf("model support %s has no profile capability", key)
+			return fmt.Errorf("model support %s has no model capability", key)
 		}
 		if state.FirstActivationDuty == shared.DutyWorker && !capability.InferenceCapability || state.FirstActivationDuty == shared.DutyVerifier && !capability.VerificationCapability {
 			return fmt.Errorf("model support %s activation duty is not declared in capability", key)
@@ -1162,24 +1177,54 @@ func validateSupportGenesis(
 			return fmt.Errorf("duplicate model support %s", key)
 		}
 		supports[key] = struct{}{}
-		profileKey := profileStateID(state.ModelId, state.ProfileVersion)
-		profile := profiles[profileKey]
+		modelID := hex.EncodeToString(state.ModelId)
+		model, modelExists := models[modelID]
+		if !modelExists {
+			return fmt.Errorf("model support %s references missing model", key)
+		}
+		if lastOperator, sweeping := deactivating[modelID]; sweeping {
+			operator, err := sdk.AccAddressFromBech32(state.OperatorAddress)
+			if err != nil {
+				return fmt.Errorf("model support %s operator address is invalid: %w", key, err)
+			}
+			if len(lastOperator) != 0 && bytes.Compare(operator, lastOperator) <= 0 && state.DeclaredSupport {
+				return fmt.Errorf("model support %s precedes a deactivation cursor but remains declared", key)
+			}
+		}
+		if state.FirstSupportProfileVersion != 0 {
+			if _, exists := profiles[profileStateID(state.ModelId, state.FirstSupportProfileVersion)]; !exists {
+				return fmt.Errorf("model support %s references missing first support profile", key)
+			}
+		}
 		bond, exists := bonds[state.OperatorAddress]
 		if !exists {
 			return fmt.Errorf("model support %s references missing service bond", key)
 		}
 		node, hasNode := nodes[state.OperatorAddress]
 		if !hasNode {
-			if state.DeclaredSupport || state.SupportActive || state.EligibleSupportStakeSnapshot != 0 || state.ActiveSupportStakeSnapshot != 0 {
+			if state.DeclaredSupport || state.SupportActive || state.ActiveSupportStakeSnapshot != 0 {
 				return fmt.Errorf("terminal model support %s retains live support state", key)
+			}
+			continue
+		}
+		if _, sweeping := deactivating[modelID]; sweeping && (model.Status == ModelStatusFrozen || model.Status == ModelStatusDelisted) {
+			if state.SupportActive {
+				ceiling, err := SupportVoteWeightCeiling(model.SupportMinStake, gs.Params.Support)
+				if err != nil || state.ActiveSupportStakeSnapshot < model.SupportMinStake || state.ActiveSupportStakeSnapshot > ceiling {
+					return fmt.Errorf("model support %s has an invalid in-flight deactivation snapshot", key)
+				}
+				if ^uint64(0)-activeStake[modelID] < state.ActiveSupportStakeSnapshot {
+					return fmt.Errorf("active support aggregate overflow for %s", modelID)
+				}
+				activeStake[modelID] += state.ActiveSupportStakeSnapshot
+				activeCount[modelID]++
 			}
 			continue
 		}
 		weight, eligible, err := SupportVoteWeight(SupportEligibilityInputs{
 			Node:       node,
 			Bond:       bond,
-			Model:      models[state.ModelId],
-			Profile:    profile,
+			Model:      model,
 			Capability: capability,
 			Support:    state,
 		}, GenesisEpoch, gs.Params.Support)
@@ -1187,21 +1232,11 @@ func validateSupportGenesis(
 			return fmt.Errorf("model support %s: %w", key, err)
 		}
 		if !eligible {
-			if state.EligibleSupportStakeSnapshot != 0 || state.SupportActive || state.ActiveSupportStakeSnapshot != 0 {
-				return fmt.Errorf("model support %s is not eligible at genesis but carries active or eligible stake", key)
+			if state.SupportActive || state.ActiveSupportStakeSnapshot != 0 {
+				return fmt.Errorf("model support %s is not eligible at genesis but carries active stake", key)
 			}
 			continue
 		}
-		if state.EligibleSupportStakeSnapshot != weight {
-			return fmt.Errorf(
-				"model support %s eligible_support_stake_snapshot %d does not match recomputed support vote weight %d",
-				key, state.EligibleSupportStakeSnapshot, weight,
-			)
-		}
-		if ^uint64(0)-eligibleStake[profileKey] < weight {
-			return fmt.Errorf("eligible support aggregate overflow for %s", profileKey)
-		}
-		eligibleStake[profileKey] += weight
 		if !state.SupportActive {
 			continue
 		}
@@ -1214,18 +1249,18 @@ func validateSupportGenesis(
 				key, state.ActiveSupportStakeSnapshot, weight,
 			)
 		}
-		if ^uint64(0)-activeStake[profileKey] < weight {
-			return fmt.Errorf("active support aggregate overflow for %s", profileKey)
+		if ^uint64(0)-activeStake[modelID] < weight {
+			return fmt.Errorf("active support aggregate overflow for %s", modelID)
 		}
-		activeStake[profileKey] += weight
-		activeCount[profileKey]++
+		activeStake[modelID] += weight
+		activeCount[modelID]++
 	}
 	if len(supports) != len(capabilities) {
-		return fmt.Errorf("profile capability/model support cardinality mismatch")
+		return fmt.Errorf("model capability/model support cardinality mismatch")
 	}
-	for key, profile := range profiles {
-		if profile.ActiveSupportStake != activeStake[key] || profile.EligibleSupportStake != eligibleStake[key] || profile.ActiveSupporterCount != activeCount[key] {
-			return fmt.Errorf("profile support aggregates mismatch for %s", key)
+	for key, model := range models {
+		if model.ActiveSupportStake != activeStake[key] || model.ActiveSupporterCount != activeCount[key] {
+			return fmt.Errorf("model support aggregates mismatch for %s", key)
 		}
 	}
 	daily := map[string]struct{}{}
@@ -1248,42 +1283,68 @@ func validateSupportGenesis(
 	return nil
 }
 
-// validateSupportDeactivateCursorGenesis validates the P0-3 fan-out cursors.
-//
-// A cursor is a promise that EndBlocker still owes bounded work for one profile.
-// It must therefore name a live profile, carry a governance/freeze reason (the
-// SUPPORT_EXPIRED path is driven by ModelSupportExpiryIndex, not by a cursor), and
-// exist at most once per profile so the drain cannot rewind itself.
-func validateSupportDeactivateCursorGenesis(cursorRows []SupportDeactivateCursorState, profiles map[string]ProfileState) error {
+// validateModelSupportRecheckCursorGenesis checks bounded model-level rechecks.
+func validateModelSupportRecheckCursorGenesis(cursorRows []ModelSupportRecheckCursorState, models map[string]ModelState) error {
 	seen := map[string]struct{}{}
 	for _, state := range cursorRows {
-		if err := ValidateModelID(state.ModelId); err != nil {
-			return fmt.Errorf("support deactivate cursor: %w", err)
+		if err := validateRequiredHash32("model support recheck cursor model_id", state.ModelId); err != nil {
+			return err
 		}
-		if state.ProfileVersion == 0 {
-			return fmt.Errorf("support deactivate cursor %s profile_version must be greater than 0", state.ModelId)
-		}
-		key := profileStateID(state.ModelId, state.ProfileVersion)
-		if state.Reason == "" || state.Reason != strings.TrimSpace(state.Reason) {
-			return fmt.Errorf("support deactivate cursor %s reason must be canonical and non-empty", key)
-		}
-		if state.Reason == ModelSupportDeactivateExpired {
-			return fmt.Errorf("support deactivate cursor %s must not use the %s reason", key, ModelSupportDeactivateExpired)
+		key := hex.EncodeToString(state.ModelId)
+		if state.EffectiveHeight == 0 {
+			return fmt.Errorf("model support recheck cursor %s effective_height must be positive", key)
 		}
 		if _, exists := seen[key]; exists {
-			return fmt.Errorf("duplicate support deactivate cursor %s", key)
+			return fmt.Errorf("duplicate model support recheck cursor %s", key)
 		}
 		seen[key] = struct{}{}
-		if _, exists := profiles[key]; !exists {
-			return fmt.Errorf("support deactivate cursor %s references missing profile", key)
+		if _, exists := models[key]; !exists {
+			return fmt.Errorf("model support recheck cursor %s references missing model", key)
 		}
 		if state.LastOperatorAddress != "" {
-			if _, err := requireCanonicalNonEmpty("support deactivate cursor last_operator_address", state.LastOperatorAddress); err != nil {
+			if _, err := requireCanonicalNonEmpty("model support recheck cursor last_operator_address", state.LastOperatorAddress); err != nil {
 				return err
 			}
 		}
 		if state.LastOperatorAddress == "" && state.VisitedCount != 0 {
-			return fmt.Errorf("support deactivate cursor %s has a visited_count without a resume point", key)
+			return fmt.Errorf("model support recheck cursor %s has a visited_count without a resume point", key)
+		}
+	}
+	return nil
+}
+
+func validateModelSupportDeactivateCursorGenesis(cursorRows []ModelSupportDeactivateCursorState, recheckRows []ModelSupportRecheckCursorState, models map[string]ModelState) error {
+	rechecking := make(map[string]struct{}, len(recheckRows))
+	for _, state := range recheckRows {
+		rechecking[hex.EncodeToString(state.ModelId)] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(cursorRows))
+	for _, state := range cursorRows {
+		if err := validateRequiredHash32("model support deactivate cursor model_id", state.ModelId); err != nil {
+			return err
+		}
+		key := hex.EncodeToString(state.ModelId)
+		if _, duplicate := seen[key]; duplicate {
+			return fmt.Errorf("duplicate model support deactivate cursor %s", key)
+		}
+		seen[key] = struct{}{}
+		if _, overlap := rechecking[key]; overlap {
+			return fmt.Errorf("model support cursors overlap for model %s", key)
+		}
+		model, exists := models[key]
+		if !exists || model.Status != ModelStatusFrozen && model.Status != ModelStatusDelisted {
+			return fmt.Errorf("model support deactivate cursor %s requires a frozen or delisted model", key)
+		}
+		if state.DeactivatedCount > state.VisitedCount {
+			return fmt.Errorf("model support deactivate cursor %s has more deactivations than visits", key)
+		}
+		if (state.LastOperatorAddress == "") != (state.VisitedCount == 0) {
+			return fmt.Errorf("model support deactivate cursor %s has an inconsistent resume point", key)
+		}
+		if state.LastOperatorAddress != "" {
+			if _, err := sdk.AccAddressFromBech32(state.LastOperatorAddress); err != nil {
+				return fmt.Errorf("model support deactivate cursor %s operator address is invalid: %w", key, err)
+			}
 		}
 	}
 	return nil
@@ -1300,7 +1361,7 @@ func validateFaultGenesis(faultRows []RoleFaultState, summaryRows []SlashSummary
 	type summaryLocator struct {
 		kind   SlashSourceKind
 		source [shared.Hash32KeySize]byte
-		index  uint64
+		index  uint32
 	}
 	summaries := make(map[summaryLocator]SlashSummaryState, len(summaryRows))
 	summaryIDs := make(map[string]struct{}, len(summaryRows))
@@ -1551,10 +1612,10 @@ func validateRetainedGenesis(gs GenesisState) error {
 	return validateEconomicsGenesis(gs)
 }
 
-func profileStateID(modelID string, profileVersion uint32) string {
-	return fmt.Sprintf("%s/%d", modelID, profileVersion)
+func profileStateID(modelID []byte, profileVersion uint32) string {
+	return fmt.Sprintf("%x/%d", modelID, profileVersion)
 }
 
-func supportStateID(operatorAddress, modelID string, profileVersion uint32) string {
-	return fmt.Sprintf("%s/%s/%d", operatorAddress, modelID, profileVersion)
+func modelSupportStateID(operatorAddress string, modelID []byte) string {
+	return fmt.Sprintf("%s/%x", operatorAddress, modelID)
 }

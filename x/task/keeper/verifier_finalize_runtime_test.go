@@ -95,7 +95,7 @@ func verifierFinalizeFixture(t *testing.T) (*internalFixture, types.TaskKey, typ
 		ReceiptStatus:      types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED,
 		VerificationStatus: types.VerificationStatus_VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN,
 	}))
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, taskKey, types.TaskBuilderSelectionState{
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, types.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: selectedBuildersHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
@@ -110,11 +110,11 @@ func verifierFinalizeFixture(t *testing.T) (*internalFixture, types.TaskKey, typ
 			SegmentIndex: 0, Bitmap: []byte{0x0e},
 		}))
 	for _, fact := range facts {
-		require.NoError(t, f.keeper.TaskCandidateFact.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteTaskCandidateFact(f.ctx,
 			types.NewTaskCandidateFactKey(taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY, fact.Slot), fact))
 	}
 	for _, member := range members {
-		require.NoError(t, f.keeper.VerifierCandidateWindowMember.Set(f.ctx,
+		require.NoError(t, f.keeper.WriteVerifierWindowMember(f.ctx,
 			types.NewVerifierWindowMemberKey(taskKey, types.VerifyRoundV1, member.RankIndex), member))
 	}
 	require.NoError(t, f.keeper.VerifierHandraiseCloseIndex.Set(f.ctx,
@@ -235,15 +235,15 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 	stageKey := types.NewTaskStageKey(taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY)
 	core, err := f.keeper.TaskCore.Get(f.ctx, taskKey)
 	require.NoError(t, err)
-	core.ModelId = "model-a"
+	core.ModelId = bytes.Repeat([]byte{0x6d}, types.Hash32Len)
 	core.ProfileVersion = 1
 	core.OrderValue = shared.NewAmount(10)
 	core.AcceptedTaskHash = bytes.Repeat([]byte{0x51}, types.Hash32Len)
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, core))
 	winner := sdk.AccAddress(bytes.Repeat([]byte{0x61}, 20)).String()
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: window.TaskId, CandidatePoolSnapshotId: window.CandidatePoolSnapshotId,
-		CandidatePoolHash: window.CandidatePoolHash, WinnerWorker: winner,
+		CandidatePoolHash: window.CandidatePoolHash, WinnerWorker: winner, MinStakeSnapshot: shared.NewAmount(20),
 	}))
 	require.NoError(t, f.keeper.VerifyOpenDeadlineIndex.Set(f.ctx,
 		types.NewDeadlineIndexKey(window.AssignmentDeadlineHeight, taskKey)))
@@ -270,6 +270,24 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 		}
 	}
 	return ready
+}
+
+func TestVerifierLiabilityPreflightRejectsMinimumStakeSnapshotMismatch(t *testing.T) {
+	ready := verifierSelectionReadyFixture(t)
+	f := ready.f
+	f.keeper.hubKeeper = verifierAdmissionHubStub{
+		membersBySlot: ready.membersBySlot, bindingsBySlot: ready.bindingsBySlot,
+	}
+	core, err := f.keeper.TaskCore.Get(f.ctx, ready.taskKey)
+	require.NoError(t, err)
+	assignment, err := f.keeper.ReadTaskAssignment(f.ctx, ready.taskKey)
+	require.NoError(t, err)
+	fact, err := f.keeper.ReadTaskCandidateFact(f.ctx, types.NewTaskCandidateFactKey(
+		ready.taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY, 1))
+	require.NoError(t, err)
+	assignment.MinStakeSnapshot = shared.NewAmount(21)
+	_, err = f.keeper.preflightVerifierTaskLiability(f.ctx, core, assignment, ready.window, fact, 30)
+	require.ErrorIs(t, err, types.ErrInvariantBroken)
 }
 
 func TestVerifierSelectionRollsBackTaskWritesWhenLiabilityReservationFails(t *testing.T) {

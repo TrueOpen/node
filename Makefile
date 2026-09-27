@@ -28,12 +28,11 @@ TEST_FLAGS := -mod=readonly -timeout 30m
 # generation input for every protobuf artifact in this repository, so the wire
 # release - not proto/ - is the source of the contract.
 #
-# WIRE_EXCLUDE drops packages the wire release scope withholds. Wire v0.4.1
-# publishes every package in the image, so generation receives the complete
-# descriptor set. Nexus output follows its own go_package and is discarded
-# after generation; Node does not copy or implement that service.
+# WIRE_EXCLUDE drops packages the wire release scope withholds. RC2 withholds
+# cortex.v1; Nexus output follows its own go_package and is discarded after
+# generation because Node does not implement that service.
 WIRE_IMAGE := wire/wire.binpb
-WIRE_EXCLUDE :=
+WIRE_EXCLUDE := --exclude-path cortex
 
 .PHONY: all help build install test test-unit test-race test-cover bench vet lint lint-fix proto-go proto-gen proto-deps proto-event-check proto-wire-check clean version check-split
 
@@ -128,6 +127,11 @@ proto-go:
 		if [ -d $$internal_dir ] && ls $$internal_dir/*.go >/dev/null 2>&1; then \
 			mkdir -p x/hub/internal/types; \
 			cp $$internal_dir/*.go x/hub/internal/types/; \
+		fi; \
+		internal_dir=github.com/TrueOpen/node/x/task/internal/types; \
+		if [ -d $$internal_dir ] && ls $$internal_dir/*.go >/dev/null 2>&1; then \
+			mkdir -p x/task/internal/types; \
+			cp $$internal_dir/*.go x/task/internal/types/; \
 		fi; \
 		rm -rf github.com; \
 	fi

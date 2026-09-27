@@ -36,7 +36,7 @@ func TestTaskGasReimbursementBatchSplitsPoolsAndUpdatesEachBudget(t *testing.T) 
 	require.NoError(t, f.keeper.ApplyTaskGasReimbursementIntents(ctx, txHash[:], feePayer, 5, 5))
 
 	for index, taskID := range tasks {
-		receipt, err := f.keeper.TaskGasReimbursement.Get(ctx,
+		receipt, err := f.keeper.ReadGasReimbursement(ctx,
 			types.NewTaskGasReimbursementKey(types.NewTaskKey(taskID), txHash[:], uint32(index)))
 		require.NoError(t, err)
 		require.Equal(t, shared.NewAmount(2), receipt.ReimbursedAmount)
@@ -76,7 +76,7 @@ func TestTaskGasReimbursementBatchItemsOnOneTaskDebitSequentially(t *testing.T) 
 	require.NoError(t, f.keeper.ApplyTaskGasReimbursementIntents(ctx, txHash[:], feePayer, 5, 5))
 
 	for index := uint32(0); index < 2; index++ {
-		receipt, err := f.keeper.TaskGasReimbursement.Get(ctx,
+		receipt, err := f.keeper.ReadGasReimbursement(ctx,
 			types.NewTaskGasReimbursementKey(types.NewTaskKey(taskID), txHash[:], index))
 		require.NoError(t, err)
 		require.Equal(t, shared.NewAmount(2), receipt.ReimbursedAmount)
@@ -122,7 +122,7 @@ func TestTaskGasReimbursementPerTxCapBoundsTheWholeBatch(t *testing.T) {
 
 	total := uint64(0)
 	for index, taskID := range tasks {
-		receipt, err := f.keeper.TaskGasReimbursement.Get(ctx,
+		receipt, err := f.keeper.ReadGasReimbursement(ctx,
 			types.NewTaskGasReimbursementKey(types.NewTaskKey(taskID), txHash[:], uint32(index)))
 		require.NoError(t, err)
 		amount, err := shared.ParseAmount(receipt.ReimbursedAmount)

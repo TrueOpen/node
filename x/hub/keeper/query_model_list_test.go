@@ -1,7 +1,9 @@
 package keeper_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,7 +29,7 @@ func TestAllHubModelIDQueriesRejectUnsafeIDs(t *testing.T) {
 	f := initFixture(t)
 	queryServer := keeper.NewQueryServerImpl(f.keeper)
 
-	for _, modelID := range []string{"model/id", "model.id", "model?id", "model#id", "model%2Fid"} {
+	for _, modelID := range [][]byte{nil, []byte("short"), bytes.Repeat([]byte{0x01}, 31), bytes.Repeat([]byte{0x01}, 33)} {
 		_, err := queryServer.Model(f.ctx, &types.QueryModelRequest{ModelId: modelID})
 		require.Equal(t, codes.InvalidArgument, status.Code(err), modelID)
 		_, err = queryServer.Profile(f.ctx, &types.QueryProfileRequest{ModelId: modelID, ProfileVersion: 1})
@@ -35,9 +37,9 @@ func TestAllHubModelIDQueriesRejectUnsafeIDs(t *testing.T) {
 		// ModelProfile (the deleted §16.3 alias) and ModelCapability (renamed to
 		// the profile-scoped ProfileCapability) are gone; ProfileCapability is
 		// the surviving node-level capability query and must reject the same IDs.
-		_, err = queryServer.ProfileCapability(f.ctx, &types.QueryProfileCapabilityRequest{OperatorAddress: hubAddress(t, 240), ModelId: modelID, ProfileVersion: 1})
+		_, err = queryServer.ModelCapability(f.ctx, &types.QueryModelCapabilityRequest{OperatorAddress: hubAddress(t, 240), ModelId: modelID})
 		require.Equal(t, codes.InvalidArgument, status.Code(err), modelID)
-		_, err = queryServer.ModelSupport(f.ctx, &types.QueryModelSupportRequest{OperatorAddress: hubAddress(t, 240), ModelId: modelID, ProfileVersion: 1})
+		_, err = queryServer.ModelSupport(f.ctx, &types.QueryModelSupportRequest{OperatorAddress: hubAddress(t, 240), ModelId: modelID})
 		require.Equal(t, codes.InvalidArgument, status.Code(err), modelID)
 		_, err = queryServer.FreezeSignals(f.ctx, &types.QueryFreezeSignalsRequest{
 			ModelId: modelID, ProfileVersion: 1, Status: types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_OPEN,
@@ -62,8 +64,12 @@ func TestQueryProfileReturnsTypedEvidenceSchema(t *testing.T) {
 	require.Equal(t, shared.EvidenceSchemaVersionV1, response.Profile.VerificationProfile.EvidenceSchema.SchemaVersion)
 	require.Equal(t, []shared.InferEvidenceRequirementV1{{
 		EvidenceKind:            shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
-		CommitmentSchemaVersion: shared.WorkerValueCommitmentSchemaVersionV2,
+		CommitmentSchemaVersion: shared.WorkerValueCommitmentSchemaVersionV3,
 		MaxEncodedSizeBytes:     1 << 30,
+	}, {
+		EvidenceKind:            shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
+		CommitmentSchemaVersion: 1,
+		MaxEncodedSizeBytes:     1 << 26,
 	}}, response.Profile.VerificationProfile.EvidenceSchema.RequiredInferEvidence)
 
 	originalEvidenceHash := append([]byte(nil), profile.VerificationProfile.EvidenceSchemaHash...)
@@ -86,6 +92,8 @@ func TestQueryProfileReturnsTypedEvidenceSchema(t *testing.T) {
 
 func TestQueryModelListsGatewayContract(t *testing.T) {
 	f, queryServer := newModelListQueryFixture(t)
+	modelPath := base64.URLEncoding.EncodeToString(testModelID(testHubChainID, hubAddress(t, 240), "model-a"))
+	missingPath := base64.URLEncoding.EncodeToString(bytes.Repeat([]byte{0xff}, 32))
 	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &gateway.JSONPb{
 		OrigName:     true,
 		EmitDefaults: true,
@@ -98,7 +106,7 @@ func TestQueryModelListsGatewayContract(t *testing.T) {
 	for path, expectedStatus := range map[string]int{
 		"/TrueOpen/hub/v1/profiles?model_id=model-a":  http.StatusNotFound,
 		"/TrueOpen/hub/v1/model/model-a/profile/1":    http.StatusNotFound,
-		"/TrueOpen/hub/v1/model_capability/model-a/1": http.StatusNotFound,
+		"/TrueOpen/hub/v1/profile_capability/model-a/1": http.StatusNotFound,
 		"/TrueOpen/hub/v1/model/model%2Fbad":          http.StatusNotFound,
 	} {
 		request := httptest.NewRequest(http.MethodGet, path, nil).WithContext(f.ctx)
@@ -111,12 +119,12 @@ func TestQueryModelListsGatewayContract(t *testing.T) {
 	// `?status=ACTIVE` is an unknown query parameter rather than a route: the
 	// gateway ignores it, so it must not read as a supported status filter.
 	for path, expectedStatus := range map[string]int{
-		"/TrueOpen/hub/v1/models":               http.StatusOK,
-		"/TrueOpen/hub/v1/models?status=ACTIVE": http.StatusOK,
-		"/TrueOpen/hub/v1/model/model-a":        http.StatusOK,
-		"/TrueOpen/hub/v1/profile/model-a/1":    http.StatusOK,
-		"/TrueOpen/hub/v1/model/missing-model":  http.StatusNotFound,
-		"/TrueOpen/hub/v1/profile/model-a/99":   http.StatusNotFound,
+		"/TrueOpen/hub/v1/models":                       http.StatusOK,
+		"/TrueOpen/hub/v1/models?status=ACTIVE":         http.StatusOK,
+		"/TrueOpen/hub/v1/model/" + modelPath:           http.StatusOK,
+		"/TrueOpen/hub/v1/profile/" + modelPath + "/1":  http.StatusOK,
+		"/TrueOpen/hub/v1/model/" + missingPath:         http.StatusNotFound,
+		"/TrueOpen/hub/v1/profile/" + modelPath + "/99": http.StatusNotFound,
 	} {
 		request := httptest.NewRequest(http.MethodGet, path, nil).WithContext(f.ctx)
 		response := httptest.NewRecorder()
@@ -136,7 +144,7 @@ func TestModelAndProfileStatusTransitionsWritePrimaryState(t *testing.T) {
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
 	proposer := hubAddress(t, 240)
 	model := modelListState("model-transition", types.ModelStatusRegistered, proposer, 1)
-	profile := mustTestProfileState(model.ModelId, proposer, 1, testServiceBondMinInitial, 1)
+	profile := mustTestProfileState("model-transition", proposer, 1, testServiceBondMinInitial, 1)
 	profile.Status = types.ModelStatusRegistered
 	putModelListState(t, f, model)
 	putProfileListState(t, f, profile)
@@ -162,9 +170,9 @@ func TestGovernanceStatusMessagesEnforceSourceAndReason(t *testing.T) {
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(10))
 	proposer := hubAddress(t, 242)
 	model := modelListState("model-governance", types.ModelStatusRegistered, proposer, 1)
-	profile := mustTestProfileState(model.ModelId, proposer, 1, testServiceBondMinInitial, 1)
+	profile := mustTestProfileState("model-governance", proposer, 1, testServiceBondMinInitial, 1)
 	profile.Status = types.ModelStatusRegistered
-	profile.StatusSource = types.ProfileStatusSourceAutoSupport
+	profile.StatusSource = types.ProfileStatusSourceGovernance
 	putModelListState(t, f, model)
 	putProfileListState(t, f, profile)
 
@@ -229,7 +237,7 @@ func TestGovernanceStatusMessagesEnforceSourceAndReason(t *testing.T) {
 	require.Equal(t, types.ModelStatusRegistered, profileResponse.NewStatus)
 	storedProfile, err := f.keeper.GetProfile(f.ctx, model.ModelId, profile.ProfileVersion)
 	require.NoError(t, err)
-	require.Equal(t, types.ProfileStatusSourceAutoSupport, storedProfile.StatusSource)
+	require.Equal(t, types.ProfileStatusSourceGovernance, storedProfile.StatusSource)
 
 	storedProfile.Status = types.ModelStatusEmergencyFrozen
 	storedProfile.StatusSource = types.ProfileStatusSourceEmergency
@@ -270,10 +278,10 @@ func newModelListQueryFixture(t *testing.T) (*fixture, types.QueryServer) {
 		profileVersion uint32
 		status         types.ModelProfileStatus
 	}{
-		{modelID: "model-a", profileVersion: 1, status: types.ModelStatusActive},
+		{modelID: "model-a", profileVersion: 1, status: types.ModelStatusRegistered},
 		{modelID: "model-a", profileVersion: 2, status: types.ModelStatusRegistered},
 		{modelID: "model-a", profileVersion: 10, status: types.ModelStatusFrozen},
-		{modelID: "model-b", profileVersion: 1, status: types.ModelStatusActive},
+		{modelID: "model-b", profileVersion: 1, status: types.ModelStatusRegistered},
 	}
 	for _, seed := range profiles {
 		profile := mustTestProfileState(seed.modelID, proposer, seed.profileVersion, testServiceBondMinInitial, 1)
@@ -287,7 +295,10 @@ func newModelListQueryFixture(t *testing.T) (*fixture, types.QueryServer) {
 
 func modelListState(modelID string, state types.ModelProfileStatus, proposer string, latestProfileVersion uint32) types.ModelState {
 	return types.ModelState{
-		ModelId:              modelID,
+		ModelId:              testModelID(testHubChainID, proposer, modelID),
+		Provider:             "HUGGINGFACE",
+		RepoId:               "trueopen/" + modelID,
+		SupportMinStake:      testServiceBondMinInitial,
 		LatestProfileVersion: latestProfileVersion,
 		Status:               state,
 		StatusSource:         modelStatusSourceForTest(state),
@@ -301,7 +312,7 @@ func modelListState(modelID string, state types.ModelProfileStatus, proposer str
 func modelStatusSourceForTest(status types.ModelProfileStatus) types.ModelStatusSource {
 	switch status {
 	case types.ModelStatusRegistered, types.ModelStatusActive:
-		return types.ModelStatusSourceAutoProfile
+		return types.ModelStatusSourceAutoSupport
 	case types.ModelStatusEmergencyFrozen:
 		return types.ModelStatusSourceEmergency
 	default:
@@ -312,7 +323,7 @@ func modelStatusSourceForTest(status types.ModelProfileStatus) types.ModelStatus
 func profileStatusSourceForTest(status types.ModelProfileStatus) types.ProfileStatusSource {
 	switch status {
 	case types.ModelStatusRegistered, types.ModelStatusActive:
-		return types.ProfileStatusSourceAutoSupport
+		return types.ProfileStatusSourceGovernance
 	case types.ModelStatusEmergencyFrozen:
 		return types.ProfileStatusSourceEmergency
 	default:

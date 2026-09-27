@@ -1,0 +1,23 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BridgeBootstrapStoreState stores optional account addresses as codec bytes.
+message BridgeBootstrapStoreState {
+  int32 mode = 1;
+  bool has_message_id = 2;
+  bytes message_id = 3;
+  bool has_route_id = 4;
+  bytes route_id = 5;
+  bool has_recipient = 6;
+  bytes recipient = 7;
+  bool has_amount = 8;
+  string amount_atomic_units = 9;
+  bool has_fee_payer = 10;
+  bytes fee_payer = 11;
+  bool has_max_gas = 12;
+  uint64 max_gas = 13;
+  bool has_consumed_height = 14;
+  uint64 consumed_height = 15;
+}

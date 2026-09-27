@@ -24,7 +24,7 @@ import (
 
 type taskBucketGenesisHubStub struct {
 	stubHubKeeper
-	refCount      uint64
+	refCount      uint32
 	missingBucket bool
 }
 

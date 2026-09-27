@@ -3,7 +3,9 @@ package keeper
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -36,23 +38,13 @@ import (
 // different Task states, and the test walks them in that order - tag 3 first,
 // then the receipt, then tag 2 - because the same envelope must stop being a
 // WRONG_STAGE fault the moment the prerequisite exists.
-const (
-	builderEvidenceEnvelopeAHex = "08011201631a55747275656f70656e2e7665726966792e6f70656e2e3131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313120052802322f747275656f70656e31776c746d6b7036637076756c68397961377a30686877306370677773767364636364356d616e380142016d4a2000000000000000000000000000000000000000000000000000000000000000005001580260056ac0010a201111111111111111111111111111111111111111111111111111111111111111122022222222222222222222222222222222222222222222222222222222222222221a016d20012a203333333333333333333333333333333333333333333333333333333333333333322044444444444444444444444444444444444444444444444444444444444444443a2f747275656f70656e316a37723675386e77767739336c3274633077643735763037767538396c78796671663866757440017220f480d0ceb9f4ea4c4e71782c68f658bc52bb3a688ef9195354ce50d29f86b4887a402500b47afe78c9988560fd2631eed80f32250a15ceff653b454e158a3a5348981deec6c1825a4ee97cfde880c442f2872e8fb2a6aea7ec7725252f3f1bad47ae"
-	builderEvidenceEnvelopeBHex = "08011201631a55747275656f70656e2e7665726966792e6f70656e2e3131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313120052802322f747275656f70656e31776c746d6b7036637076756c68397961377a30686877306370677773767364636364356d616e380142016d4a2000000000000000000000000000000000000000000000000000000000000000005001580260056ac0010a201111111111111111111111111111111111111111111111111111111111111111122022222222222222222222222222222222222222222222222222222222222222221a016d20012a203333333333333333333333333333333333333333333333333333333333333333322055555555555555555555555555555555555555555555555555555555555555553a2f747275656f70656e316a37723675386e77767739336c3274633077643735763037767538396c787966716638667574400172206d8b6166cc7e2c86868bccd393f38aec56e2b94547f6f093d5c2c6cdce5461f07a40fca7cf7fcdc19030c7f624fe5a72d644dbd06c537dd4b83295bc1d307298cecc7d3c919eafb151792af66174edbce6e1c0fbb869678f02813061dae571d81234"
-
-	builderEvidenceSigningDigestAHex = "b2af1c1eedbac2e4f485d0d6ecb30ab38fa60514fb9c418444ab56249fb42308"
-	builderEvidenceSigningDigestBHex = "c1a710f675c939831419a4c0bdb5a553cc3072c3de3bd1645c60a10a53863b5a"
-
-	builderEvidenceEquivocationDigestHex     = "97334840b80ec03254bfbc036f41863584b815bf92b13778e90d75275061bdf2"
-	builderEvidenceEquivocationEvidenceIDHex = "0ac34327349a5e2cb6bca4715f71d6b6f9e8a31b7ddc496e6d62c12105064829"
-	builderEvidenceEquivocationFaultIDHex    = "e3221cd50bce83b35f2de8175d6fae77a7866071af537f82d39b74e677a2db43"
-
-	builderEvidenceInvalidStageDigestHex     = "4ba385dbd23479fc4d3520a5022dc76eb534abfcff8728943058fd13691c68b3"
-	builderEvidenceInvalidStageEvidenceIDHex = "e48a1f0bc87a84e5555bd5b203a60ebd56d48a72e5f2d9e3badb632f70c6415e"
-	builderEvidenceInvalidStageFaultIDHex    = "5ad4c58981863765a16ff9f4dcfeecc5d6c18ca9c444fc448ad612a7a64a22e3"
-)
 
 func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
+	fixture := loadBuilderEvidenceRC2Fixture(t)
+	envelopeVectorA := fixture.envelope(t, "envelope_a")
+	envelopeVectorB := fixture.envelope(t, "envelope_b")
+	equivocationVector := fixture.linkedCase(t, "proposal equivocation")
+	invalidStageVector := fixture.linkedCase(t, "invalid stage submission")
 	f := newVerificationFixture(t)
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithChainID("c"))
 	taskID := bytes.Repeat([]byte{0x11}, types.Hash32Len)
@@ -71,25 +63,25 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 	f.taskID, f.taskKey = taskID, taskKey
 	f.setTaskBuilders(t, canonicalBuilder)
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{
-		TaskId: taskID, AcceptedTaskHash: taskHash, ModelId: "m",
+		TaskId: taskID, AcceptedTaskHash: taskHash, ModelId: bytes.Repeat([]byte{0x55}, types.Hash32Len),
 		TaskPhase: types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
 	}))
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: taskID, WinnerWorker: canonicalWorker,
 	}))
 
-	envelopeA := mustDecodeBuilderEvidenceHex(t, builderEvidenceEnvelopeAHex)
-	envelopeB := mustDecodeBuilderEvidenceHex(t, builderEvidenceEnvelopeBHex)
+	envelopeA := mustDecodeBuilderEvidenceHex(t, envelopeVectorA.EnvelopeBytes)
+	envelopeB := mustDecodeBuilderEvidenceHex(t, envelopeVectorB.EnvelopeBytes)
 
 	// The linkage being proved is that this keeper's own envelope verification
 	// reproduces the published bus_signing_digest, because every canonical
 	// evidence digest below is derived from it and from nothing else.
 	verifiedA, err := f.keeper.verifyBuilderEvidenceEnvelope(f.ctx, "c", envelopeA)
 	require.NoError(t, err)
-	require.Equal(t, builderEvidenceSigningDigestAHex, hex.EncodeToString(verifiedA.SigningDigest[:]))
+	require.Equal(t, envelopeVectorA.BusSigningDigest, hex.EncodeToString(verifiedA.SigningDigest[:]))
 	verifiedB, err := f.keeper.verifyBuilderEvidenceEnvelope(f.ctx, "c", envelopeB)
 	require.NoError(t, err)
-	require.Equal(t, builderEvidenceSigningDigestBHex, hex.EncodeToString(verifiedB.SigningDigest[:]))
+	require.Equal(t, envelopeVectorB.BusSigningDigest, hex.EncodeToString(verifiedB.SigningDigest[:]))
 
 	// tag 3, against a Task with no accepted InferReceipt: the missing receipt is
 	// the missing stage prerequisite, so the envelope carries the asserted
@@ -101,9 +93,9 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, shared.BuilderEvidenceKind_BUILDER_EVIDENCE_KIND_INVALID_STAGE_SUBMISSION, invalidFact.EvidenceKind)
-	require.Equal(t, builderEvidenceInvalidStageDigestHex, hex.EncodeToString(invalidFact.CanonicalEvidenceDigest))
+	require.Equal(t, invalidStageVector.CanonicalEvidenceDigest, hex.EncodeToString(invalidFact.CanonicalEvidenceDigest))
 	requireBuilderEvidenceIdentities(t, invalidFact,
-		builderEvidenceInvalidStageEvidenceIDHex, builderEvidenceInvalidStageFaultIDHex)
+		invalidStageVector.EvidenceID, invalidStageVector.FaultID)
 
 	_, err = f.keeper.canonicalBuilderEquivocation(f.ctx, "c", bus.SignedEnvelopeEquivocationV2{
 		EnvelopeA: envelopeA, EnvelopeB: envelopeB,
@@ -112,14 +104,14 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 
 	// The accepted InferReceipt is the prerequisite the round announced. With it
 	// in place both envelopes hold Task authority and tag 2 is reachable.
-	require.NoError(t, f.keeper.InferReceipt.Set(f.ctx, taskKey, types.InferReceiptState{
+	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, taskKey, types.InferReceiptState{
 		TaskId: taskID, WinnerWorker: canonicalWorker,
 	}))
 	equivocationDigest, err := bus.EquivocationDigest(bus.EquivocationContent{
 		DigestA: verifiedA.SigningDigest[:], DigestB: verifiedB.SigningDigest[:],
 	})
 	require.NoError(t, err)
-	require.Equal(t, builderEvidenceEquivocationDigestHex, hex.EncodeToString(equivocationDigest[:]))
+	require.Equal(t, equivocationVector.CanonicalEvidenceDigest, hex.EncodeToString(equivocationDigest[:]))
 	swappedDigest, err := bus.EquivocationDigest(bus.EquivocationContent{
 		DigestA: verifiedB.SigningDigest[:], DigestB: verifiedA.SigningDigest[:],
 	})
@@ -133,9 +125,9 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 	require.Equal(t, shared.BuilderEvidenceKind_BUILDER_EVIDENCE_KIND_PROPOSAL_EQUIVOCATION, equivocationFact.EvidenceKind)
 	require.Equal(t, canonicalBuilder, equivocationFact.BuilderOperator)
 	require.Equal(t, taskID, equivocationFact.ScopeId)
-	require.Equal(t, builderEvidenceEquivocationDigestHex, hex.EncodeToString(equivocationFact.CanonicalEvidenceDigest))
+	require.Equal(t, equivocationVector.CanonicalEvidenceDigest, hex.EncodeToString(equivocationFact.CanonicalEvidenceDigest))
 	requireBuilderEvidenceIdentities(t, equivocationFact,
-		builderEvidenceEquivocationEvidenceIDHex, builderEvidenceEquivocationFaultIDHex)
+		equivocationVector.EvidenceID, equivocationVector.FaultID)
 
 	// The published pair is order-free at the entry point, not only at the digest
 	// helper, so the submitter cannot mint a second fault by swapping arguments.
@@ -179,4 +171,69 @@ func mustDecodeBuilderEvidenceHex(t *testing.T, value string) []byte {
 	raw, err := hex.DecodeString(value)
 	require.NoError(t, err)
 	return raw
+}
+
+type builderEvidenceRC2Fixture struct {
+	BuilderEvidence struct {
+		Envelopes []struct {
+			Name             string `json:"name"`
+			EnvelopeBytes    string `json:"envelope_bytes"`
+			BusSigningDigest string `json:"bus_signing_digest"`
+		} `json:"envelopes"`
+		LinkedCases []struct {
+			Name                    string `json:"name"`
+			CanonicalEvidenceDigest string `json:"canonical_evidence_digest"`
+			EvidenceID              string `json:"evidence_id"`
+			FaultID                 string `json:"fault_id"`
+		} `json:"linked_cases"`
+	} `json:"builder_evidence"`
+}
+
+func loadBuilderEvidenceRC2Fixture(t *testing.T) builderEvidenceRC2Fixture {
+	t.Helper()
+	raw, err := os.ReadFile("testdata/bus_envelope_v2_vectors.json")
+	require.NoError(t, err)
+	var fixture builderEvidenceRC2Fixture
+	require.NoError(t, json.Unmarshal(raw, &fixture))
+	return fixture
+}
+
+func (f builderEvidenceRC2Fixture) envelope(t *testing.T, name string) struct {
+	Name             string `json:"name"`
+	EnvelopeBytes    string `json:"envelope_bytes"`
+	BusSigningDigest string `json:"bus_signing_digest"`
+} {
+	t.Helper()
+	for _, envelope := range f.BuilderEvidence.Envelopes {
+		if envelope.Name == name {
+			return envelope
+		}
+	}
+	t.Fatalf("missing RC2 Bus envelope %q", name)
+	return struct {
+		Name             string `json:"name"`
+		EnvelopeBytes    string `json:"envelope_bytes"`
+		BusSigningDigest string `json:"bus_signing_digest"`
+	}{}
+}
+
+func (f builderEvidenceRC2Fixture) linkedCase(t *testing.T, name string) struct {
+	Name                    string `json:"name"`
+	CanonicalEvidenceDigest string `json:"canonical_evidence_digest"`
+	EvidenceID              string `json:"evidence_id"`
+	FaultID                 string `json:"fault_id"`
+} {
+	t.Helper()
+	for _, linked := range f.BuilderEvidence.LinkedCases {
+		if linked.Name == name {
+			return linked
+		}
+	}
+	t.Fatalf("missing RC2 Bus linked case %q", name)
+	return struct {
+		Name                    string `json:"name"`
+		CanonicalEvidenceDigest string `json:"canonical_evidence_digest"`
+		EvidenceID              string `json:"evidence_id"`
+		FaultID                 string `json:"fault_id"`
+	}{}
 }

@@ -74,7 +74,7 @@ func (k Keeper) ProcessRoleFaultPrunes(ctx context.Context, currentHeight, limit
 
 func (k Keeper) processRoleFaultPrune(ctx context.Context, key types.RoleFaultPruneKey, currentHeight, retention uint64) error {
 	faultID := key.K2()
-	state, err := k.RoleFault.Get(ctx, faultID)
+	state, err := k.ReadRoleFaultValue(ctx, faultID)
 	if errors.Is(err, collections.ErrNotFound) {
 		return k.RoleFaultPruneIndex.Remove(ctx, key)
 	}

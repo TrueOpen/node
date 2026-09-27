@@ -28,7 +28,7 @@ func (q *queryServer) Task(ctx context.Context, req *types.QueryTaskRequest) (*t
 	core, err := q.k.TaskCore.Get(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
-			summary, summaryErr := q.k.TaskTerminalSummary.Get(ctx, taskKey)
+			summary, summaryErr := q.k.ReadTaskTerminalSummary(ctx, taskKey)
 			if errors.Is(summaryErr, collections.ErrNotFound) {
 				return nil, status.Error(codes.NotFound, "task not found")
 			}
@@ -48,7 +48,7 @@ func (q *queryServer) Task(ctx context.Context, req *types.QueryTaskRequest) (*t
 		return nil, status.Error(codes.Internal, "task_core primary key does not match task_id")
 	}
 	bundle := &types.TaskActiveBundleV1{Core: core}
-	assignment, err := q.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
 	if err == nil {
 		view := taskAssignmentView(core, assignment)
 		bundle.Assignment = &view
@@ -97,12 +97,15 @@ func (q *queryServer) EpochTaskSummary(ctx context.Context, req *types.QueryEpoc
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
+	if req.Epoch == 0 {
+		return nil, status.Error(codes.InvalidArgument, "epoch must be positive")
+	}
 	receipt, err := q.k.EpochTaskSummaryReceipt.Get(ctx, req.Epoch)
 	if err == nil {
 		if receipt.Epoch != req.Epoch || len(receipt.ReceiptHash) != types.Hash32Len {
 			return nil, status.Error(codes.Internal, "epoch task summary receipt is non-canonical")
 		}
-		return &types.QueryEpochTaskSummaryResponse{Value: &types.QueryEpochTaskSummaryResponse_Receipt{Receipt: &receipt}}, nil
+		return &types.QueryEpochTaskSummaryResponse{Receipt: receipt}, nil
 	}
 	if !errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -112,7 +115,7 @@ func (q *queryServer) EpochTaskSummary(ctx context.Context, req *types.QueryEpoc
 		if cursor.Epoch != req.Epoch || len(cursor.RunningRoot) != types.Hash32Len {
 			return nil, status.Error(codes.Internal, "epoch task summary cursor is non-canonical")
 		}
-		return &types.QueryEpochTaskSummaryResponse{Value: &types.QueryEpochTaskSummaryResponse_Running{Running: &cursor}}, nil
+		return nil, status.Error(codes.FailedPrecondition, "epoch task summary is still running")
 	}
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "epoch task summary not found")
@@ -195,7 +198,7 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 		core.VerificationStatus == types.VerificationStatus_VERIFICATION_STATUS_VERIFY_FAILED {
 		return q.nextChallengeWindowDeadline(ctx, taskKey, core)
 	}
-	assignment, err := q.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return 0, 0, false, nil
@@ -335,7 +338,7 @@ func (q *queryServer) nextChallengeWindowDeadline(
 	if openHeight == 0 || closeHeight <= openHeight {
 		return 0, 0, false, errors.New("round 1 challenge window is invalid")
 	}
-	round, err := q.k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	round, err := q.k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil {
 		return 0, 0, false, err
 	}
@@ -437,7 +440,7 @@ func (q *queryServer) TaskAssignment(ctx context.Context, req *types.QueryTaskAs
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	assignment, err := q.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "task assignment not found")
@@ -464,6 +467,7 @@ func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmen
 		AssignmentStatus:             core.AssignmentStatus,
 		WorkerInferTimeoutSlashBps:   assignment.WorkerInferTimeoutSlashBps,
 		ResultRevealMissingSlashBps:  assignment.ResultRevealMissingSlashBps,
+		MinStakeSnapshot:             assignment.MinStakeSnapshot,
 	}
 	if assignment.WinnerWorker != "" {
 		view.XWinnerWorker = &types.TaskAssignmentViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}
@@ -494,7 +498,7 @@ func (q *queryServer) AssignmentRandomness(ctx context.Context, req *types.Query
 	if err != nil {
 		return nil, err
 	}
-	assignment, err := q.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "task assignment not found")
@@ -581,7 +585,7 @@ func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuil
 	if err != nil {
 		return nil, err
 	}
-	selection, err := q.k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := q.k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "task builder selection not found")

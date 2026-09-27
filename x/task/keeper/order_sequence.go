@@ -18,7 +18,7 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 	if err != nil {
 		return err
 	}
-	stream, err := k.Stream.Get(ctx, sessionKey)
+	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return errorsmod.Wrap(types.ErrInvalidSessionID, "session not found")

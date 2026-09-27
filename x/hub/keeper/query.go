@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 const (
@@ -60,12 +61,19 @@ func validateTaskScope(sessionID, taskID string) error {
 	return nil
 }
 
-func validateModelProfileQueryScope(modelID string, profileVersion uint32) (string, uint32, error) {
+func validateModelProfileQueryScope(modelID []byte, profileVersion uint32) ([]byte, uint32, error) {
 	if profileVersion == 0 {
-		return "", 0, fmt.Errorf("model_id and profile_version are required")
+		return nil, 0, fmt.Errorf("model_id and profile_version are required")
 	}
-	if err := types.ValidateModelID(modelID); err != nil {
-		return "", 0, err
+	if err := validateModelQueryID(modelID); err != nil {
+		return nil, 0, err
 	}
 	return modelID, profileVersion, nil
+}
+
+func validateModelQueryID(modelID []byte) error {
+	if len(modelID) != shared.Hash32KeySize {
+		return fmt.Errorf("model_id must be raw Hash32")
+	}
+	return nil
 }

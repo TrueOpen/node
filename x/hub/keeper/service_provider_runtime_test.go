@@ -56,8 +56,8 @@ func TestCurrentServiceAddressInvariantRejectsCrossParticipantReuse(t *testing.T
 		CurrentDescriptorVersion: 1, RegisteredHeight: 1,
 	}
 	require.NoError(t, builder.Validate())
-	require.NoError(t, f.keeper.Builder.Set(f.ctx, builderOperator, builder))
-	require.NoError(t, f.keeper.CurrentServiceAddressIndex.Set(
+	require.NoError(t, f.keeper.StoreBuilder(f.ctx, builderOperator, builder))
+	require.NoError(t, f.keeper.StoreCurrentServiceAddressIndex(
 		f.ctx,
 		types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, service.Address),
 		types.CurrentServiceAddressIndexState{OperatorAddress: builderOperator, ServiceAuthorizationNonce: 1},

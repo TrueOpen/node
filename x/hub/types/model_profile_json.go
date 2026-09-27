@@ -31,11 +31,28 @@ type modelProfileJSON struct {
 	ResourceTier            uint32                         `json:"resource_tier"`
 	RuntimeClass            string                         `json:"runtime_class"`
 	SchemaHash              string                         `json:"schema_hash"`
+	Source                  modelProfileSourceJSON         `json:"source"`
+	ToolCallParser          modelProfileParserJSON         `json:"tool_call_parser"`
+	ReasoningParser         modelProfileParserJSON         `json:"reasoning_parser"`
 	TaskTypes               []string                       `json:"task_types"`
 	TimeoutBootstrapProfile shared.TimeoutBootstrapProfile `json:"timeout_bootstrap_profile"`
 	TokenizerHash           string                         `json:"tokenizer_hash"`
 	VerificationProfile     modelProfileVerificationJSON   `json:"verification_profile"`
 	VerificationThresholds  shared.VerificationThresholds  `json:"verification_thresholds"`
+}
+
+type modelProfileSourceJSON struct {
+	Provider        string `json:"provider"`
+	SourceURI       string `json:"source_uri"`
+	Revision        string `json:"revision"`
+	ResolverVersion string `json:"resolver_version"`
+	RepoID          string `json:"repo_id"`
+	RepoType        string `json:"repo_type"`
+}
+
+type modelProfileParserJSON struct {
+	Name    string `json:"name"`
+	Version uint32 `json:"version"`
 }
 
 type modelProfileCoinJSON struct {
@@ -121,6 +138,10 @@ func ParseModelProfileProjectionJSON(data []byte) (shared.ModelProfileProjection
 	if err != nil {
 		return shared.ModelProfileProjection{}, err
 	}
+	modelID, err := decodeModelProfileHash("model_id", input.ModelID, false)
+	if err != nil {
+		return shared.ModelProfileProjection{}, err
+	}
 	if err := sdk.ValidateDenom(input.MinStake.Denom); err != nil {
 		return shared.ModelProfileProjection{}, fmt.Errorf("min_stake denom is invalid: %w", err)
 	}
@@ -167,7 +188,7 @@ func ParseModelProfileProjectionJSON(data []byte) (shared.ModelProfileProjection
 	}
 
 	return shared.ModelProfileProjection{
-		ModelId: input.ModelID, ProfileVersion: input.ProfileVersion,
+		ModelId: modelID, ProfileVersion: input.ProfileVersion,
 		ManifestHash: manifestHash, TokenizerHash: tokenizerHash, RuntimeClass: input.RuntimeClass,
 		RequiredTopK: input.RequiredTopK, TaskTypes: taskTypes, GenerationType: generationType,
 		ResourceTier:              input.ResourceTier,
@@ -208,6 +229,13 @@ func ParseModelProfileProjectionJSON(data []byte) (shared.ModelProfileProjection
 		TimeoutBootstrapProfile: input.TimeoutBootstrapProfile,
 		SchemaHash:              schemaHash, PreviousProfileVersion: input.PreviousProfileVersion,
 		RegistrationFee: sdk.NewCoin(input.RegistrationFee.Denom, sdkmath.NewIntFromUint64(input.RegistrationFee.Amount)),
+		Source: shared.SourceRefV1{
+			Provider: input.Source.Provider, SourceUri: input.Source.SourceURI,
+			Revision: input.Source.Revision, ResolverVersion: input.Source.ResolverVersion,
+			RepoId: input.Source.RepoID, RepoType: input.Source.RepoType,
+		},
+		ToolCallParser:  shared.ParserRefV1{Name: input.ToolCallParser.Name, Version: input.ToolCallParser.Version},
+		ReasoningParser: shared.ParserRefV1{Name: input.ReasoningParser.Name, Version: input.ReasoningParser.Version},
 	}, nil
 }
 
@@ -281,7 +309,7 @@ func validateModelProfileJSONShape(data []byte) error {
 		"batch_verification", "challenge_open_window_blocks", "generation_type",
 		"manifest_hash", "min_stake", "model_id", "previous_profile_version",
 		"pricing_profile", "profile_version", "registration_fee", "required_top_k", "resource_tier",
-		"runtime_class", "schema_hash", "task_types", "timeout_bootstrap_profile", "tokenizer_hash",
+		"runtime_class", "schema_hash", "source", "tool_call_parser", "reasoning_parser", "task_types", "timeout_bootstrap_profile", "tokenizer_hash",
 		"verification_profile", "verification_thresholds",
 	); err != nil {
 		return err
@@ -291,6 +319,7 @@ func validateModelProfileJSONShape(data []byte) error {
 		"min_stake":                 {"amount", "denom"},
 		"registration_fee":          {"amount", "denom"},
 		"pricing_profile":           {"initial_output_price", "min_order_value", "verify_ratio_bps"},
+		"source":                    {"provider", "source_uri", "revision", "resolver_version", "repo_id", "repo_type"},
 		"timeout_bootstrap_profile": {"bootstrap_valid_until_epoch", "commit_timeout_bootstrap_blocks", "infer_timeout_bootstrap_blocks", "verify_timeout_bootstrap_blocks"},
 		"verification_thresholds": {
 			"pass_abs_logprob_diff_p95_max", "pass_abs_logprob_diff_p99_max", "pass_max_missing_compared_count",
@@ -398,6 +427,8 @@ func parseModelProfileEvidenceKind(value string) (shared.EvidenceKind, error) {
 	switch value {
 	case "WORKER_VALUE_OPENING":
 		return shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING, nil
+	case "WORKER_TOKEN_OPENING":
+		return shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING, nil
 	case "VERIFIER_VALUE_OPENING":
 		return shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING, nil
 	case "SETTLEMENT_ROOT_OPENING":

@@ -89,7 +89,7 @@ func (k Keeper) validateActiveVerifierStage(
 		if summary.MaxClosedRound != types.VerifyRoundV1 || summary.OpenRoundCount != 1 {
 			return fmt.Errorf("challenge round summary is not open")
 		}
-		round, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+		round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 		if err != nil {
 			return fmt.Errorf("challenge round is unavailable: %w", err)
 		}
@@ -108,11 +108,11 @@ func (k Keeper) activeVerifierAssignment(
 	taskKey types.TaskKey,
 ) (uint32, types.VerifierAssignmentState, error) {
 	for _, verifyRound := range []uint32{types.ChallengeVerifyRoundV1, types.VerifyRoundV1} {
-		round, roundErr := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+		round, roundErr := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 		if roundErr == nil && round.XClosedHeight != nil {
 			continue
 		}
-		assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
+		assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 		if err == nil {
 			if err := validateVerifierAssignmentScope(assignment, taskKey, verifyRound); err != nil {
 				return 0, types.VerifierAssignmentState{}, err
@@ -153,7 +153,7 @@ func (k Keeper) closeVerificationRound(
 ) (types.VerificationRoundState, roundCloseResult, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	roundKey := types.NewVerifyRoundKey(taskKey, verifyRound)
-	round, err := k.VerificationRound.Get(ctx, roundKey)
+	round, err := k.ReadVerificationRound(ctx, roundKey)
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, fmt.Errorf("verification round %d is unavailable: %w", verifyRound, err)
 	}
@@ -164,7 +164,7 @@ func (k Keeper) closeVerificationRound(
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, fmt.Errorf("task core is unavailable: %w", err)
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, roundKey)
+	assignment, err := k.ReadVerifierAssignment(ctx, roundKey)
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, fmt.Errorf("verifier assignment is unavailable: %w", err)
 	}
@@ -232,7 +232,7 @@ func (k Keeper) collectRoundSamples(
 	cutoffHeight uint64,
 ) ([]types.VerifierSampleV1, error) {
 	taskKey := types.NewTaskKey(core.TaskId)
-	taskAssignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	taskAssignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return nil, fmt.Errorf("task assignment is unavailable: %w", err)
 	}

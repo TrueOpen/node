@@ -1,0 +1,41 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// CortexNodeStoreState keeps account addresses in codec bytes.
+message CortexNodeStoreState {
+  uint32 schema_version = 1;
+  bytes operator_address = 2;
+  bytes current_service_address = 3;
+  bytes current_service_pubkey = 4;
+  uint64 service_authorization_nonce = 5;
+  int32 service_key_status = 6;
+  uint64 current_descriptor_version = 7;
+  uint64 registered_height = 8;
+  uint64 updated_height = 9;
+  uint32 active_task_liability_count = 10;
+  uint32 pending_stage_duty_count = 11;
+  uint32 pending_evidence_submission_count = 12;
+}
+
+// BuilderStoreState keeps account addresses in codec bytes.
+message BuilderStoreState {
+  uint32 schema_version = 1;
+  bytes builder_address = 2;
+  bytes current_service_address = 3;
+  bytes current_service_pubkey = 4;
+  int32 current_service_key_status = 5;
+  uint64 service_authorization_nonce = 6;
+  uint64 current_descriptor_version = 7;
+  uint64 registered_height = 8;
+  uint32 active_task_liability_count = 9;
+  uint32 pending_stage_duty_count = 10;
+  uint32 pending_evidence_submission_count = 11;
+}
+
+// CurrentServiceAddressIndexStoreState stores the operator as codec bytes.
+message CurrentServiceAddressIndexStoreState {
+  bytes operator_address = 1;
+  uint64 service_authorization_nonce = 2;
+}

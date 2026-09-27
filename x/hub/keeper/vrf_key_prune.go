@@ -32,7 +32,7 @@ func (k Keeper) ProcessVrfKeyHistoryPrunes(ctx context.Context, currentEpoch, vi
 		cacheCtx, write := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
 		historyKey := types.NewVrfKeyHistoryKey(key.K2(), key.K3())
-		history, err := k.VrfKeyHistory.Get(cache, historyKey)
+		history, err := k.GetVrfKeyHistory(cache, historyKey)
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
 				return budget.resultWithError(errorsmod.Wrap(types.ErrInvariantBroken, "VRF key prune index references missing history"))

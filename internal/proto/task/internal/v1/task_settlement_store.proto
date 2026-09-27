@@ -1,0 +1,37 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// TaskSettlementStoreState stores the optional Worker as codec bytes.
+message TaskSettlementStoreState {
+  bytes task_id = 1;
+  bytes settlement_id = 2;
+  uint64 fee_rule_version = 3;
+  uint32 effective_verify_round = 4;
+  int32 verdict = 5;
+  int32 failure_class = 6;
+  uint64 settlement_facts_cutoff_height = 7;
+  uint64 settlement_height = 8;
+  uint64 task_finality_height = 9;
+  uint64 generated_token_count = 10;
+  uint64 work_unit = 11;
+  bool has_worker_operator_address = 12;
+  bytes worker_operator_address = 13;
+  bytes infer_receipt_ref_or_zero32 = 14;
+  string worker_gross_atomic_units = 15;
+  string worker_maintenance_atomic_units = 16;
+  string worker_net_atomic_units = 17;
+  string verifier_slot_gross_atomic_units = 18;
+  uint32 verifier_payout_count = 19;
+  uint32 gas_reimbursement_count = 20;
+  bytes gas_reimbursements_hash = 21;
+  string maintenance_fee_atomic_units = 22;
+  string refund_amount_atomic_units = 23;
+  string original_reserved_amount_atomic_units = 24;
+  bytes settlement_facts_hash = 25;
+  bytes task_round_summary_hash = 26;
+  bytes settlement_bill_hash_or_zero32 = 27;
+  bytes settlement_plan_hash = 28;
+  string gas_reimbursed_total_atomic_units = 29;
+}

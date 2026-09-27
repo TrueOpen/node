@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
+	"sort"
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
@@ -253,21 +253,29 @@ func (k Keeper) processEpochTaskSummaryStep(ctx context.Context, epoch, schedule
 		if overflow {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "epoch summary support candidate count overflow")
 		}
-		candidate := fmt.Sprintf("%s/v%d", strings.TrimSpace(summary.ModelId), summary.ProfileVersion)
-		if summary.ModelId == "" || summary.ProfileVersion == 0 {
-			return errorsmod.Wrap(types.ErrInvariantBroken, "support candidate is missing model/profile")
+		candidate := summary.ModelId
+		if len(candidate) != types.Hash32Len {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "support candidate is missing a raw model ID")
 		}
 		params, err := k.Params.Get(ctx)
 		if err != nil {
 			return err
 		}
-		if len(cursor.SupportCandidates) < int(params.Cleanup.MaxEpochTaskSummarySupportCandidates) && !containsString(cursor.SupportCandidates, candidate) {
-			prospective := shared.EpochTaskSummary{
-				Epoch: cursor.Epoch, TaskCount: cursor.TaskCount, ValidTaskCount: cursor.ValidTaskCount,
-				Histogram: cursor.Histogram, SupportCandidates: append(append([]string(nil), cursor.SupportCandidates...), candidate),
-			}
-			if uint64(prospective.Size()) <= params.Cleanup.MaxEpochTaskSummaryBytes {
-				cursor.SupportCandidates = prospective.SupportCandidates
+		if !containsModelID(cursor.SupportCandidates, candidate) {
+			if len(cursor.SupportCandidates) >= int(params.Cleanup.MaxEpochTaskSummarySupportCandidates) {
+				cursor.SupportCandidatesTruncated = true
+			} else {
+				candidates := append(copyModelIDs(cursor.SupportCandidates), append([]byte(nil), candidate...))
+				sort.Slice(candidates, func(i, j int) bool { return bytes.Compare(candidates[i], candidates[j]) < 0 })
+				prospective := shared.EpochTaskSummary{
+					Epoch: cursor.Epoch, TaskCount: cursor.TaskCount, ValidTaskCount: cursor.ValidTaskCount,
+					Histogram: cursor.Histogram, SupportCandidates: candidates,
+				}
+				if uint64(prospective.Size()) <= params.Cleanup.MaxEpochTaskSummaryBytes {
+					cursor.SupportCandidates = prospective.SupportCandidates
+				} else {
+					cursor.SupportCandidatesTruncated = true
+				}
 			}
 		}
 	}
@@ -316,7 +324,7 @@ func epochTaskSummarySourceHash(chainID string, epoch uint64, summary types.Task
 	supportCandidate := epochTaskSummaryValidTask(summary)
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainEpochTaskSummarySourceV1)).Raw(
 		[]byte(chainID), shared.Uint64BE(epoch), shared.Uint64BE(summary.SettlementHeight), summary.TaskId,
-		shared.EnumBE(uint32(summary.FailureClass)), shared.BoolByte(supportCandidate), []byte(summary.ModelId), shared.Uint32BE(summary.ProfileVersion)).Sum()
+		shared.EnumBE(uint32(summary.FailureClass)), shared.BoolByte(supportCandidate), summary.ModelId, shared.Uint32BE(summary.ProfileVersion)).Sum()
 }
 
 func epochTaskSummaryFoldHash(chainID string, epoch uint64, previousRoot, sourceHash []byte, sourceCount uint64) ([]byte, error) {
@@ -384,7 +392,7 @@ func (k Keeper) nextEpochTaskSummarySource(ctx context.Context, cursor types.Epo
 }
 
 func (k Keeper) epochTaskSummarySource(ctx context.Context, taskKey types.TaskKey) (types.TaskTerminalSummaryState, error) {
-	if summary, err := k.TaskTerminalSummary.Get(ctx, taskKey); err == nil {
+	if summary, err := k.ReadTaskTerminalSummary(ctx, taskKey); err == nil {
 		return summary, nil
 	} else if errors.Is(err, collections.ErrNotFound) {
 		return types.TaskTerminalSummaryState{}, errorsmod.Wrap(types.ErrInvariantBroken, "epoch source is missing terminal summary")
@@ -396,7 +404,7 @@ func (k Keeper) epochTaskSummarySource(ctx context.Context, taskKey types.TaskKe
 func (k Keeper) finishEpochTaskSummary(ctx context.Context, cursor types.EpochTaskSummaryCursorState, scheduledDueHeight, currentHeight uint64) error {
 	summary := shared.EpochTaskSummary{
 		Epoch: cursor.Epoch, TaskCount: cursor.TaskCount, ValidTaskCount: cursor.ValidTaskCount,
-		Histogram: append([]uint64(nil), cursor.Histogram...), SupportCandidates: append([]string(nil), cursor.SupportCandidates...),
+		Histogram: append([]uint64(nil), cursor.Histogram...), SupportCandidates: copyModelIDs(cursor.SupportCandidates),
 	}
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -410,6 +418,7 @@ func (k Keeper) finishEpochTaskSummary(ctx context.Context, cursor types.EpochTa
 		DispatchedHeight: currentHeight, Summary: summary, SourceCount: cursor.TaskCount,
 		SupportCandidateSeenCount:     cursor.SupportCandidateSeenCount,
 		RetainedSupportCandidateCount: uint32(len(cursor.SupportCandidates)), SourceRoot: append([]byte(nil), cursor.RunningRoot...),
+		SupportCandidatesTruncated: cursor.SupportCandidatesTruncated,
 	}
 	receiptHash, err := epochTaskSummaryReceiptHash(sdk.UnwrapSDKContext(ctx).ChainID(), receipt)
 	if err != nil {
@@ -443,7 +452,7 @@ func epochTaskSummaryReceiptHash(chainID string, receipt types.EpochTaskSummaryR
 	}
 	supportCandidates := make([]shared.CanonicalFieldV1, len(summary.SupportCandidates))
 	for index, candidate := range summary.SupportCandidates {
-		supportCandidates[index] = shared.RawCanonicalFieldV1([]byte(candidate))
+		supportCandidates[index] = shared.RawCanonicalFieldV1(candidate)
 	}
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainEpochTaskSummaryReceiptV1)).Raw(
 		[]byte(chainID), shared.Uint64BE(receipt.Epoch), shared.Uint64BE(receipt.StartHeight),
@@ -451,14 +460,22 @@ func epochTaskSummaryReceiptHash(chainID string, receipt types.EpochTaskSummaryR
 		shared.Uint64BE(summary.TaskCount), shared.Uint64BE(summary.ValidTaskCount),
 	).Nested(shared.CanonicalRepeatedFieldsV1(histogram)).Raw(
 		shared.Uint64BE(receipt.SupportCandidateSeenCount),
-	).Nested(shared.CanonicalRepeatedFieldsV1(supportCandidates)).Raw(receipt.SourceRoot).Sum()
+	).Nested(shared.CanonicalRepeatedFieldsV1(supportCandidates)).Raw(shared.BoolByte(receipt.SupportCandidatesTruncated), receipt.SourceRoot).Sum()
 }
 
-func containsString(values []string, target string) bool {
+func containsModelID(values [][]byte, target []byte) bool {
 	for _, value := range values {
-		if value == target {
+		if bytes.Equal(value, target) {
 			return true
 		}
 	}
 	return false
+}
+
+func copyModelIDs(values [][]byte) [][]byte {
+	result := make([][]byte, len(values))
+	for index, value := range values {
+		result[index] = append([]byte(nil), value...)
+	}
+	return result
 }

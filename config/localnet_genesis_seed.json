@@ -28,6 +28,19 @@
       "builder_fault_retention_blocks": "604800",
       "max_builder_fault_prune_items_per_block": 256
     },
+    "model": {
+      "supported_tool_call_parsers": [],
+      "supported_reasoning_parsers": [],
+      "max_supported_tool_call_parsers": 128,
+      "max_supported_reasoning_parsers": 128,
+      "max_parser_name_bytes": 64,
+      "max_provider_bytes": 32,
+      "max_source_uri_bytes": 2048,
+      "max_revision_bytes": 128,
+      "max_resolver_version_bytes": 64,
+      "max_repo_id_bytes": 255,
+      "max_repo_type_bytes": 32
+    },
     "beacon": {
       "beacon_retention_blocks": "60480",
       "beacon_checkpoint_interval_blocks": "1024",
@@ -125,22 +138,24 @@
         "atomic_units": "15000"
       },
       "max_service_bond_effective_items_per_block": 1024,
-      "task_liability_order_coverage_bps": 10000
+      "task_liability_order_coverage_bps": 10000,
+      "min_stake_grace_period_blocks": "100"
     },
     "support": {
       "support_window_epochs": 180,
       "active_supporter_min_count": 2,
-      "active_support_stake_ratio_numerator": 2,
-      "active_support_stake_ratio_denominator": 3,
+      "active_support_stake_multiple": 2,
       "active_support_stake_cap_multiplier": 3,
-      "max_supported_profiles_per_operator": 256,
+      "max_supported_models_per_operator": 256,
       "max_daily_support_confirmations_per_batch": 256,
       "max_daily_support_items_per_batch": 256,
       "max_daily_support_batch_bytes": "1048576",
       "daily_support_retention_epochs": 30,
       "model_support_row_retention_epochs": 30,
       "max_model_support_prune_items_per_block": 32,
-      "max_support_expiry_items_per_block": 32
+      "max_support_expiry_items_per_block": 32,
+      "max_model_support_recheck_items_per_block": 256,
+      "max_model_support_deactivate_items_per_block": 256
     },
     "treasury": {
       "governance_action_replay_window_blocks": "60480",
@@ -401,10 +416,10 @@
       "service_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
       "service_pubkey": "0298c2da175fd3063bd2e8156303b98a0f77df43c5ca078eaa08dc2533e829f507",
       "bond": 1000000,
-      "supported_profiles": [
+      "supported_models": [
         {
-          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
-          "profile_version": 1,
+          "model_ref": "trueopen/golden-model",
+          "first_support_profile_version": 1,
           "active": true
         }
       ]
@@ -414,10 +429,10 @@
       "service_address": "trueopen1q8fazf4duvmw5as74kgyyezdxdewahzydav3vl",
       "service_pubkey": "039832910fde7c4012d0b00e0305a2b55073e7fa6bf7670908fbf9467bbfe01849",
       "bond": 1000000,
-      "supported_profiles": [
+      "supported_models": [
         {
-          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
-          "profile_version": 1,
+          "model_ref": "trueopen/golden-model",
+          "first_support_profile_version": 1,
           "active": true
         }
       ]
@@ -427,10 +442,10 @@
       "service_address": "trueopen1zz29gdunukh0dsckd5kmete0hmnu6d0ta55vgj",
       "service_pubkey": "03ce74fda5a57435f8e7796323d65ac00a239e2b33996e45cdd72899870b387271",
       "bond": 1000000,
-      "supported_profiles": [
+      "supported_models": [
         {
-          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
-          "profile_version": 1,
+          "model_ref": "trueopen/golden-model",
+          "first_support_profile_version": 1,
           "active": true
         }
       ]
@@ -440,10 +455,10 @@
       "service_address": "trueopen13f2wj4cc90la25k5dljj4ktukp7chremmddxqv",
       "service_pubkey": "028ed93ad13ccc93e453844503fbad48e8ec02e7df22e082697dfd517c4edccada",
       "bond": 1000000,
-      "supported_profiles": [
+      "supported_models": [
         {
-          "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
-          "profile_version": 1,
+          "model_ref": "trueopen/golden-model",
+          "first_support_profile_version": 1,
           "active": true
         }
       ]
@@ -466,7 +481,16 @@
         "amount": 1000000,
         "denom": "uusdc"
       },
-      "model_id": "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b",
+      "source": {
+        "provider": "HUGGINGFACE",
+        "repo_id": "trueopen/golden-model",
+        "repo_type": "model",
+        "resolver_version": "HF_RESOLVER_V1",
+        "revision": "0123456789abcdef0123456789abcdef01234567",
+        "source_uri": "hf://trueopen/golden-model@0123456789abcdef0123456789abcdef01234567"
+      },
+      "tool_call_parser": {},
+      "reasoning_parser": {},
       "previous_profile_version": 0,
       "pricing_profile": {
         "initial_output_price": 10,
@@ -500,8 +524,13 @@
           "required_infer_evidence": [
             {
               "evidence_kind": "WORKER_VALUE_OPENING",
-              "commitment_schema_version": 2,
+              "commitment_schema_version": 3,
               "max_encoded_size_bytes": 1073741824
+            },
+            {
+              "evidence_kind": "WORKER_TOKEN_OPENING",
+              "commitment_schema_version": 1,
+              "max_encoded_size_bytes": 67108864
             }
           ]
         },

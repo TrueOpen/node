@@ -1,0 +1,24 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// ServiceEndpointStoreV1 retains a descriptor endpoint without public wire coupling.
+message ServiceEndpointStoreV1 {
+  int32 endpoint_kind = 1;
+  string uri = 2;
+  string protocol_version = 3;
+  bytes tls_pubkey_hash = 4;
+  bool has_tls_pubkey_hash = 5;
+}
+
+// ServiceDescriptorStoreState stores the operator address as codec bytes.
+message ServiceDescriptorStoreState {
+  int32 participant_type = 1;
+  bytes operator_address = 2;
+  uint64 descriptor_version = 3;
+  uint32 endpoint_count = 4;
+  repeated ServiceEndpointStoreV1 endpoints = 5;
+  bytes descriptor_hash = 6;
+  uint64 updated_height = 7;
+}

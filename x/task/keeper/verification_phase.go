@@ -225,7 +225,7 @@ func (k Keeper) startRevealPhase(
 	advanceTaskPhase(&core, types.TaskPhase_TASK_PHASE_REVEALING)
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_REVEALING
 	core.UpdatedHeight = height
-	if err := k.VerifierAssignment.Set(ctx, types.NewVerifyRoundKey(taskKey, assignment.VerifyRound), assignment); err != nil {
+	if err := k.WriteVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, assignment.VerifyRound), assignment); err != nil {
 		return false, err
 	}
 	if err := k.TaskCore.Set(ctx, taskKey, core); err != nil {
@@ -330,7 +330,7 @@ func (k Keeper) BuildVerificationDeadlineFacts(ctx context.Context, assignment t
 
 func (k Keeper) deadlineDataUnavailableExemption(ctx context.Context, assignment types.VerifierAssignmentState) (bool, error) {
 	taskKey := types.NewTaskKey(assignment.TaskId)
-	round, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, assignment.VerifyRound))
+	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, assignment.VerifyRound))
 	if err == nil && round.XClosedHeight != nil {
 		if assignment.VerifyRound == types.VerifyRoundV1 {
 			return round.GetVerdict() == types.TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE, nil

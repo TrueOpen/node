@@ -29,7 +29,7 @@ func TestServiceUnbondingsPageTokenBindsRawAddressAndStatus(t *testing.T) {
 			RequestHeight: 10, MatureHeight: uint64(20 + index), Status: types.UnbondingStatusOpen,
 		}
 		require.NoError(t, row.Validate())
-		require.NoError(t, f.keeper.Unbonding.Set(
+		require.NoError(t, f.keeper.WriteUnbondingValue(
 			f.ctx, types.NewUnbondingKey(operator, shared.Hash32Key(id)), row,
 		))
 	}
@@ -94,7 +94,7 @@ func TestServiceLifecycleRetainsTerminalBondAfterNodeCleanup(t *testing.T) {
 		JailCount: 1, LastStakeHeight: 1,
 	}
 	require.NoError(t, bond.Validate())
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, operator, bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, operator, bond))
 
 	queries := keeper.NewQueryServerImpl(f.keeper)
 	response, err := queries.ServiceLifecycle(f.ctx, &types.QueryServiceLifecycleRequest{OperatorAddress: operator})
@@ -103,13 +103,13 @@ func TestServiceLifecycleRetainsTerminalBondAfterNodeCleanup(t *testing.T) {
 	require.Equal(t, bond, response.Lifecycle.Bond)
 
 	bond.Status = types.ServiceBondStatus_SERVICE_BOND_STATUS_ACTIVE
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, operator, bond))
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, operator, bond))
 	_, err = queries.ServiceLifecycle(f.ctx, &types.QueryServiceLifecycleRequest{OperatorAddress: operator})
 	require.Equal(t, codes.Internal, status.Code(err), "an active bond still requires its Cortex primary")
 
 	require.NoError(t, f.keeper.ServiceBond.Remove(f.ctx, operator))
 	node := types.CortexNodeState{OperatorAddress: operator}
-	require.NoError(t, f.keeper.CortexNode.Set(f.ctx, operator, node))
+	require.NoError(t, f.keeper.StoreCortexNode(f.ctx, operator, node))
 	_, err = queries.ServiceLifecycle(f.ctx, &types.QueryServiceLifecycleRequest{OperatorAddress: operator})
 	require.Equal(t, codes.Internal, status.Code(err), "a Cortex primary without its bond is an invariant failure")
 }

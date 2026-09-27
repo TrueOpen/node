@@ -1,0 +1,16 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// EarningsStoreState is the private storage projection of hub.v1.EarningsState.
+// Query, event, and Genesis boundaries retain the public address string.
+message EarningsStoreState {
+  bytes address = 1;
+  string claimable_task_fee = 2;
+  string claimable_service_reward = 3;
+  string claimable_builder_reward = 4;
+  string claimable_amount = 5;
+  uint64 earnings_version = 6;
+  uint64 last_updated_height = 7;
+}

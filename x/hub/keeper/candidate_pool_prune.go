@@ -334,7 +334,7 @@ func (k Keeper) ProcessCandidateSlotBindingPrunes(ctx context.Context, currentEp
 		}
 		visited++
 		bindingKey := types.NewCandidateSlotBindingKey(key.K2(), key.K3())
-		binding, err := k.CandidateSlotBinding.Get(ctx, bindingKey)
+		binding, err := k.ReadCandidateSlotBinding(ctx, bindingKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.CandidateSlotBindingPruneIndex.Remove(ctx, key); err != nil {
 				return visited, err
@@ -347,7 +347,7 @@ func (k Keeper) ProcessCandidateSlotBindingPrunes(ctx context.Context, currentEp
 		if binding.ReleasedHeight == 0 || binding.SnapshotRefCount != 0 {
 			return visited, fmt.Errorf("candidate binding prune is not eligible")
 		}
-		if current, getErr := k.CandidateSlotCurrent.Get(ctx, key.K2()); getErr == nil && current.SlotVersion == key.K3() && current.Status != candidateSlotFree {
+		if current, getErr := k.ReadCandidateSlotCurrent(ctx, key.K2()); getErr == nil && current.SlotVersion == key.K3() && current.Status != candidateSlotFree {
 			return visited, fmt.Errorf("candidate binding is still current and allocated")
 		} else if getErr != nil && !errors.Is(getErr, collections.ErrNotFound) {
 			return visited, getErr
@@ -401,19 +401,19 @@ func (k Keeper) cleanFailedCandidateDraft(ctx context.Context, cursor types.Cand
 
 func (k Keeper) removeCandidateSnapshotMember(ctx context.Context, member types.CandidatePoolMemberState, height uint64) error {
 	bindingKey := types.NewCandidateSlotBindingKey(member.Slot, member.SlotVersion)
-	binding, err := k.CandidateSlotBinding.Get(ctx, bindingKey)
+	binding, err := k.ReadCandidateSlotBinding(ctx, bindingKey)
 	if err != nil || binding.SnapshotRefCount == 0 {
 		return fmt.Errorf("candidate binding refcount missing or underflow")
 	}
 	binding.SnapshotRefCount--
-	if err := k.CandidateSlotBinding.Set(ctx, bindingKey, binding); err != nil {
+	if err := k.WriteCandidateSlotBinding(ctx, bindingKey, binding); err != nil {
 		return err
 	}
 	if err := k.CandidatePoolMember.Remove(ctx, types.NewCandidatePoolMemberKey(member.Epoch, member.Slot)); err != nil {
 		return err
 	}
 	if binding.SnapshotRefCount == 0 {
-		current, getErr := k.CandidateSlotCurrent.Get(ctx, member.Slot)
+		current, getErr := k.ReadCandidateSlotCurrent(ctx, member.Slot)
 		if getErr == nil && current.SlotVersion == member.SlotVersion && current.Status == candidateSlotRetiring {
 			return k.tryReleaseCandidateSlot(ctx, current, height)
 		}
@@ -473,7 +473,11 @@ func (k Keeper) firstCandidateEpochMember(ctx context.Context, epoch uint64) (ty
 		return types.CandidatePoolMemberState{}, false, nil
 	}
 	value, err := iter.Value()
-	return value, err == nil, err
+	if err != nil {
+		return types.CandidatePoolMemberState{}, false, err
+	}
+	state, err := k.ProjectCandidatePoolMemberStore(value)
+	return state, err == nil, err
 }
 
 func (k Keeper) firstCandidateEpochSegment(ctx context.Context, epoch uint64) (types.CandidatePoolSegmentKeyPair, bool, error) {

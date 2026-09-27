@@ -47,20 +47,20 @@ func stageVerifyOpenFailureReadyTask(t *testing.T, f *internalFixture, taskKey t
 	core.UserAddress = sdk.AccAddress(bytes.Repeat([]byte{0xc1}, 20)).String()
 	core.OrderSequence = 1
 	core.AcceptedTaskHash = bytes.Repeat([]byte{0xc2}, types.Hash32Len)
-	core.ModelId = "model-a"
+	core.ModelId = bytes.Repeat([]byte{0x6d}, types.Hash32Len)
 	core.ProfileVersion = 1
 	core.OrderValue = shared.NewAmount(800)
 	core.EvidenceRetentionBlocksSnapshot = types.DefaultMaxEvidenceRetentionBlocks
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, core))
 
 	worker := sdk.AccAddress(bytes.Repeat([]byte{0xc3}, 20)).String()
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: core.TaskId, WinnerWorker: worker,
 		EvidenceSchemaHash:           bytes.Repeat([]byte{0xc4}, types.Hash32Len),
 		ProfileExecutionSnapshotHash: bytes.Repeat([]byte{0xc5}, types.Hash32Len),
 		GenerationParamsDigest:       bytes.Repeat([]byte{0xc6}, types.Hash32Len),
 	}))
-	require.NoError(t, f.keeper.InferReceipt.Set(f.ctx, taskKey, types.InferReceiptState{
+	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, taskKey, types.InferReceiptState{
 		TaskId: core.TaskId, WinnerWorker: worker, GeneratedTokenCount: 640,
 		InferReceiptHash: bytes.Repeat([]byte{0xc7}, types.Hash32Len),
 	}))
@@ -86,7 +86,7 @@ func stageVerifyOpenFailureReadyTask(t *testing.T, f *internalFixture, taskKey t
 
 	sessionKey, err := sessionStoreKey(core.SessionId)
 	require.NoError(t, err)
-	require.NoError(t, f.keeper.Stream.Set(f.ctx, sessionKey, types.StreamState{
+	require.NoError(t, f.keeper.WriteStream(f.ctx, sessionKey, types.StreamState{
 		SessionId: core.SessionId, OwnerUserAddress: core.UserAddress,
 		NextExpectedSequence: 2, LastActiveHeight: 10, OpenPendingCount: 1,
 		Status: types.SessionStatus_SESSION_STATUS_ACTIVE,

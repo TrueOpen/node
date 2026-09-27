@@ -96,10 +96,10 @@ func (b pageTokenBudget) fitRowsWithToken(
 // stay explicit in each handler, because what counts as a consistent row differs
 // per collection and a shared "walk and validate" helper would have to take a
 // callback per difference anyway.
-type registryPageScope struct {
+type registryPageScope[K any] struct {
 	pageTokenBudget
 	limit    uint32
-	lastKey  string
+	lastKey  K
 	resuming bool
 }
 
@@ -107,22 +107,23 @@ type registryPageScope struct {
 // page. canonicalKey re-checks the key decoded from the token against the same
 // field rule the collection is written under, so a token cannot smuggle a key
 // shape the store could never hold.
-func (q queryServer) newRegistryPageScope(
+func newRegistryPageScope[K any](
+	q queryServer,
 	ctx context.Context,
 	rpc string,
 	page shared.QueryPageRequestV1,
-	keyCodec collectionscodec.KeyCodec[string],
-	canonicalKey func(string) error,
-) (registryPageScope, error) {
+	keyCodec collectionscodec.KeyCodec[K],
+	canonicalKey func(K) error,
+) (registryPageScope[K], error) {
 	params, limit, err := q.queryPageParams(ctx, page)
 	if err != nil {
-		return registryPageScope{}, err
+		return registryPageScope[K]{}, err
 	}
 	queryHeight, rpcDigest, selectorDigest, err := queryPageDigests(sdk.UnwrapSDKContext(ctx), rpc)
 	if err != nil {
-		return registryPageScope{}, err
+		return registryPageScope[K]{}, err
 	}
-	scope := registryPageScope{
+	scope := registryPageScope[K]{
 		pageTokenBudget: pageTokenBudget{
 			params: params, rpcDigest: rpcDigest, selectorDigest: selectorDigest, queryHeight: queryHeight,
 		},
@@ -133,10 +134,10 @@ func (q queryServer) newRegistryPageScope(
 	}
 	lastKey, err := decodeQueryPageToken(page.PageToken, rpcDigest, selectorDigest, queryHeight, keyCodec)
 	if err != nil {
-		return registryPageScope{}, err
+		return registryPageScope[K]{}, err
 	}
 	if canonicalKey(lastKey) != nil {
-		return registryPageScope{}, status.Error(codes.InvalidArgument, "page_token has a non-canonical registry key")
+		return registryPageScope[K]{}, status.Error(codes.InvalidArgument, "page_token has a non-canonical registry key")
 	}
 	scope.lastKey, scope.resuming = lastKey, true
 	return scope, nil
@@ -145,11 +146,11 @@ func (q queryServer) newRegistryPageScope(
 // walkRange reads the primary map forward only. A resumed page starts strictly
 // after the previous page's last key, so no row is returned twice and none is
 // skipped; there is no offset and no whole-table pre-sort.
-func (s registryPageScope) walkRange() *collections.Range[string] {
+func (s registryPageScope[K]) walkRange() *collections.Range[K] {
 	if !s.resuming {
-		return new(collections.Range[string])
+		return new(collections.Range[K])
 	}
-	return new(collections.Range[string]).StartExclusive(s.lastKey)
+	return new(collections.Range[K]).StartExclusive(s.lastKey)
 }
 
 // pageKeysAt adapts the encoded keys a walk collected to fitRowsWithToken.
@@ -217,7 +218,7 @@ func (q queryServer) FreezeSignals(ctx context.Context, req *types.QueryFreezeSi
 	if err != nil {
 		return nil, err
 	}
-	var rangeValue collections.Ranger[types.FreezeSignalByProfileKey] = collections.NewSuperPrefixedQuadRange3[string, uint32, int32, types.FreezeSignalWindowOrderKey](modelID, profileVersion, int32(req.Status))
+	var rangeValue collections.Ranger[types.FreezeSignalByProfileKey] = collections.NewSuperPrefixedQuadRange3[shared.Hash32Key, uint32, int32, types.FreezeSignalWindowOrderKey](modelID, profileVersion, int32(req.Status))
 	if lastKey != nil {
 		// The trailing signal_id used to be spelled as an empty slice, which BytesKey
 		// encoded to zero bytes; Hash32KeyCodec is fixed width and rejects it. The
@@ -246,7 +247,7 @@ func (q queryServer) FreezeSignals(ctx context.Context, req *types.QueryFreezeSi
 		}
 		signalID := key.K4().K2()
 		signal, err := q.k.FreezeSignalState.Get(ctx, signalID)
-		if err != nil || !validFreezeSignalHeader(signal, signalID) || signal.ModelId != modelID || signal.ProfileVersion != profileVersion || signal.SignalStatus != req.Status || signal.RiskWindowEndHeight != key.K4().K1() {
+		if err != nil || !validFreezeSignalHeader(signal, signalID) || !bytes.Equal(signal.ModelId, modelID) || signal.ProfileVersion != profileVersion || signal.SignalStatus != req.Status || signal.RiskWindowEndHeight != key.K4().K1() {
 			return nil, status.Error(codes.Internal, "freeze signal index disagrees with primary state")
 		}
 		candidate := append(response.Signals, signal)
@@ -393,7 +394,7 @@ func (q queryServer) decodeFreezeSignalPageToken(ctx context.Context, req *types
 		return queryHeight, rpcDigest, selectorDigest, nil, err
 	}
 	key, err := decodeQueryPageToken(req.Page.PageToken, rpcDigest, selectorDigest, queryHeight, q.k.FreezeSignalByProfileIndex.KeyCodec())
-	if err != nil || key.K1() != req.ModelId || key.K2() != req.ProfileVersion || key.K3() != int32(req.Status) || len(key.K4().K2()) != 32 {
+	if err != nil || !bytes.Equal(key.K1(), req.ModelId) || key.K2() != req.ProfileVersion || key.K3() != int32(req.Status) || len(key.K4().K2()) != 32 {
 		return 0, nil, nil, nil, status.Error(codes.InvalidArgument, "page_token has a non-canonical freeze signal key")
 	}
 	return queryHeight, rpcDigest, selectorDigest, &key, nil
@@ -470,7 +471,7 @@ func isQueryableFreezeSignalStatus(value types.FreezeSignalStatus) bool {
 }
 
 func validFreezeSignalHeader(signal types.FreezeSignalState, key []byte) bool {
-	if len(key) != 32 || !bytes.Equal(signal.FreezeSignalId, key) || !isQueryableFreezeSignalStatus(signal.SignalStatus) || signal.ModelId == "" || signal.ProfileVersion == 0 || len(signal.IncludedFailureTaskRefsHash) != 32 || len(signal.ValidatorSetHash) != 32 || signal.TotalVotingPowerSnapshot == 0 {
+	if len(key) != 32 || !bytes.Equal(signal.FreezeSignalId, key) || !isQueryableFreezeSignalStatus(signal.SignalStatus) || len(signal.ModelId) != shared.Hash32KeySize || signal.ProfileVersion == 0 || len(signal.IncludedFailureTaskRefsHash) != 32 || len(signal.ValidatorSetHash) != 32 || signal.TotalVotingPowerSnapshot == 0 {
 		return false
 	}
 	return signal.AcceptedVotingPower <= signal.TotalVotingPowerSnapshot && signal.RejectedVotingPower <= signal.TotalVotingPowerSnapshot-signal.AcceptedVotingPower

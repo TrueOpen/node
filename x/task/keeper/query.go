@@ -68,7 +68,7 @@ func resolveQueryPage(page shared.QueryPageRequestV1, caps taskQueryCaps) (uint3
 	return limit, page.PageToken, nil
 }
 
-// decodeStringPairQueryPageToken opens a §16.1 page token whose primary key is
+// decodeAddressPairQueryPageToken opens a §16.1 page token whose primary key is
 // an (address, Hash32) pair — SessionByOwnerIndex and the two RoleActiveTask
 // indexes. The second component is types.Hash32Key since X-16, so the returned
 // cursor is the raw 32 bytes and feeds a range bound directly.
@@ -77,21 +77,20 @@ func resolveQueryPage(page shared.QueryPageRequestV1, caps taskQueryCaps) (uint3
 // not a well-formed key at all and, because Hash32KeyCodec is fail-closed on
 // width, one whose Hash32 half is the wrong length. The re-encode comparison
 // catches a token that decodes but was not produced by this codec — a
-// non-minimal length prefix on the address half decodes to the same pair yet is
+// non-canonical address component decodes to the same pair yet is
 // a different byte string, and accepting it would let one logical cursor have
 // several encodings. The K1 comparison pins the token to the selector the caller
 // actually asked about, so a token minted for one address cannot page another's
 // rows.
 //
-// The hex round-trip that used to sit here ("does K2 re-encode to itself?") is
-// gone with the string keys: canonicality of a raw 32-byte component is exactly
-// its width, and the codec has already enforced that.
-func (q *queryServer) decodeStringPairQueryPageToken(
+// Canonicality of a raw 32-byte component is exactly its width; the codec
+// enforces that while re-encoding checks the complete primary key.
+func (q *queryServer) decodeAddressPairQueryPageToken(
 	ctx context.Context,
 	encoded []byte,
 	rpcMethod string,
-	expectedFirst string,
-	keyCodec collectionscodec.KeyCodec[collections.Pair[string, types.Hash32Key]],
+	expectedFirst types.AddrKey,
+	keyCodec collectionscodec.KeyCodec[collections.Pair[types.AddrKey, types.Hash32Key]],
 	selectorFields ...[]byte,
 ) (uint64, types.Hash32Key, []byte, []byte, error) {
 	sdkCtx := sdkContextFrom(ctx)
@@ -113,19 +112,19 @@ func (q *queryServer) decodeStringPairQueryPageToken(
 	}
 
 	read, key, err := keyCodec.Decode(lastPrimaryKey)
-	if err != nil || read != len(lastPrimaryKey) || key.K1() != expectedFirst || len(key.K2()) != types.Hash32Len {
+	if err != nil || read != len(lastPrimaryKey) || !bytes.Equal(key.K1(), expectedFirst) || len(key.K2()) != types.Hash32Len {
 		return 0, nil, nil, nil, status.Error(codes.InvalidArgument, "page_token has a non-canonical primary key")
 	}
-	reencoded, err := encodeStringPairPrimaryKey(keyCodec, key)
+	reencoded, err := encodeAddressPairPrimaryKey(keyCodec, key)
 	if err != nil || !bytes.Equal(reencoded, lastPrimaryKey) {
 		return 0, nil, nil, nil, status.Error(codes.InvalidArgument, "page_token primary key is not canonically encoded")
 	}
 	return queryHeight, key.K2(), rpcDigest, selectorDigest, nil
 }
 
-func encodeStringPairPrimaryKey(
-	keyCodec collectionscodec.KeyCodec[collections.Pair[string, types.Hash32Key]],
-	key collections.Pair[string, types.Hash32Key],
+func encodeAddressPairPrimaryKey(
+	keyCodec collectionscodec.KeyCodec[collections.Pair[types.AddrKey, types.Hash32Key]],
+	key collections.Pair[types.AddrKey, types.Hash32Key],
 ) ([]byte, error) {
 	encoded := make([]byte, keyCodec.Size(key))
 	written, err := keyCodec.Encode(encoded, key)
@@ -135,7 +134,7 @@ func encodeStringPairPrimaryKey(
 	return encoded[:written], nil
 }
 
-func encodeStringPairQueryPageToken(rpcDigest, selectorDigest, lastPrimaryKey []byte, queryHeight uint64) ([]byte, error) {
+func encodeAddressPairQueryPageToken(rpcDigest, selectorDigest, lastPrimaryKey []byte, queryHeight uint64) ([]byte, error) {
 	return shared.EncodePageTokenV1(rpcDigest, selectorDigest, lastPrimaryKey, queryHeight)
 }
 

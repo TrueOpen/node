@@ -26,7 +26,7 @@ func TestTxDecoderRejectsUnknownTaskOrderFields(t *testing.T) {
 	)
 	decoder := application.TxConfig().TxDecoder()
 
-	cleanOrder, err := (&tasktypes.TaskOrderV2{}).Marshal()
+	cleanOrder, err := (&tasktypes.TaskOrderV3{}).Marshal()
 	require.NoError(t, err)
 	cleanTx := taskOrderTransportTx(t, cleanOrder)
 	_, err = decoder(cleanTx)
@@ -37,7 +37,7 @@ func TestTxDecoderRejectsUnknownTaskOrderFields(t *testing.T) {
 	unknownOrder = protowire.AppendVarint(unknownOrder, 1)
 	_, err = decoder(taskOrderTransportTx(t, unknownOrder))
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "TaskOrderV2")
+	require.Contains(t, err.Error(), "TaskOrderV3")
 	require.Contains(t, err.Error(), "TagNum: 31")
 }
 

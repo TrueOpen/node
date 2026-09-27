@@ -120,7 +120,7 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	if err := types.ValidateVrfKeyState(next); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if err := m.k.VrfKey.Set(ctx, operator, next); err != nil {
+	if err := m.k.StoreVrfKey(ctx, next); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if err := m.k.VrfKeyActivationIndex.Set(ctx, types.NewVrfKeyActivationKey(pendingFrom, operator)); err != nil {
@@ -137,7 +137,7 @@ func vrfKeyResponse(operator string, state types.VrfKeyState, mutation shared.Mu
 }
 
 func (k Keeper) getVrfKeyState(ctx context.Context, operator string) (types.VrfKeyState, bool, error) {
-	state, err := k.VrfKey.Get(ctx, operator)
+	state, err := k.GetVrfKey(ctx, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return types.VrfKeyState{}, false, nil
@@ -238,7 +238,7 @@ func (k Keeper) ActivateDueVrfKeys(ctx context.Context, epoch uint64) error {
 				OperatorAddress: operator, EffectiveFromEpoch: state.ActiveFromEpoch,
 				VrfPubkey: append([]byte(nil), state.ActiveVrfPubkey...), RetiredAtEpoch: pendingFrom,
 			}
-			if err := k.VrfKeyHistory.Set(ctx, types.NewVrfKeyHistoryKey(operator, state.ActiveFromEpoch), history); err != nil {
+			if err := k.StoreVrfKeyHistory(ctx, history); err != nil {
 				return err
 			}
 			if err := k.VrfKeyPruneIndex.Set(ctx, types.NewVrfKeyPruneKey(pruneEpoch, operator, state.ActiveFromEpoch)); err != nil {
@@ -252,7 +252,7 @@ func (k Keeper) ActivateDueVrfKeys(ctx context.Context, epoch uint64) error {
 		if err := types.ValidateVrfKeyState(state); err != nil {
 			return err
 		}
-		if err := k.VrfKey.Set(ctx, operator, state); err != nil {
+		if err := k.StoreVrfKey(ctx, state); err != nil {
 			return err
 		}
 		if err := k.VrfKeyActivationIndex.Remove(ctx, key); err != nil {

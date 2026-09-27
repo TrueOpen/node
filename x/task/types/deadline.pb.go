@@ -28,9 +28,9 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // DeadlineKindV1 selects which deadline of a primary object is being swept.
 //
-// the API contract is the ONLY numeric definition of this enum in the
+// the wire API is the ONLY numeric definition of this enum in the
 // whole contract: the sweep locator, the Query projection
-// TaskStageViewV1.next_deadline_kind and §5.11 event code 20 `deadline_swept`
+// TaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`
 // all share these numbers. The values are bound column-by-column to the locator
 // type and the same-height kind_priority of that table and are copied verbatim.
 //
@@ -119,8 +119,8 @@ func (DeadlineKindV1) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_f3f545e8d5184fe3, []int{0}
 }
 
-// DeadlineTransitionCode is the closed transition reason carried by §5.11 event
-// code 20 `deadline_swept`. Numbers come from the §9.6b enum registry.
+// DeadlineTransitionCode is the closed transition reason carried by event
+// code 20 `deadline_swept`. Numbers come from the contract's enum registry.
 //
 // DeadlineTransitionCode defines the DeadlineTransitionCode wire type.
 type DeadlineTransitionCode int32
@@ -202,11 +202,11 @@ func (DeadlineTransitionCode) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_f3f545e8d5184fe3, []int{1}
 }
 
-// TaskDeadlineLocator selects one task-scoped deadline (§5.9).
+// TaskDeadlineLocator selects one task-scoped deadline.
 type TaskDeadlineLocator struct {
 	// task_id is the canonical 32-byte Task ID.
 	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	// deadline_kind must be a TaskDeadlineLocator kind of the §5.9 table.
+	// deadline_kind must be a TaskDeadlineLocator kind of the contract's locator table.
 	DeadlineKind DeadlineKindV1 `protobuf:"varint,2,opt,name=deadline_kind,json=deadlineKind,proto3,enum=task.v1.DeadlineKindV1" json:"deadline_kind,omitempty"`
 }
 
@@ -318,9 +318,9 @@ func (m *TaskRoundDeadlineLocator) GetDeadlineKind() DeadlineKindV1 {
 	return DeadlineKindV1_DEADLINE_KIND_V1_UNSPECIFIED
 }
 
-// SessionLifecycleLocator selects the session idle/close sweep (§5.9). §5.9
-// freezes exactly this shape: a message-typed oneof reusing the §9.6b ByIDV1 /
-// BatchV1 base types. No second scalar oneof shape exists and §10.0b1 only
+// SessionLifecycleLocator selects the session idle/close sweep. The contract
+// freezes exactly this shape: a message-typed oneof reusing the shared ByIDV1 /
+// BatchV1 base types. No second scalar oneof shape exists and the contract only
 // references this one.
 // SessionLifecycleLocator defines the SessionLifecycleLocator wire type.
 type SessionLifecycleLocator struct {
@@ -412,7 +412,7 @@ func (*SessionLifecycleLocator) XXX_OneofWrappers() []interface{} {
 }
 
 // DeadlineLocatorV1 identifies exactly one primary object and one of its
-// deadlines (§5.9). The locator must uniquely hit one primary state and its
+// deadlines. The locator must uniquely hit one primary state and its
 // deadline: a scope mismatch is InvalidArgument, a not-yet-due deadline is
 // FailedPrecondition and an already completed transition is a noop. The deadline
 // is inclusive, so current_height >= deadline_height is executable.
@@ -518,7 +518,7 @@ func (*DeadlineLocatorV1) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// MsgSweepDeadline is the single ACTIVE public deadline runner (§9.6a,
+// MsgSweepDeadline is the single ACTIVE public deadline runner (this contract,
 // BOUNDED_RUNNER). It replaces the deleted MsgSweepExpiredTask and
 // MsgSessionSweep. The public Msg and EndBlock share one internal executor and
 // one same-height order (deadline_height, kind_priority, primary_id). The public
@@ -526,7 +526,7 @@ func (*DeadlineLocatorV1) XXX_OneofWrappers() []interface{} {
 // parameter table registers one.
 // MsgSweepDeadline defines the MsgSweepDeadline wire type.
 type MsgSweepDeadline struct {
-	// locator selects exactly one primary object and deadline (§5.9).
+	// locator selects exactly one primary object and deadline.
 	Locator *DeadlineLocatorV1 `protobuf:"bytes,1,opt,name=locator,proto3" json:"locator,omitempty"`
 	// submitter_address is the Cosmos signer only; it never enters the locator
 	// digest, business facts, hashes or Store.
@@ -580,7 +580,7 @@ func (m *MsgSweepDeadline) GetSubmitterAddress() string {
 	return ""
 }
 
-// MsgSweepDeadlineResponse reports this invocation's bounded work (§9.6a). It
+// MsgSweepDeadlineResponse reports this invocation's bounded work. It
 // counts visited work, not successful mutations, and never pretends to be a
 // first-time receipt.
 // MsgSweepDeadlineResponse defines the MsgSweepDeadlineResponse wire type.

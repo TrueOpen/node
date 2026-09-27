@@ -1,0 +1,43 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// ServiceBondStoreState stores the operator as codec bytes.
+message ServiceBondStoreState {
+  bytes operator_address = 1;
+  uint64 active_bond = 2;
+  uint64 effective_active_bond = 3;
+  uint64 reserved_liability = 4;
+  uint64 pending_unbonding_total = 5;
+  uint64 bond_version = 6;
+  uint64 effective_bond_epoch = 7;
+  int32 status = 8;
+  uint32 jail_count = 9;
+  uint32 normal_action_count_since_jail = 10;
+  uint64 last_stake_height = 11;
+  uint64 last_unstake_height = 12;
+}
+
+// UnbondingStoreState stores the operator as codec bytes.
+message UnbondingStoreState {
+  bytes unbonding_id = 1;
+  bytes operator_address = 2;
+  uint64 amount = 3;
+  uint64 request_height = 4;
+  uint64 mature_height = 5;
+  int32 status = 6;
+  uint64 slash_applied_amount = 8;
+}
+
+// UnbondingReceiptStoreState stores the operator as codec bytes.
+message UnbondingReceiptStoreState {
+  bytes unbonding_id = 1;
+  bytes operator_address = 2;
+  uint64 original_amount = 3;
+  uint64 withdrawn_amount = 4;
+  uint64 slashed_amount = 5;
+  int32 terminal_status = 6;
+  uint64 terminal_height = 7;
+  bytes receipt_hash = 8;
+}

@@ -95,7 +95,7 @@ func (k Keeper) planVerifyCommitWithAuthority(ctx context.Context, commit types.
 	if !bytes.Equal(core.TaskId, commit.TaskId) {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task is not accepting verifier commits")
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, commit.VerifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, commit.VerifyRound))
 	if err != nil {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier assignment unavailable")
 	}
@@ -137,7 +137,7 @@ func (k Keeper) applyVerifyCommit(ctx context.Context, plan verifyCommitPlan) er
 	if plan.isReplay {
 		return nil
 	}
-	if err := k.CommitState.Set(ctx, plan.key, plan.state); err != nil {
+	if err := k.WriteCommit(ctx, plan.key, plan.state); err != nil {
 		return err
 	}
 	taskKey := types.NewTaskKey(plan.state.TaskId)
@@ -175,15 +175,15 @@ func (k Keeper) applyVerifyCommit(ctx context.Context, plan verifyCommitPlan) er
 	return nil
 }
 
-func (k Keeper) planVerifyResult(ctx context.Context, receipt types.ResultReceiptV2, submitter string) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResult(ctx context.Context, receipt types.ResultReceiptV3, submitter string) (verifyResultPlan, error) {
 	return k.planVerifyResultWithAuthority(ctx, receipt, submitter, false)
 }
 
-func (k Keeper) planVerifyResultForBuilder(ctx context.Context, receipt types.ResultReceiptV2, submitter string) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResultForBuilder(ctx context.Context, receipt types.ResultReceiptV3, submitter string) (verifyResultPlan, error) {
 	return k.planVerifyResultWithAuthority(ctx, receipt, submitter, true)
 }
 
-func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types.ResultReceiptV2, submitter string, builderRelay bool) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types.ResultReceiptV3, submitter string, builderRelay bool) (verifyResultPlan, error) {
 	var plan verifyResultPlan
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	height, err := currentBlockHeight(ctx)
@@ -236,7 +236,7 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 	if core.TaskPhase != types.TaskPhase_TASK_PHASE_REVEALING || core.VerificationStatus != types.VerificationStatus_VERIFICATION_STATUS_REVEALING {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task is not accepting verifier results")
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, receipt.VerifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, receipt.VerifyRound))
 	if err != nil {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier assignment unavailable")
 	}
@@ -259,11 +259,11 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 		commit.VerifyRound != receipt.VerifyRound || commit.VerifierOperatorAddress != operator {
 		return plan, errorsmod.Wrap(types.ErrCommitNotFound, "accepted verifier commit is required before result")
 	}
-	taskAssignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	taskAssignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || !bytes.Equal(taskAssignment.GenerationParamsDigest, receipt.GenerationParamsDigest) {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "generation_params_digest does not match task assignment")
 	}
-	infer, err := k.InferReceipt.Get(ctx, taskKey)
+	infer, err := k.ReadInferReceipt(ctx, taskKey)
 	if err != nil || !bytes.Equal(infer.TaskId, receipt.TaskId) || len(infer.InferReceiptHash) != types.Hash32Len {
 		return plan, errorsmod.Wrap(types.ErrInvariantBroken, "accepted infer receipt is unavailable")
 	}
@@ -279,18 +279,20 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 		VerifyRound: receipt.VerifyRound, SelectedVerifierIndex: selectedIndex,
 		VerifierOperatorAddress: operator, InferReceiptHash: infer.InferReceiptHash,
 		ProfileExecutionSnapshotHash: taskAssignment.ProfileExecutionSnapshotHash,
-		GenerationParamsDigest:       receipt.GenerationParamsDigest, MetricRoot: receipt.MetricRoot,
+		GenerationParamsDigest: receipt.GenerationParamsDigest, VerifierValueRoot: receipt.VerifierValueRoot,
+		MetricRoot:      receipt.MetricRoot,
 		MetricLeafCount: uint32(metricLeafCount), MetricSummaryHash: metricSummaryHash[:],
 		AggregateProofHash:                receipt.AggregateProofHash,
 		VerifierEvidenceBundleHash:        receipt.VerifierEvidenceBundleHash,
 		VerifierEvidenceManifestSizeBytes: receipt.VerifierEvidenceManifestSizeBytes,
+		VerifierEvidenceKeyCommitment:     receipt.VerifierEvidenceKeyCommitment,
 	})
 	if err != nil {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, err.Error())
 	}
 	commitment, err := types.ResultCommitmentHash(
 		receipt.ChainId, receipt.TaskId, core.AcceptedTaskHash, receipt.VerifyRound,
-		operator, payloadHash[:], receipt.Salt,
+		operator, receipt.VerifierValueRoot, receipt.Salt,
 	)
 	if err != nil || !bytes.Equal(commit.CommitHash, commitment[:]) {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "result receipt does not open verifier commitment")
@@ -327,7 +329,7 @@ func (k Keeper) requireVerificationSubmitter(
 	if len(taskID) != types.Hash32Len {
 		return fmt.Errorf("task_id must be %d bytes", types.Hash32Len)
 	}
-	selection, err := k.TaskBuilderSelection.Get(ctx, types.NewTaskKey(taskID))
+	selection, err := k.GetTaskBuilderSelection(ctx, types.NewTaskKey(taskID))
 	if err != nil {
 		return fmt.Errorf("Task Builder selection unavailable")
 	}
@@ -341,19 +343,19 @@ func (k Keeper) applyVerifyResult(ctx context.Context, plan verifyResultPlan) er
 	if plan.isReplay {
 		return nil
 	}
-	if err := k.ResultReceiptState.Set(ctx, plan.key, plan.state); err != nil {
+	if err := k.WriteResultReceipt(ctx, plan.key, plan.state); err != nil {
 		return err
 	}
 	if err := emitTypedEvent(ctx, &types.EventResultAccepted{
 		SessionId: plan.core.SessionId, TaskId: plan.core.TaskId,
 		VerifyRound: plan.round, Verifier: plan.verifier,
 		ResultReceiptSigningDigest: plan.state.ResultReceiptSigningDigest,
-		ResultPayloadHash:          plan.state.ResultPayloadHash,
+		VerifierValueRoot:          plan.state.VerifierValueRoot,
 	}); err != nil {
 		return err
 	}
 	taskKey := types.NewTaskKey(plan.state.TaskId)
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, plan.round))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, plan.round))
 	if err != nil {
 		return err
 	}
@@ -383,8 +385,8 @@ func validateVerifyCommitEnvelope(chainID string, height uint64, commit types.Ve
 	return err
 }
 
-func validateVerifyResultEnvelope(chainID string, height uint64, receipt types.ResultReceiptV2) error {
-	if receipt.SchemaVersion != types.ResultReceiptSchemaVersionV2 || receipt.ChainId != chainID || len(receipt.TaskId) != types.Hash32Len ||
+func validateVerifyResultEnvelope(chainID string, height uint64, receipt types.ResultReceiptV3) error {
+	if receipt.SchemaVersion != types.ResultReceiptSchemaVersionV3 || receipt.ChainId != chainID || len(receipt.TaskId) != types.Hash32Len ||
 		!isPhase0VerifyRound(receipt.VerifyRound) || len(receipt.GenerationParamsDigest) != types.Hash32Len ||
 		len(receipt.MetricRoot) != types.Hash32Len || len(receipt.AggregateProofHash) != types.Hash32Len ||
 		len(receipt.VerifierEvidenceBundleHash) != types.Hash32Len || len(receipt.Salt) != types.Hash32Len ||
@@ -487,7 +489,7 @@ func (k Keeper) validateMetricSummaryAgainstFrozenProfile(sdkCtx sdk.Context, co
 }
 
 func (k Keeper) getCommitStateIfExists(ctx context.Context, key types.CommitKey) (types.CommitState, bool, error) {
-	state, err := k.CommitState.Get(ctx, key)
+	state, err := k.ReadCommit(ctx, key)
 	if err != nil {
 		if errIsNotFound(err) {
 			return types.CommitState{}, false, nil
@@ -498,7 +500,7 @@ func (k Keeper) getCommitStateIfExists(ctx context.Context, key types.CommitKey)
 }
 
 func (k Keeper) getResultReceiptStateIfExists(ctx context.Context, key types.CommitKey) (types.ResultReceiptState, bool, error) {
-	state, err := k.ResultReceiptState.Get(ctx, key)
+	state, err := k.ReadResultReceipt(ctx, key)
 	if err != nil {
 		if errIsNotFound(err) {
 			return types.ResultReceiptState{}, false, nil
@@ -515,7 +517,7 @@ func commitReplayMatches(state types.CommitState, commit types.VerifyCommitV1, k
 		bytes.Equal(state.CommitSigningDigest, digest) && bytes.Equal(state.SignatureDigest, signatureDigest)
 }
 
-func resultReplayMatches(state types.ResultReceiptState, receipt types.ResultReceiptV2, key, summaryHash, digest, signatureDigest []byte) bool {
+func resultReplayMatches(state types.ResultReceiptState, receipt types.ResultReceiptV3, key, summaryHash, digest, signatureDigest []byte) bool {
 	return bytes.Equal(state.CommitKey, key) && bytes.Equal(state.TaskId, receipt.TaskId) && state.VerifyRound == receipt.VerifyRound &&
 		state.VerifierOperatorAddress == receipt.VerifierOperatorAddress && bytes.Equal(state.MetricRoot, receipt.MetricRoot) &&
 		proto.Equal(&state.MetricSummary, &receipt.MetricSummary) && bytes.Equal(state.MetricSummaryHash, summaryHash) &&

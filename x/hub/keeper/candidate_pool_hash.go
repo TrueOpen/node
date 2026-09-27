@@ -40,14 +40,14 @@ func (k Keeper) loadCandidatePoolSnapshot(ctx context.Context, snapshotID shared
 }
 
 func (k Keeper) loadCandidatePoolMember(ctx context.Context, snapshot types.CandidatePoolSnapshotState, slot uint32) (types.CandidatePoolMemberState, error) {
-	member, err := k.CandidatePoolMember.Get(ctx, types.NewCandidatePoolMemberKey(snapshot.Epoch, slot))
+	member, err := k.ReadCandidatePoolMember(ctx, types.NewCandidatePoolMemberKey(snapshot.Epoch, slot))
 	if err != nil {
 		return types.CandidatePoolMemberState{}, err
 	}
 	if member.Epoch != snapshot.Epoch || member.Slot != slot || member.SlotVersion == 0 || len(member.BindingHash) != 32 {
 		return types.CandidatePoolMemberState{}, fmt.Errorf("candidate pool member state is invalid")
 	}
-	binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(slot, member.SlotVersion))
+	binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(slot, member.SlotVersion))
 	if err != nil {
 		return types.CandidatePoolMemberState{}, err
 	}

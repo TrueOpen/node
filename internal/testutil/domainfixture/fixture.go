@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -47,6 +46,26 @@ type Field struct {
 	Empty             bool    `json:"empty"`
 	FramedEmptyReason string  `json:"framed_empty_reason"`
 	Fields            []Field `json:"fields"`
+}
+
+func (f *Field) UnmarshalJSON(encoded []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		return err
+	}
+	if raw, ok := fields["value"]; ok && len(raw) > 0 {
+		var boolean bool
+		if err := json.Unmarshal(raw, &boolean); err == nil {
+			fields["bool"] = raw
+			delete(fields, "value")
+		}
+	}
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	type plain Field
+	return json.Unmarshal(normalized, (*plain)(f))
 }
 
 func Load(t testing.TB, path string) Fixture {
@@ -290,8 +309,4 @@ func RequireProducer(t testing.TB, vector Vector, want string) {
 	if vector.Producer != want {
 		t.Fatalf("%s producer is %q, want %q", vector.Name, vector.Producer, want)
 	}
-}
-
-func Where(vector Vector, suffix string) string {
-	return fmt.Sprintf("%s.%s", vector.Name, suffix)
 }

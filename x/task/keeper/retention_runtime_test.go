@@ -23,8 +23,12 @@ func TestRoleFaultConsumerGateRequiresFinalityAndExactEvidence(t *testing.T) {
 		TaskId: taskID, FinalityStatus: shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
 		XTaskFinalityHeight: &types.TaskCoreState_TaskFinalityHeight{TaskFinalityHeight: 20},
 	}))
-	require.NoError(t, f.keeper.TaskSettlement.Set(f.ctx, taskKey, types.TaskSettlementState{
+	require.NoError(t, f.keeper.WriteTaskSettlement(f.ctx, taskKey, types.TaskSettlementState{
 		TaskId: taskID, SettlementId: settlementID, TaskFinalityHeight: 20,
+		WorkerGross: shared.NewAmount(0), WorkerMaintenance: shared.NewAmount(0),
+		WorkerNet: shared.NewAmount(0), VerifierSlotGross: shared.NewAmount(0),
+		MaintenanceFee: shared.NewAmount(0), RefundAmount: shared.NewAmount(0),
+		OriginalReservedAmount: shared.NewAmount(0), GasReimbursedTotal: shared.NewAmount(0),
 	}))
 	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, types.TaskRoundSummaryState{
 		TaskId:              taskID,
@@ -54,7 +58,7 @@ func TestRoleFaultConsumerGateRequiresFinalityAndExactEvidence(t *testing.T) {
 
 func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {
 	f := initInternalFixture(t)
-	modelID := "model-freeze"
+	modelID := bytes32(0x6d)
 	const profileVersion = uint32(3)
 	rows := []struct {
 		taskID   []byte
@@ -106,7 +110,7 @@ func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {
 	require.Equal(t, rows[1].taskID, second.Failures[0].TaskID)
 }
 
-func hubFreezeRequest(modelID string, profileVersion uint32, start, end uint64, last []byte, limit uint32) hubtypes.FreezeSignalFailureScanRequest {
+func hubFreezeRequest(modelID []byte, profileVersion uint32, start, end uint64, last []byte, limit uint32) hubtypes.FreezeSignalFailureScanRequest {
 	return hubtypes.FreezeSignalFailureScanRequest{
 		ModelID: modelID, ProfileVersion: profileVersion,
 		RiskWindowStartHeight: start, RiskWindowEndHeight: end,
@@ -121,10 +125,11 @@ func TestTaskCleanupProposalPhaseDeletesOneRowPerVisit(t *testing.T) {
 	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK
 	for _, marker := range []byte{0x62, 0x63} {
 		digest := bytes32(marker)
-		require.NoError(t, f.keeper.BuilderStageProposal.Set(
+		require.NoError(t, f.keeper.WriteBuilderStageProposal(
 			f.ctx, types.NewBuilderStageProposalKey(taskKey, stage, digest),
 			types.BuilderStageProposalState{
 				TaskId: taskID, Stage: stage, ProposalDigest: digest,
+				ProposerOperator: sessionTestOwner(t, f),
 			},
 		))
 	}
@@ -159,7 +164,7 @@ func TestTaskTerminalSummaryHashCommitsEveryField(t *testing.T) {
 		FailureClass:     types.TaskFailureClass_TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER,
 		SettlementStatus: types.SettlementStatus_SETTLEMENT_STATUS_FINALIZED,
 		FinalityStatus:   shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
-		ModelId:          "model-a", ProfileVersion: 1,
+		ModelId:          bytes32(0x6d), ProfileVersion: 1,
 		TaskType:                shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		CandidatePoolSnapshotId: hash, CandidatePoolHash: hash,
 		AssignmentCandidateSetHash: hash, CandidatePoolRefReleased: true,

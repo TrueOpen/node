@@ -103,7 +103,7 @@ func seedRoleFaultForTest(t *testing.T, f *fixture, operator string, duty shared
 	}
 	require.NoError(t, state.Validate())
 	key := shared.Hash32Key(state.FaultId)
-	require.NoError(t, f.keeper.RoleFault.Set(f.ctx, key, state))
+	require.NoError(t, f.keeper.WriteRoleFaultValue(f.ctx, key, state))
 	params, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.RoleFaultPruneIndex.Set(
@@ -120,10 +120,11 @@ func seedRoleFaultForTest(t *testing.T, f *fixture, operator string, duty shared
 func registerTestModelProfile(t *testing.T, f *fixture, modelID string, profileVersion uint32, minStake, height uint64) {
 	t.Helper()
 	proposer := hubAddress(t, 250)
-	if model, err := f.keeper.GetModel(f.ctx, modelID); err == nil {
+	derivedID := testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), proposer, modelID)
+	if model, err := f.keeper.GetModel(f.ctx, derivedID); err == nil {
 		proposer = model.ProposerAddress
 	}
-	projection := testModelProfileProjection(modelID, profileVersion, minStake)
+	projection := testModelProfileProjection(sdk.UnwrapSDKContext(f.ctx).ChainID(), proposer, modelID, profileVersion, minStake)
 	digest, _, err := types.ModelRegistrationDigest(sdk.UnwrapSDKContext(f.ctx).ChainID(), proposer, projection)
 	require.NoError(t, err)
 	_, _, _, replay, err := f.keeper.RegisterModelProfileState(
@@ -133,10 +134,27 @@ func registerTestModelProfile(t *testing.T, f *fixture, modelID string, profileV
 	require.False(t, replay)
 }
 
-func testModelProfileProjection(modelID string, profileVersion uint32, minStake uint64) shared.ModelProfileProjection {
+func testModelID(chainID, proposer, modelLabel string) []byte {
+	proposerBytes, err := sdk.AccAddressFromBech32(proposer)
+	if err != nil {
+		panic(err)
+	}
+	modelID, err := types.DeriveModelIDV1(chainID, "HUGGINGFACE", "trueopen/"+modelLabel, proposerBytes)
+	if err != nil {
+		panic(err)
+	}
+	return modelID
+}
+
+func testModelProfileProjection(chainID, proposer, modelLabel string, profileVersion uint32, minStake uint64) shared.ModelProfileProjection {
 	requiredHash := bytes.Repeat([]byte{byte(profileVersion + 1)}, 32)
 	projection := shared.ModelProfileProjection{
-		ModelId: modelID, ProfileVersion: profileVersion,
+		ModelId: testModelID(chainID, proposer, modelLabel), ProfileVersion: profileVersion,
+		Source: shared.SourceRefV1{
+			Provider: "HUGGINGFACE", RepoId: "trueopen/" + modelLabel, RepoType: "model",
+			Revision: "0123456789abcdef0123456789abcdef01234567", ResolverVersion: "HF_RESOLVER_V1",
+			SourceUri: "hf://trueopen/" + modelLabel + "@0123456789abcdef0123456789abcdef01234567",
+		},
 		ManifestHash: requiredHash, TokenizerHash: requiredHash,
 		RuntimeClass: "CAUSAL_LM_PREFILL_LOGPROBS_V1", RequiredTopK: 8,
 		TaskTypes:                 []shared.TaskType{shared.TaskType_TASK_TYPE_TEXT_GENERATION},
@@ -151,7 +169,7 @@ func testModelProfileProjection(modelID string, profileVersion uint32, minStake 
 			JudgmentFunctionVersion:     "PREFILL_GENERATED_TOKEN_METRICS_V1",
 			CanonicalEncodingVersion:    "CANONICAL_OUTPUT_TEXT_V1",
 			MetricAggregateProofVersion: "PREFILL_METRIC_AGGREGATE_PROOF_V1",
-			EvidenceSchema:              shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+			EvidenceSchema:              shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 			Metrics: shared.MetricSpec{
 				ComparedTopK: 8,
 				NumericScale: shared.NumericScale_NUMERIC_SCALE_FP_1E6,
@@ -172,10 +190,14 @@ func testModelProfileProjection(modelID string, profileVersion uint32, minStake 
 }
 
 func mustTestProfileState(modelID, proposer string, profileVersion uint32, minStake, height uint64) types.ProfileState {
-	projection := testModelProfileProjection(modelID, profileVersion, minStake)
+	return mustTestProfileStateForChain(testHubChainID, modelID, proposer, profileVersion, minStake, height)
+}
+
+func mustTestProfileStateForChain(chainID, modelID, proposer string, profileVersion uint32, minStake, height uint64) types.ProfileState {
+	projection := testModelProfileProjection(chainID, proposer, modelID, profileVersion, minStake)
 	// The fixture's chain_id must be the one the keeper validates under, or the
 	// row's registration_digest can never match its own canonical preimage.
-	digest, _, err := types.ModelRegistrationDigest(testHubChainID, proposer, projection)
+	digest, _, err := types.ModelRegistrationDigest(chainID, proposer, projection)
 	if err != nil {
 		panic(err)
 	}
@@ -193,11 +215,15 @@ func mustTestProfileState(modelID, proposer string, profileVersion uint32, minSt
 		RefPrice:                  projection.PricingProfile.InitialOutputPrice,
 		TimeoutBootstrapProfile:   projection.TimeoutBootstrapProfile,
 		SchemaHash:                projection.SchemaHash,
-		Status:                    types.ModelStatusActive,
-		StatusSource:              types.ProfileStatusSourceAutoSupport,
+		Status:                    types.ModelStatusRegistered,
+		StatusSource:              types.ProfileStatusSourceGovernance,
 		RegistrationFeePaid:       types.ModelRegistrationFeeMinMicroUSDC,
 		PreviousProfileVersion:    projection.PreviousProfileVersion,
 		ProposerAddress:           proposer, RegistrationDigest: digest,
+		Source: shared.ProfileSourceRefV1{SourceUri: projection.Source.SourceUri,
+			Revision: projection.Source.Revision, ResolverVersion: projection.Source.ResolverVersion,
+			RepoType: projection.Source.RepoType},
+		ToolCallParser: projection.ToolCallParser, ReasoningParser: projection.ReasoningParser,
 		CreatedHeight: height, UpdatedHeight: height,
 	}
 }

@@ -139,16 +139,16 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}},
 				},
 				{
-					RpcMethod:      "ProfileCapability",
-					Use:            "profile-capability [operator-address] [model-id] [profile-version]",
-					Short:          "Shows one operator's profile capability",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}, {ProtoField: "profile_version"}},
+					RpcMethod:      "ModelCapability",
+					Use:            "model-capability [operator-address] [model-id]",
+					Short:          "Shows one operator's model capability",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}},
 				},
 				{
 					RpcMethod:      "ModelSupport",
-					Use:            "model-support [operator-address] [model-id] [profile-version]",
-					Short:          "Shows one provider model/profile ModelSupport P30 ledger row",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}, {ProtoField: "profile_version"}},
+					Use:            "model-support [operator-address] [model-id]",
+					Short:          "Shows one operator's model support row",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}},
 				},
 				{
 					RpcMethod:      "DailySupport",
@@ -312,9 +312,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod:      "DeclareModelSupport",
-					Use:            "declare-model-support [operator-address] [model-id] [profile-version] [inference-capability] [verification-capability]",
-					Short:          "Declare provisional support for one profile",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}, {ProtoField: "profile_version"}, {ProtoField: "inference_capability"}, {ProtoField: "verification_capability"}},
+					Use:            "declare-model-support [operator-address] [model-id] [inference-capability] [verification-capability]",
+					Short:          "Declare support for one model",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "model_id"}, {ProtoField: "inference_capability"}, {ProtoField: "verification_capability"}},
 				},
 				{
 					RpcMethod: "RegisterVrfKey",

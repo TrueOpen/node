@@ -1,0 +1,39 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// TaskCandidateFactStoreState stores the candidate operator as codec bytes.
+message TaskCandidateFactStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  int32 stage = 3;
+  uint32 slot = 4;
+  uint64 slot_version = 5;
+  bytes operator_address = 6;
+  int32 duty = 7;
+  string active_bond_snapshot_atomic_units = 8;
+  string available_bond_snapshot_atomic_units = 9;
+  string required_task_liability_snapshot_atomic_units = 10;
+  string min_stake_snapshot_atomic_units = 11;
+  uint32 performance_score_snapshot_ppm = 12;
+  uint32 performance_method_version = 13;
+  uint32 candidate_jail_factor_snapshot_ppm = 14;
+  uint64 bond_version_snapshot = 15;
+  uint64 support_version_snapshot = 16;
+  uint32 candidate_weight = 17;
+  bytes handraise_signing_digest = 18;
+  uint64 capability_version_snapshot = 19;
+}
+
+// BuilderStageProposalStoreState stores the proposer operator as codec bytes.
+message BuilderStageProposalStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  int32 stage = 3;
+  bytes proposal_digest = 4;
+  bytes proposer_operator = 5;
+  uint64 accepted_height = 6;
+  uint32 new_member_count = 7;
+  bool data_ready_attestation = 8;
+}

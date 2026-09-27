@@ -1,0 +1,33 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// VerificationRoundStoreState mirrors public field tags with a codec-byte opener.
+message VerificationRoundStoreState {
+  bytes task_id = 1;
+  bytes task_hash = 2;
+  uint32 verify_round = 3;
+  bytes round_id = 4;
+  optional bytes opener_address = 5;
+  optional bytes prev_round_facts_hash = 6;
+  optional int32 prev_round_verdict = 7;
+  uint64 round_open_height = 8;
+  uint64 round_close_deadline_height = 9;
+  optional uint64 closed_height = 10;
+  bytes infer_receipt_ref = 11;
+  optional bytes result_receipt_refs_hash = 12;
+  optional bytes consensus_cluster_hash = 13;
+  uint64 generated_token_count = 14;
+  optional int32 verdict = 15;
+  optional int32 failure_class = 16;
+  optional int32 round_outcome = 17;
+  bytes profile_execution_snapshot_hash = 18;
+  bytes generation_params_digest = 19;
+  optional bytes round_facts_hash = 20;
+  uint32 round_effect_count = 21;
+  optional bytes round_effect_plan_root = 22;
+  optional bytes round_effect_root = 23;
+  optional bytes funding_lock_hash = 24;
+  optional bytes funding_resolution_hash = 25;
+}

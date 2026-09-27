@@ -59,7 +59,7 @@ func (k Keeper) ProcessServiceBondEffectiveActivations(ctx context.Context, curr
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		cacheCtx, commit := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
-		bond, err := k.ServiceBond.Get(cache, types.NewServiceBondKey(key.K2()))
+		bond, err := k.ReadServiceBondValue(cache, types.NewServiceBondKey(key.K2()))
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.ServiceBondEffectiveIndex.Remove(cache, key); err != nil {
 				return uint64(index + 1), err
@@ -84,7 +84,7 @@ func (k Keeper) ProcessServiceBondEffectiveActivations(ctx context.Context, curr
 		if err := bond.Validate(); err != nil {
 			return uint64(index + 1), err
 		}
-		if err := k.ServiceBond.Set(cache, types.NewServiceBondKey(bond.OperatorAddress), bond); err != nil {
+		if err := k.WriteServiceBondValue(cache, types.NewServiceBondKey(bond.OperatorAddress), bond); err != nil {
 			return uint64(index + 1), err
 		}
 		if err := k.reconcileSupportsAfterBondChange(
@@ -114,12 +114,17 @@ func (k Keeper) EnsureServiceBondEffectiveIndexInvariant(ctx context.Context) er
 			bonds.Close()
 			return err
 		}
-		if entry.Key != entry.Value.OperatorAddress {
+		state, err := k.ProjectServiceBondStore(entry.Value)
+		if err != nil {
+			bonds.Close()
+			return err
+		}
+		if entry.Key != state.OperatorAddress {
 			bonds.Close()
 			return fmt.Errorf("service bond effective primary identity mismatch")
 		}
-		if entry.Value.EffectiveActiveBond != entry.Value.ActiveBond {
-			has, err := k.ServiceBondEffectiveIndex.Has(ctx, types.NewServiceBondEffectiveKey(entry.Value.EffectiveBondEpoch, entry.Key))
+		if state.EffectiveActiveBond != state.ActiveBond {
+			has, err := k.ServiceBondEffectiveIndex.Has(ctx, types.NewServiceBondEffectiveKey(state.EffectiveBondEpoch, entry.Key))
 			if err != nil || !has {
 				bonds.Close()
 				return fmt.Errorf("service bond %s is missing its effective-epoch index", entry.Key)
@@ -140,7 +145,7 @@ func (k Keeper) EnsureServiceBondEffectiveIndexInvariant(ctx context.Context) er
 		if err != nil {
 			return err
 		}
-		bond, err := k.ServiceBond.Get(ctx, types.NewServiceBondKey(key.K2()))
+		bond, err := k.ReadServiceBondValue(ctx, types.NewServiceBondKey(key.K2()))
 		if err != nil || bond.OperatorAddress != key.K2() || bond.EffectiveBondEpoch != key.K1() {
 			return fmt.Errorf("service bond effective index is orphaned or mismatched")
 		}

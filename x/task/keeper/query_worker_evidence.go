@@ -19,7 +19,7 @@ func (q *queryServer) WorkerEvidence(ctx context.Context, req *types.QueryWorker
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	kind := types.WorkerEvidenceKindV1_WORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION
-	state, err := q.k.WorkerEvidenceReceipt.Get(ctx, types.NewWorkerEvidenceReceiptKey(types.NewTaskKey(req.TaskId), worker, kind, req.Seq))
+	state, err := q.k.ReadWorkerEvidenceReceipt(ctx, types.NewWorkerEvidenceReceiptKey(types.NewTaskKey(req.TaskId), worker, kind, req.Seq))
 	if err != nil {
 		if errIsNotFound(err) {
 			return nil, status.Error(codes.NotFound, "Worker evidence receipt not found")

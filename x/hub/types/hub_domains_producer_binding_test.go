@@ -18,7 +18,7 @@ type hubFixtureField = domainfixture.Field
 
 var hubValueBoundVectors = map[string]struct{}{
 	"daily_support_confirmation_v1":    {},
-	"support_profiles_v1":              {},
+	"support_models_v1":                {},
 	"service_descriptor_v1":            {},
 	"profile_verification_snapshot_v1": {},
 	"evidence_schema_v1":               {},
@@ -52,16 +52,16 @@ func TestHubDomainFixtureMatchesProductionHelpers(t *testing.T) {
 			hubFieldUint(t, vector, 2, "epoch_index"),
 			hubFieldUint(t, vector, 3, "service_authorization_nonce"),
 			hubFieldUint(t, vector, 4, "expiry_height"),
-			hubProfileKeys(t, vector, 6, 5),
+			hubModelIDs(t, vector, 6, 5),
 		)
 		require.NoError(t, err)
 		require.Equal(t, vector.DigestHex, hex.EncodeToString(got))
 	})
 
-	t.Run("CanonicalSupportedProfilesHash", func(t *testing.T) {
-		binds("support_profiles_v1")
-		vector := hubRequireVector(t, vectors, "support_profiles_v1")
-		got, err := types.CanonicalSupportedProfilesHashV1(hubProfileKeys(t, vector, 1, 0))
+	t.Run("CanonicalSupportedModelsHash", func(t *testing.T) {
+		binds("support_models_v1")
+		vector := hubRequireVector(t, vectors, "support_models_v1")
+		got, err := types.CanonicalSupportedModelsHashV1(hubModelIDs(t, vector, 1, 0))
 		require.NoError(t, err)
 		require.Equal(t, vector.DigestHex, hex.EncodeToString(got))
 	})
@@ -232,7 +232,7 @@ func TestHubDomainFixtureMatchesProductionHelpers(t *testing.T) {
 			})
 		}
 		projection := shared.ModelProfileProjection{
-			ModelId:        hubFieldString(t, vector, 1, "model_id"),
+			ModelId:        hubFieldBytes(t, vector, 1, "model_id"),
 			ProfileVersion: uint32(hubFieldUint(t, vector, 2, "profile_version")),
 			SchemaHash:     hubFieldBytes(t, vector, 3, "schema_hash"),
 			TokenizerHash:  hubFieldBytes(t, vector, 4, "tokenizer_hash"),
@@ -607,18 +607,14 @@ func hubFixtureFlatFrame(t *testing.T, field hubFixtureField) shared.CanonicalFr
 	return frameValue
 }
 
-func hubProfileKeys(t *testing.T, vector hubDomainVector, repeatedIndex, countIndex int) []types.ProfileKeyV1 {
+func hubModelIDs(t *testing.T, vector hubDomainVector, repeatedIndex, countIndex int) [][]byte {
 	t.Helper()
 	elements := vector.Repeated(t, repeatedIndex, countIndex, vector.Fields[repeatedIndex].Name, vector.Fields[countIndex].Name)
-	profiles := make([]types.ProfileKeyV1, len(elements))
+	models := make([][]byte, len(elements))
 	for index, element := range elements {
-		fields := element.Frame(t, fmt.Sprintf("profile_%d", index))
-		profiles[index] = types.ProfileKeyV1{
-			ModelId:        fields[0].String(t, fmt.Sprintf("profile_%d.model_id", index)),
-			ProfileVersion: uint32(fields[1].Uint(t, fmt.Sprintf("profile_%d.profile_version", index))),
-		}
+		models[index] = element.Bytes(t, fmt.Sprintf("model_%d", index))
 	}
-	return profiles
+	return models
 }
 
 func TestHubDomainFixtureProducerBindingsAccountForEveryVector(t *testing.T) {
@@ -630,7 +626,7 @@ func TestHubDomainFixtureProducerBindingsAccountForEveryVector(t *testing.T) {
 		"unbonding_id_v1":                  "serviceUnbondingID",
 		"unbonding_receipt_v1":             "unbondingReceiptHash",
 		"daily_support_confirmation_v1":    "CanonicalDailySupportConfirmationSigningBytesV1",
-		"support_profiles_v1":              "CanonicalSupportedProfilesHashV1",
+		"support_models_v1":                "CanonicalSupportedModelsHashV1",
 		"parameter_bucket_v1_timeout":      "ParameterBucketContentHash",
 		"beacon_checkpoint_v1":             "BeaconCheckpointStep",
 		"reward_bucket_boundaries_v1":      "RewardOrderValueBucketBoundariesHash",

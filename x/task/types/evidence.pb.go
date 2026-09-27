@@ -47,6 +47,23 @@ const (
 	// Generation reached the accepted maximum output duration.
 	// FINISH_REASON_V1_MAX_OUTPUT_DURATION identifies the corresponding protocol value.
 	FinishReasonV1_FINISH_REASON_V1_MAX_OUTPUT_DURATION FinishReasonV1 = 4
+	// The user stopped the generation and the Worker closed the stream on their
+	// behalf. A stop is a successful termination, not an abandonment: the Worker
+	// signs a Fin carrying this value and then signs the receipt, so a stopped
+	// task is indistinguishable in shape from any other completed one. "No Fin"
+	// stays reserved for a Worker that failed or gave up, which produces no
+	// receipt either.
+	//
+	// Unlike every other value, this one cannot be checked: the stop signal
+	// arrives off chain, so it is accepted as a Worker assertion.
+	// FINISH_REASON_V1_USER_STOP identifies the corresponding protocol value.
+	FinishReasonV1_FINISH_REASON_V1_USER_STOP FinishReasonV1 = 5
+	// Generation emitted one of the order's stop_token_ids. Distinct from
+	// STOP_SEQUENCE because an order may carry both stop strings and stop tokens,
+	// and which one ended the generation is a different fact. Checkable: the last
+	// token of T belongs to the order's stop_token_ids.
+	// FINISH_REASON_V1_STOP_TOKEN identifies the corresponding protocol value.
+	FinishReasonV1_FINISH_REASON_V1_STOP_TOKEN FinishReasonV1 = 6
 )
 
 var FinishReasonV1_name = map[int32]string{
@@ -55,6 +72,8 @@ var FinishReasonV1_name = map[int32]string{
 	2: "FINISH_REASON_V1_STOP_SEQUENCE",
 	3: "FINISH_REASON_V1_MAX_OUTPUT_TOKENS",
 	4: "FINISH_REASON_V1_MAX_OUTPUT_DURATION",
+	5: "FINISH_REASON_V1_USER_STOP",
+	6: "FINISH_REASON_V1_STOP_TOKEN",
 }
 
 var FinishReasonV1_value = map[string]int32{
@@ -63,6 +82,8 @@ var FinishReasonV1_value = map[string]int32{
 	"FINISH_REASON_V1_STOP_SEQUENCE":       2,
 	"FINISH_REASON_V1_MAX_OUTPUT_TOKENS":   3,
 	"FINISH_REASON_V1_MAX_OUTPUT_DURATION": 4,
+	"FINISH_REASON_V1_USER_STOP":           5,
+	"FINISH_REASON_V1_STOP_TOKEN":          6,
 }
 
 func (x FinishReasonV1) String() string {
@@ -103,17 +124,42 @@ func (WorkerEvidenceKindV1) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_8d22f2589a5f3dfc, []int{1}
 }
 
+// VerifierValueEvidenceKindV1 is reserved for the later bounded value-evidence
+// activation. No nonzero kind is assigned or accepted in this release.
+type VerifierValueEvidenceKindV1 int32
+
+const (
+	// The only registered pre-activation value; evidence is not accepted.
+	VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED VerifierValueEvidenceKindV1 = 0
+)
+
+var VerifierValueEvidenceKindV1_name = map[int32]string{
+	0: "VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED",
+}
+
+var VerifierValueEvidenceKindV1_value = map[string]int32{
+	"VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED": 0,
+}
+
+func (x VerifierValueEvidenceKindV1) String() string {
+	return proto.EnumName(VerifierValueEvidenceKindV1_name, int32(x))
+}
+
+func (VerifierValueEvidenceKindV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_8d22f2589a5f3dfc, []int{2}
+}
+
 // EvidenceCommitmentV1 is one worker-authored evidence commitment carried by
-// InferReceiptV2. The list is sorted by evidence_kind
+// InferReceiptV3. The list is sorted by evidence_kind
 // ascending with unique kinds and must exactly equal the kind set required by
 // the locked profile.
 //
 // The list's commitment - evidence_commitments_hash, domain
-// TRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1 (§1.4) - has exactly one ordered preimage in
+// TRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1 - has exactly one ordered preimage in
 // this repository, defined in task/v1/infer_receipt.proto next to the
-// TRUEOPEN_INFER_RECEIPT_V2 formula that consumes it. It covers the per-element frame
+// TRUEOPEN_INFER_RECEIPT_V3 formula that consumes it. It covers the per-element frame
 // layout of the three fields below, the leading uint32_be(count) and the empty-list
-// case. §1.4 rule 1 forbids a second copy, so this file only points at it.
+// case. The contract forbids a second copy, so this file only points at it.
 // EvidenceCommitmentV1 defines the EvidenceCommitmentV1 wire type.
 type EvidenceCommitmentV1 struct {
 	EvidenceKind       types.EvidenceKind `protobuf:"varint,1,opt,name=evidence_kind,json=evidenceKind,proto3,enum=shared.v1.EvidenceKind" json:"evidence_kind,omitempty"`
@@ -175,15 +221,8 @@ func (m *EvidenceCommitmentV1) GetEncodedSizeBytes() uint64 {
 	return 0
 }
 
-// WorkerValueCommitmentV2 is the canonical fixed-field commitment behind the
-// single WORKER_VALUE_OPENING evidence item. trace_root and checkpoint_root are
-// the two Hash32 commitments Cortex already produces; this message folds them
-// into one evidence kind without making either artifact's private file format
-// part of consensus. EvidenceCommitmentV1.encoded_size_bytes is exactly the
-// checked sum of trace/checkpoint/input-token/generated-token artifact sizes.
-// WorkerValueCommitmentV2 defines the WorkerValueCommitmentV2 wire type.
-type WorkerValueCommitmentV2 struct {
-	// Always 2 in the fresh Phase 0 contract.
+// WorkerTokenCommitmentV1 binds the A-level token-ID artifacts and finish reason.
+type WorkerTokenCommitmentV1 struct {
 	SchemaVersion              uint32         `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	ChainId                    string         `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	TaskId                     []byte         `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -193,31 +232,27 @@ type WorkerValueCommitmentV2 struct {
 	EvidenceSchemaHash         []byte         `protobuf:"bytes,7,opt,name=evidence_schema_hash,json=evidenceSchemaHash,proto3" json:"evidence_schema_hash,omitempty"`
 	OutputHash                 []byte         `protobuf:"bytes,8,opt,name=output_hash,json=outputHash,proto3" json:"output_hash,omitempty"`
 	OutputSizeBytes            uint64         `protobuf:"varint,9,opt,name=output_size_bytes,json=outputSizeBytes,proto3" json:"output_size_bytes,omitempty"`
-	FinishReason               FinishReasonV1 `protobuf:"varint,10,opt,name=finish_reason,json=finishReason,proto3,enum=task.v1.FinishReasonV1" json:"finish_reason,omitempty"`
-	TraceRoot                  []byte         `protobuf:"bytes,11,opt,name=trace_root,json=traceRoot,proto3" json:"trace_root,omitempty"`
-	TraceEncodedSizeBytes      uint64         `protobuf:"varint,12,opt,name=trace_encoded_size_bytes,json=traceEncodedSizeBytes,proto3" json:"trace_encoded_size_bytes,omitempty"`
-	CheckpointRoot             []byte         `protobuf:"bytes,13,opt,name=checkpoint_root,json=checkpointRoot,proto3" json:"checkpoint_root,omitempty"`
-	CheckpointEncodedSizeBytes uint64         `protobuf:"varint,14,opt,name=checkpoint_encoded_size_bytes,json=checkpointEncodedSizeBytes,proto3" json:"checkpoint_encoded_size_bytes,omitempty"`
-	GeneratedTokenCount        uint64         `protobuf:"varint,15,opt,name=generated_token_count,json=generatedTokenCount,proto3" json:"generated_token_count,omitempty"`
-	OutputLeafCount            uint64         `protobuf:"varint,16,opt,name=output_leaf_count,json=outputLeafCount,proto3" json:"output_leaf_count,omitempty"`
-	InputTokenIdsHash          []byte         `protobuf:"bytes,17,opt,name=input_token_ids_hash,json=inputTokenIdsHash,proto3" json:"input_token_ids_hash,omitempty"`
-	GeneratedTokenIdsHash      []byte         `protobuf:"bytes,18,opt,name=generated_token_ids_hash,json=generatedTokenIdsHash,proto3" json:"generated_token_ids_hash,omitempty"`
-	InputTokenIdsSizeBytes     uint64         `protobuf:"varint,19,opt,name=input_token_ids_size_bytes,json=inputTokenIdsSizeBytes,proto3" json:"input_token_ids_size_bytes,omitempty"`
-	GeneratedTokenIdsSizeBytes uint64         `protobuf:"varint,20,opt,name=generated_token_ids_size_bytes,json=generatedTokenIdsSizeBytes,proto3" json:"generated_token_ids_size_bytes,omitempty"`
+	OutputLeafCount            uint64         `protobuf:"varint,10,opt,name=output_leaf_count,json=outputLeafCount,proto3" json:"output_leaf_count,omitempty"`
+	FinishReason               FinishReasonV1 `protobuf:"varint,11,opt,name=finish_reason,json=finishReason,proto3,enum=task.v1.FinishReasonV1" json:"finish_reason,omitempty"`
+	GeneratedTokenCount        uint64         `protobuf:"varint,12,opt,name=generated_token_count,json=generatedTokenCount,proto3" json:"generated_token_count,omitempty"`
+	InputTokenIdsHash          []byte         `protobuf:"bytes,13,opt,name=input_token_ids_hash,json=inputTokenIdsHash,proto3" json:"input_token_ids_hash,omitempty"`
+	GeneratedTokenIdsHash      []byte         `protobuf:"bytes,14,opt,name=generated_token_ids_hash,json=generatedTokenIdsHash,proto3" json:"generated_token_ids_hash,omitempty"`
+	InputTokenIdsSizeBytes     uint64         `protobuf:"varint,15,opt,name=input_token_ids_size_bytes,json=inputTokenIdsSizeBytes,proto3" json:"input_token_ids_size_bytes,omitempty"`
+	GeneratedTokenIdsSizeBytes uint64         `protobuf:"varint,16,opt,name=generated_token_ids_size_bytes,json=generatedTokenIdsSizeBytes,proto3" json:"generated_token_ids_size_bytes,omitempty"`
 }
 
-func (m *WorkerValueCommitmentV2) Reset()         { *m = WorkerValueCommitmentV2{} }
-func (m *WorkerValueCommitmentV2) String() string { return proto.CompactTextString(m) }
-func (*WorkerValueCommitmentV2) ProtoMessage()    {}
-func (*WorkerValueCommitmentV2) Descriptor() ([]byte, []int) {
+func (m *WorkerTokenCommitmentV1) Reset()         { *m = WorkerTokenCommitmentV1{} }
+func (m *WorkerTokenCommitmentV1) String() string { return proto.CompactTextString(m) }
+func (*WorkerTokenCommitmentV1) ProtoMessage()    {}
+func (*WorkerTokenCommitmentV1) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8d22f2589a5f3dfc, []int{1}
 }
-func (m *WorkerValueCommitmentV2) XXX_Unmarshal(b []byte) error {
+func (m *WorkerTokenCommitmentV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *WorkerValueCommitmentV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *WorkerTokenCommitmentV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_WorkerValueCommitmentV2.Marshal(b, m, deterministic)
+		return xxx_messageInfo_WorkerTokenCommitmentV1.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -227,154 +262,227 @@ func (m *WorkerValueCommitmentV2) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *WorkerValueCommitmentV2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WorkerValueCommitmentV2.Merge(m, src)
+func (m *WorkerTokenCommitmentV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerTokenCommitmentV1.Merge(m, src)
 }
-func (m *WorkerValueCommitmentV2) XXX_Size() int {
+func (m *WorkerTokenCommitmentV1) XXX_Size() int {
 	return m.Size()
 }
-func (m *WorkerValueCommitmentV2) XXX_DiscardUnknown() {
-	xxx_messageInfo_WorkerValueCommitmentV2.DiscardUnknown(m)
+func (m *WorkerTokenCommitmentV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerTokenCommitmentV1.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_WorkerValueCommitmentV2 proto.InternalMessageInfo
+var xxx_messageInfo_WorkerTokenCommitmentV1 proto.InternalMessageInfo
 
-func (m *WorkerValueCommitmentV2) GetSchemaVersion() uint32 {
+func (m *WorkerTokenCommitmentV1) GetSchemaVersion() uint32 {
 	if m != nil {
 		return m.SchemaVersion
 	}
 	return 0
 }
 
-func (m *WorkerValueCommitmentV2) GetChainId() string {
+func (m *WorkerTokenCommitmentV1) GetChainId() string {
 	if m != nil {
 		return m.ChainId
 	}
 	return ""
 }
 
-func (m *WorkerValueCommitmentV2) GetTaskId() []byte {
+func (m *WorkerTokenCommitmentV1) GetTaskId() []byte {
 	if m != nil {
 		return m.TaskId
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetAcceptedTaskHash() []byte {
+func (m *WorkerTokenCommitmentV1) GetAcceptedTaskHash() []byte {
 	if m != nil {
 		return m.AcceptedTaskHash
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetWorkerOperatorAddress() string {
+func (m *WorkerTokenCommitmentV1) GetWorkerOperatorAddress() string {
 	if m != nil {
 		return m.WorkerOperatorAddress
 	}
 	return ""
 }
 
-func (m *WorkerValueCommitmentV2) GetGenerationParamsDigest() []byte {
+func (m *WorkerTokenCommitmentV1) GetGenerationParamsDigest() []byte {
 	if m != nil {
 		return m.GenerationParamsDigest
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetEvidenceSchemaHash() []byte {
+func (m *WorkerTokenCommitmentV1) GetEvidenceSchemaHash() []byte {
 	if m != nil {
 		return m.EvidenceSchemaHash
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetOutputHash() []byte {
+func (m *WorkerTokenCommitmentV1) GetOutputHash() []byte {
 	if m != nil {
 		return m.OutputHash
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetOutputSizeBytes() uint64 {
+func (m *WorkerTokenCommitmentV1) GetOutputSizeBytes() uint64 {
 	if m != nil {
 		return m.OutputSizeBytes
 	}
 	return 0
 }
 
-func (m *WorkerValueCommitmentV2) GetFinishReason() FinishReasonV1 {
-	if m != nil {
-		return m.FinishReason
-	}
-	return FinishReasonV1_FINISH_REASON_V1_UNSPECIFIED
-}
-
-func (m *WorkerValueCommitmentV2) GetTraceRoot() []byte {
-	if m != nil {
-		return m.TraceRoot
-	}
-	return nil
-}
-
-func (m *WorkerValueCommitmentV2) GetTraceEncodedSizeBytes() uint64 {
-	if m != nil {
-		return m.TraceEncodedSizeBytes
-	}
-	return 0
-}
-
-func (m *WorkerValueCommitmentV2) GetCheckpointRoot() []byte {
-	if m != nil {
-		return m.CheckpointRoot
-	}
-	return nil
-}
-
-func (m *WorkerValueCommitmentV2) GetCheckpointEncodedSizeBytes() uint64 {
-	if m != nil {
-		return m.CheckpointEncodedSizeBytes
-	}
-	return 0
-}
-
-func (m *WorkerValueCommitmentV2) GetGeneratedTokenCount() uint64 {
-	if m != nil {
-		return m.GeneratedTokenCount
-	}
-	return 0
-}
-
-func (m *WorkerValueCommitmentV2) GetOutputLeafCount() uint64 {
+func (m *WorkerTokenCommitmentV1) GetOutputLeafCount() uint64 {
 	if m != nil {
 		return m.OutputLeafCount
 	}
 	return 0
 }
 
-func (m *WorkerValueCommitmentV2) GetInputTokenIdsHash() []byte {
+func (m *WorkerTokenCommitmentV1) GetFinishReason() FinishReasonV1 {
+	if m != nil {
+		return m.FinishReason
+	}
+	return FinishReasonV1_FINISH_REASON_V1_UNSPECIFIED
+}
+
+func (m *WorkerTokenCommitmentV1) GetGeneratedTokenCount() uint64 {
+	if m != nil {
+		return m.GeneratedTokenCount
+	}
+	return 0
+}
+
+func (m *WorkerTokenCommitmentV1) GetInputTokenIdsHash() []byte {
 	if m != nil {
 		return m.InputTokenIdsHash
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetGeneratedTokenIdsHash() []byte {
+func (m *WorkerTokenCommitmentV1) GetGeneratedTokenIdsHash() []byte {
 	if m != nil {
 		return m.GeneratedTokenIdsHash
 	}
 	return nil
 }
 
-func (m *WorkerValueCommitmentV2) GetInputTokenIdsSizeBytes() uint64 {
+func (m *WorkerTokenCommitmentV1) GetInputTokenIdsSizeBytes() uint64 {
 	if m != nil {
 		return m.InputTokenIdsSizeBytes
 	}
 	return 0
 }
 
-func (m *WorkerValueCommitmentV2) GetGeneratedTokenIdsSizeBytes() uint64 {
+func (m *WorkerTokenCommitmentV1) GetGeneratedTokenIdsSizeBytes() uint64 {
 	if m != nil {
 		return m.GeneratedTokenIdsSizeBytes
+	}
+	return 0
+}
+
+// WorkerValueCommitmentV3 binds the B-level Worker value Merkle root.
+type WorkerValueCommitmentV3 struct {
+	SchemaVersion                uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	ChainId                      string `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	TaskId                       []byte `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	AcceptedTaskHash             []byte `protobuf:"bytes,4,opt,name=accepted_task_hash,json=acceptedTaskHash,proto3" json:"accepted_task_hash,omitempty"`
+	WorkerOperatorAddress        string `protobuf:"bytes,5,opt,name=worker_operator_address,json=workerOperatorAddress,proto3" json:"worker_operator_address,omitempty"`
+	EvidenceSchemaHash           []byte `protobuf:"bytes,6,opt,name=evidence_schema_hash,json=evidenceSchemaHash,proto3" json:"evidence_schema_hash,omitempty"`
+	WorkerValueRoot              []byte `protobuf:"bytes,7,opt,name=worker_value_root,json=workerValueRoot,proto3" json:"worker_value_root,omitempty"`
+	WorkerValuesEncodedSizeBytes uint64 `protobuf:"varint,8,opt,name=worker_values_encoded_size_bytes,json=workerValuesEncodedSizeBytes,proto3" json:"worker_values_encoded_size_bytes,omitempty"`
+}
+
+func (m *WorkerValueCommitmentV3) Reset()         { *m = WorkerValueCommitmentV3{} }
+func (m *WorkerValueCommitmentV3) String() string { return proto.CompactTextString(m) }
+func (*WorkerValueCommitmentV3) ProtoMessage()    {}
+func (*WorkerValueCommitmentV3) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8d22f2589a5f3dfc, []int{2}
+}
+func (m *WorkerValueCommitmentV3) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WorkerValueCommitmentV3) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WorkerValueCommitmentV3.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WorkerValueCommitmentV3) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerValueCommitmentV3.Merge(m, src)
+}
+func (m *WorkerValueCommitmentV3) XXX_Size() int {
+	return m.Size()
+}
+func (m *WorkerValueCommitmentV3) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerValueCommitmentV3.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerValueCommitmentV3 proto.InternalMessageInfo
+
+func (m *WorkerValueCommitmentV3) GetSchemaVersion() uint32 {
+	if m != nil {
+		return m.SchemaVersion
+	}
+	return 0
+}
+
+func (m *WorkerValueCommitmentV3) GetChainId() string {
+	if m != nil {
+		return m.ChainId
+	}
+	return ""
+}
+
+func (m *WorkerValueCommitmentV3) GetTaskId() []byte {
+	if m != nil {
+		return m.TaskId
+	}
+	return nil
+}
+
+func (m *WorkerValueCommitmentV3) GetAcceptedTaskHash() []byte {
+	if m != nil {
+		return m.AcceptedTaskHash
+	}
+	return nil
+}
+
+func (m *WorkerValueCommitmentV3) GetWorkerOperatorAddress() string {
+	if m != nil {
+		return m.WorkerOperatorAddress
+	}
+	return ""
+}
+
+func (m *WorkerValueCommitmentV3) GetEvidenceSchemaHash() []byte {
+	if m != nil {
+		return m.EvidenceSchemaHash
+	}
+	return nil
+}
+
+func (m *WorkerValueCommitmentV3) GetWorkerValueRoot() []byte {
+	if m != nil {
+		return m.WorkerValueRoot
+	}
+	return nil
+}
+
+func (m *WorkerValueCommitmentV3) GetWorkerValuesEncodedSizeBytes() uint64 {
+	if m != nil {
+		return m.WorkerValuesEncodedSizeBytes
 	}
 	return 0
 }
@@ -392,7 +500,7 @@ func (m *OutputMMRPeakProofV1) Reset()         { *m = OutputMMRPeakProofV1{} }
 func (m *OutputMMRPeakProofV1) String() string { return proto.CompactTextString(m) }
 func (*OutputMMRPeakProofV1) ProtoMessage()    {}
 func (*OutputMMRPeakProofV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8d22f2589a5f3dfc, []int{2}
+	return fileDescriptor_8d22f2589a5f3dfc, []int{3}
 }
 func (m *OutputMMRPeakProofV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -436,7 +544,7 @@ func (m *OutputMMRPeakProofV1) GetFinalInclusionPath() [][]byte {
 }
 
 // OutputChunkEquivocationV1 proves that a valid Worker-signed streamed prefix
-// conflicts with the final MMR root bound by an accepted InferReceiptV2.
+// conflicts with the final MMR root bound by an accepted InferReceiptV3.
 // OutputChunkEquivocationV1 defines the OutputChunkEquivocationV1 wire type.
 type OutputChunkEquivocationV1 struct {
 	TaskId                   []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -452,7 +560,7 @@ func (m *OutputChunkEquivocationV1) Reset()         { *m = OutputChunkEquivocati
 func (m *OutputChunkEquivocationV1) String() string { return proto.CompactTextString(m) }
 func (*OutputChunkEquivocationV1) ProtoMessage()    {}
 func (*OutputChunkEquivocationV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8d22f2589a5f3dfc, []int{3}
+	return fileDescriptor_8d22f2589a5f3dfc, []int{4}
 }
 func (m *OutputChunkEquivocationV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -538,7 +646,7 @@ func (m *WorkerEvidenceV1) Reset()         { *m = WorkerEvidenceV1{} }
 func (m *WorkerEvidenceV1) String() string { return proto.CompactTextString(m) }
 func (*WorkerEvidenceV1) ProtoMessage()    {}
 func (*WorkerEvidenceV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8d22f2589a5f3dfc, []int{4}
+	return fileDescriptor_8d22f2589a5f3dfc, []int{5}
 }
 func (m *WorkerEvidenceV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -626,7 +734,7 @@ func (m *WorkerEvidenceReceiptState) Reset()         { *m = WorkerEvidenceReceip
 func (m *WorkerEvidenceReceiptState) String() string { return proto.CompactTextString(m) }
 func (*WorkerEvidenceReceiptState) ProtoMessage()    {}
 func (*WorkerEvidenceReceiptState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8d22f2589a5f3dfc, []int{5}
+	return fileDescriptor_8d22f2589a5f3dfc, []int{6}
 }
 func (m *WorkerEvidenceReceiptState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -721,8 +829,10 @@ func (m *WorkerEvidenceReceiptState) GetAcceptedHeight() uint64 {
 func init() {
 	proto.RegisterEnum("task.v1.FinishReasonV1", FinishReasonV1_name, FinishReasonV1_value)
 	proto.RegisterEnum("task.v1.WorkerEvidenceKindV1", WorkerEvidenceKindV1_name, WorkerEvidenceKindV1_value)
+	proto.RegisterEnum("task.v1.VerifierValueEvidenceKindV1", VerifierValueEvidenceKindV1_name, VerifierValueEvidenceKindV1_value)
 	proto.RegisterType((*EvidenceCommitmentV1)(nil), "task.v1.EvidenceCommitmentV1")
-	proto.RegisterType((*WorkerValueCommitmentV2)(nil), "task.v1.WorkerValueCommitmentV2")
+	proto.RegisterType((*WorkerTokenCommitmentV1)(nil), "task.v1.WorkerTokenCommitmentV1")
+	proto.RegisterType((*WorkerValueCommitmentV3)(nil), "task.v1.WorkerValueCommitmentV3")
 	proto.RegisterType((*OutputMMRPeakProofV1)(nil), "task.v1.OutputMMRPeakProofV1")
 	proto.RegisterType((*OutputChunkEquivocationV1)(nil), "task.v1.OutputChunkEquivocationV1")
 	proto.RegisterType((*WorkerEvidenceV1)(nil), "task.v1.WorkerEvidenceV1")
@@ -732,87 +842,90 @@ func init() {
 func init() { proto.RegisterFile("task/v1/evidence.proto", fileDescriptor_8d22f2589a5f3dfc) }
 
 var fileDescriptor_8d22f2589a5f3dfc = []byte{
-	// 1273 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x56, 0xdd, 0x6e, 0x1a, 0xc7,
-	0x17, 0xf7, 0x1a, 0xc7, 0x1f, 0xc7, 0x36, 0xe0, 0x09, 0x8e, 0xd7, 0xfc, 0xff, 0x26, 0x2e, 0x69,
-	0x1a, 0x2b, 0x6a, 0xa0, 0xb8, 0x4a, 0x22, 0x55, 0xfd, 0x90, 0xc1, 0x1b, 0x79, 0xe5, 0x1a, 0xc8,
-	0xf2, 0x91, 0xaa, 0x37, 0xd3, 0xcd, 0xee, 0xc0, 0x8e, 0x30, 0x3b, 0x64, 0x67, 0xa0, 0x49, 0x9e,
-	0xa2, 0x6f, 0xd1, 0xcb, 0xde, 0xf4, 0xae, 0x0f, 0x50, 0x5f, 0x46, 0xbd, 0xea, 0x55, 0x55, 0x25,
-	0x8f, 0xd0, 0x17, 0xa8, 0x76, 0x66, 0x81, 0xb5, 0xa1, 0xa9, 0xd5, 0x3b, 0xf6, 0xfc, 0x7e, 0x67,
-	0xce, 0xf7, 0x39, 0xc0, 0x2d, 0x61, 0xf3, 0x5e, 0x71, 0x54, 0x2a, 0x92, 0x11, 0x75, 0x89, 0xef,
-	0x90, 0xc2, 0x20, 0x60, 0x82, 0xa1, 0x95, 0x50, 0x5e, 0x18, 0x95, 0xb2, 0xbb, 0x0e, 0xe3, 0x7d,
-	0xc6, 0xb1, 0x14, 0x17, 0xd5, 0x87, 0xe2, 0x64, 0x33, 0x5d, 0xd6, 0x65, 0x4a, 0x1e, 0xfe, 0x8a,
-	0xa4, 0x3a, 0xf7, 0xec, 0x80, 0xb8, 0xb3, 0x6f, 0x66, 0xf7, 0xa6, 0x48, 0x40, 0xb8, 0xc0, 0xc4,
-	0x77, 0x98, 0x4b, 0xfd, 0xae, 0x82, 0xf3, 0xbf, 0x68, 0x90, 0x31, 0x22, 0x8d, 0x0a, 0xeb, 0xf7,
-	0xa9, 0xe8, 0x13, 0x5f, 0xb4, 0x4b, 0xe8, 0x73, 0xd8, 0x1c, 0xbf, 0x84, 0x7b, 0xd4, 0x77, 0x75,
-	0x6d, 0x5f, 0x3b, 0x48, 0x1e, 0xee, 0x14, 0xd4, 0x7b, 0x85, 0x51, 0xa9, 0x30, 0xd6, 0x3b, 0xa5,
-	0xbe, 0x6b, 0x6d, 0x90, 0xd8, 0x17, 0x7a, 0x0c, 0xdb, 0x13, 0x6d, 0xcf, 0xe6, 0x1e, 0x66, 0x01,
-	0x0e, 0x18, 0x13, 0xfa, 0xe2, 0xbe, 0x76, 0xb0, 0x51, 0x5e, 0xba, 0xf8, 0x4b, 0x5f, 0xb4, 0xd0,
-	0x98, 0x72, 0x62, 0x73, 0xaf, 0x16, 0x58, 0x8c, 0x09, 0xf4, 0x31, 0x20, 0xe9, 0x21, 0x71, 0x31,
-	0xa7, 0xaf, 0x09, 0x7e, 0xfe, 0x4a, 0x10, 0xae, 0x27, 0xf6, 0xb5, 0x83, 0x25, 0x2b, 0x1d, 0x21,
-	0x0d, 0xfa, 0x9a, 0x94, 0x43, 0x79, 0xfe, 0xa7, 0x55, 0xd8, 0x79, 0xc6, 0x82, 0x1e, 0x09, 0xda,
-	0xf6, 0xf9, 0x30, 0x1e, 0xc0, 0x21, 0xba, 0x0b, 0x49, 0xee, 0x78, 0xa4, 0x6f, 0xe3, 0x11, 0x09,
-	0x38, 0x65, 0xbe, 0x8c, 0x60, 0xd3, 0xda, 0x54, 0xd2, 0xb6, 0x12, 0xa2, 0x5d, 0x58, 0x75, 0x3c,
-	0x9b, 0xfa, 0x98, 0xba, 0xd2, 0xb9, 0x35, 0x6b, 0x45, 0x7e, 0x9b, 0x2e, 0xda, 0x03, 0x59, 0x90,
-	0x10, 0x49, 0xc4, 0xdc, 0x5e, 0x0e, 0x85, 0xa6, 0x8b, 0x0e, 0x01, 0xd9, 0x8e, 0x43, 0x06, 0x82,
-	0xb8, 0x58, 0xf2, 0xc2, 0x40, 0xf5, 0xa5, 0x18, 0x33, 0x3d, 0xc6, 0x9b, 0x36, 0xef, 0x85, 0x41,
-	0xa2, 0x3a, 0xec, 0x7c, 0x2f, 0xfd, 0xc5, 0x6c, 0x40, 0x02, 0x5b, 0xb0, 0x00, 0xdb, 0xae, 0x1b,
-	0x10, 0xce, 0xf5, 0x1b, 0xa1, 0xf1, 0xb2, 0xfe, 0xdb, 0xcf, 0x0f, 0x32, 0x51, 0xc1, 0x8f, 0x14,
-	0xd2, 0x10, 0x01, 0xf5, 0xbb, 0xd6, 0xb6, 0x52, 0xac, 0x45, 0x7a, 0x11, 0x88, 0xbe, 0x04, 0xbd,
-	0x4b, 0xfc, 0x50, 0x46, 0x99, 0x8f, 0x07, 0x76, 0x60, 0xf7, 0x39, 0x76, 0x69, 0x97, 0x70, 0xa1,
-	0x2f, 0xc7, 0x7c, 0xb9, 0x35, 0x65, 0xd5, 0x25, 0xe9, 0x58, 0x72, 0xd0, 0x23, 0xc8, 0x4c, 0x2a,
-	0x15, 0xe5, 0x4b, 0xc6, 0xb1, 0x32, 0xaf, 0x50, 0x0d, 0x49, 0x90, 0x91, 0xdc, 0x85, 0x75, 0x36,
-	0x14, 0x83, 0xa1, 0x50, 0xf4, 0xd5, 0x18, 0x1d, 0x14, 0x20, 0x69, 0xf7, 0x61, 0x2b, 0xa2, 0xc5,
-	0xca, 0xb9, 0x26, 0xcb, 0x99, 0x52, 0xc0, 0xa4, 0x9a, 0x61, 0xcb, 0x75, 0xa8, 0x4f, 0xb9, 0x87,
-	0x03, 0x62, 0x73, 0xe6, 0xeb, 0x10, 0xb5, 0x5c, 0x34, 0x16, 0x85, 0x27, 0x12, 0xb5, 0x24, 0xd8,
-	0x2e, 0x59, 0x1b, 0x9d, 0xd8, 0x37, 0xba, 0x03, 0x20, 0x02, 0xdb, 0x21, 0xaa, 0xcf, 0xd6, 0x63,
-	0xfe, 0xac, 0x49, 0xb9, 0x6c, 0xaf, 0xc7, 0xa0, 0x2b, 0xd2, 0x9c, 0x26, 0xdb, 0x90, 0x5e, 0x6d,
-	0x4b, 0xdc, 0xb8, 0xd2, 0x69, 0xe8, 0x01, 0xa4, 0x1c, 0x8f, 0x38, 0xbd, 0x01, 0xa3, 0xbe, 0x50,
-	0x26, 0x36, 0x63, 0x26, 0x92, 0x53, 0x50, 0xda, 0x39, 0x82, 0xbd, 0x18, 0x7d, 0x8e, 0xb1, 0xa4,
-	0x34, 0x96, 0x9d, 0x92, 0x66, 0x2c, 0x1e, 0xc2, 0x76, 0x54, 0xb2, 0xb0, 0xbf, 0x58, 0x8f, 0xf8,
-	0xd8, 0x61, 0x43, 0x5f, 0xe8, 0x29, 0xa9, 0x7a, 0x73, 0x02, 0x36, 0x43, 0xac, 0x12, 0x42, 0xb1,
-	0x6c, 0x9f, 0x13, 0xbb, 0x13, 0xf1, 0xd3, 0xf1, 0x6c, 0x7f, 0x4d, 0xec, 0x8e, 0xe2, 0x3e, 0x84,
-	0x0c, 0xf5, 0x43, 0xaa, 0x7a, 0x9b, 0xba, 0x5c, 0x55, 0x72, 0x2b, 0x16, 0xd6, 0x96, 0x64, 0x48,
-	0x03, 0xa6, 0xcb, 0x65, 0x41, 0xbf, 0x98, 0xf4, 0xdb, 0xc4, 0xad, 0x89, 0x2a, 0x8a, 0xa9, 0x6e,
-	0x5f, 0xf6, 0x6f, 0xac, 0xfe, 0x19, 0x64, 0xaf, 0x5a, 0x8d, 0x65, 0xe5, 0xa6, 0x74, 0xf5, 0xd6,
-	0x25, 0xab, 0xd3, 0x8c, 0x94, 0x21, 0x37, 0xcf, 0x74, 0x4c, 0x3f, 0xa3, 0xb2, 0x3a, 0x63, 0x7a,
-	0xba, 0x31, 0x5e, 0x40, 0xa6, 0x26, 0x13, 0x71, 0x76, 0x66, 0xd5, 0x89, 0xdd, 0xab, 0x07, 0x8c,
-	0x75, 0xda, 0x25, 0xf4, 0x01, 0xac, 0x0d, 0x88, 0x1d, 0xcd, 0xb0, 0x16, 0x8b, 0x63, 0x35, 0x14,
-	0x4b, 0xd7, 0x1f, 0x41, 0xa6, 0x43, 0x7d, 0xfb, 0x1c, 0x53, 0xdf, 0x39, 0x1f, 0x72, 0x35, 0x6e,
-	0xc2, 0xd3, 0x17, 0xf7, 0x13, 0xd3, 0x49, 0x91, 0x0c, 0x73, 0x4c, 0xa8, 0xdb, 0xc2, 0xcb, 0xff,
-	0xba, 0x08, 0xbb, 0xca, 0x66, 0xc5, 0x1b, 0xfa, 0x3d, 0xe3, 0xc5, 0x90, 0x8e, 0x98, 0x23, 0x27,
-	0xb1, 0x5d, 0x8a, 0x2f, 0x19, 0x6d, 0xce, 0x92, 0xa9, 0xc0, 0xff, 0x26, 0x4b, 0x86, 0xfa, 0x1d,
-	0x12, 0xe0, 0x80, 0x38, 0x84, 0x0e, 0xa2, 0xb1, 0x8b, 0xaf, 0x53, 0x7d, 0x4c, 0x34, 0x43, 0x9e,
-	0xa5, 0x68, 0xd2, 0xf3, 0x34, 0x24, 0x38, 0x79, 0x11, 0x6d, 0xd1, 0xf0, 0x27, 0xfa, 0x04, 0xb6,
-	0xb8, 0x08, 0x88, 0xdd, 0x27, 0x2e, 0xee, 0xf7, 0xa3, 0xdd, 0x1c, 0x5f, 0x5d, 0xa9, 0x31, 0x7c,
-	0xd6, 0x57, 0x8b, 0xb9, 0x08, 0xe9, 0x68, 0x73, 0x71, 0xda, 0xf5, 0x6d, 0x31, 0x0c, 0x88, 0x5c,
-	0x59, 0x4a, 0x41, 0xb3, 0x52, 0x0a, 0x6d, 0x8c, 0x41, 0xf4, 0x14, 0xd0, 0x20, 0x20, 0x1d, 0xfa,
-	0x12, 0xcb, 0xc4, 0x0e, 0xc2, 0x44, 0x73, 0x7d, 0x79, 0x3f, 0x71, 0xb0, 0x7e, 0xb8, 0x37, 0x19,
-	0xe9, 0x79, 0xc5, 0x28, 0x2f, 0x5d, 0xfc, 0x71, 0x7b, 0xc1, 0x4a, 0x2b, 0xf5, 0x09, 0xc0, 0xf3,
-	0x3f, 0x6a, 0x90, 0x56, 0xeb, 0x7e, 0x7c, 0x7a, 0xda, 0xa5, 0xeb, 0xee, 0xf9, 0xef, 0x60, 0x37,
-	0x1a, 0x0d, 0x27, 0xac, 0x02, 0x26, 0xb1, 0x32, 0xc8, 0x34, 0xae, 0x1f, 0xe6, 0xaf, 0x78, 0x35,
-	0xa7, 0x5c, 0x27, 0x0b, 0xd6, 0x0e, 0x9b, 0x0f, 0x96, 0x01, 0x56, 0xc7, 0x7b, 0x32, 0x7f, 0x91,
-	0x80, 0xec, 0x65, 0x4f, 0xa3, 0x7a, 0x34, 0x84, 0x2d, 0xc8, 0x75, 0x7d, 0x8e, 0xf5, 0xc6, 0xe2,
-	0x9c, 0xde, 0x78, 0xcf, 0x31, 0x49, 0xfc, 0xb7, 0x63, 0x52, 0xbe, 0x7a, 0xf4, 0x97, 0xe4, 0x06,
-	0x9e, 0x96, 0xeb, 0x72, 0x4c, 0xe1, 0xa9, 0x0f, 0xf7, 0xf0, 0xa5, 0xd3, 0x1f, 0x35, 0xdb, 0x8d,
-	0x69, 0xb3, 0xfd, 0x4b, 0x0f, 0x2f, 0x5f, 0xab, 0x87, 0x1f, 0x40, 0x6a, 0xe2, 0x5a, 0x74, 0xde,
-	0xe2, 0x27, 0x2a, 0x39, 0x06, 0xa3, 0xb3, 0x76, 0x1b, 0x56, 0x3b, 0xf6, 0xf0, 0x5c, 0x84, 0xb9,
-	0x8b, 0xdf, 0xa6, 0x15, 0x29, 0x35, 0x5d, 0x74, 0x0f, 0x52, 0x13, 0xa7, 0x3c, 0x42, 0xbb, 0x9e,
-	0x88, 0xce, 0x52, 0x72, 0x2c, 0x3e, 0x91, 0xd2, 0xfb, 0x17, 0x1a, 0x24, 0x2f, 0x1f, 0x1e, 0xb4,
-	0x0f, 0xff, 0x7f, 0x62, 0x56, 0xcd, 0xc6, 0x09, 0xb6, 0x8c, 0xa3, 0x46, 0xad, 0x8a, 0xdb, 0x25,
-	0xdc, 0xaa, 0x36, 0xea, 0x46, 0xc5, 0x7c, 0x62, 0x1a, 0xc7, 0xe9, 0x05, 0x94, 0x83, 0xec, 0x0c,
-	0xc3, 0xa8, 0x35, 0x70, 0xb3, 0x76, 0x6a, 0x54, 0xd3, 0x1a, 0xca, 0x43, 0x6e, 0x06, 0x6f, 0x34,
-	0x6b, 0x75, 0xdc, 0x30, 0x9e, 0xb6, 0x8c, 0x6a, 0xc5, 0x48, 0x2f, 0xa2, 0x8f, 0x20, 0x3f, 0xc3,
-	0x39, 0x3b, 0xfa, 0x06, 0xd7, 0x5a, 0xcd, 0x7a, 0xab, 0xa9, 0x9e, 0x6a, 0xa4, 0x13, 0xe8, 0x00,
-	0x3e, 0x7c, 0x1f, 0xef, 0xb8, 0x65, 0x1d, 0x35, 0xcd, 0x5a, 0x35, 0xbd, 0x74, 0x7f, 0x04, 0x99,
-	0x79, 0x05, 0x44, 0xf7, 0xe0, 0xce, 0xb3, 0x9a, 0x75, 0x6a, 0x58, 0xd8, 0x68, 0x9b, 0xc7, 0xa1,
-	0x79, 0x7c, 0x6a, 0x56, 0x8f, 0x67, 0xc3, 0x7a, 0x08, 0xa5, 0x7f, 0x22, 0x46, 0xd6, 0x2a, 0x27,
-	0xad, 0xea, 0x29, 0x36, 0x9e, 0xb6, 0xcc, 0x76, 0xad, 0xa2, 0xec, 0x6a, 0xe5, 0xaf, 0x2e, 0xde,
-	0xe6, 0xb4, 0x37, 0x6f, 0x73, 0xda, 0x9f, 0x6f, 0x73, 0xda, 0x0f, 0xef, 0x72, 0x0b, 0x6f, 0xde,
-	0xe5, 0x16, 0x7e, 0x7f, 0x97, 0x5b, 0xf8, 0xf6, 0x6e, 0x97, 0x0a, 0x6f, 0xf8, 0xbc, 0xe0, 0xb0,
-	0x7e, 0xb1, 0x19, 0x0c, 0x49, 0x6d, 0x40, 0xfc, 0xa2, 0xcf, 0x5c, 0x52, 0x7c, 0x59, 0x94, 0x7f,
-	0x92, 0xc5, 0xab, 0x01, 0xe1, 0xcf, 0x97, 0xe5, 0x9f, 0xd5, 0x4f, 0xff, 0x0e, 0x00, 0x00, 0xff,
-	0xff, 0x0b, 0x78, 0xf6, 0xe2, 0x39, 0x0b, 0x00, 0x00,
+	// 1313 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe4, 0x57, 0xcb, 0x6e, 0xdb, 0x46,
+	0x17, 0x36, 0x25, 0x47, 0x76, 0x8e, 0x6f, 0x0a, 0x7f, 0x39, 0xa6, 0x95, 0x44, 0xd1, 0xaf, 0x36,
+	0x8d, 0xe1, 0x36, 0x52, 0xe5, 0x20, 0x29, 0x50, 0xf4, 0x02, 0x4b, 0xa6, 0x61, 0xc2, 0xb1, 0xa4,
+	0x50, 0x97, 0x14, 0xdd, 0x4c, 0x19, 0x72, 0x24, 0x0e, 0x64, 0x71, 0x14, 0x0e, 0xa5, 0x5c, 0xde,
+	0xa0, 0xbb, 0xbe, 0x45, 0xf7, 0x45, 0x77, 0x7d, 0x80, 0x7a, 0x19, 0x74, 0xd5, 0x55, 0x5b, 0x24,
+	0x8f, 0xd0, 0x17, 0x28, 0x66, 0x38, 0x94, 0x28, 0x5b, 0xb9, 0xa0, 0xdb, 0xee, 0xc4, 0x73, 0xbe,
+	0xc3, 0xf3, 0xcd, 0xf9, 0xce, 0x9c, 0x43, 0xc1, 0xd5, 0xc0, 0x62, 0xfd, 0xd2, 0xb8, 0x5c, 0xc2,
+	0x63, 0xe2, 0x60, 0xcf, 0xc6, 0xc5, 0xa1, 0x4f, 0x03, 0xaa, 0x2e, 0x71, 0x7b, 0x71, 0x5c, 0xce,
+	0x6e, 0xdb, 0x94, 0x0d, 0x28, 0x43, 0xc2, 0x5c, 0x0a, 0x1f, 0x42, 0x4c, 0x36, 0xd3, 0xa3, 0x3d,
+	0x1a, 0xda, 0xf9, 0x2f, 0x69, 0xd5, 0x98, 0x6b, 0xf9, 0xd8, 0xb9, 0xf8, 0xce, 0xec, 0x8d, 0xa9,
+	0xc7, 0xc7, 0x2c, 0x40, 0xd8, 0xb3, 0xa9, 0x43, 0xbc, 0x5e, 0xe8, 0x2e, 0xfc, 0xa2, 0x40, 0x46,
+	0x97, 0x11, 0x55, 0x3a, 0x18, 0x90, 0x60, 0x80, 0xbd, 0xa0, 0x53, 0x56, 0xbf, 0x80, 0xb5, 0xe8,
+	0x4d, 0xa8, 0x4f, 0x3c, 0x47, 0x53, 0xf2, 0xca, 0xce, 0xfa, 0xde, 0x56, 0x31, 0x7c, 0x5f, 0x71,
+	0x5c, 0x2e, 0x46, 0x71, 0xc7, 0xc4, 0x73, 0xcc, 0x55, 0x1c, 0x7b, 0x52, 0x3f, 0x83, 0xcd, 0x49,
+	0xb4, 0x6b, 0x31, 0x17, 0x51, 0x1f, 0xf9, 0x94, 0x06, 0x5a, 0x22, 0xaf, 0xec, 0xac, 0x56, 0x16,
+	0xcf, 0xfe, 0xd6, 0x12, 0xa6, 0x1a, 0x41, 0x8e, 0x2c, 0xe6, 0xd6, 0x7d, 0x93, 0xd2, 0x40, 0xfd,
+	0x04, 0x54, 0xc1, 0x10, 0x3b, 0x88, 0x91, 0x17, 0x18, 0x3d, 0x7e, 0x1e, 0x60, 0xa6, 0x25, 0xf3,
+	0xca, 0xce, 0xa2, 0x99, 0x96, 0x9e, 0x26, 0x79, 0x81, 0x2b, 0xdc, 0x5e, 0xf8, 0x33, 0x05, 0x5b,
+	0x8f, 0xa8, 0xdf, 0xc7, 0x7e, 0x8b, 0xf6, 0xb1, 0x37, 0x73, 0x80, 0x5b, 0xb0, 0xce, 0x6c, 0x17,
+	0x0f, 0x2c, 0x34, 0xc6, 0x3e, 0x23, 0xd4, 0x13, 0x27, 0x58, 0x33, 0xd7, 0x42, 0x6b, 0x27, 0x34,
+	0xaa, 0xdb, 0xb0, 0x6c, 0xbb, 0x16, 0xf1, 0x10, 0x71, 0x04, 0xb9, 0xcb, 0xe6, 0x92, 0x78, 0x36,
+	0x1c, 0xf5, 0x06, 0x08, 0x41, 0xb8, 0x27, 0x19, 0xa3, 0x9d, 0xe2, 0x46, 0xc3, 0x51, 0xf7, 0x40,
+	0xb5, 0x6c, 0x1b, 0x0f, 0x03, 0xec, 0x20, 0x81, 0xe3, 0x07, 0xd5, 0x16, 0x63, 0xc8, 0x74, 0xe4,
+	0x6f, 0x59, 0xac, 0xcf, 0x0f, 0xa9, 0x36, 0x60, 0xeb, 0xa9, 0xe0, 0x8b, 0xe8, 0x10, 0xfb, 0x56,
+	0x40, 0x7d, 0x64, 0x39, 0x8e, 0x8f, 0x19, 0xd3, 0x2e, 0xf1, 0xe4, 0x15, 0xed, 0xb7, 0x9f, 0xef,
+	0x64, 0xa4, 0xe0, 0xfb, 0xa1, 0xa7, 0x19, 0xf8, 0xc4, 0xeb, 0x99, 0x9b, 0x61, 0x60, 0x5d, 0xc6,
+	0x49, 0xa7, 0xfa, 0x15, 0x68, 0x3d, 0xec, 0x71, 0x1b, 0xa1, 0x1e, 0x1a, 0x5a, 0xbe, 0x35, 0x60,
+	0xc8, 0x21, 0x3d, 0xcc, 0x02, 0x2d, 0x15, 0xe3, 0x72, 0x75, 0x8a, 0x6a, 0x08, 0xd0, 0x81, 0xc0,
+	0xa8, 0xf7, 0x21, 0x33, 0x51, 0x4a, 0xd6, 0x4b, 0x9c, 0x63, 0x69, 0x9e, 0x50, 0x4d, 0x01, 0x10,
+	0x27, 0xb9, 0x05, 0x2b, 0x74, 0x14, 0x0c, 0x47, 0x41, 0x08, 0x5f, 0x8e, 0xc1, 0x21, 0x74, 0x08,
+	0xd8, 0x2e, 0x5c, 0x91, 0xb0, 0x98, 0x9c, 0x97, 0x85, 0x9c, 0x1b, 0xa1, 0x63, 0xa2, 0x66, 0x0c,
+	0x7b, 0x8a, 0xad, 0x2e, 0xb2, 0xe9, 0xc8, 0x0b, 0x34, 0x88, 0x63, 0x1f, 0x60, 0xab, 0x5b, 0xe5,
+	0x66, 0xde, 0x9e, 0x5d, 0xe2, 0x11, 0xe6, 0x22, 0x1f, 0x5b, 0x8c, 0x7a, 0xda, 0x8a, 0x6c, 0x4f,
+	0x79, 0x85, 0x8a, 0x87, 0xc2, 0x6b, 0x0a, 0x67, 0xa7, 0x6c, 0xae, 0x76, 0x63, 0xcf, 0xea, 0x1e,
+	0x6c, 0xca, 0x72, 0x70, 0xed, 0x78, 0xeb, 0xc8, 0x6c, 0xab, 0x22, 0xdb, 0xff, 0x26, 0x4e, 0xd9,
+	0x56, 0x3c, 0xe3, 0x3d, 0xc8, 0x10, 0x8f, 0x93, 0x0b, 0xf1, 0xc4, 0x61, 0xe1, 0xc9, 0xd7, 0x62,
+	0x27, 0xbf, 0x22, 0x10, 0x22, 0xc8, 0x70, 0x98, 0x28, 0xc0, 0x97, 0x13, 0x7d, 0x26, 0xa9, 0x26,
+	0xa1, 0xeb, 0xb1, 0xd0, 0xcd, 0xd9, 0x9c, 0x51, 0xf8, 0xe7, 0x90, 0x3d, 0x9f, 0x35, 0x56, 0xc8,
+	0x0d, 0x41, 0xf7, 0xea, 0x4c, 0xd6, 0x69, 0x3d, 0x2b, 0x90, 0x9b, 0x97, 0x3a, 0x16, 0x9f, 0x16,
+	0xf1, 0xd9, 0x0b, 0xa9, 0xa7, 0x37, 0xec, 0xa7, 0x64, 0x74, 0xc3, 0x3a, 0xd6, 0xe9, 0x28, 0x3e,
+	0x22, 0xee, 0xfe, 0x57, 0x6e, 0xd8, 0x9b, 0x6e, 0x48, 0xea, 0x1d, 0x37, 0xe4, 0x53, 0xb8, 0x22,
+	0x99, 0x8c, 0x79, 0xe9, 0xc2, 0xf9, 0x17, 0xbf, 0x56, 0x1b, 0x4f, 0xa7, 0x85, 0x15, 0xc3, 0xef,
+	0x10, 0xf2, 0xf1, 0x08, 0x86, 0xe6, 0x8c, 0xc2, 0x65, 0x21, 0xd9, 0xf5, 0x58, 0x28, 0xd3, 0xcf,
+	0x8f, 0xc5, 0x27, 0x90, 0xa9, 0x8b, 0xfb, 0x72, 0x72, 0x62, 0x36, 0xb0, 0xd5, 0x6f, 0xf8, 0x94,
+	0x76, 0x3b, 0x65, 0xf5, 0xff, 0x70, 0x79, 0x88, 0x2d, 0x59, 0x46, 0x25, 0xc6, 0x64, 0x99, 0x9b,
+	0x05, 0xe9, 0xfb, 0x90, 0xe9, 0x12, 0xcf, 0x3a, 0x45, 0xc4, 0xb3, 0x4f, 0x47, 0x2c, 0x9c, 0x29,
+	0x81, 0xab, 0x25, 0xf2, 0xc9, 0xe9, 0x61, 0x05, 0xc2, 0x88, 0x00, 0x0d, 0x2b, 0x70, 0x0b, 0xbf,
+	0x26, 0x60, 0x3b, 0xcc, 0x59, 0x75, 0x47, 0x5e, 0x5f, 0x7f, 0x32, 0x22, 0x63, 0x6a, 0x8b, 0x71,
+	0xd3, 0x29, 0xc7, 0x75, 0x56, 0xe6, 0xe8, 0x5c, 0x85, 0x6b, 0x13, 0x9d, 0x89, 0xd7, 0xc5, 0x3e,
+	0xf2, 0xb1, 0x8d, 0xc9, 0x50, 0xce, 0x96, 0xf8, 0xce, 0xd0, 0x22, 0xa0, 0xc1, 0x71, 0x66, 0x08,
+	0x13, 0xcc, 0xd3, 0x90, 0x64, 0xf8, 0x89, 0x5c, 0x15, 0xfc, 0x27, 0x17, 0x80, 0x05, 0x3e, 0xb6,
+	0x06, 0xd8, 0x41, 0x83, 0x81, 0x5c, 0x40, 0xf1, 0xee, 0xd9, 0x88, 0xdc, 0x27, 0x83, 0x70, 0xfb,
+	0x94, 0x20, 0x2d, 0x05, 0x60, 0xa4, 0xe7, 0x59, 0xc1, 0xc8, 0xc7, 0xa2, 0x6b, 0xc2, 0x00, 0x25,
+	0x52, 0xac, 0x19, 0x39, 0xd5, 0x87, 0xa0, 0x0e, 0x7d, 0xdc, 0x25, 0xcf, 0x90, 0x28, 0xec, 0x90,
+	0x17, 0x9a, 0x69, 0xa9, 0x7c, 0x72, 0x67, 0x65, 0xef, 0xc6, 0x64, 0x16, 0xcd, 0x13, 0xa3, 0xb2,
+	0x78, 0xf6, 0xc7, 0xcd, 0x05, 0x33, 0x1d, 0x86, 0x4f, 0x1c, 0xac, 0xf0, 0xa3, 0x02, 0xe9, 0xf0,
+	0xc6, 0x45, 0xfb, 0xf5, 0xfd, 0x97, 0xd9, 0x77, 0xb0, 0x2d, 0x27, 0xa8, 0xcd, 0x55, 0x40, 0x38,
+	0x26, 0x83, 0x28, 0xe3, 0xca, 0x5e, 0xe1, 0x1c, 0xab, 0x39, 0x72, 0x1d, 0x2d, 0x98, 0x5b, 0x74,
+	0xbe, 0xb3, 0x02, 0xb0, 0x1c, 0xb5, 0x7a, 0xe1, 0x2c, 0x09, 0xd9, 0x59, 0xa6, 0x52, 0x8f, 0x66,
+	0x60, 0x05, 0xf8, 0x7d, 0x39, 0xc7, 0x7a, 0x23, 0x31, 0xa7, 0x37, 0xde, 0x72, 0x9f, 0x93, 0xff,
+	0xee, 0x3e, 0x57, 0xce, 0x7f, 0xd9, 0x2c, 0x8a, 0xd5, 0x31, 0x95, 0x6b, 0xf6, 0x4c, 0xfc, 0x7b,
+	0x86, 0x2f, 0x90, 0x99, 0xef, 0x1b, 0xd9, 0x6c, 0x97, 0xa6, 0xcd, 0xf6, 0x8e, 0x1e, 0x4e, 0xbd,
+	0x57, 0x0f, 0xdf, 0x81, 0x8d, 0x09, 0x35, 0xb9, 0xc3, 0xe3, 0x03, 0x63, 0x3d, 0x72, 0xca, 0xdd,
+	0x7d, 0x13, 0x96, 0xbb, 0xd6, 0xe8, 0x34, 0xe0, 0xb5, 0x8b, 0x2f, 0xe0, 0x25, 0x61, 0x35, 0x1c,
+	0xf5, 0x36, 0x6c, 0x4c, 0x48, 0xb9, 0x98, 0xf4, 0xdc, 0x40, 0xee, 0xde, 0xf5, 0xc8, 0x7c, 0x24,
+	0xac, 0xbb, 0xdf, 0x27, 0x60, 0x7d, 0x76, 0x63, 0xaa, 0x79, 0xb8, 0x7e, 0x68, 0xd4, 0x8c, 0xe6,
+	0x11, 0x32, 0xf5, 0xfd, 0x66, 0xbd, 0x86, 0x3a, 0x65, 0xd4, 0xae, 0x35, 0x1b, 0x7a, 0xd5, 0x38,
+	0x34, 0xf4, 0x83, 0xf4, 0x82, 0x9a, 0x83, 0xec, 0x05, 0x84, 0x5e, 0x6f, 0xa2, 0x56, 0xfd, 0x58,
+	0xaf, 0xa5, 0x15, 0xb5, 0x00, 0xb9, 0x0b, 0xfe, 0x66, 0xab, 0xde, 0x40, 0x4d, 0xfd, 0x61, 0x5b,
+	0xaf, 0x55, 0xf5, 0x74, 0x42, 0xfd, 0x08, 0x0a, 0x17, 0x30, 0x27, 0xfb, 0xdf, 0xa0, 0x7a, 0xbb,
+	0xd5, 0x68, 0xb7, 0xc2, 0x57, 0x35, 0xd3, 0x49, 0x75, 0x07, 0x3e, 0x7c, 0x1b, 0xee, 0xa0, 0x6d,
+	0xee, 0xb7, 0x8c, 0x7a, 0x2d, 0xbd, 0x38, 0x97, 0x55, 0xbb, 0xa9, 0x9b, 0x22, 0x75, 0xfa, 0x92,
+	0x7a, 0x13, 0xae, 0xcd, 0x67, 0x15, 0xd2, 0x4e, 0xed, 0x8e, 0x21, 0x33, 0xaf, 0x03, 0xd4, 0xdb,
+	0xf0, 0xc1, 0xa3, 0xba, 0x79, 0xac, 0x9b, 0x48, 0xef, 0x18, 0x07, 0x9c, 0x3f, 0x3a, 0x36, 0x6a,
+	0x07, 0x17, 0xeb, 0x72, 0x0f, 0xca, 0x6f, 0x02, 0x4a, 0xba, 0xd5, 0xa3, 0x76, 0xed, 0x18, 0xe9,
+	0x0f, 0xdb, 0x46, 0xa7, 0x5e, 0x0d, 0x89, 0x2b, 0xbb, 0x35, 0xb8, 0xd6, 0xc1, 0x3e, 0xe9, 0x12,
+	0x39, 0xd7, 0xcf, 0xa5, 0x2f, 0xc1, 0xc7, 0x1d, 0xdd, 0xe4, 0x39, 0x4c, 0xd4, 0xd9, 0x7f, 0xd0,
+	0xd6, 0xdf, 0x41, 0xa3, 0xf2, 0xf5, 0xd9, 0xab, 0x9c, 0xf2, 0xf2, 0x55, 0x4e, 0xf9, 0xeb, 0x55,
+	0x4e, 0xf9, 0xe1, 0x75, 0x6e, 0xe1, 0xe5, 0xeb, 0xdc, 0xc2, 0xef, 0xaf, 0x73, 0x0b, 0xdf, 0xde,
+	0xea, 0x91, 0xc0, 0x1d, 0x3d, 0x2e, 0xda, 0x74, 0x50, 0x6a, 0xf9, 0x23, 0x5c, 0x1f, 0x62, 0xaf,
+	0xe4, 0x51, 0x07, 0x97, 0x9e, 0x95, 0xc4, 0x5f, 0x93, 0xe0, 0xf9, 0x10, 0xb3, 0xc7, 0x29, 0xf1,
+	0x17, 0xe1, 0xee, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xfd, 0xbf, 0x4d, 0xac, 0xaf, 0x0c, 0x00,
+	0x00,
 }
 
 func (m *EvidenceCommitmentV1) Marshal() (dAtA []byte, err error) {
@@ -855,7 +968,7 @@ func (m *EvidenceCommitmentV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *WorkerValueCommitmentV2) Marshal() (dAtA []byte, err error) {
+func (m *WorkerTokenCommitmentV1) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -865,12 +978,12 @@ func (m *WorkerValueCommitmentV2) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *WorkerValueCommitmentV2) MarshalTo(dAtA []byte) (int, error) {
+func (m *WorkerTokenCommitmentV1) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *WorkerValueCommitmentV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *WorkerTokenCommitmentV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -880,71 +993,39 @@ func (m *WorkerValueCommitmentV2) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xa0
+		dAtA[i] = 0x80
 	}
 	if m.InputTokenIdsSizeBytes != 0 {
 		i = encodeVarintEvidence(dAtA, i, uint64(m.InputTokenIdsSizeBytes))
 		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0x98
+		dAtA[i] = 0x78
 	}
 	if len(m.GeneratedTokenIdsHash) > 0 {
 		i -= len(m.GeneratedTokenIdsHash)
 		copy(dAtA[i:], m.GeneratedTokenIdsHash)
 		i = encodeVarintEvidence(dAtA, i, uint64(len(m.GeneratedTokenIdsHash)))
 		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0x92
+		dAtA[i] = 0x72
 	}
 	if len(m.InputTokenIdsHash) > 0 {
 		i -= len(m.InputTokenIdsHash)
 		copy(dAtA[i:], m.InputTokenIdsHash)
 		i = encodeVarintEvidence(dAtA, i, uint64(len(m.InputTokenIdsHash)))
 		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0x8a
-	}
-	if m.OutputLeafCount != 0 {
-		i = encodeVarintEvidence(dAtA, i, uint64(m.OutputLeafCount))
-		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0x80
+		dAtA[i] = 0x6a
 	}
 	if m.GeneratedTokenCount != 0 {
 		i = encodeVarintEvidence(dAtA, i, uint64(m.GeneratedTokenCount))
 		i--
-		dAtA[i] = 0x78
-	}
-	if m.CheckpointEncodedSizeBytes != 0 {
-		i = encodeVarintEvidence(dAtA, i, uint64(m.CheckpointEncodedSizeBytes))
-		i--
-		dAtA[i] = 0x70
-	}
-	if len(m.CheckpointRoot) > 0 {
-		i -= len(m.CheckpointRoot)
-		copy(dAtA[i:], m.CheckpointRoot)
-		i = encodeVarintEvidence(dAtA, i, uint64(len(m.CheckpointRoot)))
-		i--
-		dAtA[i] = 0x6a
-	}
-	if m.TraceEncodedSizeBytes != 0 {
-		i = encodeVarintEvidence(dAtA, i, uint64(m.TraceEncodedSizeBytes))
-		i--
 		dAtA[i] = 0x60
-	}
-	if len(m.TraceRoot) > 0 {
-		i -= len(m.TraceRoot)
-		copy(dAtA[i:], m.TraceRoot)
-		i = encodeVarintEvidence(dAtA, i, uint64(len(m.TraceRoot)))
-		i--
-		dAtA[i] = 0x5a
 	}
 	if m.FinishReason != 0 {
 		i = encodeVarintEvidence(dAtA, i, uint64(m.FinishReason))
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.OutputLeafCount != 0 {
+		i = encodeVarintEvidence(dAtA, i, uint64(m.OutputLeafCount))
 		i--
 		dAtA[i] = 0x50
 	}
@@ -971,6 +1052,81 @@ func (m *WorkerValueCommitmentV2) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i -= len(m.GenerationParamsDigest)
 		copy(dAtA[i:], m.GenerationParamsDigest)
 		i = encodeVarintEvidence(dAtA, i, uint64(len(m.GenerationParamsDigest)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.WorkerOperatorAddress) > 0 {
+		i -= len(m.WorkerOperatorAddress)
+		copy(dAtA[i:], m.WorkerOperatorAddress)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.WorkerOperatorAddress)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.AcceptedTaskHash) > 0 {
+		i -= len(m.AcceptedTaskHash)
+		copy(dAtA[i:], m.AcceptedTaskHash)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.AcceptedTaskHash)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.TaskId) > 0 {
+		i -= len(m.TaskId)
+		copy(dAtA[i:], m.TaskId)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.TaskId)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.ChainId) > 0 {
+		i -= len(m.ChainId)
+		copy(dAtA[i:], m.ChainId)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.ChainId)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.SchemaVersion != 0 {
+		i = encodeVarintEvidence(dAtA, i, uint64(m.SchemaVersion))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *WorkerValueCommitmentV3) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *WorkerValueCommitmentV3) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WorkerValueCommitmentV3) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.WorkerValuesEncodedSizeBytes != 0 {
+		i = encodeVarintEvidence(dAtA, i, uint64(m.WorkerValuesEncodedSizeBytes))
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.WorkerValueRoot) > 0 {
+		i -= len(m.WorkerValueRoot)
+		copy(dAtA[i:], m.WorkerValueRoot)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.WorkerValueRoot)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.EvidenceSchemaHash) > 0 {
+		i -= len(m.EvidenceSchemaHash)
+		copy(dAtA[i:], m.EvidenceSchemaHash)
+		i = encodeVarintEvidence(dAtA, i, uint64(len(m.EvidenceSchemaHash)))
 		i--
 		dAtA[i] = 0x32
 	}
@@ -1285,7 +1441,7 @@ func (m *EvidenceCommitmentV1) Size() (n int) {
 	return n
 }
 
-func (m *WorkerValueCommitmentV2) Size() (n int) {
+func (m *WorkerTokenCommitmentV1) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1325,42 +1481,67 @@ func (m *WorkerValueCommitmentV2) Size() (n int) {
 	if m.OutputSizeBytes != 0 {
 		n += 1 + sovEvidence(uint64(m.OutputSizeBytes))
 	}
+	if m.OutputLeafCount != 0 {
+		n += 1 + sovEvidence(uint64(m.OutputLeafCount))
+	}
 	if m.FinishReason != 0 {
 		n += 1 + sovEvidence(uint64(m.FinishReason))
-	}
-	l = len(m.TraceRoot)
-	if l > 0 {
-		n += 1 + l + sovEvidence(uint64(l))
-	}
-	if m.TraceEncodedSizeBytes != 0 {
-		n += 1 + sovEvidence(uint64(m.TraceEncodedSizeBytes))
-	}
-	l = len(m.CheckpointRoot)
-	if l > 0 {
-		n += 1 + l + sovEvidence(uint64(l))
-	}
-	if m.CheckpointEncodedSizeBytes != 0 {
-		n += 1 + sovEvidence(uint64(m.CheckpointEncodedSizeBytes))
 	}
 	if m.GeneratedTokenCount != 0 {
 		n += 1 + sovEvidence(uint64(m.GeneratedTokenCount))
 	}
-	if m.OutputLeafCount != 0 {
-		n += 2 + sovEvidence(uint64(m.OutputLeafCount))
-	}
 	l = len(m.InputTokenIdsHash)
 	if l > 0 {
-		n += 2 + l + sovEvidence(uint64(l))
+		n += 1 + l + sovEvidence(uint64(l))
 	}
 	l = len(m.GeneratedTokenIdsHash)
 	if l > 0 {
-		n += 2 + l + sovEvidence(uint64(l))
+		n += 1 + l + sovEvidence(uint64(l))
 	}
 	if m.InputTokenIdsSizeBytes != 0 {
-		n += 2 + sovEvidence(uint64(m.InputTokenIdsSizeBytes))
+		n += 1 + sovEvidence(uint64(m.InputTokenIdsSizeBytes))
 	}
 	if m.GeneratedTokenIdsSizeBytes != 0 {
 		n += 2 + sovEvidence(uint64(m.GeneratedTokenIdsSizeBytes))
+	}
+	return n
+}
+
+func (m *WorkerValueCommitmentV3) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SchemaVersion != 0 {
+		n += 1 + sovEvidence(uint64(m.SchemaVersion))
+	}
+	l = len(m.ChainId)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	l = len(m.TaskId)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	l = len(m.AcceptedTaskHash)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	l = len(m.WorkerOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	l = len(m.EvidenceSchemaHash)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	l = len(m.WorkerValueRoot)
+	if l > 0 {
+		n += 1 + l + sovEvidence(uint64(l))
+	}
+	if m.WorkerValuesEncodedSizeBytes != 0 {
+		n += 1 + sovEvidence(uint64(m.WorkerValuesEncodedSizeBytes))
 	}
 	return n
 }
@@ -1614,7 +1795,7 @@ func (m *EvidenceCommitmentV1) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
+func (m *WorkerTokenCommitmentV1) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1637,10 +1818,10 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: WorkerValueCommitmentV2: wiretype end group for non-group")
+			return fmt.Errorf("proto: WorkerTokenCommitmentV1: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: WorkerValueCommitmentV2: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: WorkerTokenCommitmentV1: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1917,6 +2098,25 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 			}
 		case 10:
 			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OutputLeafCount", wireType)
+			}
+			m.OutputLeafCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OutputLeafCount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 11:
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field FinishReason", wireType)
 			}
 			m.FinishReason = 0
@@ -1934,113 +2134,7 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 11:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TraceRoot", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvidence
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TraceRoot = append(m.TraceRoot[:0], dAtA[iNdEx:postIndex]...)
-			if m.TraceRoot == nil {
-				m.TraceRoot = []byte{}
-			}
-			iNdEx = postIndex
 		case 12:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TraceEncodedSizeBytes", wireType)
-			}
-			m.TraceEncodedSizeBytes = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.TraceEncodedSizeBytes |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 13:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CheckpointRoot", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvidence
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CheckpointRoot = append(m.CheckpointRoot[:0], dAtA[iNdEx:postIndex]...)
-			if m.CheckpointRoot == nil {
-				m.CheckpointRoot = []byte{}
-			}
-			iNdEx = postIndex
-		case 14:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CheckpointEncodedSizeBytes", wireType)
-			}
-			m.CheckpointEncodedSizeBytes = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CheckpointEncodedSizeBytes |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 15:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field GeneratedTokenCount", wireType)
 			}
@@ -2059,26 +2153,7 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 16:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OutputLeafCount", wireType)
-			}
-			m.OutputLeafCount = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.OutputLeafCount |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 17:
+		case 13:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InputTokenIdsHash", wireType)
 			}
@@ -2112,7 +2187,7 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 				m.InputTokenIdsHash = []byte{}
 			}
 			iNdEx = postIndex
-		case 18:
+		case 14:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field GeneratedTokenIdsHash", wireType)
 			}
@@ -2146,7 +2221,7 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 				m.GeneratedTokenIdsHash = []byte{}
 			}
 			iNdEx = postIndex
-		case 19:
+		case 15:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InputTokenIdsSizeBytes", wireType)
 			}
@@ -2165,7 +2240,7 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 20:
+		case 16:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field GeneratedTokenIdsSizeBytes", wireType)
 			}
@@ -2180,6 +2255,294 @@ func (m *WorkerValueCommitmentV2) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.GeneratedTokenIdsSizeBytes |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipEvidence(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *WorkerValueCommitmentV3) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowEvidence
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: WorkerValueCommitmentV3: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: WorkerValueCommitmentV3: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SchemaVersion", wireType)
+			}
+			m.SchemaVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SchemaVersion |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChainId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ChainId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
+			if m.TaskId == nil {
+				m.TaskId = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AcceptedTaskHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AcceptedTaskHash = append(m.AcceptedTaskHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.AcceptedTaskHash == nil {
+				m.AcceptedTaskHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EvidenceSchemaHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EvidenceSchemaHash = append(m.EvidenceSchemaHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.EvidenceSchemaHash == nil {
+				m.EvidenceSchemaHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerValueRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerValueRoot = append(m.WorkerValueRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.WorkerValueRoot == nil {
+				m.WorkerValueRoot = []byte{}
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerValuesEncodedSizeBytes", wireType)
+			}
+			m.WorkerValuesEncodedSizeBytes = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.WorkerValuesEncodedSizeBytes |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

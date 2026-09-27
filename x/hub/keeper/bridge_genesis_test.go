@@ -118,6 +118,13 @@ func TestBridgeGenesisSurvivesExportImportRoundTrip(t *testing.T) {
 	genesis := hubGenesisWithBridge(t, chainID)
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
 	attachMatchingBridgeUpstream(t, f)
+	signer := genesis.ValidatorBridgeSigners[0]
+	storedSigner, err := f.keeper.ValidatorBridgeSigner.Get(f.ctx, signer.OperatorAddress)
+	require.NoError(t, err)
+	encodedSigner, err := storedSigner.Marshal()
+	require.NoError(t, err)
+	require.False(t, bytes.Contains(encodedSigner, []byte(signer.OperatorAddress)))
+	require.True(t, bytes.Contains(encodedSigner, hubAddressBytes(t, signer.OperatorAddress)))
 
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
@@ -131,6 +138,39 @@ func TestBridgeGenesisSurvivesExportImportRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, proto.Equal(&exported.Bridge, &reexported.Bridge),
 		"a second round trip must be a fixed point")
+}
+
+func TestBridgeBootstrapAddressesStoreRawBytesAndRoundTrip(t *testing.T) {
+	f := initFixture(t)
+	chainID := sdk.UnwrapSDKContext(f.ctx).ChainID()
+	genesis := hubGenesisWithBridge(t, chainID)
+	recipient := genesis.ValidatorBridgeSigners[0].OperatorAddress
+	feePayer := genesis.ValidatorBridgeSigners[1].OperatorAddress
+	genesis.Bridge.Bootstrap = types.BridgeBootstrapGenesisV1{
+		Mode:       types.BridgeBootstrapModeV1_BRIDGE_BOOTSTRAP_MODE_V1_ARMED,
+		XMessageId: &types.BridgeBootstrapGenesisV1_MessageId{MessageId: bytes.Repeat([]byte{0xb1}, 32)},
+		XRouteId:   &types.BridgeBootstrapGenesisV1_RouteId{RouteId: append([]byte(nil), genesis.Bridge.Route.UsdcRouteId...)},
+		XRecipient: &types.BridgeBootstrapGenesisV1_Recipient{Recipient: recipient},
+		Amount:     func() *shared.Amount { amount := shared.NewAmount(1); return &amount }(),
+		XFeePayer:  &types.BridgeBootstrapGenesisV1_FeePayer{FeePayer: feePayer},
+		XMaxGas:    &types.BridgeBootstrapGenesisV1_MaxGas{MaxGas: 1},
+	}
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+	attachMatchingBridgeUpstream(t, f)
+	stored, err := f.keeper.BridgeBootstrap.Get(f.ctx)
+	require.NoError(t, err)
+	require.True(t, stored.HasRecipient)
+	require.True(t, stored.HasFeePayer)
+	require.Equal(t, hubAddressBytes(t, recipient), stored.Recipient)
+	require.Equal(t, hubAddressBytes(t, feePayer), stored.FeePayer)
+	exported, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(&genesis.Bridge.Bootstrap, &exported.Bridge.Bootstrap))
+	restarted := initFixture(t)
+	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
+	reexported, err := restarted.keeper.ExportGenesis(restarted.ctx)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(&exported.Bridge.Bootstrap, &reexported.Bridge.Bootstrap))
 }
 
 // §5.2 is explicit that export must not mistake the current supply for a new

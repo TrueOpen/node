@@ -6,10 +6,10 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-const verifierResultPayloadVersionV1 = "VERIFIER_RESULT_REVEAL_V1"
+const verifierResultPayloadVersionV2 = "VERIFIER_RESULT_REVEAL_V2"
 
 // VerifierResultPayloadInput contains the authoritative inputs to the opaque
-// canonical verifier payload. Caller-supplied ResultReceiptV2 fields and
+// canonical verifier payload. Caller-supplied ResultReceiptV3 fields and
 // Keeper-derived task/assignment facts are deliberately combined only here.
 type VerifierResultPayloadInput struct {
 	ChainID                           string
@@ -21,12 +21,14 @@ type VerifierResultPayloadInput struct {
 	InferReceiptHash                  []byte
 	ProfileExecutionSnapshotHash      []byte
 	GenerationParamsDigest            []byte
+	VerifierValueRoot                 []byte
 	MetricRoot                        []byte
 	MetricLeafCount                   uint32
 	MetricSummaryHash                 []byte
 	AggregateProofHash                []byte
 	VerifierEvidenceBundleHash        []byte
 	VerifierEvidenceManifestSizeBytes uint64
+	VerifierEvidenceKeyCommitment     []byte
 }
 
 // VerifierResultPayloadHash derives the H_V1 commitment to the canonical
@@ -49,10 +51,12 @@ func VerifierResultPayloadHash(input VerifierResultPayloadInput) ([32]byte, erro
 		{"infer_receipt_hash", input.InferReceiptHash},
 		{"profile_execution_snapshot_hash", input.ProfileExecutionSnapshotHash},
 		{"generation_params_digest", input.GenerationParamsDigest},
+		{"verifier_value_root", input.VerifierValueRoot},
 		{"metric_root", input.MetricRoot},
 		{"metric_summary_hash", input.MetricSummaryHash},
 		{"aggregate_proof_hash", input.AggregateProofHash},
 		{"verifier_evidence_bundle_hash", input.VerifierEvidenceBundleHash},
+		{"verifier_evidence_key_commitment", input.VerifierEvidenceKeyCommitment},
 	}
 	canonical := make([][]byte, len(hashes))
 	for i, item := range hashes {
@@ -62,17 +66,18 @@ func VerifierResultPayloadHash(input VerifierResultPayloadInput) ([32]byte, erro
 		}
 	}
 	payload, err := shared.FlatCanonicalFrameV1(
-		[]byte(verifierResultPayloadVersionV1), chainID,
+		[]byte(verifierResultPayloadVersionV2), chainID,
 		canonical[0], canonical[1], shared.Uint32BE(input.VerifyRound),
 		shared.Uint32BE(input.SelectedVerifierIndex), verifier,
 		canonical[2], canonical[3], canonical[4], canonical[5],
-		shared.Uint32BE(input.MetricLeafCount), canonical[6], canonical[7],
-		canonical[8], shared.Uint64BE(input.VerifierEvidenceManifestSizeBytes),
+		canonical[6], shared.Uint32BE(input.MetricLeafCount), canonical[7],
+		canonical[8], canonical[9], shared.Uint64BE(input.VerifierEvidenceManifestSizeBytes),
+		canonical[10],
 	).Bytes()
 	if err != nil {
 		return [32]byte{}, err
 	}
-	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainVerifierResultPayloadV1), payload)
+	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainVerifierResultPayloadV2), payload)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -135,7 +140,7 @@ func MetricSummaryHash(summary MetricSummaryV1) ([32]byte, error) {
 
 // ResultReceiptSigningDigest derives the frozen TRUEOPEN_RESULT_V2 signing
 // digest. service_signature is deliberately excluded.
-func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
+func ResultReceiptSigningDigest(receipt ResultReceiptV3) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", receipt.ChainId)
 	if err != nil {
 		return [32]byte{}, err
@@ -172,7 +177,7 @@ func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
 	if err != nil {
 		return [32]byte{}, err
 	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainResultV2)).Raw(
+	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainResultV3)).Raw(
 		shared.Uint32BE(receipt.SchemaVersion),
 		chainID,
 		taskID,
@@ -187,6 +192,9 @@ func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
 		shared.Uint64BE(receipt.VerifierEvidenceManifestSizeBytes),
 		salt,
 		shared.Uint64BE(receipt.ExpiryHeight),
+		receipt.VerifierValueRoot,
+		shared.Uint32BE(receipt.MetricLeafCount),
+		receipt.VerifierEvidenceKeyCommitment,
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err
@@ -218,14 +226,14 @@ func DeriveCommitKey(chainID string, taskID []byte, verifyRound uint32, verifier
 	)
 }
 
-// ResultCommitmentHash derives the V2 commitment opened by ResultReceiptV2.
+// ResultCommitmentHash derives the V3 commitment opened by ResultReceiptV3.
 func ResultCommitmentHash(
 	chainID string,
 	taskID []byte,
 	taskHash []byte,
 	verifyRound uint32,
 	verifierOperatorAddress string,
-	resultPayloadHash []byte,
+	verifierValueRoot []byte,
 	salt []byte,
 ) ([32]byte, error) {
 	chain, err := canonicalUTF8Field("chain_id", chainID)
@@ -244,7 +252,7 @@ func ResultCommitmentHash(
 	if err != nil {
 		return [32]byte{}, err
 	}
-	payloadHash, err := canonicalHash32("result_payload_hash", resultPayloadHash)
+	valueRoot, err := canonicalHash32("verifier_value_root", verifierValueRoot)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -253,13 +261,13 @@ func ResultCommitmentHash(
 		return [32]byte{}, err
 	}
 	return canonicalTaskDigestV1(
-		shared.DomainResultCommitmentV2,
+		shared.DomainResultCommitmentV3,
 		chain,
 		task,
 		taskDigest,
 		shared.Uint32BE(verifyRound),
 		verifier,
-		payloadHash,
+		valueRoot,
 		canonicalSalt,
 	)
 }

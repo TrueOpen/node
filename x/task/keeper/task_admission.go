@@ -73,7 +73,7 @@ func (k Keeper) admitSignedWorkerOrder(
 		core, err := k.TaskCore.Get(ctx, taskKey)
 		if err != nil || !bytes.Equal(core.TaskId, scope.ref.TaskId) || !bytes.Equal(core.AcceptedTaskHash, scope.ref.TaskHash) ||
 			!bytes.Equal(core.SessionId, order.SessionId) || core.OrderSequence != order.OrderSequence || core.UserAddress != order.UserAddress ||
-			core.ModelId != order.ModelId || core.ProfileVersion != order.ProfileVersion || core.TaskType != order.TaskType ||
+			!bytes.Equal(core.ModelId, order.ModelId) || core.ProfileVersion != order.ProfileVersion || core.TaskType != order.TaskType ||
 			!bytes.Equal(core.AcceptedInputHash, order.InputHash) {
 			return fmt.Errorf("signed_order conflicts with the accepted Task")
 		}
@@ -97,7 +97,7 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err != nil {
 		return err
 	}
-	stream, err := k.Stream.Get(ctx, types.NewSessionKey(order.SessionId))
+	stream, err := k.ReadStream(ctx, types.NewSessionKey(order.SessionId))
 	if err != nil {
 		if errIsNotFound(err) {
 			return fmt.Errorf("session does not exist")
@@ -226,6 +226,7 @@ func (k Keeper) admitSignedWorkerOrder(
 	assignment := types.TaskAssignmentState{
 		TaskId: scope.ref.TaskId, AssignmentRandomnessHeight: windowClose,
 		CandidatePoolSnapshotId: append([]byte(nil), pool.SnapshotId...), CandidatePoolHash: append([]byte(nil), pool.PoolHash...),
+		MinStakeSnapshot:             shared.NewAmount(profile.MinStake),
 		ProfileExecutionSnapshotHash: append([]byte(nil), profile.ExecutionSnapshotHash...),
 		JudgmentFunctionVersion:      profile.ExecutionSnapshot.VerificationProfile.JudgmentFunctionVersion,
 		EvidenceSchemaHash:           append([]byte(nil), profile.ExecutionSnapshot.VerificationProfile.EvidenceSchemaHash...),
@@ -282,10 +283,10 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err := k.TaskCore.Set(ctx, taskKey, core); err != nil {
 		return err
 	}
-	if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
-	if err := k.TaskBuilderSelection.Set(ctx, taskKey, selection); err != nil {
+	if err := k.StoreTaskBuilderSelection(ctx, taskKey, selection); err != nil {
 		return err
 	}
 	if err := k.acquireTaskBuilderEvidenceResponsibilities(ctx, core, selection); err != nil {

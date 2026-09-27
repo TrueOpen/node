@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -63,7 +64,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 			continue
 		}
 		if handraise.VerifyRound != scope.VerifyRound || !bytes.Equal(handraise.InferReceiptHash, scope.InferReceiptHash) ||
-			!bytes.Equal(handraise.OutputHash, scope.OutputHash) || handraise.ModelId != scope.ModelId ||
+			!bytes.Equal(handraise.OutputHash, scope.OutputHash) || !bytes.Equal(handraise.ModelId, scope.ModelId) ||
 			handraise.ProfileVersion != scope.ProfileVersion ||
 			!bytes.Equal(handraise.Member.CandidatePoolSnapshotId, scope.Member.CandidatePoolSnapshotId) {
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier handraises do not share one frozen task-round scope")
@@ -85,13 +86,13 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 	if err != nil || !bytes.Equal(core.TaskId, msg.TaskId) || len(core.AcceptedTaskHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal task scope is unavailable")
 	}
-	assignment, err := m.k.TaskAssignment.Get(cache, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, msg.TaskId) || assignment.WinnerWorker == "" ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
 		assignment.CandidatePoolRefReleased {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier proposal assignment scope is unavailable")
 	}
-	receipt, err := m.k.InferReceipt.Get(cache, taskKey)
+	receipt, err := m.k.ReadInferReceipt(cache, taskKey)
 	if err != nil || !bytes.Equal(receipt.TaskId, msg.TaskId) || len(receipt.InferReceiptHash) != types.Hash32Len ||
 		len(receipt.OutputHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "accepted infer receipt is unavailable")
@@ -105,7 +106,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal window scope is unavailable")
 	}
 	if scope.VerifyRound != window.VerifyRound || !bytes.Equal(scope.InferReceiptHash, receipt.InferReceiptHash) ||
-		!bytes.Equal(scope.OutputHash, receipt.OutputHash) || scope.ModelId != core.ModelId ||
+		!bytes.Equal(scope.OutputHash, receipt.OutputHash) || !bytes.Equal(scope.ModelId, core.ModelId) ||
 		scope.ProfileVersion != core.ProfileVersion ||
 		!bytes.Equal(scope.Member.CandidatePoolSnapshotId, window.CandidatePoolSnapshotId) {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal does not match the frozen task scope")
@@ -166,29 +167,35 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 
 	members := make(map[uint32]types.VerifierCandidateWindowMemberState, window.WindowSize)
 	for rank := uint32(0); rank < window.WindowSize; rank++ {
-		member, err := m.k.VerifierCandidateWindowMember.Get(cache, types.NewVerifierWindowMemberKey(taskKey, verifyRound, rank))
+		member, err := m.k.ReadVerifierWindowMember(cache, types.NewVerifierWindowMemberKey(taskKey, verifyRound, rank))
 		if err != nil || member.RankIndex != rank || !bytes.Equal(member.TaskId, msg.TaskId) || member.VerifyRound != verifyRound {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier window member body is unavailable")
 		}
 		members[member.Slot] = member
 	}
 
-	facts := make([]types.TaskCandidateFactState, len(msg.Handraises))
+	// A handraise that is no longer eligible by the time this proposal lands is
+	// skipped, not fatal: see the identical reasoning in
+	// msg_server_worker_handraises.go and errCandidateNotApplicable.
+	facts := make([]types.TaskCandidateFactState, 0, len(msg.Handraises))
 	newSlots := make([]uint32, 0, len(msg.Handraises))
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))
 	existingSlots := make([]uint32, 0, len(msg.Handraises))
-	for index, handraise := range msg.Handraises {
+	for _, handraise := range msg.Handraises {
 		member, found := members[handraise.Member.Slot]
 		if !found {
-			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier handraise member is outside the frozen window")
+			continue
 		}
 		fact, err := m.k.freezeVerifierCandidateFact(cache, core, assignment, receipt, window, member, handraise, currentHeight)
 		if err != nil {
+			if errors.Is(err, errCandidateNotApplicable) {
+				continue
+			}
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, err.Error())
 		}
-		facts[index] = fact
+		facts = append(facts, fact)
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
-		if existing, err := m.k.TaskCandidateFact.Get(cache, factKey); err == nil {
+		if existing, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			if !proto.Equal(&existing, &fact) {
 				return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier slot already has a conflicting accepted fact")
 			}
@@ -221,7 +228,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "accepted verifier fact is absent from the union bitmap")
 		}
 	}
-	if existing, err := m.k.BuilderStageProposal.Get(cache, proposalKey); err == nil {
+	if existing, err := m.k.ReadBuilderStageProposal(cache, proposalKey); err == nil {
 		if replay, replayErr := verifierProposalExactReplay(existing, proposedReceipt); replayErr != nil || !replay {
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "conflicting verifier proposal replay")
 		}
@@ -270,7 +277,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		if _, added := newSlotSet[fact.Slot]; !added {
 			continue
 		}
-		if err := m.k.TaskCandidateFact.Set(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
+		if err := m.k.WriteTaskCandidateFact(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
 			return nil, err
 		}
 	}
@@ -289,7 +296,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 	if err := m.k.TaskStageHandraiseUnion.Set(cache, stageKey, union); err != nil {
 		return nil, err
 	}
-	if err := m.k.BuilderStageProposal.Set(cache, proposalKey, proposedReceipt); err != nil {
+	if err := m.k.WriteBuilderStageProposal(cache, proposalKey, proposedReceipt); err != nil {
 		return nil, err
 	}
 	actor := assignment.WinnerWorker
@@ -356,7 +363,11 @@ func (k Keeper) findAcceptedVerifierProposalReplay(
 		if err != nil {
 			return nil, false, err
 		}
-		existing, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, false, err
+		}
+		existing, err := k.ProjectBuilderStageProposalStore(stored)
 		if err != nil {
 			return nil, false, err
 		}
@@ -560,7 +571,7 @@ func validateVerifierHandraiseEnvelope(chainID string, taskID []byte, currentHei
 	if handraise == nil || handraise.SchemaVersion != types.VerifierHandraiseSchemaVersionV1 ||
 		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !isPhase0VerifyRound(handraise.VerifyRound) ||
 		len(handraise.InferReceiptHash) != types.Hash32Len || len(handraise.OutputHash) != types.Hash32Len ||
-		handraise.ModelId == "" || handraise.ProfileVersion == 0 ||
+		len(handraise.ModelId) != types.Hash32Len || handraise.ProfileVersion == 0 ||
 		len(handraise.Member.CandidatePoolSnapshotId) != types.Hash32Len || handraise.Member.SlotVersion == 0 ||
 		handraise.Duty != shared.Duty_DUTY_VERIFIER || handraise.ExpiryHeight == 0 || currentHeight > handraise.ExpiryHeight ||
 		len(handraise.ServiceSignature) != 64 {

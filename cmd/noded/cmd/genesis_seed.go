@@ -72,12 +72,12 @@ type genesisSeedBuilder struct {
 }
 
 type genesisSeedCortex struct {
-	OperatorAddress   string                        `json:"operator_address"`
-	ServiceAddress    string                        `json:"service_address"`
-	ServicePubKey     string                        `json:"service_pubkey"`
-	Bond              uint64                        `json:"bond"`
-	Descriptor        *genesisSeedServiceDescriptor `json:"descriptor"`
-	SupportedProfiles []genesisSeedProfileSupport   `json:"supported_profiles"`
+	OperatorAddress string                        `json:"operator_address"`
+	ServiceAddress  string                        `json:"service_address"`
+	ServicePubKey   string                        `json:"service_pubkey"`
+	Bond            uint64                        `json:"bond"`
+	Descriptor      *genesisSeedServiceDescriptor `json:"descriptor"`
+	SupportedModels []genesisSeedModelSupport     `json:"supported_models"`
 }
 
 type genesisSeedServiceDescriptor struct {
@@ -91,10 +91,10 @@ type genesisSeedServiceEndpoint struct {
 	TLSPubkeyHash   string `json:"tls_pubkey_hash,omitempty"`
 }
 
-type genesisSeedProfileSupport struct {
-	ModelID        string `json:"model_id"`
-	ProfileVersion uint32 `json:"profile_version"`
-	Active         bool   `json:"active"`
+type genesisSeedModelSupport struct {
+	ModelRef                   string `json:"model_ref"`
+	FirstSupportProfileVersion uint32 `json:"first_support_profile_version"`
+	Active                     bool   `json:"active"`
 }
 
 type genesisSeedModel struct {
@@ -108,7 +108,9 @@ type genesisSeedProfile struct {
 	GenerationType          string                             `json:"generation_type"`
 	ManifestHash            string                             `json:"manifest_hash"`
 	MinStake                genesisSeedCoin                    `json:"min_stake"`
-	ModelID                 string                             `json:"model_id"`
+	Source                  shared.SourceRefV1                 `json:"source"`
+	ToolCallParser          shared.ParserRefV1                 `json:"tool_call_parser"`
+	ReasoningParser         shared.ParserRefV1                 `json:"reasoning_parser"`
 	PreviousProfileVersion  uint32                             `json:"previous_profile_version"`
 	PricingProfile          genesisSeedPricingProfile          `json:"pricing_profile"`
 	ProfileVersion          uint32                             `json:"profile_version"`
@@ -326,6 +328,7 @@ func validateGenesisSeed(seed genesisSeed) error {
 		}
 	}
 	supports := map[string]struct{}{}
+	referencedProfiles := []string{}
 	for i, node := range seed.CortexNodes {
 		kind := fmt.Sprintf("cortex_nodes[%d]", i)
 		if err := addOperator(kind, node.OperatorAddress, node.ServiceAddress, node.ServicePubKey); err != nil {
@@ -343,58 +346,66 @@ func validateGenesisSeed(seed genesisSeed) error {
 		if err := validateGenesisSeedDescriptor(kind, node.Descriptor, false); err != nil {
 			return err
 		}
-		for j, support := range node.SupportedProfiles {
-			if strings.TrimSpace(support.ModelID) == "" || support.ModelID != strings.TrimSpace(support.ModelID) || support.ProfileVersion == 0 {
-				return fmt.Errorf("%s.supported_profiles[%d] model_id and profile_version must be canonical", kind, j)
+		for j, support := range node.SupportedModels {
+			if strings.TrimSpace(support.ModelRef) == "" || support.ModelRef != strings.TrimSpace(support.ModelRef) || support.FirstSupportProfileVersion == 0 {
+				return fmt.Errorf("%s.supported_models[%d] model_ref and first_support_profile_version must be canonical", kind, j)
 			}
-			key := node.OperatorAddress + "\x00" + genesisProfileKey(support.ModelID, support.ProfileVersion)
+			key := node.OperatorAddress + "\x00" + support.ModelRef
 			if _, exists := supports[key]; exists {
-				return fmt.Errorf("duplicate supported profile %s/%d for %s", support.ModelID, support.ProfileVersion, node.OperatorAddress)
+				return fmt.Errorf("duplicate supported model %s for %s", support.ModelRef, node.OperatorAddress)
 			}
 			supports[key] = struct{}{}
+			referencedProfiles = append(referencedProfiles, genesisSeedProfileRef(support.ModelRef, support.FirstSupportProfileVersion))
 		}
 	}
 	models := map[string]string{}
 	profiles := map[string]struct{}{}
 	for i, model := range seed.Models {
 		profile := model.Profile
-		if profile.ModelID == "" || profile.ModelID != strings.TrimSpace(profile.ModelID) {
-			return fmt.Errorf("models[%d].model_id must be non-empty and canonical", i)
-		}
-		if proposer, exists := models[profile.ModelID]; exists && proposer != model.ProposerAddress {
-			return fmt.Errorf("model_id %q has inconsistent proposer_address", profile.ModelID)
-		}
-		models[profile.ModelID] = model.ProposerAddress
 		if err := requireGenesisAddress(fmt.Sprintf("models[%d].proposer_address", i), model.ProposerAddress); err != nil {
 			return err
 		}
+		modelID, err := genesisSeedModelID("seed-validation", model)
+		if err != nil {
+			return fmt.Errorf("models[%d]: %w", i, err)
+		}
+		modelRef := profile.Source.RepoId
+		if proposer, exists := models[modelRef]; exists && proposer != model.ProposerAddress {
+			return fmt.Errorf("repo_id %q has inconsistent proposer_address", modelRef)
+		}
+		models[modelRef] = model.ProposerAddress
 		if profile.ProfileVersion == 0 {
 			return fmt.Errorf("models[%d].profile_version must be greater than 0", i)
 		}
-		key := genesisProfileKey(profile.ModelID, profile.ProfileVersion)
+		key := genesisSeedProfileRef(modelRef, profile.ProfileVersion)
 		if _, exists := profiles[key]; exists {
-			return fmt.Errorf("duplicate profile %s/%d", profile.ModelID, profile.ProfileVersion)
+			return fmt.Errorf("duplicate profile %s/%d", modelRef, profile.ProfileVersion)
 		}
 		profiles[key] = struct{}{}
-		projection, err := genesisSeedProjection(profile)
+		projection, err := genesisSeedProjection(profile, modelID)
 		if err != nil {
 			return fmt.Errorf("models[%d]: %w", i, err)
 		}
 		if projection.MinStake.Amount.Uint64() < serviceBondMinInitial {
-			return fmt.Errorf("profile %s/%d min_stake must be at least %d", profile.ModelID, profile.ProfileVersion, serviceBondMinInitial)
+			return fmt.Errorf("profile %s/%d min_stake must be at least %d", modelRef, profile.ProfileVersion, serviceBondMinInitial)
 		}
 		if seed.AccountBalance <= projection.RegistrationFee.Amount.Uint64() {
 			return fmt.Errorf(
 				"account_balance must be greater than profile %s/%d registration fee %d",
-				profile.ModelID, profile.ProfileVersion, projection.RegistrationFee.Amount.Uint64(),
+				modelRef, profile.ProfileVersion, projection.RegistrationFee.Amount.Uint64(),
 			)
 		}
 		if profile.ChallengeOpenWindow < hubtypes.ProfileChallengeOpenWindowMinBlocks ||
 			profile.ChallengeOpenWindow > hubtypes.ProfileChallengeOpenWindowMaxBlocks {
 			return fmt.Errorf("profile %s/%d challenge_open_window_blocks must be in [%d,%d]",
-				profile.ModelID, profile.ProfileVersion,
+				modelRef, profile.ProfileVersion,
 				hubtypes.ProfileChallengeOpenWindowMinBlocks,
 				hubtypes.ProfileChallengeOpenWindowMaxBlocks)
+		}
+	}
+	for _, ref := range referencedProfiles {
+		if _, exists := profiles[ref]; !exists {
+			return fmt.Errorf("supported model references missing profile %s", ref)
 		}
 	}
 	return nil
@@ -595,7 +606,11 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 		existingProfiles[genesisProfileKey(profile.ModelId, profile.ProfileVersion)] = struct{}{}
 	}
 	for _, model := range seed.Models {
-		key := genesisProfileKey(model.Profile.ModelID, model.Profile.ProfileVersion)
+		modelID, err := genesisSeedModelID(chainID, model)
+		if err != nil {
+			return nil, err
+		}
+		key := genesisProfileKey(modelID, model.Profile.ProfileVersion)
 		if _, exists := existingProfiles[key]; !exists {
 			fundingAddresses[model.ProposerAddress] = struct{}{}
 		}
@@ -646,7 +661,7 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 				BodyStatus:         shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 			})
 			hub.CurrentBuilderSet = hubtypes.CurrentBuilderSetState{
-				Mode: "GOVERNED_FIXED_V1", BuilderSetVersion: version,
+				Mode: hubtypes.BuilderSetModeV1_BUILDER_SET_MODE_V1_GOVERNED_FIXED_V1, BuilderSetVersion: version,
 				BuilderSetId: defaultBuilderSetID, BuilderSetHash: setHash,
 				BuilderSetMembersHash: membersHash, EffectiveHeight: seedHeight,
 			}
@@ -672,11 +687,11 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 	if err := appendMissingModels(&hub, &bank, seed.Models, chainID, seedHeight); err != nil {
 		return nil, err
 	}
-	affectedProfiles, err := appendMissingSupports(&hub, seed, seedHeight)
+	affectedModels, err := appendMissingSupports(&hub, seed, chainID, seedHeight)
 	if err != nil {
 		return nil, err
 	}
-	if err := reconcileGenesisModelStatuses(&hub, affectedProfiles, seedHeight); err != nil {
+	if err := reconcileGenesisModelStatuses(&hub, affectedModels, seedHeight); err != nil {
 		return nil, err
 	}
 	hub, err = hubtypes.PrepareCandidateSlotGenesis(hub)
@@ -1018,36 +1033,48 @@ func genesisServiceEndpoints(descriptor *genesisSeedServiceDescriptor) ([]hubtyp
 }
 
 func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisState, models []genesisSeedModel, chainID string, height uint64) error {
-	modelExists := make(map[string]bool, len(hub.Models))
-	for _, model := range hub.Models {
-		modelExists[model.ModelId] = true
+	modelIndex := make(map[string]int, len(hub.Models))
+	for index, model := range hub.Models {
+		modelIndex[hex.EncodeToString(model.ModelId)] = index
 	}
 	profileExists := make(map[string]bool, len(hub.Profiles))
 	for _, profile := range hub.Profiles {
 		profileExists[genesisProfileKey(profile.ModelId, profile.ProfileVersion)] = true
 	}
 	for _, modelSeed := range models {
+		modelID, err := genesisSeedModelID(chainID, modelSeed)
+		if err != nil {
+			return err
+		}
 		profileSeed := modelSeed.Profile
-		if !modelExists[profileSeed.ModelID] {
-			hub.Models = append(hub.Models, hubtypes.ModelState{
-				ModelId: profileSeed.ModelID, ProposerAddress: modelSeed.ProposerAddress, Status: hubtypes.ModelStatusRegistered,
-				CreatedHeight: height, UpdatedHeight: height,
-				StatusSource: hubtypes.ModelStatusSourceAutoProfile,
-			})
-			modelExists[profileSeed.ModelID] = true
-		}
-		key := genesisProfileKey(profileSeed.ModelID, profileSeed.ProfileVersion)
-		if profileExists[key] {
-			continue
-		}
-		projection, err := genesisSeedProjection(profileSeed)
+		projection, err := genesisSeedProjection(profileSeed, modelID)
 		if err != nil {
 			return err
 		}
 		businessDenom := hub.Params.Phase0.BusinessDenom
 		if projection.MinStake.Denom != businessDenom || projection.RegistrationFee.Denom != businessDenom {
-			return fmt.Errorf("profile %s/%d amounts must use business_denom %q",
-				projection.ModelId, projection.ProfileVersion, businessDenom)
+			return fmt.Errorf("profile %x/%d amounts must use business_denom %q", modelID, projection.ProfileVersion, businessDenom)
+		}
+		modelKey := hex.EncodeToString(modelID)
+		index, exists := modelIndex[modelKey]
+		if !exists {
+			hub.Models = append(hub.Models, hubtypes.ModelState{
+				ModelId: append([]byte(nil), modelID...), ProposerAddress: modelSeed.ProposerAddress,
+				Provider: profileSeed.Source.Provider, RepoId: profileSeed.Source.RepoId,
+				Status: hubtypes.ModelStatusRegistered, StatusSource: hubtypes.ModelStatusSourceAutoSupport,
+				SupportMinStake: projection.MinStake.Amount.Uint64(),
+				CreatedHeight:   height, UpdatedHeight: height,
+			})
+			index = len(hub.Models) - 1
+			modelIndex[modelKey] = index
+		} else if hub.Models[index].ProposerAddress != modelSeed.ProposerAddress ||
+			hub.Models[index].Provider != profileSeed.Source.Provider ||
+			hub.Models[index].RepoId != profileSeed.Source.RepoId {
+			return fmt.Errorf("model %x identity does not match existing genesis", modelID)
+		}
+		key := genesisProfileKey(modelID, profileSeed.ProfileVersion)
+		if profileExists[key] {
+			continue
 		}
 		registrationDigest, _, err := hubtypes.ModelRegistrationDigest(chainID, modelSeed.ProposerAddress, projection)
 		if err != nil {
@@ -1055,10 +1082,10 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 		}
 		minStake, registrationFee := projection.MinStake.Amount.Uint64(), projection.RegistrationFee.Amount.Uint64()
 		if err := recordGenesisRegistrationFee(hub, bank, modelSeed.ProposerAddress, registrationFee, height); err != nil {
-			return fmt.Errorf("register profile %s/%d: %w", projection.ModelId, projection.ProfileVersion, err)
+			return fmt.Errorf("register profile %x/%d: %w", modelID, projection.ProfileVersion, err)
 		}
 		profile := hubtypes.ProfileState{
-			ModelId: projection.ModelId, ProfileVersion: projection.ProfileVersion,
+			ModelId: append([]byte(nil), modelID...), ProfileVersion: projection.ProfileVersion,
 			ManifestHash: projection.ManifestHash, TokenizerHash: projection.TokenizerHash,
 			RuntimeClass: projection.RuntimeClass, RequiredTopK: projection.RequiredTopK, TaskTypes: projection.TaskTypes,
 			GenerationType: projection.GenerationType, ResourceTier: projection.ResourceTier, MinStake: minStake,
@@ -1066,21 +1093,27 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 			VerificationProfile:       projection.VerificationProfile, VerificationThresholds: projection.VerificationThresholds,
 			BatchVerification: projection.BatchVerification, PricingProfile: projection.PricingProfile,
 			TimeoutBootstrapProfile: projection.TimeoutBootstrapProfile, SchemaHash: projection.SchemaHash,
-			// the model registration contract "then set
-			// ProfileState.ref_price = initial_output_price";
-			// ValidateGenesis requires it to be positive, so a seed without it cannot boot.
 			RefPrice: projection.PricingProfile.InitialOutputPrice,
-			Status:   hubtypes.ModelStatusRegistered, StatusSource: hubtypes.ProfileStatusSourceAutoSupport,
+			Status:   hubtypes.ModelStatusRegistered, StatusSource: hubtypes.ProfileStatusSourceGovernance,
 			RegistrationFeePaid: registrationFee, PreviousProfileVersion: projection.PreviousProfileVersion,
 			ProposerAddress: modelSeed.ProposerAddress, RegistrationDigest: registrationDigest,
+			Source: shared.ProfileSourceRefV1{
+				SourceUri: projection.Source.SourceUri, Revision: projection.Source.Revision,
+				ResolverVersion: projection.Source.ResolverVersion, RepoType: projection.Source.RepoType,
+			},
+			ToolCallParser: projection.ToolCallParser, ReasoningParser: projection.ReasoningParser,
 			CreatedHeight: height, UpdatedHeight: height,
 		}
 		hub.Profiles = append(hub.Profiles, profile)
-		for i := range hub.Models {
-			if hub.Models[i].ModelId == projection.ModelId && hub.Models[i].LatestProfileVersion < projection.ProfileVersion {
-				hub.Models[i].LatestProfileVersion = projection.ProfileVersion
-				hub.Models[i].RegistrationFeePaid += registrationFee
-			}
+		model := &hub.Models[index]
+		model.RegistrationFeePaid, err = checkedGenesisAdd(model.RegistrationFeePaid, registrationFee)
+		if err != nil {
+			return err
+		}
+		if model.LatestProfileVersion < projection.ProfileVersion {
+			model.LatestProfileVersion = projection.ProfileVersion
+			model.SupportMinStake = minStake
+			model.UpdatedHeight = height
 		}
 		profileExists[key] = true
 	}
@@ -1120,8 +1153,20 @@ func recordGenesisRegistrationFee(
 	return nil
 }
 
-func genesisProfileKey(modelID string, profileVersion uint32) string {
-	return modelID + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
+func genesisProfileKey(modelID []byte, profileVersion uint32) string {
+	return hex.EncodeToString(modelID) + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
+}
+
+func genesisSeedProfileRef(modelRef string, profileVersion uint32) string {
+	return modelRef + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
+}
+
+func genesisSeedModelID(chainID string, model genesisSeedModel) ([]byte, error) {
+	proposer, err := sdk.AccAddressFromBech32(model.ProposerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("model proposer_address is invalid: %w", err)
+	}
+	return hubtypes.DeriveModelIDV1(chainID, model.Profile.Source.Provider, model.Profile.Source.RepoId, proposer)
 }
 
 func decodeGenesisSeedHash(field, value string, allowZero bool) ([]byte, error) {
@@ -1143,7 +1188,7 @@ func decodeGenesisSeedHash(field, value string, allowZero bool) ([]byte, error) 
 	return decoded, nil
 }
 
-func genesisSeedProjection(seed genesisSeedProfile) (shared.ModelProfileProjection, error) {
+func genesisSeedProjection(seed genesisSeedProfile, modelID []byte) (shared.ModelProfileProjection, error) {
 	if seed.MinStake.Denom == "" || seed.MinStake.Amount == 0 {
 		return shared.ModelProfileProjection{}, fmt.Errorf("min_stake must be a positive coin")
 	}
@@ -1206,6 +1251,8 @@ func genesisSeedProjection(seed genesisSeedProfile) (shared.ModelProfileProjecti
 		switch requirement.EvidenceKind {
 		case "WORKER_VALUE_OPENING":
 			kind = shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING
+		case "WORKER_TOKEN_OPENING":
+			kind = shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING
 		case "VERIFIER_VALUE_OPENING":
 			kind = shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING
 		case "SETTLEMENT_ROOT_OPENING":
@@ -1219,7 +1266,7 @@ func genesisSeedProjection(seed genesisSeedProfile) (shared.ModelProfileProjecti
 		}
 	}
 	projection := shared.ModelProfileProjection{
-		ModelId: seed.ModelID, ProfileVersion: seed.ProfileVersion, ManifestHash: manifestHash, TokenizerHash: tokenizerHash,
+		ModelId: append([]byte(nil), modelID...), ProfileVersion: seed.ProfileVersion, ManifestHash: manifestHash, TokenizerHash: tokenizerHash,
 		RuntimeClass: seed.RuntimeClass, RequiredTopK: seed.RequiredTopK, TaskTypes: taskTypes, GenerationType: generationType,
 		ResourceTier: seed.ResourceTier, MinStake: sdk.NewCoin(seed.MinStake.Denom, sdkmath.NewIntFromUint64(seed.MinStake.Amount)),
 		ChallengeOpenWindowBlocks: seed.ChallengeOpenWindow,
@@ -1246,6 +1293,7 @@ func genesisSeedProjection(seed genesisSeedProfile) (shared.ModelProfileProjecti
 		TimeoutBootstrapProfile: shared.TimeoutBootstrapProfile{InferTimeoutBootstrapBlocks: seed.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks, VerifyTimeoutBootstrapBlocks: seed.TimeoutBootstrapProfile.VerifyTimeoutBootstrapBlocks, CommitTimeoutBootstrapBlocks: seed.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks, BootstrapValidUntilEpoch: seed.TimeoutBootstrapProfile.BootstrapValidUntilEpoch},
 		SchemaHash:              schemaHash, PreviousProfileVersion: seed.PreviousProfileVersion,
 		RegistrationFee: sdk.NewCoin(seed.RegistrationFee.Denom, sdkmath.NewIntFromUint64(seed.RegistrationFee.Amount)),
+		Source:          seed.Source, ToolCallParser: seed.ToolCallParser, ReasoningParser: seed.ReasoningParser,
 	}
 	recomputedEvidenceSchemaHash, err := hubtypes.EvidenceSchemaHash(projection)
 	if err != nil {
@@ -1255,205 +1303,163 @@ func genesisSeedProjection(seed genesisSeedProfile) (shared.ModelProfileProjecti
 	return projection, nil
 }
 
-func appendMissingSupports(hub *hubtypes.GenesisState, seed genesisSeed, height uint64) (map[string]bool, error) {
-	affectedProfiles := map[string]bool{}
-	profiles := make(map[string]int, len(hub.Profiles))
-	for i, profile := range hub.Profiles {
-		profiles[genesisProfileKey(profile.ModelId, profile.ProfileVersion)] = i
+func appendMissingSupports(hub *hubtypes.GenesisState, seed genesisSeed, chainID string, height uint64) (map[string]bool, error) {
+	affectedModels := map[string]bool{}
+	modelIDsByRef := make(map[string][]byte, len(seed.Models))
+	modelIndex := make(map[string]int, len(hub.Models))
+	for index, model := range hub.Models {
+		modelIndex[hex.EncodeToString(model.ModelId)] = index
+	}
+	for _, model := range seed.Models {
+		modelID, err := genesisSeedModelID(chainID, model)
+		if err != nil {
+			return nil, err
+		}
+		modelIDsByRef[model.Profile.Source.RepoId] = modelID
+	}
+	profiles := make(map[string]hubtypes.ProfileState, len(hub.Profiles))
+	for _, profile := range hub.Profiles {
+		profiles[genesisProfileKey(profile.ModelId, profile.ProfileVersion)] = profile
+	}
+	nodes := make(map[string]hubtypes.CortexNodeState, len(hub.CortexNodes))
+	for _, node := range hub.CortexNodes {
+		nodes[node.OperatorAddress] = node
 	}
 	bonds := make(map[string]hubtypes.ServiceBondState, len(hub.ServiceBonds))
 	for _, bond := range hub.ServiceBonds {
 		bonds[bond.OperatorAddress] = bond
 	}
-	capabilities := make(map[string]bool, len(hub.ProfileCapabilities))
-	for _, state := range hub.ProfileCapabilities {
-		capabilities[state.OperatorAddress+"\x00"+genesisProfileKey(state.ModelId, state.ProfileVersion)] = true
+	capabilities := make(map[string]bool, len(hub.ModelCapabilities))
+	for _, state := range hub.ModelCapabilities {
+		capabilities[state.OperatorAddress+"\x00"+hex.EncodeToString(state.ModelId)] = true
 	}
 	supports := make(map[string]bool, len(hub.ModelSupports))
 	for _, state := range hub.ModelSupports {
-		supports[state.OperatorAddress+"\x00"+genesisProfileKey(state.ModelId, state.ProfileVersion)] = true
+		supports[state.OperatorAddress+"\x00"+hex.EncodeToString(state.ModelId)] = true
 	}
 	dailySupports := make(map[string]bool, len(hub.DailySupports))
 	for _, state := range hub.DailySupports {
 		dailySupports[state.OperatorAddress] = true
 	}
-	for _, node := range seed.CortexNodes {
-		bond, exists := bonds[node.OperatorAddress]
+	for _, nodeSeed := range seed.CortexNodes {
+		node, exists := nodes[nodeSeed.OperatorAddress]
 		if !exists {
-			return nil, fmt.Errorf("cortex node %s has no service bond", node.OperatorAddress)
+			return nil, fmt.Errorf("cortex node %s has no identity", nodeSeed.OperatorAddress)
 		}
-		profileRefs := make([]hubtypes.ProfileKeyV1, 0, len(node.SupportedProfiles))
-		for _, supportSeed := range node.SupportedProfiles {
-			profileKey := genesisProfileKey(supportSeed.ModelID, supportSeed.ProfileVersion)
-			profileIndex, exists := profiles[profileKey]
+		bond, exists := bonds[nodeSeed.OperatorAddress]
+		if !exists {
+			return nil, fmt.Errorf("cortex node %s has no service bond", nodeSeed.OperatorAddress)
+		}
+		supportedModelIDs := make([][]byte, 0, len(nodeSeed.SupportedModels))
+		for _, supportSeed := range nodeSeed.SupportedModels {
+			modelID, exists := modelIDsByRef[supportSeed.ModelRef]
 			if !exists {
-				return nil, fmt.Errorf("support %s/%s/%d references missing profile", node.OperatorAddress, supportSeed.ModelID, supportSeed.ProfileVersion)
+				return nil, fmt.Errorf("supported model %s has no seed identity", supportSeed.ModelRef)
 			}
-			key := node.OperatorAddress + "\x00" + profileKey
-			present := 0
-			if capabilities[key] {
-				present++
+			modelKey := hex.EncodeToString(modelID)
+			index, exists := modelIndex[modelKey]
+			if !exists {
+				return nil, fmt.Errorf("supported model %s has no model state", supportSeed.ModelRef)
+			}
+			model := &hub.Models[index]
+			profile, exists := profiles[genesisProfileKey(modelID, supportSeed.FirstSupportProfileVersion)]
+			if !exists {
+				return nil, fmt.Errorf("supported model %s has no first support profile %d", supportSeed.ModelRef, supportSeed.FirstSupportProfileVersion)
+			}
+			if bond.ActiveBond < profile.MinStake {
+				return nil, fmt.Errorf("cortex node %s bond is below profile %x/%d min_stake", nodeSeed.OperatorAddress, modelID, profile.ProfileVersion)
+			}
+			supportedModelIDs = append(supportedModelIDs, append([]byte(nil), modelID...))
+			key := nodeSeed.OperatorAddress + "\x00" + modelKey
+			if capabilities[key] != supports[key] {
+				return nil, fmt.Errorf("model support %s is partially materialized", key)
 			}
 			if supports[key] {
-				present++
-			}
-			if present == 2 {
-				profileRefs = append(profileRefs, hubtypes.ProfileKeyV1{ModelId: supportSeed.ModelID, ProfileVersion: supportSeed.ProfileVersion})
+				affectedModels[modelKey] = true
 				continue
 			}
-			if present != 0 {
-				return nil, fmt.Errorf("support %s is partially materialized in existing genesis", key)
+			capability := hubtypes.ModelCapabilityState{
+				OperatorAddress: nodeSeed.OperatorAddress, ModelId: append([]byte(nil), modelID...),
+				InferenceCapability: true, VerificationCapability: true, CapabilityVersion: 1,
 			}
-			profile := &hub.Profiles[profileIndex]
-			if bond.ActiveBond < profile.MinStake {
-				return nil, fmt.Errorf("cortex node %s bond is below profile %s/%d min_stake", node.OperatorAddress, profile.ModelId, profile.ProfileVersion)
+			support := hubtypes.ModelSupportState{
+				OperatorAddress: nodeSeed.OperatorAddress, ModelId: append([]byte(nil), modelID...),
+				DeclaredSupport: true, SupportFreshUntilEpoch: seed.SupportUntilEpoch,
+				SupportVersion: 1, LastRefreshHeight: height,
+				SuspendReason: hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE,
 			}
-			stakeSnapshot, err := genesisSupportStakeWeight(bond.ActiveBond, profile.MinStake, uint64(hub.Params.Support.ActiveSupportStakeCapMultiplier))
-			if err != nil {
-				return nil, err
-			}
-			activeStake := uint64(0)
-			activationKind := hubtypes.ModelSupportActivationNone
-			var firstTaskID []byte
 			if supportSeed.Active {
-				profile.ActiveSupporterCount++
-				profile.ActiveSupportStake, err = checkedGenesisAdd(profile.ActiveSupportStake, stakeSnapshot)
+				digest := sha256.Sum256([]byte("genesis-model-support/" + key))
+				support.ActivationKind = hubtypes.ModelSupportActivationVerifierAssignedValid
+				support.FirstActivationDuty = shared.DutyVerifier
+				support.FirstSupportTaskId = digest[:]
+				support.FirstSupportProfileVersion = supportSeed.FirstSupportProfileVersion
+				support.LastRefreshTaskId = digest[:]
+				weight, eligible, err := hubtypes.SupportVoteWeight(hubtypes.SupportEligibilityInputs{
+					Node: node, Bond: bond, Model: *model, Capability: capability, Support: support,
+				}, hubtypes.GenesisEpoch, hub.Params.Support)
 				if err != nil {
 					return nil, err
 				}
-				activeStake = stakeSnapshot
-				activationKind = hubtypes.ModelSupportActivationVerifierAssignedValid
-				digest := sha256.Sum256([]byte("genesis-support/" + key))
-				firstTaskID = digest[:]
-			}
-			profile.EligibleSupportStake, err = checkedGenesisAdd(profile.EligibleSupportStake, stakeSnapshot)
-			if err != nil {
-				return nil, err
-			}
-			hub.ProfileCapabilities = append(hub.ProfileCapabilities, hubtypes.ProfileCapabilityState{
-				OperatorAddress: node.OperatorAddress, ModelId: supportSeed.ModelID,
-				ProfileVersion: supportSeed.ProfileVersion, InferenceCapability: true, VerificationCapability: true,
-				CapabilityVersion: 1,
-			})
-			hub.ModelSupports = append(hub.ModelSupports, hubtypes.ModelSupportState{
-				OperatorAddress: node.OperatorAddress, ModelId: supportSeed.ModelID,
-				ProfileVersion: supportSeed.ProfileVersion, DeclaredSupport: true,
-				SupportActive: supportSeed.Active, SupportVersion: 1, FirstSupportTaskId: firstTaskID,
-				SupportFreshUntilEpoch: seed.SupportUntilEpoch, ActiveSupportStakeSnapshot: activeStake,
-				LastRefreshHeight: height, ActivationKind: activationKind, LastRefreshTaskId: firstTaskID,
-				EligibleSupportStakeSnapshot: stakeSnapshot, FirstActivationDuty: shared.DutyVerifier,
-			})
-			profileRefs = append(profileRefs, hubtypes.ProfileKeyV1{ModelId: supportSeed.ModelID, ProfileVersion: supportSeed.ProfileVersion})
-			capabilities[key], supports[key] = true, true
-			affectedProfiles[profileKey] = true
-		}
-		if len(profileRefs) > 0 && !dailySupports[node.OperatorAddress] {
-			sort.Slice(profileRefs, func(i, j int) bool {
-				if profileRefs[i].ModelId != profileRefs[j].ModelId {
-					return profileRefs[i].ModelId < profileRefs[j].ModelId
+				if !eligible {
+					return nil, fmt.Errorf("model support %s is not eligible at genesis", key)
 				}
-				return profileRefs[i].ProfileVersion < profileRefs[j].ProfileVersion
+				support.SupportActive = true
+				support.ActiveSupportStakeSnapshot = weight
+				model.ActiveSupportStake, err = checkedGenesisAdd(model.ActiveSupportStake, weight)
+				if err != nil {
+					return nil, err
+				}
+				if model.ActiveSupporterCount == math.MaxUint32 {
+					return nil, fmt.Errorf("model %x active supporter count overflows", modelID)
+				}
+				model.ActiveSupporterCount++
+			}
+			hub.ModelCapabilities = append(hub.ModelCapabilities, capability)
+			hub.ModelSupports = append(hub.ModelSupports, support)
+			capabilities[key], supports[key] = true, true
+			affectedModels[modelKey] = true
+		}
+		if len(supportedModelIDs) != 0 && !dailySupports[nodeSeed.OperatorAddress] {
+			sort.Slice(supportedModelIDs, func(i, j int) bool {
+				return bytes.Compare(supportedModelIDs[i], supportedModelIDs[j]) < 0
 			})
-			signatureDigest := sha256.Sum256([]byte("genesis-daily-support/" + node.OperatorAddress))
-			epoch := height / hub.Params.Epoch.EpochLengthBlocks
-			profilesHash, err := hubtypes.CanonicalSupportedProfilesHashV1(profileRefs)
+			modelsHash, err := hubtypes.CanonicalSupportedModelsHashV1(supportedModelIDs)
 			if err != nil {
 				return nil, err
 			}
+			signatureDigest := sha256.Sum256([]byte("genesis-daily-support/" + nodeSeed.OperatorAddress))
 			hub.DailySupports = append(hub.DailySupports, hubtypes.DailySupportState{
-				Epoch: epoch, OperatorAddress: node.OperatorAddress,
-				SupportedProfilesHash: profilesHash,
-				SignatureDigest:       signatureDigest[:], AcceptedHeight: height,
+				Epoch:           height / hub.Params.Epoch.EpochLengthBlocks,
+				OperatorAddress: nodeSeed.OperatorAddress, SupportedModelsHash: modelsHash,
+				SignatureDigest: signatureDigest[:], AcceptedHeight: height,
 			})
-			dailySupports[node.OperatorAddress] = true
+			dailySupports[nodeSeed.OperatorAddress] = true
 		}
 	}
-	return affectedProfiles, nil
+	return affectedModels, nil
 }
 
-func reconcileGenesisModelStatuses(hub *hubtypes.GenesisState, affectedProfiles map[string]bool, height uint64) error {
-	affectedModels := make(map[string]bool, len(affectedProfiles))
-	for key := range affectedProfiles {
-		modelID, _, _ := strings.Cut(key, "\x00")
-		affectedModels[modelID] = true
-	}
-	activeProfiles := make(map[string]uint64)
-	eligibleStakeByProfile := make(map[string]uint64)
-	for _, support := range hub.ModelSupports {
-		if support.DeclaredSupport {
-			key := genesisProfileKey(support.ModelId, support.ProfileVersion)
-			var err error
-			eligibleStakeByProfile[key], err = checkedGenesisAdd(eligibleStakeByProfile[key], support.EligibleSupportStakeSnapshot)
-			if err != nil {
-				return fmt.Errorf("profile %s eligible support stake overflow: %w", key, err)
-			}
-		}
-	}
-	for i := range hub.Profiles {
-		profile := &hub.Profiles[i]
-		profileKey := genesisProfileKey(profile.ModelId, profile.ProfileVersion)
-		if !affectedModels[profile.ModelId] {
+func reconcileGenesisModelStatuses(hub *hubtypes.GenesisState, affectedModels map[string]bool, height uint64) error {
+	for index := range hub.Models {
+		model := &hub.Models[index]
+		if !affectedModels[hex.EncodeToString(model.ModelId)] ||
+			model.StatusSource != hubtypes.ModelStatusSourceAutoSupport {
 			continue
 		}
-		if profile.StatusSource == hubtypes.ProfileStatusSourceUnspecified {
-			profile.StatusSource = hubtypes.ProfileStatusSourceAutoSupport
+		hi, threshold := bits.Mul64(model.SupportMinStake, uint64(hub.Params.Support.ActiveSupportStakeMultiple))
+		if hi != 0 {
+			return fmt.Errorf("model %x active support threshold overflows", model.ModelId)
 		}
-		if affectedProfiles[profileKey] &&
-			profile.StatusSource == hubtypes.ProfileStatusSourceAutoSupport &&
-			profile.Status != hubtypes.ModelStatusFrozen &&
-			profile.Status != hubtypes.ModelStatusEmergencyFrozen &&
-			profile.Status != hubtypes.ModelStatusDelisted {
-			leftHi, leftLo := bits.Mul64(profile.ActiveSupportStake, uint64(hub.Params.Support.ActiveSupportStakeRatioDenominator))
-			eligibleStake := eligibleStakeByProfile[profileKey]
-			profile.EligibleSupportStake = eligibleStake
-			rightHi, rightLo := bits.Mul64(eligibleStake, uint64(hub.Params.Support.ActiveSupportStakeRatioNumerator))
-			stakeThresholdMet := eligibleStake > 0 &&
-				(leftHi > rightHi || leftHi == rightHi && leftLo >= rightLo)
-			if profile.ActiveSupporterCount >= hub.Params.Support.ActiveSupporterMinCount && stakeThresholdMet {
-				profile.Status = hubtypes.ModelStatusActive
-			} else {
-				profile.Status = hubtypes.ModelStatusRegistered
-			}
-			profile.UpdatedHeight = height
+		if model.ActiveSupporterCount >= hub.Params.Support.ActiveSupporterMinCount &&
+			model.ActiveSupportStake >= threshold {
+			model.Status = hubtypes.ModelStatusActive
+		} else {
+			model.Status = hubtypes.ModelStatusRegistered
 		}
-		if profile.Status == hubtypes.ModelStatusActive &&
-			profile.StatusSource == hubtypes.ProfileStatusSourceAutoSupport {
-			activeProfiles[profile.ModelId]++
-		}
-	}
-	for i := range hub.Models {
-		model := &hub.Models[i]
-		if !affectedModels[model.ModelId] {
-			continue
-		}
-		model.ActiveProfileCount = uint32(activeProfiles[model.ModelId])
-		if model.StatusSource == hubtypes.ModelStatusSourceUnspecified {
-			model.StatusSource = hubtypes.ModelStatusSourceAutoProfile
-		}
-		if model.StatusSource == hubtypes.ModelStatusSourceAutoProfile &&
-			model.Status != hubtypes.ModelStatusFrozen &&
-			model.Status != hubtypes.ModelStatusEmergencyFrozen &&
-			model.Status != hubtypes.ModelStatusDelisted {
-			if model.ActiveProfileCount > 0 {
-				model.Status = hubtypes.ModelStatusActive
-			} else {
-				model.Status = hubtypes.ModelStatusRegistered
-			}
-			model.UpdatedHeight = height
-		}
+		model.UpdatedHeight = height
 	}
 	return nil
-}
-
-func genesisSupportStakeWeight(activeBond, minStake, capMultiplier uint64) (uint64, error) {
-	if minStake != 0 && capMultiplier > math.MaxUint64/minStake {
-		return 0, errors.New("support stake cap overflow")
-	}
-	capAmount := minStake * capMultiplier
-	if activeBond < capAmount {
-		return activeBond, nil
-	}
-	return capAmount, nil
 }
 
 func checkedGenesisAdd(left, right uint64) (uint64, error) {

@@ -267,7 +267,7 @@ func (k Keeper) handleExpiredInferDeadline(ctx context.Context, taskID types.Tas
 		core.ReceiptStatus == types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED {
 		return deadlineSweepStale, rowBytes, nil
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskID)
+	assignment, err := k.ReadTaskAssignment(ctx, taskID)
 	if err != nil {
 		if errIsNotFound(err) {
 			return deadlineSweepStale, rowBytes, nil

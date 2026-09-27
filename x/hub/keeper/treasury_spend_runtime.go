@@ -43,7 +43,7 @@ type TreasurySpendExecutionResult struct {
 
 func (k Keeper) initTreasurySpendGenesis(ctx context.Context, genesis types.GenesisState) error {
 	for _, state := range genesis.TreasurySpendReceipts {
-		if err := k.TreasurySpendReceipt.Set(ctx, types.NewTreasurySpendReceiptKey(state.ProposalId, state.ItemIndex), state); err != nil {
+		if err := k.storeTreasurySpendReceipt(ctx, types.NewTreasurySpendReceiptKey(state.ProposalId, state.ItemIndex), state); err != nil {
 			return err
 		}
 		if err := k.TreasurySpendReceiptPruneIndex.Set(ctx, types.NewTreasurySpendReceiptPruneKey(state.PruneHeight, state.ProposalId, state.ItemIndex)); err != nil {
@@ -65,14 +65,14 @@ func (k Keeper) initTreasurySpendGenesis(ctx context.Context, genesis types.Gene
 		if err != nil || canonical != state.RecipientAddress {
 			return fmt.Errorf("treasury recipient accumulator address is invalid")
 		}
-		if err := k.TreasurySpendRecipientEpoch.Set(ctx, types.NewTreasurySpendRecipientEpochKey(state.RewardEpoch, recipient), state); err != nil {
+		if err := k.storeTreasuryRecipient(ctx, types.NewTreasurySpendRecipientEpochKey(state.RewardEpoch, recipient), state); err != nil {
 			return err
 		}
 	}
 	cursors := make(map[uint64]struct{}, len(genesis.TreasurySpendEpochCleanupCursors))
 	for _, state := range genesis.TreasurySpendEpochCleanupCursors {
 		cursors[state.RewardEpoch] = struct{}{}
-		if err := k.TreasurySpendEpochCleanupCursor.Set(ctx, state.RewardEpoch, state); err != nil {
+		if err := k.storeTreasuryCleanupCursor(ctx, state); err != nil {
 			return err
 		}
 	}
@@ -117,7 +117,7 @@ func (k Keeper) ExecuteTreasurySpendV1(
 	cacheCtx, write := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	key := types.NewTreasurySpendReceiptKey(action.ProposalId, action.ItemIndex)
-	existing, err := k.TreasurySpendReceipt.Get(cache, key)
+	existing, err := k.getTreasurySpendReceipt(cache, key)
 	if err == nil {
 		if existing.ProposalId != action.ProposalId || existing.ItemIndex != action.ItemIndex ||
 			!bytes.Equal(existing.ActionDigest, digest) {
@@ -189,7 +189,7 @@ func (k Keeper) ExecuteTreasurySpendV1(
 	if err := k.Treasury.Set(cache, treasury); err != nil {
 		return TreasurySpendExecutionResult{}, err
 	}
-	if err := k.TreasurySpendReceipt.Set(cache, key, receipt); err != nil {
+	if err := k.storeTreasurySpendReceipt(cache, key, receipt); err != nil {
 		return TreasurySpendExecutionResult{}, err
 	}
 	if err := k.TreasurySpendReceiptPruneIndex.Set(cache, types.NewTreasurySpendReceiptPruneKey(pruneHeight, action.ProposalId, action.ItemIndex)); err != nil {
@@ -269,7 +269,7 @@ func (k Keeper) applyTreasurySpendCaps(
 	}
 
 	recipientKey := types.NewTreasurySpendRecipientEpochKey(rewardEpoch, recipient)
-	recipientState, err := k.TreasurySpendRecipientEpoch.Get(ctx, recipientKey)
+	recipientState, err := k.getTreasuryRecipient(ctx, recipientKey)
 	newRecipient := errors.Is(err, collections.ErrNotFound)
 	if newRecipient {
 		recipientState = types.TreasurySpendRecipientEpochState{
@@ -297,7 +297,7 @@ func (k Keeper) applyTreasurySpendCaps(
 	if err := k.TreasurySpendEpoch.Set(ctx, rewardEpoch, epoch); err != nil {
 		return 0, err
 	}
-	if err := k.TreasurySpendRecipientEpoch.Set(ctx, recipientKey, recipientState); err != nil {
+	if err := k.storeTreasuryRecipient(ctx, recipientKey, recipientState); err != nil {
 		return 0, err
 	}
 	if newEpoch {
@@ -444,7 +444,7 @@ func (k Keeper) ProcessTreasurySpendReceiptPrunes(ctx context.Context, currentHe
 	for _, indexKey := range keys {
 		visited++
 		primaryKey := types.NewTreasurySpendReceiptKey(indexKey.K2(), indexKey.K3())
-		receipt, err := k.TreasurySpendReceipt.Get(cache, primaryKey)
+		receipt, err := k.getTreasurySpendReceipt(cache, primaryKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.TreasurySpendReceiptPruneIndex.Remove(cache, indexKey); err != nil {
 				return visited, err
@@ -474,7 +474,7 @@ func (k Keeper) ProcessTreasurySpendReceiptPrunes(ctx context.Context, currentHe
 			if err != nil {
 				return visited, fmt.Errorf("treasury spend receipt reschedule overflow: %w", err)
 			}
-			if err := k.TreasurySpendReceipt.Set(cache, primaryKey, receipt); err != nil {
+			if err := k.storeTreasurySpendReceipt(cache, primaryKey, receipt); err != nil {
 				return visited, err
 			}
 			if err := k.TreasurySpendReceiptPruneIndex.Set(cache, types.NewTreasurySpendReceiptPruneKey(receipt.PruneHeight, receipt.ProposalId, receipt.ItemIndex)); err != nil {
@@ -582,7 +582,7 @@ func (k Keeper) ProcessTreasurySpendEpochCleanups(ctx context.Context, currentHe
 		if err := k.TreasurySpendEpochCleanupIndex.Remove(cache, indexKey); err != nil {
 			return visited, err
 		}
-		if err := k.TreasurySpendEpochCleanupCursor.Set(cache, epoch.RewardEpoch, cursor); err != nil {
+		if err := k.storeTreasuryCleanupCursor(cache, cursor); err != nil {
 			return visited, err
 		}
 		visited++
@@ -603,7 +603,11 @@ func (k Keeper) firstTreasurySpendCleanupCursor(ctx context.Context) (uint64, ty
 		return 0, types.TreasurySpendEpochCleanupCursorState{}, false, nil
 	}
 	entry, err := iter.KeyValue()
-	return entry.Key, entry.Value, err == nil, err
+	if err != nil {
+		return 0, types.TreasurySpendEpochCleanupCursorState{}, false, err
+	}
+	state, err := k.treasuryCleanupCursorStorePublicProjection(entry.Value)
+	return entry.Key, state, err == nil, err
 }
 
 func (k Keeper) firstDueTreasurySpendCleanupIndex(ctx context.Context, currentHeight uint64) (types.TreasurySpendEpochCleanupIndexKeyPair, bool, error) {
@@ -660,8 +664,8 @@ func (k Keeper) processTreasurySpendCleanupCursorStep(
 	if err != nil {
 		return err
 	}
-	recipient, err := k.addressCodec.StringToBytes(entry.Value.RecipientAddress)
-	if err != nil || entry.Key.K1() != rewardEpoch || !bytes.Equal(entry.Key.K2(), recipient) || entry.Value.RewardEpoch != rewardEpoch {
+	recipientState, err := k.treasuryRecipientStorePublicProjection(entry.Value)
+	if err != nil || entry.Key.K1() != rewardEpoch || !bytes.Equal(entry.Key.K2(), entry.Value.RecipientAddress) || entry.Value.RewardEpoch != rewardEpoch {
 		return fmt.Errorf("treasury recipient accumulator key and state disagree")
 	}
 	cursor.VisitedCount, err = checkedAdd(cursor.VisitedCount, 1)
@@ -673,12 +677,12 @@ func (k Keeper) processTreasurySpendCleanupCursorStep(
 		return fmt.Errorf("treasury cleanup deleted count overflow: %w", err)
 	}
 	cursor.XLastRecipientAddress = &types.TreasurySpendEpochCleanupCursorState_LastRecipientAddress{
-		LastRecipientAddress: entry.Value.RecipientAddress,
+		LastRecipientAddress: recipientState.RecipientAddress,
 	}
 	if err := k.TreasurySpendRecipientEpoch.Remove(ctx, entry.Key); err != nil {
 		return err
 	}
-	return k.TreasurySpendEpochCleanupCursor.Set(ctx, rewardEpoch, cursor)
+	return k.storeTreasuryCleanupCursor(ctx, cursor)
 }
 
 // EnsureTreasurySpendReceiptInvariant checks both directions of the derived
@@ -704,7 +708,11 @@ func (k Keeper) EnsureTreasurySpendReceiptInvariant(ctx context.Context) error {
 			receipts.Close()
 			return err
 		}
-		row := entry.Value
+		row, err := k.treasurySpendReceiptStorePublicProjection(entry.Value)
+		if err != nil {
+			receipts.Close()
+			return err
+		}
 		if entry.Key.K1() != row.ProposalId || entry.Key.K2() != row.ItemIndex || row.ProposalId == 0 ||
 			row.ExecutedHeight == 0 || row.PruneHeight <= row.ExecutedHeight || len(row.ActionDigest) != 32 ||
 			row.TreasuryVersionAfter == 0 || row.TreasuryVersionAfter > treasury.TreasuryVersion {
@@ -743,7 +751,7 @@ func (k Keeper) EnsureTreasurySpendReceiptInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		row, err := k.TreasurySpendReceipt.Get(ctx, types.NewTreasurySpendReceiptKey(key.K2(), key.K3()))
+		row, err := k.getTreasurySpendReceipt(ctx, types.NewTreasurySpendReceiptKey(key.K2(), key.K3()))
 		if err != nil {
 			return fmt.Errorf("treasury spend prune index references missing receipt: %w", err)
 		}
@@ -763,15 +771,15 @@ func (k Keeper) EnsureTreasurySpendReceiptInvariant(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	recipientRows, err := collectMapValues[types.TreasurySpendRecipientEpochKeyPair, types.TreasurySpendRecipientEpochState](ctx, k.TreasurySpendRecipientEpoch)
+	recipientRows, err := k.exportTreasuryRecipientEpochs(ctx)
 	if err != nil {
 		return err
 	}
-	cursorRows, err := collectMapValues[uint64, types.TreasurySpendEpochCleanupCursorState](ctx, k.TreasurySpendEpochCleanupCursor)
+	cursorRows, err := k.exportTreasuryCleanupCursors(ctx)
 	if err != nil {
 		return err
 	}
-	receiptRows, err := collectMapValues[types.TreasurySpendReceiptKeyPair, types.TreasurySpendReceiptState](ctx, k.TreasurySpendReceipt)
+	receiptRows, err := k.exportTreasurySpendReceipts(ctx)
 	if err != nil {
 		return err
 	}
@@ -828,14 +836,15 @@ func (k Keeper) EnsureTreasurySpendReceiptInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		raw, canonical, err := k.requireCanonicalAddress("treasury recipient accumulator", entry.Value.RecipientAddress)
-		if err != nil || canonical != entry.Value.RecipientAddress || entry.Key.K1() != entry.Value.RewardEpoch ||
-			!bytes.Equal(entry.Key.K2(), raw) {
+		if entry.Key.K1() != entry.Value.RewardEpoch || !bytes.Equal(entry.Key.K2(), entry.Value.RecipientAddress) {
 			return fmt.Errorf("treasury recipient accumulator key and state disagree")
 		}
-		if cursor, err := k.TreasurySpendEpochCleanupCursor.Get(ctx, entry.Value.RewardEpoch); err == nil && cursor.XLastRecipientAddress != nil {
+		if _, err := k.treasuryRecipientStorePublicProjection(entry.Value); err != nil {
+			return fmt.Errorf("treasury recipient accumulator value is invalid: %w", err)
+		}
+		if cursor, err := k.getTreasuryCleanupCursor(ctx, entry.Value.RewardEpoch); err == nil && cursor.XLastRecipientAddress != nil {
 			last, err := k.addressCodec.StringToBytes(cursor.GetLastRecipientAddress())
-			if err != nil || bytes.Compare(raw, last) <= 0 {
+			if err != nil || bytes.Compare(entry.Value.RecipientAddress, last) <= 0 {
 				return fmt.Errorf("treasury cleanup cursor retains an already-visited recipient")
 			}
 		} else if err != nil && !errors.Is(err, collections.ErrNotFound) {

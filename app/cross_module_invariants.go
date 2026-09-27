@@ -66,7 +66,7 @@ func (app *App) EnsureGenesisValidatorVrfKeyCoverage(ctx context.Context) error 
 			return true
 		}
 		operator := sdk.AccAddress(operatorBytes).String()
-		state, err := app.HubKeeper.VrfKey.Get(ctx, operator)
+		state, err := app.HubKeeper.GetVrfKey(ctx, operator)
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
 				coverageErr = fmt.Errorf("genesis validator %s has no active VRF key in app_state.hub.vrf_keys", operator)
@@ -101,9 +101,11 @@ func (app *App) EnsureGenesisValidatorVrfKeyCoverage(ctx context.Context) error 
 
 func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) error {
 	type expectedResponsibility struct {
-		worker, sessionID, taskID string
-		id                        []byte
-		createdHeight             uint64
+		worker        string
+		sessionID     []byte
+		taskID        []byte
+		id            []byte
+		createdHeight uint64
 	}
 	expected := make(map[string]expectedResponsibility)
 	evidenceReceipts, err := app.TaskKeeper.WorkerEvidenceReceipt.Iterate(ctx, nil)
@@ -111,12 +113,17 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 		return err
 	}
 	for ; evidenceReceipts.Valid(); evidenceReceipts.Next() {
-		receipt, err := evidenceReceipts.Value()
+		stored, err := evidenceReceipts.Value()
 		if err != nil {
 			evidenceReceipts.Close()
 			return err
 		}
-		fault, err := app.HubKeeper.RoleFault.Get(ctx, hubtypes.NewRoleFaultKey(receipt.FaultId))
+		receipt, err := app.TaskKeeper.ProjectWorkerEvidenceReceiptStore(stored)
+		if err != nil {
+			evidenceReceipts.Close()
+			return err
+		}
+		fault, err := app.HubKeeper.ReadRoleFaultValue(ctx, hubtypes.NewRoleFaultKey(receipt.FaultId))
 		if err != nil || !bytes.Equal(fault.FaultId, receipt.FaultId) || !bytes.Equal(fault.TaskId, receipt.TaskId) ||
 			fault.OperatorAddress != receipt.WorkerOperatorAddress || fault.Duty != shared.Duty_DUTY_WORKER ||
 			fault.FaultClass != hubtypes.FaultKind_FAULT_KIND_EQUIVOCATION ||
@@ -138,7 +145,12 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 			receipts.Close()
 			return err
 		}
-		selection, err := app.TaskKeeper.TaskBuilderSelection.Get(ctx, entry.Key)
+		receipt, err := app.TaskKeeper.ProjectInferReceiptStore(entry.Value)
+		if err != nil {
+			receipts.Close()
+			return err
+		}
+		selection, err := app.TaskKeeper.GetTaskBuilderSelection(ctx, entry.Key)
 		if err != nil {
 			receipts.Close()
 			return fmt.Errorf("InferReceipt has no Task Builder selection: %w", err)
@@ -147,19 +159,20 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 			continue
 		}
 		core, err := app.TaskKeeper.TaskCore.Get(ctx, entry.Key)
-		if err != nil || !bytes.Equal(core.TaskId, entry.Value.TaskId) || entry.Value.WinnerWorker == "" || entry.Value.ReceiptHeight == 0 {
+		if err != nil || !bytes.Equal(core.TaskId, receipt.TaskId) || receipt.WinnerWorker == "" || receipt.ReceiptHeight == 0 {
 			receipts.Close()
 			return fmt.Errorf("InferReceipt has no canonical Worker evidence responsibility authority")
 		}
 		sessionID, taskID := hex.EncodeToString(core.SessionId), hex.EncodeToString(core.TaskId)
-		id, err := taskkeeper.WorkerOutputEvidenceResponsibilityID(sessionID, taskID, entry.Value.WinnerWorker)
+		id, err := taskkeeper.WorkerOutputEvidenceResponsibilityID(sessionID, taskID, receipt.WinnerWorker)
 		if err != nil {
 			receipts.Close()
 			return err
 		}
 		expected[hex.EncodeToString(id)] = expectedResponsibility{
-			worker: entry.Value.WinnerWorker, sessionID: sessionID, taskID: taskID,
-			id: id, createdHeight: entry.Value.ReceiptHeight,
+			worker:    receipt.WinnerWorker,
+			sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
+			id: id, createdHeight: receipt.ReceiptHeight,
 		}
 	}
 	if err := receipts.Close(); err != nil {
@@ -175,14 +188,18 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := app.HubKeeper.ProjectServiceKeyResponsibilityStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if state.ResponsibilityKind != hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE {
 			continue
 		}
 		id := hex.EncodeToString(state.ResponsibilityId)
 		want, ok := expected[id]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX || state.OperatorAddress != want.worker ||
-			!bytes.Equal(state.ResponsibilityId, want.id) || state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			!bytes.Equal(state.ResponsibilityId, want.id) || !bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.CreatedHeight != want.createdHeight || state.ServiceAuthorizationNonce == 0 ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX) || entry.Key.K2() != state.OperatorAddress ||
 			!bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -220,7 +237,11 @@ func (app *App) ensureRoleFaultEvidenceScope(ctx context.Context) error {
 	}
 	defer faults.Close()
 	for ; faults.Valid(); faults.Next() {
-		fault, err := faults.Value()
+		stored, err := faults.Value()
+		if err != nil {
+			return err
+		}
+		fault, err := app.HubKeeper.ProjectRoleFaultStore(stored)
 		if err != nil {
 			return err
 		}
@@ -280,8 +301,8 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 	type expectedResponsibility struct {
 		operator string
 		id       []byte
-		session  string
-		task     string
+		session  []byte
+		task     []byte
 		height   uint64
 	}
 	expected := make(map[string]expectedResponsibility)
@@ -295,7 +316,11 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 			assignments.Close()
 			return err
 		}
-		assignment := entry.Value
+		assignment, err := app.TaskKeeper.ProjectVerifierAssignmentStore(entry.Value)
+		if err != nil {
+			assignments.Close()
+			return err
+		}
 		if assignment.VerifyRound != tasktypes.ChallengeVerifyRoundV1 {
 			continue
 		}
@@ -308,7 +333,7 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 		if core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL {
 			continue
 		}
-		round, err := app.TaskKeeper.VerificationRound.Get(ctx, entry.Key)
+		round, err := app.TaskKeeper.ReadVerificationRound(ctx, entry.Key)
 		if err != nil || len(round.RoundId) != tasktypes.Hash32Len || assignment.OpenVerifyHeight == 0 {
 			assignments.Close()
 			return fmt.Errorf("round 2 verifier assignment has no canonical round authority")
@@ -329,8 +354,9 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 				return fmt.Errorf("round 2 verifier responsibility id is duplicated")
 			}
 			expected[key] = expectedResponsibility{
-				operator: selected.OperatorAddress, id: id, session: sessionID,
-				task: taskID, height: assignment.OpenVerifyHeight,
+				operator: selected.OperatorAddress, id: id,
+				session: append([]byte(nil), core.SessionId...), task: append([]byte(nil), core.TaskId...),
+				height: assignment.OpenVerifyHeight,
 			}
 		}
 	}
@@ -347,7 +373,11 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := app.HubKeeper.ProjectServiceKeyResponsibilityStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if state.ResponsibilityKind != hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_CHALLENGE_VERIFIER {
 			continue
 		}
@@ -355,7 +385,7 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 		want, ok := expected[key]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX ||
 			state.OperatorAddress != want.operator || !bytes.Equal(state.ResponsibilityId, want.id) ||
-			state.SessionId != want.session || state.TaskId != want.task || state.CreatedHeight != want.height ||
+			!bytes.Equal(state.SessionId, want.session) || !bytes.Equal(state.TaskId, want.task) || state.CreatedHeight != want.height ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
 			rows.Close()
@@ -375,8 +405,8 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 type expectedBusObjectiveEvidenceResponsibility struct {
 	operatorAddress  string
 	responsibilityID []byte
-	sessionID        string
-	taskID           string
+	sessionID        []byte
+	taskID           []byte
 	nonce            uint64
 	createdHeight    uint64
 }
@@ -397,7 +427,11 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 			selections.Close()
 			return err
 		}
-		selection := entry.Value
+		selection, err := app.TaskKeeper.ProjectTaskBuilderSelection(entry.Value)
+		if err != nil {
+			selections.Close()
+			return err
+		}
 		taskHex := hex.EncodeToString(entry.Key)
 		if !bytes.Equal(entry.Key, selection.TaskId) {
 			selections.Close()
@@ -464,7 +498,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 			}
 			expected[id] = expectedBusObjectiveEvidenceResponsibility{
 				operatorAddress: builder, responsibilityID: responsibilityID,
-				sessionID: hex.EncodeToString(core.SessionId), taskID: taskHex,
+				sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
 				nonce: binding.AuthorizationNonce, createdHeight: selection.CreatedHeight,
 			}
 		}
@@ -484,7 +518,11 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := app.HubKeeper.ProjectServiceKeyResponsibilityStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if state.ResponsibilityKind != hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE {
 			continue
 		}
@@ -492,7 +530,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 		want, ok := expected[id]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_BUILDER ||
 			state.OperatorAddress != want.operatorAddress || !bytes.Equal(state.ResponsibilityId, want.responsibilityID) ||
-			state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			!bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.ServiceAuthorizationNonce != want.nonce || state.CreatedHeight != want.createdHeight ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -526,7 +564,11 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 	}
 	defer builders.Close()
 	for ; builders.Valid(); builders.Next() {
-		builder, err := builders.Value()
+		stored, err := builders.Value()
+		if err != nil {
+			return err
+		}
+		builder, err := app.HubKeeper.ProjectBuilderStore(stored)
 		if err != nil {
 			return err
 		}
@@ -545,8 +587,8 @@ type expectedBuilderDutyResponsibility struct {
 	operatorAddress  string
 	responsibilityID []byte
 	kind             hubtypes.ServiceKeyResponsibilityKind
-	sessionID        string
-	taskID           string
+	sessionID        []byte
+	taskID           []byte
 	createdHeight    uint64
 }
 
@@ -562,7 +604,11 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 			selections.Close()
 			return err
 		}
-		selection := entry.Value
+		selection, err := app.TaskKeeper.ProjectTaskBuilderSelection(entry.Value)
+		if err != nil {
+			selections.Close()
+			return err
+		}
 		if selection.BuilderSetRefReleased {
 			continue
 		}
@@ -576,7 +622,7 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 			selections.Close()
 			return fmt.Errorf("active Task Builder selection %s has no matching Task core", taskHex)
 		}
-		receipt, err := app.TaskKeeper.InferReceipt.Get(ctx, entry.Key)
+		receipt, err := app.TaskKeeper.ReadInferReceipt(ctx, entry.Key)
 		if errors.Is(err, collections.ErrNotFound) {
 			continue
 		}
@@ -600,7 +646,7 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 		}
 		kind := hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_OPEN_VERIFY_BUILDER
 		createdHeight := receipt.ReceiptHeight
-		assignment, assignmentErr := app.TaskKeeper.VerifierAssignment.Get(
+		assignment, assignmentErr := app.TaskKeeper.ReadVerifierAssignment(
 			ctx, tasktypes.NewVerifyRoundKey(entry.Key, tasktypes.VerifyRoundV1),
 		)
 		if assignmentErr == nil {
@@ -633,7 +679,8 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 			}
 			expected[key] = expectedBuilderDutyResponsibility{
 				operatorAddress: builder, responsibilityID: responsibilityID, kind: kind,
-				sessionID: sessionID, taskID: taskID, createdHeight: createdHeight,
+				sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
+				createdHeight: createdHeight,
 			}
 		}
 	}
@@ -651,7 +698,11 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := app.HubKeeper.ProjectServiceKeyResponsibilityStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if state.ResponsibilityKind != hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_OPEN_VERIFY_BUILDER &&
 			state.ResponsibilityKind != hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_SETTLE_BUILDER {
 			continue
@@ -660,7 +711,7 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 		want, ok := expected[key]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_BUILDER ||
 			state.OperatorAddress != want.operatorAddress || !bytes.Equal(state.ResponsibilityId, want.responsibilityID) ||
-			state.ResponsibilityKind != want.kind || state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			state.ResponsibilityKind != want.kind || !bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.CreatedHeight != want.createdHeight ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -685,7 +736,11 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 	}
 	defer liabilities.Close()
 	for ; liabilities.Valid(); liabilities.Next() {
-		liability, err := liabilities.Value()
+		stored, err := liabilities.Value()
+		if err != nil {
+			return err
+		}
+		liability, err := app.HubKeeper.ProjectTaskLiabilityStore(stored)
 		if err != nil {
 			return err
 		}
@@ -702,7 +757,7 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 			if !errors.Is(coreErr, collections.ErrNotFound) {
 				return coreErr
 			}
-			if _, summaryErr := app.TaskKeeper.TaskTerminalSummary.Get(ctx, taskKey); summaryErr != nil {
+			if _, summaryErr := app.TaskKeeper.ReadTaskTerminalSummary(ctx, taskKey); summaryErr != nil {
 				return fmt.Errorf("task liability %s/%s references missing task", taskHex, liability.OperatorAddress)
 			}
 			continue
@@ -715,12 +770,12 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 		}
 		switch liability.Duty {
 		case shared.DutyWorker:
-			assignment, err := app.TaskKeeper.TaskAssignment.Get(ctx, taskKey)
+			assignment, err := app.TaskKeeper.ReadTaskAssignment(ctx, taskKey)
 			if err != nil || assignment.WinnerWorker != liability.OperatorAddress {
 				return fmt.Errorf("reserved worker liability %s/%s has no matching assignment", taskHex, liability.OperatorAddress)
 			}
 		case shared.DutyVerifier:
-			assignment, err := app.TaskKeeper.VerifierAssignment.Get(ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1))
+			assignment, err := app.TaskKeeper.ReadVerifierAssignment(ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1))
 			if err != nil || !containsSelectedVerifier(assignment.SelectedVerifiers, liability.OperatorAddress) {
 				return fmt.Errorf("reserved verifier liability %s/%s has no matching assignment", taskHex, liability.OperatorAddress)
 			}
@@ -739,7 +794,11 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if entry.Value.WinnerWorker == "" {
+		assignment, err := app.TaskKeeper.ProjectTaskAssignmentStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		if assignment.WinnerWorker == "" {
 			continue
 		}
 		core, err := app.TaskKeeper.TaskCore.Get(ctx, entry.Key)
@@ -750,8 +809,8 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 		// the Hub key. The hex render that used to bridge them survives only as the
 		// %s below.
 		taskHex := hex.EncodeToString(entry.Key)
-		key := hubtypes.NewTaskLiabilityReservationKey(entry.Key, shared.DutyWorker, entry.Value.WinnerWorker)
-		liability, err := app.HubKeeper.TaskLiabilityReservation.Get(ctx, key)
+		key := hubtypes.NewTaskLiabilityReservationKey(entry.Key, shared.DutyWorker, assignment.WinnerWorker)
+		liability, err := app.HubKeeper.ReadTaskLiabilityValue(ctx, key)
 		if err != nil || liability.Status != hubtypes.TaskLiabilityStatusReserved {
 			return fmt.Errorf("active worker assignment %s has no reserved liability", taskHex)
 		}
@@ -775,9 +834,13 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 		// taskKey is the raw Task store key and is now also the Hub key; taskHex is
 		// hoisted out of the inner loop only for the error texts.
 		taskHex := hex.EncodeToString(taskKey)
-		for _, selected := range entry.Value.SelectedVerifiers {
+		assignment, err := app.TaskKeeper.ProjectVerifierAssignmentStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		for _, selected := range assignment.SelectedVerifiers {
 			key := hubtypes.NewTaskLiabilityReservationKey(taskKey, shared.DutyVerifier, selected.OperatorAddress)
-			liability, err := app.HubKeeper.TaskLiabilityReservation.Get(ctx, key)
+			liability, err := app.HubKeeper.ReadTaskLiabilityValue(ctx, key)
 			if err != nil || liability.Status != hubtypes.TaskLiabilityStatusReserved {
 				return fmt.Errorf("active verifier assignment %s/%s has no reserved liability", taskHex, selected.OperatorAddress)
 			}
@@ -831,7 +894,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 			return fmt.Errorf("task %s owns multiple candidate pool references", taskHex)
 		}
 		taskKey := tasktypes.TaskKey(ref.TaskId)
-		assignment, err := app.TaskKeeper.TaskAssignment.Get(ctx, taskKey)
+		assignment, err := app.TaskKeeper.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || !bytes.Equal(assignment.TaskId, ref.TaskId) ||
 			!bytes.Equal(assignment.CandidatePoolSnapshotId, ref.SnapshotId) || assignment.CandidatePoolRefReleased {
 			rows.Close()
@@ -851,7 +914,11 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 			assignments.Close()
 			return err
 		}
-		assignment := entry.Value
+		assignment, err := app.TaskKeeper.ProjectTaskAssignmentStore(entry.Value)
+		if err != nil {
+			assignments.Close()
+			return err
+		}
 		if len(assignment.CandidatePoolSnapshotId) == 0 {
 			continue
 		}
@@ -901,8 +968,8 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 			return fmt.Errorf("task %s owns multiple BuilderSet references", taskHex)
 		}
 		taskKey := tasktypes.TaskKey(ref.TaskId)
-		selection, err := app.TaskKeeper.TaskBuilderSelection.Get(ctx, taskKey)
-		set, setErr := app.HubKeeper.BuilderSet.Get(ctx, ref.BuilderSetVersion)
+		selection, err := app.TaskKeeper.GetTaskBuilderSelection(ctx, taskKey)
+		set, setErr := app.HubKeeper.GetBuilderSet(ctx, ref.BuilderSetVersion)
 		if err != nil || setErr != nil || !bytes.Equal(selection.TaskId, ref.TaskId) ||
 			selection.BuilderSetId != set.BuilderSetId || !bytes.Equal(selection.BuilderSetHash, set.BuilderSetHash) ||
 			selection.BuilderSetRefReleased {
@@ -923,7 +990,11 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 			selections.Close()
 			return err
 		}
-		selection := entry.Value
+		selection, err := app.TaskKeeper.ProjectTaskBuilderSelection(entry.Value)
+		if err != nil {
+			selections.Close()
+			return err
+		}
 		// builderRefs is keyed by the hex task_id (see the loop above).
 		taskHex := hex.EncodeToString(entry.Key)
 		builderSetVersion, exists := builderRefs[taskHex]
@@ -934,7 +1005,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 			}
 			continue
 		}
-		set, setErr := app.HubKeeper.BuilderSet.Get(ctx, builderSetVersion)
+		set, setErr := app.HubKeeper.GetBuilderSet(ctx, builderSetVersion)
 		if !exists || setErr != nil || set.BuilderSetId != selection.BuilderSetId {
 			selections.Close()
 			return fmt.Errorf("Task selection %s has no matching BuilderSet reference", taskHex)
@@ -980,7 +1051,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 		// releaseTaskAdmissionRefs sets it in the same call that removes these
 		// rows, and refuses a partial release -- which is also how the candidate
 		// pool and BuilderSet reference checks above are written.
-		assignment, err := app.TaskKeeper.TaskAssignment.Get(ctx, taskKey)
+		assignment, err := app.TaskKeeper.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || !bytes.Equal(assignment.TaskId, ref.TaskId) {
 			bucketRows.Close()
 			return fmt.Errorf("Task parameter bucket reference %s has no Task assignment", taskHex)
@@ -1011,7 +1082,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 		version := entry.Value
 		key := parameterBucketReferenceKey{kind: version.BucketKind, key: version.BucketKey, version: version.Version}
 		if entry.Key.K1() != int32(version.BucketKind) || entry.Key.K2() != version.BucketKey || entry.Key.K3() != version.Version ||
-			version.TaskRefCount != bucketRefCounts[key] {
+			uint64(version.TaskRefCount) != bucketRefCounts[key] {
 			versionRows.Close()
 			return fmt.Errorf("Hub parameter bucket %s/%s/%d task_ref_count=%d, Task refs=%d",
 				version.BucketKind.String(), version.BucketKey, version.Version, version.TaskRefCount, bucketRefCounts[key])

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
@@ -21,30 +22,34 @@ func TestRoleActiveTaskIndexesAddAndRemove(t *testing.T) {
 
 	taskID := genesis.TaskCores[0].TaskId
 	taskKey := taskKeyOf(taskID)
+	workerBytes, err := sdk.AccAddressFromBech32(genesisWorker)
+	require.NoError(t, err)
+	verifierBytes, err := sdk.AccAddressFromBech32(genesisVerifier)
+	require.NoError(t, err)
 
-	hasWorker, err := f.keeper.WorkerActiveTaskIndex.Has(f.ctx, tasktypes.NewWorkerActiveTaskKey(genesisWorker, taskKey))
+	hasWorker, err := f.keeper.WorkerActiveTaskIndex.Has(f.ctx, tasktypes.NewWorkerActiveTaskKey(workerBytes, taskKey))
 	require.NoError(t, err)
 	require.True(t, hasWorker, "genesis must rebuild WorkerActiveTaskIndex from the assignment")
 
-	require.NoError(t, f.keeper.AddVerifierActiveJobIndex(f.ctx, "verifier-a", taskID))
-	require.NoError(t, f.keeper.VerifierAssignment.Set(
+	require.NoError(t, f.keeper.AddVerifierActiveJobIndex(f.ctx, genesisVerifier, taskID))
+	require.NoError(t, f.keeper.WriteVerifierAssignment(
 		f.ctx,
 		tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1),
 		tasktypes.VerifierAssignmentState{
 			TaskId:            taskID,
 			VerifyRound:       tasktypes.VerifyRoundV1,
-			SelectedVerifiers: []tasktypes.SelectedVerifierV1{{OperatorAddress: "verifier-a"}},
+			SelectedVerifiers: []tasktypes.SelectedVerifierV1{{OperatorAddress: genesisVerifier}},
 		},
 	))
-	hasVerifier, err := f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey("verifier-a", taskKey))
+	hasVerifier, err := f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey(verifierBytes, taskKey))
 	require.NoError(t, err)
 	require.True(t, hasVerifier)
 
 	require.NoError(t, f.keeper.RemoveRoleActiveTaskIndexes(f.ctx, taskID))
-	hasWorker, err = f.keeper.WorkerActiveTaskIndex.Has(f.ctx, tasktypes.NewWorkerActiveTaskKey(genesisWorker, taskKey))
+	hasWorker, err = f.keeper.WorkerActiveTaskIndex.Has(f.ctx, tasktypes.NewWorkerActiveTaskKey(workerBytes, taskKey))
 	require.NoError(t, err)
 	require.False(t, hasWorker)
-	hasVerifier, err = f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey("verifier-a", taskKey))
+	hasVerifier, err = f.keeper.VerifierActiveJobIndex.Has(f.ctx, tasktypes.NewVerifierActiveJobKey(verifierBytes, taskKey))
 	require.NoError(t, err)
 	require.False(t, hasVerifier)
 }

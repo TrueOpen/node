@@ -162,21 +162,27 @@ func (s UnbondingReceiptState) Validate() error {
 	return nil
 }
 
-func (s ProfileCapabilityState) Validate() error {
-	if _, _, _, err := validateProviderProfile("profile capability", s.OperatorAddress, s.ModelId, s.ProfileVersion); err != nil {
+func (s ModelCapabilityState) Validate() error {
+	if _, err := requireCanonicalNonEmpty("model capability operator_address", s.OperatorAddress); err != nil {
+		return err
+	}
+	if err := validateRequiredHash32("model capability model_id", s.ModelId); err != nil {
 		return err
 	}
 	if !s.InferenceCapability && !s.VerificationCapability {
-		return fmt.Errorf("profile capability must declare inference or verification capability")
+		return fmt.Errorf("model capability must declare inference or verification capability")
 	}
 	if s.CapabilityVersion == 0 {
-		return fmt.Errorf("profile capability capability_version must be greater than 0")
+		return fmt.Errorf("model capability capability_version must be greater than 0")
 	}
 	return nil
 }
 
 func (s ModelSupportState) Validate() error {
-	if _, _, _, err := validateProviderProfile("model support", s.OperatorAddress, s.ModelId, s.ProfileVersion); err != nil {
+	if _, err := requireCanonicalNonEmpty("model support operator_address", s.OperatorAddress); err != nil {
+		return err
+	}
+	if err := validateRequiredHash32("model support model_id", s.ModelId); err != nil {
 		return err
 	}
 	if s.SupportVersion == 0 {
@@ -185,27 +191,35 @@ func (s ModelSupportState) Validate() error {
 	if s.SupportActive && !s.DeclaredSupport {
 		return fmt.Errorf("active model support requires declared_support")
 	}
-	if !s.DeclaredSupport && (s.SupportActive || s.SupportFreshUntilEpoch != 0 || s.ActiveSupportStakeSnapshot != 0 || s.EligibleSupportStakeSnapshot != 0) {
+	if !s.DeclaredSupport && (s.SupportActive || s.SupportFreshUntilEpoch != 0 || s.ActiveSupportStakeSnapshot != 0) {
 		return fmt.Errorf("undeclared model support must not retain active or aggregate state")
 	}
 	if s.DeclaredSupport && s.SupportFreshUntilEpoch == 0 {
 		return fmt.Errorf("declared model support requires support_fresh_until_epoch")
 	}
-	if s.SupportActive && (s.ActiveSupportStakeSnapshot == 0 || s.EligibleSupportStakeSnapshot == 0) {
-		return fmt.Errorf("active model support requires non-zero stake snapshots")
+	if s.SupportActive != (s.ActiveSupportStakeSnapshot > 0) {
+		return fmt.Errorf("support_active must match the non-zero stake snapshot")
 	}
-	if s.ActiveSupportStakeSnapshot > s.EligibleSupportStakeSnapshot {
-		return fmt.Errorf("model support active stake snapshot exceeds eligible snapshot")
+	if s.SupportActive && s.SuspendReason != ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE {
+		return fmt.Errorf("active model support must not be suspended")
+	}
+	switch s.SuspendReason {
+	case ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE,
+		ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL,
+		ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_BOND_BELOW_MIN,
+		ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_MIN_STAKE_RAISED:
+	default:
+		return fmt.Errorf("model support suspend_reason is invalid")
 	}
 	if !isValidModelSupportActivationKind(s.ActivationKind) {
 		return fmt.Errorf("model support activation_kind is invalid")
 	}
 	if s.ActivationKind == ModelSupportActivationNone {
-		if s.FirstActivationDuty != shared.Duty_DUTY_UNSPECIFIED || len(s.FirstSupportTaskId) != 0 || s.FirstSupportOrderValue != 0 || s.P30Source != nil {
+		if s.FirstActivationDuty != shared.Duty_DUTY_UNSPECIFIED || len(s.FirstSupportTaskId) != 0 || s.FirstSupportOrderValue != 0 || s.P30Source != nil || s.FirstSupportProfileVersion != 0 {
 			return fmt.Errorf("model support without activation must not contain first activation facts")
 		}
 	} else {
-		if !IsValidDuty(s.FirstActivationDuty) || len(s.FirstSupportTaskId) != 32 {
+		if !IsValidDuty(s.FirstActivationDuty) || len(s.FirstSupportTaskId) != 32 || s.FirstSupportProfileVersion == 0 {
 			return fmt.Errorf("activated model support requires duty and 32-byte first_support_task_id")
 		}
 		switch s.ActivationKind {
@@ -239,7 +253,7 @@ func (s DailySupportState) Validate() error {
 	if _, err := requireCanonicalNonEmpty("daily support operator_address", s.OperatorAddress); err != nil {
 		return err
 	}
-	if err := validateRequiredHash32("daily support supported_profiles_hash", s.SupportedProfilesHash); err != nil {
+	if err := validateRequiredHash32("daily support supported_models_hash", s.SupportedModelsHash); err != nil {
 		return err
 	}
 	if err := validateRequiredHash32("daily support signature_digest", s.SignatureDigest); err != nil {
@@ -279,15 +293,14 @@ func (s RoleFaultState) Validate() error {
 	return nil
 }
 
-// SupportEligibilityInputs is the complete set of rows the profile-support
+// SupportEligibilityInputs is the complete set of rows the model-support
 // eligibility predicate reads. Passing them in explicitly
 // keeps the predicate a pure function so Genesis can recompute it without a store.
 type SupportEligibilityInputs struct {
 	Node       CortexNodeState
 	Bond       ServiceBondState
 	Model      ModelState
-	Profile    ProfileState
-	Capability ProfileCapabilityState
+	Capability ModelCapabilityState
 	Support    ModelSupportState
 }
 
@@ -313,7 +326,7 @@ func SupportVoteWeight(in SupportEligibilityInputs, currentEpoch uint64, params 
 	if !in.Capability.InferenceCapability && !in.Capability.VerificationCapability {
 		return 0, false, nil
 	}
-	if !IsModelProfileStatusOpen(in.Model.Status) || !IsModelProfileStatusOpen(in.Profile.Status) {
+	if !IsModelProfileStatusOpen(in.Model.Status) {
 		return 0, false, nil
 	}
 	if in.Node.ServiceKeyStatus != ServiceKeyStatusActive {
@@ -326,10 +339,10 @@ func SupportVoteWeight(in SupportEligibilityInputs, currentEpoch uint64, params 
 		return 0, false, nil
 	}
 	effective := EffectiveActiveBond(in.Bond, currentEpoch)
-	if effective < in.Profile.MinStake {
+	if effective < in.Model.SupportMinStake {
 		return 0, false, nil
 	}
-	capAmount, err := SupportVoteWeightCeiling(in.Profile.MinStake, params)
+	capAmount, err := SupportVoteWeightCeiling(in.Model.SupportMinStake, params)
 	if err != nil {
 		return 0, false, err
 	}
@@ -383,24 +396,6 @@ func IsLiveServiceBondStatus(status ServiceBondStatus) bool {
 // only through the normal actions a candidate has to be admitted to perform.
 func IsCandidateEligibleBondStatus(status ServiceBondStatus) bool {
 	return IsLiveServiceBondStatus(status) || status == ServiceBondStatusJailed
-}
-
-func validateProviderProfile(scope, operatorAddress, modelID string, profileVersion uint32) (string, string, uint32, error) {
-	provider, err := requireCanonicalNonEmpty(scope+" operator_address", operatorAddress)
-	if err != nil {
-		return "", "", 0, err
-	}
-	model, err := requireCanonicalNonEmpty(scope+" model_id", modelID)
-	if err != nil {
-		return "", "", 0, err
-	}
-	if err := ValidateModelID(model); err != nil {
-		return "", "", 0, fmt.Errorf("%s: %w", scope, err)
-	}
-	if profileVersion == 0 {
-		return "", "", 0, fmt.Errorf("%s profile_version must be greater than 0", scope)
-	}
-	return provider, model, profileVersion, nil
 }
 
 func IsValidServiceBondStatus(status ServiceBondStatus) bool {

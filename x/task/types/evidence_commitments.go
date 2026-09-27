@@ -78,7 +78,7 @@ func CanonicalEvidenceCommitmentTypedFrameV1(item EvidenceCommitmentV1) (shared.
 	return frame, nil
 }
 
-// EvidenceCommitmentsHash derives InferReceiptV2.evidence_commitments_hash, the
+// EvidenceCommitmentsHash derives InferReceiptV3.evidence_commitments_hash, the
 // tenth field of the TRUEOPEN_INFER_RECEIPT_V2 preimage. It is Keeper-derived and is
 // never a caller-submitted wire field (the API contract).
 //
@@ -169,6 +169,7 @@ func canonicalTaskDigestV1(domainKey string, fields ...[]byte) ([32]byte, error)
 func canonicalEvidenceKind(kind shared.EvidenceKind) (uint32, error) {
 	switch kind {
 	case shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
+		shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
 		shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING,
 		shared.EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING:
 		return uint32(kind), nil

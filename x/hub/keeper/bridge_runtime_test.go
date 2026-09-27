@@ -52,7 +52,7 @@ func installBridge(t *testing.T, f *fixture, inboundLimit, outboundLimit uint64)
 		operator := hubAddress(t, byte(0xb0+i))
 		signer := bridgeTestSigner(t, chainID, operator, byte(0x21+i), 1)
 		signers = append(signers, signer)
-		require.NoError(t, f.keeper.ValidatorBridgeSigner.Set(f.ctx, operator, signer))
+		require.NoError(t, f.keeper.StoreValidatorBridgeSigner(f.ctx, signer))
 	}
 	projection, err := types.BridgeSignerProjection(chainID, signers)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func installBridge(t *testing.T, f *fixture, inboundLimit, outboundLimit uint64)
 		GenesisAllocated: shared.NewAmount(0), CumulativeBridgeMinted: shared.NewAmount(0),
 		CumulativeBridgeBurned: shared.NewAmount(0),
 	}))
-	require.NoError(t, f.keeper.BridgeBootstrap.Set(f.ctx, types.BridgeBootstrapState{
+	require.NoError(t, f.keeper.WriteBridgeBootstrapValue(f.ctx, types.BridgeBootstrapState{
 		Mode: types.BridgeBootstrapModeV1_BRIDGE_BOOTSTRAP_MODE_V1_DISABLED,
 	}))
 	attachMatchingBridgeUpstream(t, f)
@@ -244,7 +244,7 @@ func TestBridgeFreezesWhenSignerProjectionDrifts(t *testing.T) {
 	installBridge(t, f, 1_000, 1_000)
 
 	extra := hubAddress(t, 0xc9)
-	require.NoError(t, f.keeper.ValidatorBridgeSigner.Set(f.ctx, extra,
+	require.NoError(t, f.keeper.StoreValidatorBridgeSigner(f.ctx,
 		bridgeTestSigner(t, sdk.UnwrapSDKContext(f.ctx).ChainID(), extra, 0x31, 1)))
 
 	require.ErrorContains(t, runBridgeTransfer(t, f, bridgeTransfer(keeper.BridgeInbound, 1, 0x11)), "I-BRIDGE-1")

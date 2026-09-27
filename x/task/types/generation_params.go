@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/hex"
 	"fmt"
 	"unicode/utf8"
 
@@ -22,7 +23,7 @@ const (
 // frozen. Defaults are explicit order facts: this
 // helper never fills runtime defaults and never reads mutable profile state.
 func CanonicalGenerationParamsV1(
-	modelID string,
+	modelID []byte,
 	profileVersion uint32,
 	taskType shared.TaskType,
 	outputBudgetBucket uint32,
@@ -32,8 +33,8 @@ func CanonicalGenerationParamsV1(
 	if err := validateGenerationParams(limits); err != nil {
 		return nil, err
 	}
-	if err := shared.ValidateModelID(modelID); err != nil {
-		return nil, err
+	if len(modelID) != Hash32Len {
+		return nil, fmt.Errorf("model_id must be raw Hash32")
 	}
 	if profileVersion == 0 {
 		return nil, fmt.Errorf("profile_version must be positive")
@@ -87,7 +88,7 @@ func CanonicalGenerationParamsV1(
 		"generation_params_schema_version": params.GenerationParamsSchemaVersion,
 		"max_output_duration":              params.MaxOutputDuration,
 		"max_output_tokens":                params.MaxOutputTokens,
-		"model_id":                         modelID,
+		"model_id":                         "0x" + hex.EncodeToString(modelID),
 		"output_budget_bucket":             outputBudgetBucket,
 		"profile_version":                  profileVersion,
 		"task_type":                        taskTypeName,
@@ -139,7 +140,7 @@ func validateGenerationParamsProtocolV1(params GenerationParamsV1) error {
 // copy it through unchanged; they never recompute historical assignments from
 // current defaults or parameters.
 func GenerationParamsDigest(
-	modelID string,
+	modelID []byte,
 	profileVersion uint32,
 	taskType shared.TaskType,
 	outputBudgetBucket uint32,

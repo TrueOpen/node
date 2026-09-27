@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"strings"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -20,11 +19,8 @@ func (m msgServer) RegisterModelProfile(ctx context.Context, req *types.MsgRegis
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.Profile.ModelId) != req.Profile.ModelId || req.Profile.ModelId == "" {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "canonical model_id is required")
-	}
-	if err := types.ValidateModelID(req.Profile.ModelId); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, err.Error())
+	if len(req.Profile.ModelId) != shared.Hash32KeySize {
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "raw model_id is required")
 	}
 	params, err := m.k.Params.Get(ctx)
 	if err != nil {

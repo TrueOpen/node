@@ -79,7 +79,7 @@ func (k Keeper) closeStreamPendingTask(ctx context.Context, sessionID []byte) er
 	if err != nil {
 		return err
 	}
-	stream, err := k.Stream.Get(ctx, sessionKey)
+	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return errorsmod.Wrapf(types.ErrInvalidSessionID, "session %s not found", hex32(sessionKey))
@@ -118,7 +118,7 @@ func (k Keeper) setStreamState(ctx context.Context, stream types.StreamState) er
 	if stream.Status == types.SessionStatus_SESSION_STATUS_UNSPECIFIED {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "stream status is required")
 	}
-	if err := k.Stream.Set(ctx, sessionKey, stream); err != nil {
+	if err := k.WriteStream(ctx, sessionKey, stream); err != nil {
 		return err
 	}
 	return k.refreshSessionLifecycleIndex(ctx, stream)

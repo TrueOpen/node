@@ -89,21 +89,22 @@ type verifierWindowCandidate struct {
 
 type verifierEligibilityFacts struct {
 	Profile            hubtypes.ProfileStateSnapshot
-	Capability         hubtypes.ProfileCapabilitySnapshot
+	Capability         hubtypes.ModelCapabilitySnapshot
 	Support            hubtypes.ModelSupportSnapshot
 	Bond               hubtypes.ServiceBondSnapshot
+	MinStake           uint64
 	PerformanceScore   uint32
 	PerformanceVersion uint32
 	JailFactor         uint32
 }
 
-// loadVerifierEligibilityFacts revalidates the Hub-owned hard eligibility
-// facts used both when the receipt source is frozen and when a handraise is
-// accepted. REGISTERED profiles permit declared, fresh cold-start support;
-// ACTIVE profiles additionally require the support activation bit.
+// loadVerifierEligibilityFacts revalidates live Hub-owned operator, capability,
+// support, bond, and hard-status facts while using the task's admission-time
+// minimum stake. A later profile change cannot reinterpret the task threshold.
 func (k Keeper) loadVerifierEligibilityFacts(
 	ctx context.Context,
 	core types.TaskCoreState,
+	assignment types.TaskAssignmentState,
 	operatorBytes []byte,
 	operator string,
 	hubParams hubtypes.HubParamsSnapshot,
@@ -113,22 +114,27 @@ func (k Keeper) loadVerifierEligibilityFacts(
 	if sdkCtx.BlockHeight() < 0 || hubParams.EpochLengthBlocks == 0 {
 		return zero, fmt.Errorf("authoritative Hub epoch length is unavailable")
 	}
+	minStake, err := shared.ParseAmount(assignment.MinStakeSnapshot)
+	if err != nil || minStake == 0 {
+		return zero, fmt.Errorf("task minimum stake snapshot is unavailable")
+	}
 	address := sdk.AccAddress(operatorBytes)
 	node, ok := k.hubKeeper.GetCortexNode(sdkCtx, address)
 	if !ok || node.OperatorAddress != operator || node.ServiceKeyStatus != hubtypes.ServiceKeyStatusActive {
 		return zero, fmt.Errorf("verifier service binding is unavailable")
 	}
+	modelStatus := k.hubKeeper.GetModelStatus(sdkCtx, core.ModelId)
 	profile, ok := k.hubKeeper.GetProfileState(sdkCtx, core.ModelId, core.ProfileVersion)
 	if !ok || (profile.Status != hubtypes.ModelStatusRegistered && profile.Status != hubtypes.ModelStatusActive) ||
-		!isParentModelOpenForProfile(k.hubKeeper.GetModelStatus(sdkCtx, core.ModelId)) ||
+		!isParentModelOpenForProfile(modelStatus) ||
 		k.hubKeeper.IsProfileFrozen(sdkCtx, core.ModelId, core.ProfileVersion) {
 		return zero, fmt.Errorf("profile is not available")
 	}
-	capability, ok := k.hubKeeper.GetProfileCapability(sdkCtx, address, core.ModelId, core.ProfileVersion)
+	capability, ok := k.hubKeeper.GetModelCapability(sdkCtx, address, core.ModelId)
 	if !ok || !capability.VerificationCapability || capability.CapabilityVersion == 0 {
 		return zero, fmt.Errorf("verifier capability is unavailable")
 	}
-	support, ok := k.hubKeeper.GetModelSupport(sdkCtx, address, core.ModelId, core.ProfileVersion)
+	support, ok := k.hubKeeper.GetModelSupport(sdkCtx, address, core.ModelId)
 	currentEpoch := uint64(sdkCtx.BlockHeight()) / hubParams.EpochLengthBlocks
 	if !ok || !support.DeclaredSupport || support.SupportVersion == 0 ||
 		support.SupportFreshUntilEpoch == 0 || currentEpoch >= support.SupportFreshUntilEpoch {
@@ -141,8 +147,11 @@ func (k Keeper) loadVerifierEligibilityFacts(
 	bond, ok := k.hubKeeper.GetServiceBond(sdkCtx, address, orderValue)
 	if !ok || !hubtypes.IsCandidateEligibleBondStatus(bond.Status) ||
 		bond.PendingUnbonding >= bond.EffectiveActiveBond || bond.RequiredTaskLiability == 0 ||
-		bond.EffectiveActiveBond < profile.MinStake || bond.AvailableBond < bond.RequiredTaskLiability {
+		bond.EffectiveActiveBond < minStake || bond.AvailableBond < bond.RequiredTaskLiability {
 		return zero, fmt.Errorf("verifier bond cannot cover stake and liability")
+	}
+	if !candidateModelSupportAllowed(modelStatus, support, bond) {
+		return zero, fmt.Errorf("verifier model support is not eligible for the current model status")
 	}
 	// Only tombstone hard-invalidates. GetNodeJailStatus already reports
 	// TOMBSTONED once jail_count reaches the threshold, so this keeps the whole
@@ -164,7 +173,7 @@ func (k Keeper) loadVerifierEligibilityFacts(
 		return zero, fmt.Errorf("verifier is hard-invalidated")
 	}
 	return verifierEligibilityFacts{
-		Profile: profile, Capability: capability, Support: support, Bond: bond,
+		Profile: profile, Capability: capability, Support: support, Bond: bond, MinStake: minStake,
 		PerformanceScore: uint32(scoring.PerformanceScorePpm), PerformanceVersion: uint32(scoring.PerformanceVersion),
 		JailFactor: jailFactor,
 	}, nil
@@ -246,7 +255,7 @@ func (k Keeper) deriveVerifierEligibilityCandidates(
 		if operator == assignment.WinnerWorker {
 			continue
 		}
-		if _, err := k.loadVerifierEligibilityFacts(ctx, core, operatorBytes, operator, hubParams); err != nil {
+		if _, err := k.loadVerifierEligibilityFacts(ctx, core, assignment, operatorBytes, operator, hubParams); err != nil {
 			continue
 		}
 		eligible = append(eligible, verifierWindowCandidate{
@@ -409,7 +418,7 @@ func (k Keeper) materializeVerifierWindowAtHeight(
 			}
 			return false, rowBytes, fmt.Errorf("SOURCE_FROZEN verifier window already has a member row")
 		}
-		if err := k.VerifierCandidateWindowMember.Set(cache, memberKey, member); err != nil {
+		if err := k.WriteVerifierWindowMember(cache, memberKey, member); err != nil {
 			return false, rowBytes, err
 		}
 		rowBytes += uint64(member.Size())
@@ -734,74 +743,74 @@ func (k Keeper) freezeVerifierCandidateFact(
 	if handraise.SchemaVersion != types.VerifierHandraiseSchemaVersionV1 || handraise.Duty != shared.Duty_DUTY_VERIFIER ||
 		handraise.ChainId != sdk.UnwrapSDKContext(ctx).ChainID() || !bytes.Equal(handraise.TaskId, core.TaskId) ||
 		handraise.VerifyRound != window.VerifyRound || !bytes.Equal(handraise.InferReceiptHash, receipt.InferReceiptHash) ||
-		!bytes.Equal(handraise.OutputHash, receipt.OutputHash) || handraise.ModelId != core.ModelId ||
+		!bytes.Equal(handraise.OutputHash, receipt.OutputHash) || !bytes.Equal(handraise.ModelId, core.ModelId) ||
 		handraise.ProfileVersion != core.ProfileVersion {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise scope is invalid")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise scope is invalid: %w", errCandidateNotApplicable)
 	}
 	if handraise.ExpiryHeight == 0 || acceptedHeight > handraise.ExpiryHeight || acceptedHeight > window.HandraiseCloseHeight {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise expired")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise expired: %w", errCandidateNotApplicable)
 	}
 	if !bytes.Equal(handraise.Member.CandidatePoolSnapshotId, window.CandidatePoolSnapshotId) ||
 		handraise.Member.Slot != member.Slot || handraise.Member.SlotVersion != member.SlotVersion ||
 		handraise.Member.OperatorAddress != member.OperatorAddress {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise window member mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise window member mismatch: %w", errCandidateNotApplicable)
 	}
 	operatorBytes, operator, err := k.canonicalAddress("verifier_operator_address", handraise.Member.OperatorAddress)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if operator == assignment.WinnerWorker {
-		return types.TaskCandidateFactState{}, fmt.Errorf("winner worker cannot verify the same task")
+		return types.TaskCandidateFactState{}, fmt.Errorf("winner worker cannot verify the same task: %w", errCandidateNotApplicable)
 	}
 	poolMember, binding, err := k.hubKeeper.ResolveCandidatePoolMember(ctx, window.CandidatePoolSnapshotId, member.Slot)
 	if err != nil {
-		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member: %w", err)
+		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member: %w: %w", err, errCandidateNotApplicable)
 	}
 	if poolMember.SlotVersion != member.SlotVersion || poolMember.OperatorAddress != operator ||
 		binding.SlotVersion != member.SlotVersion || binding.OperatorAddress != operator || !bytes.Equal(poolMember.BindingHash, binding.BindingHash) {
-		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member binding mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member binding mismatch: %w", errCandidateNotApplicable)
 	}
 	node, ok := k.hubKeeper.GetCortexNode(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes))
 	if !ok || node.OperatorAddress != operator || node.ServiceKeyStatus != hubtypes.ServiceKeyStatusActive ||
 		node.ServiceAuthorizationNonce != handraise.ServiceAuthorizationNonce {
-		return types.TaskCandidateFactState{}, fmt.Errorf("current service binding mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("current service binding mismatch: %w", errCandidateNotApplicable)
 	}
 	hubParams := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx))
-	eligibility, err := k.loadVerifierEligibilityFacts(ctx, core, operatorBytes, operator, hubParams)
+	eligibility, err := k.loadVerifierEligibilityFacts(ctx, core, assignment, operatorBytes, operator, hubParams)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if len(assignment.ProfileExecutionSnapshotHash) != types.Hash32Len ||
 		len(eligibility.Profile.ExecutionSnapshotHash) != types.Hash32Len ||
 		!bytes.Equal(assignment.ProfileExecutionSnapshotHash, eligibility.Profile.ExecutionSnapshotHash) {
-		return types.TaskCandidateFactState{}, fmt.Errorf("locked Profile execution snapshot is unavailable")
+		return types.TaskCandidateFactState{}, fmt.Errorf("locked Profile execution snapshot is unavailable: %w", errCandidateNotApplicable)
 	}
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return types.TaskCandidateFactState{}, err
 	}
 	weight, err := verifierCandidateWeightPpm(
-		eligibility.Bond.EffectiveActiveBond, eligibility.Profile.MinStake,
+		eligibility.Bond.EffectiveActiveBond, eligibility.MinStake,
 		eligibility.PerformanceScore, eligibility.JailFactor,
 		params.Weights.VerifierStakeWeightPpm, params.Weights.VerifierPerformanceWeightPpm,
 		params.Weights.CandidateWeightPpmMax,
 	)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	digest, err := types.VerifierHandraiseSigningDigest(handraise)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if err := k.hubKeeper.VerifyCurrentCortexServiceDigest(ctx, operator, handraise.ServiceSignature, digest[:], acceptedHeight); err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	return types.TaskCandidateFactState{
 		SchemaVersion: types.AssignmentCandidateSchemaVersionV1,
 		TaskId:        append([]byte(nil), core.TaskId...), Stage: types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY,
 		Slot: member.Slot, SlotVersion: member.SlotVersion, OperatorAddress: operator, Duty: shared.Duty_DUTY_VERIFIER,
 		ActiveBondSnapshot: shared.NewAmount(eligibility.Bond.EffectiveActiveBond), AvailableBondSnapshot: shared.NewAmount(eligibility.Bond.AvailableBond),
-		RequiredTaskLiabilitySnapshot: shared.NewAmount(eligibility.Bond.RequiredTaskLiability), MinStakeSnapshot: shared.NewAmount(eligibility.Profile.MinStake),
+		RequiredTaskLiabilitySnapshot: shared.NewAmount(eligibility.Bond.RequiredTaskLiability), MinStakeSnapshot: shared.NewAmount(eligibility.MinStake),
 		PerformanceScoreSnapshotPpm: eligibility.PerformanceScore, PerformanceMethodVersion: eligibility.PerformanceVersion,
 		CandidateJailFactorSnapshotPpm: eligibility.JailFactor, BondVersionSnapshot: eligibility.Bond.BondVersion,
 		CapabilityVersionSnapshot: eligibility.Capability.CapabilityVersion,

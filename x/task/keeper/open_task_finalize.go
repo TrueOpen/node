@@ -38,7 +38,7 @@ func (k Keeper) finalizeOpenTaskCandidateUnion(ctx context.Context, taskKey type
 	if err != nil || !bytes.Equal(core.TaskId, union.TaskId) || core.TaskPhase != types.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "worker task core is unavailable at finalize")
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, union.TaskId) ||
 		!bytes.Equal(assignment.CandidatePoolSnapshotId, union.CandidatePoolSnapshotId) ||
 		!bytes.Equal(assignment.CandidatePoolHash, union.CandidatePoolHash) || len(assignment.GenerationParamsDigest) != types.Hash32Len {
@@ -106,7 +106,7 @@ func (k Keeper) finalizeOpenTaskCandidateUnion(ctx context.Context, taskKey type
 	assignment.AssignAcceptHeight = finalizeHeight
 	assignment.AssignmentRandomnessHeight = randomnessHeight
 	assignment.AssignmentCandidateSetHash = legalSetHash[:]
-	if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
 	if err := addDeadlineIndex(ctx, k.AssignmentRandomnessIndex, taskKey, randomnessHeight); err != nil {

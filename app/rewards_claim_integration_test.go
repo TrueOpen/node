@@ -15,10 +15,11 @@ package app
 // (InitChain + FinalizeBlock + Commit), the real BankKeeper wired via
 // depinject, and the real TrueOpen MsgServer. If any layer in that chain
 // silently regresses, for example if the rewards module account gets an
-// unexpected permission or Earnings.Set stops persisting the address, the
+// unexpected permission or the earnings projection stops persisting the address, the
 // test fails immediately rather than at first production claim.
 
 import (
+	"bytes"
 	"testing"
 
 	"cosmossdk.io/collections"
@@ -110,12 +111,10 @@ func TestClaimEarningsMovesCoinsFromRewardsModuleToSigner(t *testing.T) {
 		sdk.NewCoins(sdk.NewCoin(hubtypes.DefaultBusinessDenom, rewardsSeed)),
 	))
 	claimantAddress := claimant.String()
-	require.NoError(t, application.HubKeeper.Earnings.Set(ctx, claimantAddress, hubtypes.EarningsState{
-		Address: claimantAddress, ClaimableTaskFee: shared.NewAmount(claimAmount),
-		ClaimableServiceReward: shared.NewAmount(0), ClaimableBuilderReward: shared.NewAmount(0),
-		ClaimableAmount: shared.NewAmount(claimAmount), EarningsVersion: 1,
-		LastUpdatedHeight: uint64(ctx.BlockHeight()),
-	}))
+	require.NoError(t, application.HubKeeper.CreditTaskSettlementEarnings(ctx,
+		bytes.Repeat([]byte{0x11}, 32), bytes.Repeat([]byte{0x22}, 32),
+		[]hubtypes.TaskEarningsCredit{{Beneficiary: claimantAddress, Amount: shared.NewAmount(claimAmount)}},
+		uint64(ctx.BlockHeight())))
 	rewardsAddress := authtypes.NewModuleAddress(hubtypes.RewardsModuleName)
 	preSupply := application.BankKeeper.GetSupply(ctx, hubtypes.DefaultBusinessDenom).Amount
 

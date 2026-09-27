@@ -23,7 +23,7 @@ import (
 
 func (k Keeper) initVrfKeyGenesis(ctx context.Context, genState types.GenesisState) error {
 	for _, state := range genState.VrfKeys {
-		if err := k.VrfKey.Set(ctx, state.OperatorAddress, state); err != nil {
+		if err := k.StoreVrfKey(ctx, state); err != nil {
 			return err
 		}
 		if state.XPendingVrfPubkey == nil {
@@ -34,7 +34,7 @@ func (k Keeper) initVrfKeyGenesis(ctx context.Context, genState types.GenesisSta
 		}
 	}
 	for _, row := range genState.VrfKeyHistory {
-		if err := k.VrfKeyHistory.Set(ctx, types.NewVrfKeyHistoryKey(row.OperatorAddress, row.EffectiveFromEpoch), row); err != nil {
+		if err := k.StoreVrfKeyHistory(ctx, row); err != nil {
 			return err
 		}
 		pruneEpoch, err := checkedAdd(row.RetiredAtEpoch, uint64(genState.Params.Beacon.MaxVrfKeyHistoryEpochs))
@@ -82,9 +82,17 @@ func (k Keeper) EnsureVrfKeyActivationIndexInvariant(ctx context.Context) error 
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
 		if err != nil {
 			return err
+		}
+		state, err := k.vrfKeyStorePublicProjection(stored)
+		if err != nil {
+			return err
+		}
+		key, err := iter.Key()
+		if err != nil || key != state.OperatorAddress {
+			return fmt.Errorf("VRF key/address mismatch")
 		}
 		if state.XPendingVrfPubkey == nil {
 			continue
@@ -129,9 +137,17 @@ func (k Keeper) EnsureVrfKeyPruneIndexInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		row, err := iter.Value()
+		stored, err := iter.Value()
 		if err != nil {
 			return err
+		}
+		row, err := k.vrfKeyHistoryStorePublicProjection(stored)
+		if err != nil {
+			return err
+		}
+		key, err := iter.Key()
+		if err != nil || key.K1() != row.OperatorAddress || key.K2() != row.EffectiveFromEpoch {
+			return fmt.Errorf("VRF history key/address mismatch")
 		}
 		pruneEpoch, err := checkedAdd(row.RetiredAtEpoch, uint64(params.Beacon.MaxVrfKeyHistoryEpochs))
 		if err != nil {
@@ -171,12 +187,12 @@ func (k Keeper) exportVrfKeyGenesis(ctx context.Context, genesis *types.GenesisS
 	if err := k.EnsureVrfKeyPruneIndexInvariant(ctx); err != nil {
 		return err
 	}
-	keys, err := collectMapValues[string, types.VrfKeyState](ctx, k.VrfKey)
+	keys, err := k.exportVrfKeys(ctx)
 	if err != nil {
 		return err
 	}
 	genesis.VrfKeys = keys
-	history, err := collectMapValues[types.VrfKeyHistoryKeyPair, types.VrfKeyHistoryState](ctx, k.VrfKeyHistory)
+	history, err := k.exportVrfKeyHistory(ctx)
 	if err != nil {
 		return err
 	}

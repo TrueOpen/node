@@ -180,7 +180,7 @@ func validateTaskCores(states []TaskCoreState) (map[string]TaskCoreState, error)
 		if _, err := requireHash32("task core session_id", s.SessionId); err != nil {
 			return nil, err
 		}
-		if err := shared.ValidateModelID(s.ModelId); err != nil {
+		if _, err := requireHash32("task core model_id", s.ModelId); err != nil {
 			return nil, fmt.Errorf("task core %s: %w", tid, err)
 		}
 		if s.ProfileVersion == 0 {
@@ -270,6 +270,10 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 		}
 		if err := requireEnumOrZero("task assignment assignment_fail_reason", s.AssignmentFailReason, AssignmentFailureReason_name); err != nil {
 			return nil, fmt.Errorf("%w for %s", err, tid)
+		}
+		minStake, err := shared.ParseAmount(s.MinStakeSnapshot)
+		if err != nil || minStake == 0 {
+			return nil, fmt.Errorf("task assignment %s min_stake_snapshot must be positive", tid)
 		}
 		for _, field := range []struct {
 			name  string

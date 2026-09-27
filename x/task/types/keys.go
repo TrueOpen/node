@@ -266,9 +266,9 @@ type TaskBudgetKey = Hash32Key
 
 // SessionByOwnerKey = (owner_user_address, session_id) (§6.2). Only ACTIVE/IDLE
 // streams are in this index.
-type SessionByOwnerKey = collections.Pair[string, Hash32Key]
+type SessionByOwnerKey = collections.Pair[AddrKey, Hash32Key]
 
-func NewSessionByOwnerKey(owner string, sessionID Hash32Key) SessionByOwnerKey {
+func NewSessionByOwnerKey(owner AddrKey, sessionID Hash32Key) SessionByOwnerKey {
 	return collections.Join(owner, sessionID)
 }
 
@@ -440,21 +440,21 @@ type TaskFailureClassWindowOrderKey = collections.Pair[int32, Hash32Key]
 // finality_height, (failure_class, task_id)).
 //
 // model_id stays a string: it is a Hub-owned model identifier, not a Hash32.
-type TaskFailureClassByProfileWindowKey = collections.Quad[string, uint32, uint64, TaskFailureClassWindowOrderKey]
+type TaskFailureClassByProfileWindowKey = collections.Quad[Hash32Key, uint32, uint64, TaskFailureClassWindowOrderKey]
 
-func NewTaskFailureClassByProfileWindowKey(modelID string, profileVersion uint32, finalityHeight uint64, failureClass TaskFailureClass, taskID Hash32Key) TaskFailureClassByProfileWindowKey {
+func NewTaskFailureClassByProfileWindowKey(modelID Hash32Key, profileVersion uint32, finalityHeight uint64, failureClass TaskFailureClass, taskID Hash32Key) TaskFailureClassByProfileWindowKey {
 	return collections.Join4(modelID, profileVersion, finalityHeight, collections.Join(int32(failureClass), taskID))
 }
 
 // RoleActiveTaskKey = (operator_address, task_id) for QueryRoleActiveTasks
 // (§16.3). session_id is gone with Ruling 23.
-type RoleActiveTaskKey = collections.Pair[string, Hash32Key]
+type RoleActiveTaskKey = collections.Pair[AddrKey, Hash32Key]
 
-func NewWorkerActiveTaskKey(workerAddress string, taskID Hash32Key) RoleActiveTaskKey {
+func NewWorkerActiveTaskKey(workerAddress AddrKey, taskID Hash32Key) RoleActiveTaskKey {
 	return collections.Join(workerAddress, taskID)
 }
 
-func NewVerifierActiveJobKey(verifierAddress string, taskID Hash32Key) RoleActiveTaskKey {
+func NewVerifierActiveJobKey(verifierAddress AddrKey, taskID Hash32Key) RoleActiveTaskKey {
 	return collections.Join(verifierAddress, taskID)
 }
 

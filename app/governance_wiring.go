@@ -288,7 +288,7 @@ func (r *governanceRuntime) executeMintBond(ctx sdk.Context, action hubtypes.Min
 	}
 	valAddr := sdk.ValAddress(target)
 	if existing, err := r.staking.GetValidator(ctx, valAddr); err == nil {
-		signer, signerErr := r.hub.ValidatorBridgeSigner.Get(ctx, action.TargetOperator)
+		signer, signerErr := r.hub.GetValidatorBridgeSigner(ctx, action.TargetOperator)
 		pubkey, pubkeyErr := existing.ConsPubKey()
 		if signerErr == nil && pubkeyErr == nil &&
 			bytes.Equal(pubkey.Bytes(), action.ConsensusPubkey) &&
@@ -299,7 +299,7 @@ func (r *governanceRuntime) executeMintBond(ctx sdk.Context, action hubtypes.Min
 		}
 		return fmt.Errorf("MintBond target already has a conflicting Validator registration")
 	}
-	if _, err := r.hub.ValidatorBridgeSigner.Get(ctx, action.TargetOperator); err == nil {
+	if _, err := r.hub.GetValidatorBridgeSigner(ctx, action.TargetOperator); err == nil {
 		return fmt.Errorf("MintBond target already has a bridge signer")
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return err
@@ -364,7 +364,7 @@ func (r *governanceRuntime) executeMintBond(ctx sdk.Context, action hubtypes.Min
 	if err != nil {
 		return err
 	}
-	return r.hub.ValidatorBridgeSigner.Set(ctx, action.TargetOperator, hubtypes.ValidatorBridgeSignerState{
+	return r.hub.StoreValidatorBridgeSigner(ctx, hubtypes.ValidatorBridgeSignerState{
 		OperatorAddress:          action.TargetOperator,
 		BridgeSignerAddressRaw20: append([]byte(nil), action.BridgeSignerAddressRaw20...),
 		KeyVersion:               1,
@@ -409,7 +409,7 @@ func (r *governanceRuntime) executeBurnBond(ctx sdk.Context, action hubtypes.Bur
 		return err
 	}
 	if r.slashing.IsTombstoned(ctx, sdk.ConsAddress(consAddr)) {
-		if _, signerErr := r.hub.ValidatorBridgeSigner.Get(ctx, action.TargetOperator); !errors.Is(signerErr, collections.ErrNotFound) {
+		if _, signerErr := r.hub.GetValidatorBridgeSigner(ctx, action.TargetOperator); !errors.Is(signerErr, collections.ErrNotFound) {
 			return fmt.Errorf("BurnBond replay retains a bridge signer")
 		}
 		if _, unbondErr := r.staking.GetUnbondingDelegation(ctx, target, valAddr); unbondErr != nil {
@@ -438,12 +438,16 @@ func (r *governanceRuntime) requireUnusedBridgeSigner(ctx context.Context, signe
 	}
 	defer rows.Close()
 	for ; rows.Valid(); rows.Next() {
+		operator, err := rows.Key()
+		if err != nil {
+			return err
+		}
 		row, err := rows.Value()
 		if err != nil {
 			return err
 		}
 		if bytes.Equal(row.BridgeSignerAddressRaw20, signer) {
-			return fmt.Errorf("bridge signer is already registered to %s", row.OperatorAddress)
+			return fmt.Errorf("bridge signer is already registered to %s", operator)
 		}
 	}
 	return nil

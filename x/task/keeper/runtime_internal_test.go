@@ -34,7 +34,7 @@ func (internalStubHubKeeper) ReleaseBeaconConsumerRef(context.Context, uint64, h
 	return nil
 }
 
-func (internalStubHubKeeper) IsFreezeFailureWindowProtected(context.Context, string, uint32, uint64) (bool, error) {
+func (internalStubHubKeeper) IsFreezeFailureWindowProtected(context.Context, []byte, uint32, uint64) (bool, error) {
 	return false, nil
 }
 
@@ -194,7 +194,7 @@ func (internalStubHubKeeper) VerifyCurrentCortexServiceDigest(context.Context, s
 	return nil
 }
 
-func (internalStubHubKeeper) GetProfileState(sdk.Context, string, uint32) (hubtypes.ProfileStateSnapshot, bool) {
+func (internalStubHubKeeper) GetProfileState(sdk.Context, []byte, uint32) (hubtypes.ProfileStateSnapshot, bool) {
 	return hubtypes.ProfileStateSnapshot{
 		Status:                    hubtypes.ModelStatusActive,
 		ChallengeOpenWindowBlocks: hubtypes.ProfileChallengeOpenWindowMinBlocks,

@@ -62,23 +62,6 @@ func SettlementBillHash(bill TaskSettlementBillV1) ([32]byte, error) {
 	)
 }
 
-func GasReimbursementHash(chainID string, item TaskGasReimbursementV1) ([32]byte, error) {
-	chain, err := canonicalUTF8Field("chain_id", chainID)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	frame, err := canonicalGasReimbursementFrame(item)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainGasReimbursementV1)).
-		Raw(chain).Nested(frame).Sum()
-	if err != nil {
-		return [32]byte{}, err
-	}
-	return [32]byte(digest), nil
-}
-
 func GasReimbursementsHash(chainID string, taskID []byte, items []TaskGasReimbursementV1) ([32]byte, error) {
 	chain, err := canonicalUTF8Field("chain_id", chainID)
 	if err != nil {

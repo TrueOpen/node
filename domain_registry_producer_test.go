@@ -25,7 +25,7 @@ var (
 // TestDomainRegistryProducerIdentifiersResolve turns identifier-shaped Producer
 // documentation into an executable reference. Prose remains prose; only the two
 // deliberately narrow identifier shapes below are required to name a real Go
-// declaration.
+// function or a generated Msg struct.
 func TestDomainRegistryProducerIdentifiersResolve(t *testing.T) {
 	plain, qualified := productionFunctionDeclarations(t)
 	for domain, spec := range shared.DomainRegistryV1 {
@@ -61,15 +61,31 @@ func productionFunctionDeclarations(t *testing.T) (map[string]struct{}, map[stri
 			}
 			name := entry.Name()
 			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") ||
-				strings.HasSuffix(name, ".pb.go") || strings.HasSuffix(name, ".pb.gw.go") ||
+				strings.HasSuffix(name, ".pb.gw.go") ||
 				strings.HasSuffix(name, ".pulsar.go") {
 				return nil
 			}
+			generated := strings.HasSuffix(name, ".pb.go")
 			file, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, 0)
 			if parseErr != nil {
 				return parseErr
 			}
 			for _, declaration := range file.Decls {
+				if generated {
+					group, ok := declaration.(*ast.GenDecl)
+					if !ok || group.Tok != token.TYPE {
+						continue
+					}
+					for _, spec := range group.Specs {
+						definition := spec.(*ast.TypeSpec)
+						if strings.HasPrefix(definition.Name.Name, "Msg") {
+							if _, ok := definition.Type.(*ast.StructType); ok {
+								plain[definition.Name.Name] = struct{}{}
+							}
+						}
+					}
+					continue
+				}
 				function, ok := declaration.(*ast.FuncDecl)
 				if !ok {
 					continue

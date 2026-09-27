@@ -111,6 +111,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}, {ProtoField: "worker_operator_address"}, {ProtoField: "seq"}},
 				},
 				{
+					RpcMethod:      "VerifierValueEvidence",
+					Use:            "verifier-value-evidence [task-id] [verify-round] [target-operator-address] [position]",
+					Short:          "Reserved verifier value-evidence query; not activated",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}, {ProtoField: "verify_round"}, {ProtoField: "target_operator_address"}, {ProtoField: "position"}},
+				},
+				{
 					RpcMethod:      "SettlementFacts",
 					Use:            "settlement-facts [task-id]",
 					Short:          "Shows one task's retained settlement facts",
@@ -241,6 +247,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod:      "SubmitWorkerEvidence",
 					Use:            "submit-worker-evidence [submitter-address]",
 					Short:          "Submit one strict objective Worker evidence object",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "submitter_address"}},
+				},
+				{
+					RpcMethod:      "SubmitVerifierValueEvidence",
+					Use:            "submit-verifier-value-evidence [submitter-address]",
+					Short:          "Reserved verifier value-evidence submission; not activated",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "submitter_address"}},
 				},
 				{

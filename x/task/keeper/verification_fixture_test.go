@@ -56,7 +56,7 @@ func (s *verificationHubStub) VerifyCurrentCortexServiceDigest(context.Context, 
 	return s.signatureErr
 }
 
-func (s *verificationHubStub) GetProfileState(sdk.Context, string, uint32) (hubtypes.ProfileStateSnapshot, bool) {
+func (s *verificationHubStub) GetProfileState(sdk.Context, []byte, uint32) (hubtypes.ProfileStateSnapshot, bool) {
 	return s.profile, true
 }
 
@@ -133,10 +133,10 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 		Metrics:                     shared.MetricSpec{ComparedTopK: 8, NumericScale: shared.NumericScale_NUMERIC_SCALE_FP_1E6},
 		CanonicalEncodingVersion:    "CANONICAL_OUTPUT_TEXT_V1",
 		MetricAggregateProofVersion: "PREFILL_METRIC_AGGREGATE_PROOF_V1",
-		EvidenceSchema:              shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+		EvidenceSchema:              shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 	}
 	profileProjection := shared.ModelProfileProjection{
-		ModelId: "model-v1", ProfileVersion: 1, TokenizerHash: bytes.Repeat([]byte{0x32}, types.Hash32Len),
+		ModelId: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1, TokenizerHash: bytes.Repeat([]byte{0x32}, types.Hash32Len),
 		RequiredTopK: 8, GenerationType: shared.GenerationType_GENERATION_TYPE_SAMPLED,
 		VerificationProfile: verificationProfile, SchemaHash: bytes.Repeat([]byte{0x33}, types.Hash32Len),
 	}
@@ -152,7 +152,7 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 	profileHash, err := hubtypes.ProfileExecutionSnapshotHash(execution)
 	require.NoError(t, err)
 	hub.profile = hubtypes.ProfileStateSnapshot{
-		ModelID: "model-v1", ProfileVersion: 1, Status: hubtypes.ModelStatusActive,
+		ModelID: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1, Status: hubtypes.ModelStatusActive, MinStake: 1,
 		ExecutionSnapshot: execution, ExecutionSnapshotHash: profileHash,
 	}
 	assignment := types.VerifierAssignmentState{
@@ -165,12 +165,13 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 		})
 	}
 	require.NoError(t, base.keeper.TaskCore.Set(ctx, taskKey, types.TaskCoreState{
-		TaskId: taskID, SessionId: bytes.Repeat([]byte{0x61}, types.Hash32Len), ModelId: "model-v1", ProfileVersion: 1,
+		TaskId: taskID, SessionId: bytes.Repeat([]byte{0x61}, types.Hash32Len), ModelId: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1,
 		TaskPhase:          types.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED,
 		VerificationStatus: types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,
 	}))
-	require.NoError(t, base.keeper.TaskAssignment.Set(ctx, taskKey, types.TaskAssignmentState{
+	require.NoError(t, base.keeper.WriteTaskAssignment(ctx, taskKey, types.TaskAssignmentState{
 		TaskId: taskID, GenerationParamsDigest: genDigest,
+		MinStakeSnapshot:             shared.NewAmount(hub.profile.MinStake),
 		CandidatePoolSnapshotId:      poolID,
 		CandidatePoolHash:            poolHash,
 		ProfileExecutionSnapshotHash: profileHash,
@@ -178,7 +179,7 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 		CanonicalEncodingVersion:     "CANONICAL_OUTPUT_TEXT_V1",
 		MetricAggregateProofVersion:  "PREFILL_METRIC_AGGREGATE_PROOF_V1",
 	}))
-	require.NoError(t, base.keeper.VerifierAssignment.Set(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), assignment))
+	require.NoError(t, base.keeper.WriteVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), assignment))
 	return &verificationFixture{
 		internalFixture: base, hub: hub, ctx: ctx, server: msgServer{k: base.keeper},
 		taskID: taskID, taskKey: taskKey, operators: operators, assignment: assignment,
@@ -193,7 +194,7 @@ func (f *verificationFixture) setTaskBuilders(t *testing.T, builders ...string) 
 		sdk.UnwrapSDKContext(f.ctx).ChainID(), f.taskID, "builder-set-v1", builderSetHash, builders,
 	)
 	require.NoError(t, err)
-	require.NoError(t, f.keeper.TaskBuilderSelection.Set(f.ctx, f.taskKey, types.TaskBuilderSelectionState{
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, f.taskKey, types.TaskBuilderSelectionState{
 		TaskId: f.taskID, BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: membersHash, BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,

@@ -37,32 +37,34 @@ type Keeper struct {
 	EndBlockBudgetRemainingItems collections.Item[uint64]
 	EndBlockBudgetRemainingBytes collections.Item[uint64]
 
-	Model                               collections.Map[string, types.ModelState]
+	Model                               collections.Map[shared.Hash32Key, types.ModelState]
 	Profile                             collections.Map[types.ProfileStateKeyPair, types.ProfileState]
 	RegistrationReceipt                 collections.Map[shared.Hash32Key, types.RegistrationReceipt]
-	CortexNode                          collections.Map[string, types.CortexNodeState]
-	ServiceBond                         collections.Map[string, types.ServiceBondState]
-	Unbonding                           collections.Map[types.UnbondingKeyPair, types.UnbondingState]
+	CortexNode                          collections.Map[string, internaltypes.CortexNodeStoreState]
+	ServiceBond                         collections.Map[string, internaltypes.ServiceBondStoreState]
+	Unbonding                           collections.Map[types.UnbondingKeyPair, internaltypes.UnbondingStoreState]
 	UnbondingMaturityIndex              collections.KeySet[types.UnbondingMaturityIndexKeyTriple]
 	UnbondingByOperatorStatusIndex      collections.KeySet[types.UnbondingByOperatorStatusKey]
-	UnbondingReceipt                    collections.Map[shared.Hash32Key, types.UnbondingReceiptState]
+	UnbondingReceipt                    collections.Map[shared.Hash32Key, internaltypes.UnbondingReceiptStoreState]
 	UnbondingReceiptPruneIndex          collections.KeySet[types.UnbondingReceiptPruneKey]
-	ServiceDescriptor                   collections.Map[types.ParticipantKeyPair, types.ServiceDescriptorState]
-	CurrentServiceAddressIndex          collections.Map[types.CurrentServiceAddressIndexKeyPair, types.CurrentServiceAddressIndexState]
-	TaskLiabilityReservation            collections.Map[types.TaskLiabilityReservationKeyTriple, types.TaskLiabilityReservationState]
+	ServiceDescriptor                   collections.Map[types.ParticipantKeyPair, internaltypes.ServiceDescriptorStoreState]
+	CurrentServiceAddressIndex          collections.Map[types.CurrentServiceAddressIndexKeyPair, internaltypes.CurrentServiceAddressIndexStoreState]
+	TaskLiabilityReservation            collections.Map[types.TaskLiabilityReservationKeyTriple, internaltypes.TaskLiabilityStoreState]
 	ActiveLiabilityByOperatorIndex      collections.KeySet[types.ActiveLiabilityByOperatorKey]
 	TaskLiabilityByTaskIndex            collections.KeySet[types.TaskLiabilityByTaskKey]
-	ServiceKeyResponsibility            collections.Map[types.ServiceKeyResponsibilityKeyTriple, types.ServiceKeyResponsibilityState]
+	ServiceKeyResponsibility            collections.Map[types.ServiceKeyResponsibilityKeyTriple, internaltypes.ServiceKeyResponsibilityStoreState]
 	ServiceKeyResponsibilityByTaskIndex collections.KeySet[types.ServiceKeyResponsibilityByTaskKeyTriple]
-	ProfileCapability                   collections.Map[types.ProfileCapabilityKeyTriple, types.ProfileCapabilityState]
-	ModelSupport                        collections.Map[types.ModelSupportKeyTriple, types.ModelSupportState]
+	ModelCapability                     collections.Map[types.ModelCapabilityKeyPair, types.ModelCapabilityState]
+	ModelSupport                        collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
 	ModelSupportExpiryIndex             collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
-	ModelSupportByProfileIndex          collections.KeySet[types.ModelSupportByProfileIndexKeyTriple]
-	ModelSupportByOperatorIndex         collections.KeySet[types.ModelSupportByOperatorIndexKeyTriple]
+	ModelSupportByModelIndex            collections.KeySet[types.ModelSupportByModelIndexKeyPair]
+	ModelSupportByOperatorIndex         collections.KeySet[types.ModelSupportByOperatorIndexKeyPair]
 	ModelSupportPruneIndex              collections.KeySet[types.ModelSupportPruneIndexKeyPair]
+	ModelSupportRecheckIndex            collections.KeySet[types.ModelSupportRecheckIndexKeyPair]
+	ModelSupportRecheckCursor           collections.Map[shared.Hash32Key, types.ModelSupportRecheckCursorState]
+	ModelSupportDeactivateCursor        collections.Map[shared.Hash32Key, types.ModelSupportDeactivateCursorState]
 	DailySupport                        collections.Map[types.DailySupportKey, types.DailySupportState]
 	DailySupportExpiryIndex             collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
-	SupportDeactivateCursor             collections.Map[types.ProfileStateKeyPair, types.SupportDeactivateCursorState]
 
 	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
 	//
@@ -84,10 +86,10 @@ type Keeper struct {
 	// derived and rebuilt from the primaries at import.
 	CandidatePoolSnapshot      collections.Map[shared.Hash32Key, types.CandidatePoolSnapshotState]
 	CandidatePoolActiveSegment collections.Map[types.CandidatePoolSegmentKeyPair, types.CandidatePoolActiveSegmentState]
-	CandidatePoolMember        collections.Map[types.CandidatePoolMemberKeyPair, types.CandidatePoolMemberState]
-	CandidateSlotCurrent       collections.Map[uint32, types.CandidateSlotCurrentState]
-	CandidateSlotBinding       collections.Map[types.CandidateSlotBindingKeyPair, types.CandidateSlotBindingState]
-	OperatorCandidateSlot      collections.Map[string, types.OperatorCandidateSlotState]
+	CandidatePoolMember        collections.Map[types.CandidatePoolMemberKeyPair, internaltypes.CandidatePoolMemberStoreState]
+	CandidateSlotCurrent       collections.Map[uint32, internaltypes.CandidateSlotCurrentStoreState]
+	CandidateSlotBinding       collections.Map[types.CandidateSlotBindingKeyPair, internaltypes.CandidateSlotBindingStoreState]
+	OperatorCandidateSlot      collections.Map[string, internaltypes.OperatorCandidateSlotStoreState]
 	CandidatePoolBuildCursor   collections.Map[uint64, types.CandidatePoolBuildCursorState]
 	CandidatePoolTaskRef       collections.Map[types.CandidatePoolTaskRefKeyPair, types.CandidatePoolTaskRefState]
 
@@ -100,34 +102,34 @@ type Keeper struct {
 	CandidatePoolBuildStatus collections.Item[types.CandidatePoolBuildStatusState]
 	CurrentCandidatePool     collections.Item[types.CurrentCandidatePoolState]
 
-	Builder                      collections.Map[string, types.BuilderState]
-	BuilderAdmission             collections.Map[string, types.BuilderAdmissionState]
+	Builder                      collections.Map[string, internaltypes.BuilderStoreState]
+	BuilderAdmission             collections.Map[string, internaltypes.BuilderAdmissionStoreState]
 	CurrentBuilderSet            collections.Item[types.CurrentBuilderSetState]
-	PendingBuilderSetReplacement collections.Item[types.BuilderSetPendingReplacementState]
-	BuilderSet                   collections.Map[uint64, types.BuilderSetState]
+	PendingBuilderSetReplacement collections.Item[internaltypes.BuilderSetPendingReplacementStoreState]
+	BuilderSet                   collections.Map[uint64, internaltypes.BuilderSetStoreState]
 	BuilderSetReplacementIndex   collections.Map[types.BuilderSetReplacementKeyPair, uint64]
 	BuilderSetByIDIndex          collections.Map[string, uint64]
 	BuilderSetByHeightIndex      collections.Map[types.BuilderSetByHeightKey, string]
 	BuilderSetTaskRef            collections.Map[types.BuilderSetTaskRefKeyPair, types.BuilderSetTaskRefState]
 	BuilderSetPruneIndex         collections.KeySet[types.BuilderSetPruneKeyTriple]
-	BuilderFault                 collections.Map[types.BuilderFaultKeyPair, types.BuilderFaultState]
+	BuilderFault                 collections.Map[types.BuilderFaultKeyPair, internaltypes.BuilderFaultStoreState]
 	BuilderFaultPruneIndex       collections.KeySet[types.BuilderFaultPruneKeyTriple]
 	ServiceBondEffectiveIndex    collections.KeySet[types.ServiceBondEffectiveKeyPair]
 
-	RoleFault           collections.Map[shared.Hash32Key, types.RoleFaultState]
+	RoleFault           collections.Map[shared.Hash32Key, internaltypes.RoleFaultStoreState]
 	RoleFaultPruneIndex collections.KeySet[types.RoleFaultPruneKey]
 	// RoleFaultByTaskIndex is derived from RoleFault and is never exported: it is
 	// rebuilt from the imported primaries at InitGenesis, exactly like the other
 	// by-task index directions.
 	RoleFaultByTaskIndex            collections.KeySet[types.RoleFaultByTaskKey]
-	SlashSummary                    collections.Map[types.SlashSummaryKeyTriple, types.SlashSummaryState]
+	SlashSummary                    collections.Map[types.SlashSummaryKeyTriple, internaltypes.SlashSummaryStoreState]
 	Treasury                        collections.Item[types.TreasuryState]
-	TreasurySpendReceipt            collections.Map[types.TreasurySpendReceiptKeyPair, types.TreasurySpendReceiptState]
+	TreasurySpendReceipt            collections.Map[types.TreasurySpendReceiptKeyPair, internaltypes.TreasurySpendReceiptStoreState]
 	TreasurySpendReceiptPruneIndex  collections.KeySet[types.TreasurySpendReceiptPruneKeyTriple]
 	TreasurySpendProposal           collections.Map[uint64, types.TreasurySpendProposalState]
 	TreasurySpendEpoch              collections.Map[uint64, types.TreasurySpendEpochState]
-	TreasurySpendRecipientEpoch     collections.Map[types.TreasurySpendRecipientEpochKeyPair, types.TreasurySpendRecipientEpochState]
-	TreasurySpendEpochCleanupCursor collections.Map[uint64, types.TreasurySpendEpochCleanupCursorState]
+	TreasurySpendRecipientEpoch     collections.Map[types.TreasurySpendRecipientEpochKeyPair, internaltypes.TreasurySpendRecipientEpochStoreState]
+	TreasurySpendEpochCleanupCursor collections.Map[uint64, internaltypes.TreasurySpendEpochCleanupCursorStoreState]
 	TreasurySpendEpochCleanupIndex  collections.KeySet[types.TreasurySpendEpochCleanupIndexKeyPair]
 
 	ParameterBucketVersion        collections.Map[types.ParameterBucketVersionKeyTriple, types.ParameterBucketVersionState]
@@ -143,7 +145,7 @@ type Keeper struct {
 	RewardEpochPruneIndex  collections.KeySet[types.RewardEpochPruneIndexKeyTriple]
 	RewardEpochPruneCursor collections.Map[types.RewardEpochCursorKeyPair, types.RewardEpochPruneCursorState]
 	RewardEpochAudit       collections.Map[types.RewardEpochCursorKeyPair, types.RewardEpochAuditState]
-	Earnings               collections.Map[string, types.EarningsState]
+	Earnings               collections.Map[string, internaltypes.EarningsStoreState]
 
 	Beacon                        collections.Map[uint64, internaltypes.BeaconStoreState]
 	BeaconPruneIndex              collections.KeySet[types.BeaconPruneKey]
@@ -164,12 +166,12 @@ type Keeper struct {
 	// modules; the bridge protocol forbid a second
 	// copy here, so there
 	// is deliberately no delivered-message or nonce table below.
-	VrfKey                collections.Map[string, types.VrfKeyState]
-	VrfKeyHistory         collections.Map[types.VrfKeyHistoryKeyPair, types.VrfKeyHistoryState]
+	VrfKey                collections.Map[string, internaltypes.VrfKeyStoreState]
+	VrfKeyHistory         collections.Map[types.VrfKeyHistoryKeyPair, internaltypes.VrfKeyHistoryStoreState]
 	VrfKeyActivationIndex collections.KeySet[types.VrfKeyActivationKeyPair]
 	VrfKeyPruneIndex      collections.KeySet[types.VrfKeyPruneKeyTriple]
 
-	ValidatorBridgeSigner collections.Map[string, types.ValidatorBridgeSignerState]
+	ValidatorBridgeSigner collections.Map[string, internaltypes.ValidatorBridgeSignerStoreState]
 	BridgeRoute           collections.Item[types.BridgeRouteState]
 	BridgeSignerSet       collections.Item[types.BridgeSignerSetState]
 	BridgeControl         collections.Item[types.BridgeControlState]
@@ -179,7 +181,7 @@ type Keeper struct {
 	BridgeEpochUsage      collections.Map[uint64, types.BridgeEpochUsageState]
 	BridgeEpochUsagePrune collections.KeySet[types.BridgeEpochUsagePruneKeyPair]
 	BridgeSupply          collections.Item[types.BridgeSupplyState]
-	BridgeBootstrap       collections.Item[types.BridgeBootstrapState]
+	BridgeBootstrap       collections.Item[internaltypes.BridgeBootstrapStoreState]
 }
 
 func NewKeeper(
@@ -205,7 +207,7 @@ func NewKeeper(
 	}
 
 	sb := collections.NewSchemaBuilder(storeService)
-	profileKeyCodec := collections.PairKeyCodec(collections.StringKey, collections.StringKey)
+	profileKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, collections.Uint32Key)
 	pairUint64KeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)
 	// The competition map is keyed (reward_bucket, epoch) while the cursor, prune
 	// cursor and audit maps are keyed (epoch, reward_bucket). Giving the leading
@@ -214,11 +216,11 @@ func NewKeeper(
 	rewardCompetitionEpochKeyCodec := collections.PairKeyCodec(types.RewardBucketKeyCodec, collections.Uint64Key)
 	treasurySpendReceiptKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key)
 	treasurySpendPruneKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.Uint64Key, collections.Uint32Key)
-	freezeCursorKeyCodec := collections.PairKeyCodec(collections.StringKey, collections.Uint32Key)
-	freezeWindowKeyCodec := collections.TripleKeyCodec(collections.StringKey, collections.Uint32Key, collections.Uint64Key)
+	freezeCursorKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, collections.Uint32Key)
+	freezeWindowKeyCodec := collections.TripleKeyCodec(shared.Hash32KeyCodec, collections.Uint32Key, collections.Uint64Key)
 	freezeSignalOrderKeyCodec := collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)
-	freezeProfileKeyCodec := collections.QuadKeyCodec(collections.StringKey, collections.Uint32Key, collections.Int32Key, freezeSignalOrderKeyCodec)
-	freezeScheduleKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, collections.Uint32Key)
+	freezeProfileKeyCodec := collections.QuadKeyCodec(shared.Hash32KeyCodec, collections.Uint32Key, collections.Int32Key, freezeSignalOrderKeyCodec)
+	freezeScheduleKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec, collections.Uint32Key)
 	freezeDeadlineKeyCodec := collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)
 	freezePruneKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec, collections.Int32Key)
 	// freeze_signal_id is non-terminal here, so replacing BytesKey drops the one-byte
@@ -226,30 +228,29 @@ func NewKeeper(
 	// BytesKey: it is a 20-byte consensus address, not a digest.
 	freezeVoteKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, collections.BytesKey)
 	rewardEpochIndexKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.Uint64Key, collections.Uint64Key)
-	unbondingMaturityCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, shared.Hash32KeyCodec)
-	participantKeyCodec := collections.PairKeyCodec(collections.Int32Key, collections.StringKey)
-	profileSupportKeyCodec := collections.TripleKeyCodec(collections.StringKey, collections.StringKey, collections.Uint32Key)
-	supportByProfileKeyCodec := collections.TripleKeyCodec(collections.StringKey, collections.Uint32Key, collections.StringKey)
-	liabilityKeyCodec := collections.TripleKeyCodec(shared.Hash32KeyCodec, collections.Int32Key, collections.StringKey)
-	activeLiabilityByOperatorKeyCodec := collections.TripleKeyCodec(collections.StringKey, shared.Hash32KeyCodec, collections.Int32Key)
+	addressStringKeyCodec := shared.AddressStringKeyCodec{AddressCodec: addressCodec}
+	unbondingMaturityCodec := collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)
+	participantKeyCodec := collections.PairKeyCodec(collections.Int32Key, addressStringKeyCodec)
+	modelSupportKeyCodec := collections.PairKeyCodec(addressStringKeyCodec, shared.Hash32KeyCodec)
+	supportByModelKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, addressStringKeyCodec)
+	liabilityKeyCodec := collections.TripleKeyCodec(shared.Hash32KeyCodec, collections.Int32Key, addressStringKeyCodec)
+	activeLiabilityByOperatorKeyCodec := collections.TripleKeyCodec(addressStringKeyCodec, shared.Hash32KeyCodec, collections.Int32Key)
 	// BuilderSetTaskRef used to borrow profileKeyCodec purely because both were
-	// (string, string). profileKeyCodec still serves Profile, Unbonding,
-	// SupportDeactivateCursor and BuilderFault, none of which lead with a Hash32,
+	// (string, string). The Profile key now uses a raw Hash32 and numeric version,
 	// so the shape coincidence ends here and the codec is its own.
 	builderSetTaskRefKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, collections.Uint64Key)
 	// Unbonding and BuilderFault leave profileKeyCodec for the same reason
 	// BuilderSetTaskRef did: the (string, string) shape was a coincidence, and their
-	// second component is a Hash32 while Profile and SupportDeactivateCursor keep a
-	// model_id there.
-	addressHash32KeyCodec := collections.PairKeyCodec(collections.StringKey, shared.Hash32KeyCodec)
+	// second component is a Hash32 while Profile uses a model ID and version.
+	addressHash32KeyCodec := collections.PairKeyCodec(addressStringKeyCodec, shared.Hash32KeyCodec)
 	beaconConsumerRefKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.Uint32Key, collections.StringKey)
 	roleFaultPruneKeyCodec := collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)
 	roleFaultByTaskKeyCodec := collections.PairKeyCodec(shared.Hash32KeyCodec, shared.Hash32KeyCodec)
-	slashSummaryKeyCodec := collections.TripleKeyCodec(collections.Int32Key, shared.Hash32KeyCodec, collections.Uint64Key)
+	slashSummaryKeyCodec := collections.TripleKeyCodec(collections.Int32Key, shared.Hash32KeyCodec, collections.Uint32Key)
 	// (int32(ParticipantType), operator_address, responsibility_id hex). The same
 	// codec is reused as the suffix of the by-task index so the two directions
 	// cannot drift apart (A-15a).
-	serviceKeyResponsibilityKeyCodec := collections.TripleKeyCodec(collections.Int32Key, collections.StringKey, shared.Hash32KeyCodec)
+	serviceKeyResponsibilityKeyCodec := collections.TripleKeyCodec(collections.Int32Key, addressStringKeyCodec, shared.Hash32KeyCodec)
 
 	// Global CandidatePool key codecs (the data-structure contract). slot is uint32
 	// and slot_version uint64, so the binding key is not a string pair; Hash32 key
@@ -263,6 +264,69 @@ func NewKeeper(
 	parameterBucketVersionKeyCodec := collections.TripleKeyCodec(collections.Int32Key, collections.StringKey, collections.Uint64Key)
 	parameterBucketPointerKeyCodec := collections.PairKeyCodec(collections.Int32Key, collections.StringKey)
 	parameterBucketScheduleKeyCodec := collections.QuadKeyCodec(collections.Uint64Key, collections.Int32Key, collections.StringKey, collections.Uint64Key)
+	modelValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ModelState](cdc), codec.CollValue[internaltypes.ModelStoreState](cdc),
+		func(value types.ModelState) (internaltypes.ModelStoreState, error) {
+			return modelToStore(addressCodec, value)
+		},
+		func(value internaltypes.ModelStoreState) (types.ModelState, error) {
+			return modelFromStore(addressCodec, value)
+		},
+	)
+	profileValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ProfileState](cdc), codec.CollValue[internaltypes.ProfileStoreState](cdc),
+		func(value types.ProfileState) (internaltypes.ProfileStoreState, error) {
+			return profileToStore(addressCodec, value)
+		},
+		func(value internaltypes.ProfileStoreState) (types.ProfileState, error) {
+			return profileFromStore(addressCodec, value)
+		},
+	)
+	modelCapabilityValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ModelCapabilityState](cdc), codec.CollValue[internaltypes.ModelCapabilityStoreState](cdc),
+		func(value types.ModelCapabilityState) (internaltypes.ModelCapabilityStoreState, error) {
+			return modelCapabilityToStore(addressCodec, value)
+		},
+		func(value internaltypes.ModelCapabilityStoreState) (types.ModelCapabilityState, error) {
+			return modelCapabilityFromStore(addressCodec, value)
+		},
+	)
+	modelSupportValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ModelSupportState](cdc), codec.CollValue[internaltypes.ModelSupportStoreState](cdc),
+		func(value types.ModelSupportState) (internaltypes.ModelSupportStoreState, error) {
+			return modelSupportToStore(addressCodec, value)
+		},
+		func(value internaltypes.ModelSupportStoreState) (types.ModelSupportState, error) {
+			return modelSupportFromStore(addressCodec, value)
+		},
+	)
+	modelSupportRecheckCursorValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ModelSupportRecheckCursorState](cdc), codec.CollValue[internaltypes.ModelSupportRecheckCursorStoreState](cdc),
+		func(value types.ModelSupportRecheckCursorState) (internaltypes.ModelSupportRecheckCursorStoreState, error) {
+			return modelSupportRecheckCursorToStore(addressCodec, value)
+		},
+		func(value internaltypes.ModelSupportRecheckCursorStoreState) (types.ModelSupportRecheckCursorState, error) {
+			return modelSupportRecheckCursorFromStore(addressCodec, value)
+		},
+	)
+	modelSupportDeactivateCursorValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.ModelSupportDeactivateCursorState](cdc), codec.CollValue[internaltypes.ModelSupportDeactivateCursorStoreState](cdc),
+		func(value types.ModelSupportDeactivateCursorState) (internaltypes.ModelSupportDeactivateCursorStoreState, error) {
+			return modelSupportDeactivateCursorToStore(addressCodec, value)
+		},
+		func(value internaltypes.ModelSupportDeactivateCursorStoreState) (types.ModelSupportDeactivateCursorState, error) {
+			return modelSupportDeactivateCursorFromStore(addressCodec, value)
+		},
+	)
+	dailySupportValueCodec := newMirroredAddressValueCodec(
+		codec.CollValue[types.DailySupportState](cdc), codec.CollValue[internaltypes.DailySupportStoreState](cdc),
+		func(value types.DailySupportState) (internaltypes.DailySupportStoreState, error) {
+			return dailySupportToStore(addressCodec, value)
+		},
+		func(value internaltypes.DailySupportStoreState) (types.DailySupportState, error) {
+			return dailySupportFromStore(addressCodec, value)
+		},
+	)
 
 	k := Keeper{
 		storeService: storeService, transientStoreService: transientStoreService,
@@ -278,38 +342,40 @@ func NewKeeper(
 		EndBlockBudgetRemainingItems: collections.NewItem(sb, types.EndBlockBudgetRemainingItemsKey, "endblock_budget_remaining_items", collections.Uint64Value),
 		EndBlockBudgetRemainingBytes: collections.NewItem(sb, types.EndBlockBudgetRemainingBytesKey, "endblock_budget_remaining_bytes", collections.Uint64Value),
 
-		Model:                               collections.NewMap(sb, types.ModelStateKey, "model_state", collections.StringKey, codec.CollValue[types.ModelState](cdc)),
-		Profile:                             collections.NewMap(sb, types.ProfileStateKey, "profile_state", profileKeyCodec, codec.CollValue[types.ProfileState](cdc)),
+		Model:                               collections.NewMap(sb, types.ModelStateKey, "model_state", shared.Hash32KeyCodec, modelValueCodec),
+		Profile:                             collections.NewMap(sb, types.ProfileStateKey, "profile_state", profileKeyCodec, profileValueCodec),
 		RegistrationReceipt:                 collections.NewMap(sb, types.RegistrationReceiptKey, "registration_receipt", shared.Hash32KeyCodec, codec.CollValue[types.RegistrationReceipt](cdc)),
-		CortexNode:                          collections.NewMap(sb, types.CortexNodeKey, "cortex_node", collections.StringKey, codec.CollValue[types.CortexNodeState](cdc)),
-		ServiceBond:                         collections.NewMap(sb, types.ServiceBondKey, "service_bond", collections.StringKey, codec.CollValue[types.ServiceBondState](cdc)),
-		Unbonding:                           collections.NewMap(sb, types.UnbondingKey, "unbonding", addressHash32KeyCodec, codec.CollValue[types.UnbondingState](cdc)),
+		CortexNode:                          collections.NewMap(sb, types.CortexNodeKey, "cortex_node", addressStringKeyCodec, codec.CollValue[internaltypes.CortexNodeStoreState](cdc)),
+		ServiceBond:                         collections.NewMap(sb, types.ServiceBondKey, "service_bond", addressStringKeyCodec, codec.CollValue[internaltypes.ServiceBondStoreState](cdc)),
+		Unbonding:                           collections.NewMap(sb, types.UnbondingKey, "unbonding", addressHash32KeyCodec, codec.CollValue[internaltypes.UnbondingStoreState](cdc)),
 		UnbondingMaturityIndex:              collections.NewKeySet(sb, types.UnbondingMaturityIndexKey, "unbonding_maturity_index", unbondingMaturityCodec),
-		UnbondingByOperatorStatusIndex:      collections.NewKeySet(sb, types.UnbondingByOperatorStatusIndexKey, "unbonding_by_operator_status", collections.QuadKeyCodec(collections.StringKey, collections.Int32Key, collections.Uint64Key, shared.Hash32KeyCodec)),
-		UnbondingReceipt:                    collections.NewMap(sb, types.UnbondingReceiptKey, "unbonding_receipt", shared.Hash32KeyCodec, codec.CollValue[types.UnbondingReceiptState](cdc)),
+		UnbondingByOperatorStatusIndex:      collections.NewKeySet(sb, types.UnbondingByOperatorStatusIndexKey, "unbonding_by_operator_status", collections.QuadKeyCodec(addressStringKeyCodec, collections.Int32Key, collections.Uint64Key, shared.Hash32KeyCodec)),
+		UnbondingReceipt:                    collections.NewMap(sb, types.UnbondingReceiptKey, "unbonding_receipt", shared.Hash32KeyCodec, codec.CollValue[internaltypes.UnbondingReceiptStoreState](cdc)),
 		UnbondingReceiptPruneIndex:          collections.NewKeySet(sb, types.UnbondingReceiptPruneIndexKey, "unbonding_receipt_prune", collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)),
-		ServiceDescriptor:                   collections.NewMap(sb, types.ServiceDescriptorKey, "service_descriptor", participantKeyCodec, codec.CollValue[types.ServiceDescriptorState](cdc)),
-		CurrentServiceAddressIndex:          collections.NewMap(sb, types.CurrentServiceAddressIndexKey, "current_service_address", participantKeyCodec, codec.CollValue[types.CurrentServiceAddressIndexState](cdc)),
-		TaskLiabilityReservation:            collections.NewMap(sb, types.TaskLiabilityReservationKey, "task_liability", liabilityKeyCodec, codec.CollValue[types.TaskLiabilityReservationState](cdc)),
+		ServiceDescriptor:                   collections.NewMap(sb, types.ServiceDescriptorKey, "service_descriptor", participantKeyCodec, codec.CollValue[internaltypes.ServiceDescriptorStoreState](cdc)),
+		CurrentServiceAddressIndex:          collections.NewMap(sb, types.CurrentServiceAddressIndexKey, "current_service_address", participantKeyCodec, codec.CollValue[internaltypes.CurrentServiceAddressIndexStoreState](cdc)),
+		TaskLiabilityReservation:            collections.NewMap(sb, types.TaskLiabilityReservationKey, "task_liability", liabilityKeyCodec, codec.CollValue[internaltypes.TaskLiabilityStoreState](cdc)),
 		ActiveLiabilityByOperatorIndex:      collections.NewKeySet(sb, types.ActiveLiabilityByOperatorIndexKey, "active_liability_by_operator", activeLiabilityByOperatorKeyCodec),
 		TaskLiabilityByTaskIndex:            collections.NewKeySet(sb, types.TaskLiabilityByTaskIndexKey, "task_liability_by_task", liabilityKeyCodec),
-		ServiceKeyResponsibility:            collections.NewMap(sb, types.ServiceKeyResponsibilityKey, "service_key_responsibility", serviceKeyResponsibilityKeyCodec, codec.CollValue[types.ServiceKeyResponsibilityState](cdc)),
-		ServiceKeyResponsibilityByTaskIndex: collections.NewKeySet(sb, types.ServiceKeyResponsibilityByTaskIndexKey, "service_key_responsibility_by_task", collections.TripleKeyCodec(collections.StringKey, collections.StringKey, serviceKeyResponsibilityKeyCodec)),
-		ProfileCapability:                   collections.NewMap(sb, types.ProfileCapabilityKey, "profile_capability", profileSupportKeyCodec, codec.CollValue[types.ProfileCapabilityState](cdc)),
-		ModelSupport:                        collections.NewMap(sb, types.ModelSupportKey, "model_support", profileSupportKeyCodec, codec.CollValue[types.ModelSupportState](cdc)),
-		ModelSupportExpiryIndex:             collections.NewKeySet(sb, types.ModelSupportExpiryIndexKey, "model_support_expiry", collections.PairKeyCodec(collections.Uint64Key, profileSupportKeyCodec)),
-		ModelSupportPruneIndex:              collections.NewKeySet(sb, types.ModelSupportPruneIndexKey, "model_support_prune", collections.PairKeyCodec(collections.Uint64Key, profileSupportKeyCodec)),
-		ModelSupportByProfileIndex:          collections.NewKeySet(sb, types.ModelSupportByProfileIndexKey, "model_support_by_profile", supportByProfileKeyCodec),
-		ModelSupportByOperatorIndex:         collections.NewKeySet(sb, types.ModelSupportByOperatorIndexKey, "model_support_by_operator", profileSupportKeyCodec),
-		DailySupport:                        collections.NewMap(sb, types.DailySupportStateKey, "daily_support", collections.PairKeyCodec(collections.Uint64Key, collections.StringKey), codec.CollValue[types.DailySupportState](cdc)),
-		DailySupportExpiryIndex:             collections.NewKeySet(sb, types.DailySupportExpiryIndexKey, "daily_support_expiry", collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, collections.Uint64Key)),
-		SupportDeactivateCursor:             collections.NewMap(sb, types.SupportDeactivateCursorKey, "support_deactivate_cursor", profileKeyCodec, codec.CollValue[types.SupportDeactivateCursorState](cdc)),
+		ServiceKeyResponsibility:            collections.NewMap(sb, types.ServiceKeyResponsibilityKey, "service_key_responsibility", serviceKeyResponsibilityKeyCodec, codec.CollValue[internaltypes.ServiceKeyResponsibilityStoreState](cdc)),
+		ServiceKeyResponsibilityByTaskIndex: collections.NewKeySet(sb, types.ServiceKeyResponsibilityByTaskIndexKey, "service_key_responsibility_by_task", collections.TripleKeyCodec(shared.Hash32KeyCodec, shared.Hash32KeyCodec, serviceKeyResponsibilityKeyCodec)),
+		ModelCapability:                     collections.NewMap(sb, types.ModelCapabilityKey, "model_capability", modelSupportKeyCodec, modelCapabilityValueCodec),
+		ModelSupport:                        collections.NewMap(sb, types.ModelSupportKey, "model_support", modelSupportKeyCodec, modelSupportValueCodec),
+		ModelSupportExpiryIndex:             collections.NewKeySet(sb, types.ModelSupportExpiryIndexKey, "model_support_expiry", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
+		ModelSupportPruneIndex:              collections.NewKeySet(sb, types.ModelSupportPruneIndexKey, "model_support_prune", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
+		ModelSupportByModelIndex:            collections.NewKeySet(sb, types.ModelSupportByModelIndexKey, "model_support_by_model", supportByModelKeyCodec),
+		ModelSupportByOperatorIndex:         collections.NewKeySet(sb, types.ModelSupportByOperatorIndexKey, "model_support_by_operator", modelSupportKeyCodec),
+		ModelSupportRecheckIndex:            collections.NewKeySet(sb, types.ModelSupportRecheckIndexKey, "model_support_recheck", collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)),
+		ModelSupportRecheckCursor:           collections.NewMap(sb, types.ModelSupportRecheckCursorKey, "model_support_recheck_cursor", shared.Hash32KeyCodec, modelSupportRecheckCursorValueCodec),
+		ModelSupportDeactivateCursor:        collections.NewMap(sb, types.ModelSupportDeactivateCursorKey, "model_support_deactivate_cursor", shared.Hash32KeyCodec, modelSupportDeactivateCursorValueCodec),
+		DailySupport:                        collections.NewMap(sb, types.DailySupportStateKey, "daily_support", collections.PairKeyCodec(collections.Uint64Key, addressStringKeyCodec), dailySupportValueCodec),
+		DailySupportExpiryIndex:             collections.NewKeySet(sb, types.DailySupportExpiryIndexKey, "daily_support_expiry", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, collections.Uint64Key)),
 		CandidatePoolSnapshot:               collections.NewMap(sb, types.CandidatePoolSnapshotKey, "candidate_pool_snapshot", shared.Hash32KeyCodec, codec.CollValue[types.CandidatePoolSnapshotState](cdc)),
 		CandidatePoolActiveSegment:          collections.NewMap(sb, types.CandidatePoolActiveSegmentKey, "candidate_pool_active_segment", candidatePoolEpochSlotKeyCodec, codec.CollValue[types.CandidatePoolActiveSegmentState](cdc)),
-		CandidatePoolMember:                 collections.NewMap(sb, types.CandidatePoolMemberKey, "candidate_pool_member", candidatePoolEpochSlotKeyCodec, codec.CollValue[types.CandidatePoolMemberState](cdc)),
-		CandidateSlotCurrent:                collections.NewMap(sb, types.CandidateSlotCurrentKey, "candidate_slot_current", collections.Uint32Key, codec.CollValue[types.CandidateSlotCurrentState](cdc)),
-		CandidateSlotBinding:                collections.NewMap(sb, types.CandidateSlotBindingKey, "candidate_slot_binding", candidateSlotBindingKeyCodec, codec.CollValue[types.CandidateSlotBindingState](cdc)),
-		OperatorCandidateSlot:               collections.NewMap(sb, types.OperatorCandidateSlotKey, "operator_candidate_slot", collections.StringKey, codec.CollValue[types.OperatorCandidateSlotState](cdc)),
+		CandidatePoolMember:                 collections.NewMap(sb, types.CandidatePoolMemberKey, "candidate_pool_member", candidatePoolEpochSlotKeyCodec, codec.CollValue[internaltypes.CandidatePoolMemberStoreState](cdc)),
+		CandidateSlotCurrent:                collections.NewMap(sb, types.CandidateSlotCurrentKey, "candidate_slot_current", collections.Uint32Key, codec.CollValue[internaltypes.CandidateSlotCurrentStoreState](cdc)),
+		CandidateSlotBinding:                collections.NewMap(sb, types.CandidateSlotBindingKey, "candidate_slot_binding", candidateSlotBindingKeyCodec, codec.CollValue[internaltypes.CandidateSlotBindingStoreState](cdc)),
+		OperatorCandidateSlot:               collections.NewMap(sb, types.OperatorCandidateSlotKey, "operator_candidate_slot", addressStringKeyCodec, codec.CollValue[internaltypes.OperatorCandidateSlotStoreState](cdc)),
 		CandidatePoolBuildCursor:            collections.NewMap(sb, types.CandidatePoolBuildCursorKey, "candidate_pool_build_cursor", collections.Uint64Key, codec.CollValue[types.CandidatePoolBuildCursorState](cdc)),
 		CandidatePoolTaskRef:                collections.NewMap(sb, types.CandidatePoolTaskRefKey, "candidate_pool_task_ref", candidatePoolTaskRefKeyCodec, codec.CollValue[types.CandidatePoolTaskRefState](cdc)),
 		CandidatePoolExpiryIndex:            collections.NewKeySet(sb, types.CandidatePoolExpiryIndexKey, "candidate_pool_expiry", candidatePoolExpiryKeyCodec),
@@ -317,32 +383,32 @@ func NewKeeper(
 		CandidateSlotBindingPruneIndex:      collections.NewKeySet(sb, types.CandidateSlotBindingPruneIndexKey, "candidate_slot_binding_prune", candidateSlotBindingPruneKeyCodec),
 		CandidatePoolBuildStatus:            collections.NewItem(sb, types.CandidatePoolBuildStatusSingletonKey, "candidate_pool_build_status", codec.CollValue[types.CandidatePoolBuildStatusState](cdc)),
 		CurrentCandidatePool:                collections.NewItem(sb, types.CurrentCandidatePoolSingletonKey, "current_candidate_pool", codec.CollValue[types.CurrentCandidatePoolState](cdc)),
-		Builder:                             collections.NewMap(sb, types.BuilderStateKey, "builder_state", collections.StringKey, codec.CollValue[types.BuilderState](cdc)),
-		BuilderAdmission:                    collections.NewMap(sb, types.BuilderAdmissionStateKey, "builder_admission", collections.StringKey, codec.CollValue[types.BuilderAdmissionState](cdc)),
+		Builder:                             collections.NewMap(sb, types.BuilderStateKey, "builder_state", addressStringKeyCodec, codec.CollValue[internaltypes.BuilderStoreState](cdc)),
+		BuilderAdmission:                    collections.NewMap(sb, types.BuilderAdmissionStateKey, "builder_admission", addressStringKeyCodec, codec.CollValue[internaltypes.BuilderAdmissionStoreState](cdc)),
 		CurrentBuilderSet:                   collections.NewItem(sb, types.CurrentBuilderSetStateKey, "current_builder_set", codec.CollValue[types.CurrentBuilderSetState](cdc)),
-		PendingBuilderSetReplacement:        collections.NewItem(sb, types.PendingBuilderSetReplacementStateKey, "pending_builder_set_replacement", codec.CollValue[types.BuilderSetPendingReplacementState](cdc)),
-		BuilderSet:                          collections.NewMap(sb, types.BuilderSetStateKey, "builder_set", collections.Uint64Key, codec.CollValue[types.BuilderSetState](cdc)),
+		PendingBuilderSetReplacement:        collections.NewItem(sb, types.PendingBuilderSetReplacementStateKey, "pending_builder_set_replacement", codec.CollValue[internaltypes.BuilderSetPendingReplacementStoreState](cdc)),
+		BuilderSet:                          collections.NewMap(sb, types.BuilderSetStateKey, "builder_set", collections.Uint64Key, codec.CollValue[internaltypes.BuilderSetStoreState](cdc)),
 		BuilderSetReplacementIndex:          collections.NewMap(sb, types.BuilderSetReplacementIndexKey, "builder_set_replacement", pairUint64KeyCodec, collections.Uint64Value),
 		BuilderSetByIDIndex:                 collections.NewMap(sb, types.BuilderSetByIDIndexKey, "builder_set_by_id", collections.StringKey, collections.Uint64Value),
 		BuilderSetByHeightIndex:             collections.NewMap(sb, types.BuilderSetByHeightIndexKey, "builder_set_by_height", pairUint64KeyCodec, collections.StringValue),
 		BuilderSetTaskRef:                   collections.NewMap(sb, types.BuilderSetTaskRefKey, "builder_set_task_ref", builderSetTaskRefKeyCodec, codec.CollValue[types.BuilderSetTaskRefState](cdc)),
 		// (prune_epoch, builder_set_id, phase) - see BuilderSetPruneKeyTriple.
 		BuilderSetPruneIndex:      collections.NewKeySet(sb, types.BuilderSetPruneIndexKey, "builder_set_prune", collections.TripleKeyCodec(collections.Uint64Key, collections.Uint64Key, collections.Uint32Key)),
-		BuilderFault:              collections.NewMap(sb, types.BuilderFaultKey, "builder_fault", addressHash32KeyCodec, codec.CollValue[types.BuilderFaultState](cdc)),
-		BuilderFaultPruneIndex:    collections.NewKeySet(sb, types.BuilderFaultPruneIndexKey, "builder_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, shared.Hash32KeyCodec)),
-		ServiceBondEffectiveIndex: collections.NewKeySet(sb, types.ServiceBondEffectiveIndexKey, "service_bond_effective", collections.PairKeyCodec(collections.Uint64Key, collections.StringKey)),
+		BuilderFault:              collections.NewMap(sb, types.BuilderFaultKey, "builder_fault", addressHash32KeyCodec, codec.CollValue[internaltypes.BuilderFaultStoreState](cdc)),
+		BuilderFaultPruneIndex:    collections.NewKeySet(sb, types.BuilderFaultPruneIndexKey, "builder_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)),
+		ServiceBondEffectiveIndex: collections.NewKeySet(sb, types.ServiceBondEffectiveIndexKey, "service_bond_effective", collections.PairKeyCodec(collections.Uint64Key, addressStringKeyCodec)),
 
-		RoleFault:                       collections.NewMap(sb, types.RoleFaultKey, "role_fault", shared.Hash32KeyCodec, codec.CollValue[types.RoleFaultState](cdc)),
+		RoleFault:                       collections.NewMap(sb, types.RoleFaultKey, "role_fault", shared.Hash32KeyCodec, codec.CollValue[internaltypes.RoleFaultStoreState](cdc)),
 		RoleFaultPruneIndex:             collections.NewKeySet(sb, types.RoleFaultPruneIndexKey, "role_fault_prune", roleFaultPruneKeyCodec),
 		RoleFaultByTaskIndex:            collections.NewKeySet(sb, types.RoleFaultByTaskIndexKey, "role_fault_by_task", roleFaultByTaskKeyCodec),
-		SlashSummary:                    collections.NewMap(sb, types.SlashSummaryKey, "slash_summary", slashSummaryKeyCodec, codec.CollValue[types.SlashSummaryState](cdc)),
+		SlashSummary:                    collections.NewMap(sb, types.SlashSummaryKey, "slash_summary", slashSummaryKeyCodec, codec.CollValue[internaltypes.SlashSummaryStoreState](cdc)),
 		Treasury:                        collections.NewItem(sb, types.TreasuryStateKey, "treasury_state", codec.CollValue[types.TreasuryState](cdc)),
-		TreasurySpendReceipt:            collections.NewMap(sb, types.TreasurySpendReceiptKey, "treasury_spend_receipt", treasurySpendReceiptKeyCodec, codec.CollValue[types.TreasurySpendReceiptState](cdc)),
+		TreasurySpendReceipt:            collections.NewMap(sb, types.TreasurySpendReceiptKey, "treasury_spend_receipt", treasurySpendReceiptKeyCodec, codec.CollValue[internaltypes.TreasurySpendReceiptStoreState](cdc)),
 		TreasurySpendReceiptPruneIndex:  collections.NewKeySet(sb, types.TreasurySpendReceiptPruneIndexKey, "treasury_spend_receipt_prune", treasurySpendPruneKeyCodec),
 		TreasurySpendProposal:           collections.NewMap(sb, types.TreasurySpendProposalKey, "treasury_spend_proposal", collections.Uint64Key, codec.CollValue[types.TreasurySpendProposalState](cdc)),
 		TreasurySpendEpoch:              collections.NewMap(sb, types.TreasurySpendEpochKey, "treasury_spend_epoch", collections.Uint64Key, codec.CollValue[types.TreasurySpendEpochState](cdc)),
-		TreasurySpendRecipientEpoch:     collections.NewMap(sb, types.TreasurySpendRecipientEpochKey, "treasury_spend_recipient_epoch", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey), codec.CollValue[types.TreasurySpendRecipientEpochState](cdc)),
-		TreasurySpendEpochCleanupCursor: collections.NewMap(sb, types.TreasurySpendEpochCleanupCursorKey, "treasury_spend_epoch_cleanup_cursor", collections.Uint64Key, codec.CollValue[types.TreasurySpendEpochCleanupCursorState](cdc)),
+		TreasurySpendRecipientEpoch:     collections.NewMap(sb, types.TreasurySpendRecipientEpochKey, "treasury_spend_recipient_epoch", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey), codec.CollValue[internaltypes.TreasurySpendRecipientEpochStoreState](cdc)),
+		TreasurySpendEpochCleanupCursor: collections.NewMap(sb, types.TreasurySpendEpochCleanupCursorKey, "treasury_spend_epoch_cleanup_cursor", collections.Uint64Key, codec.CollValue[internaltypes.TreasurySpendEpochCleanupCursorStoreState](cdc)),
 		TreasurySpendEpochCleanupIndex:  collections.NewKeySet(sb, types.TreasurySpendEpochCleanupIndexKey, "treasury_spend_epoch_cleanup_index", pairUint64KeyCodec),
 
 		ParameterBucketVersion:        collections.NewMap(sb, types.ParameterBucketVersionKey, "parameter_bucket_version", parameterBucketVersionKeyCodec, codec.CollValue[types.ParameterBucketVersionState](cdc)),
@@ -358,7 +424,7 @@ func NewKeeper(
 		RewardEpochPruneIndex:  collections.NewKeySet(sb, types.RewardEpochPruneIndexKey, "reward_epoch_prune_index", rewardEpochIndexKeyCodec),
 		RewardEpochPruneCursor: collections.NewMap(sb, types.RewardEpochPruneCursorKey, "reward_epoch_prune_cursor", pairUint64KeyCodec, codec.CollValue[types.RewardEpochPruneCursorState](cdc)),
 		RewardEpochAudit:       collections.NewMap(sb, types.RewardEpochAuditKey, "reward_epoch_audit", pairUint64KeyCodec, codec.CollValue[types.RewardEpochAuditState](cdc)),
-		Earnings:               collections.NewMap(sb, types.EarningsKey, "earnings", collections.StringKey, codec.CollValue[types.EarningsState](cdc)),
+		Earnings:               collections.NewMap(sb, types.EarningsKey, "earnings", addressStringKeyCodec, codec.CollValue[internaltypes.EarningsStoreState](cdc)),
 
 		Beacon:                        collections.NewMap(sb, types.BeaconStateKey, "beacon_state", collections.Uint64Key, codec.CollValue[internaltypes.BeaconStoreState](cdc)),
 		BeaconPruneIndex:              collections.NewKeySet(sb, types.BeaconPruneIndexKey, "beacon_prune", pairUint64KeyCodec),
@@ -376,12 +442,12 @@ func NewKeeper(
 		bridgeUpstream:                &bridgeUpstreamHolder{},
 		governanceActionReplayChecker: &governanceActionReplayCheckerHolder{},
 
-		VrfKey:                collections.NewMap(sb, types.VrfKeyStateKey, "vrf_key", collections.StringKey, codec.CollValue[types.VrfKeyState](cdc)),
-		VrfKeyHistory:         collections.NewMap(sb, types.VrfKeyHistoryStateKey, "vrf_key_history", collections.PairKeyCodec(collections.StringKey, collections.Uint64Key), codec.CollValue[types.VrfKeyHistoryState](cdc)),
-		VrfKeyActivationIndex: collections.NewKeySet(sb, types.VrfKeyActivationIndexKey, "vrf_key_activation", collections.PairKeyCodec(collections.Uint64Key, collections.StringKey)),
-		VrfKeyPruneIndex:      collections.NewKeySet(sb, types.VrfKeyPruneIndexKey, "vrf_key_prune", collections.TripleKeyCodec(collections.Uint64Key, collections.StringKey, collections.Uint64Key)),
+		VrfKey:                collections.NewMap(sb, types.VrfKeyStateKey, "vrf_key", addressStringKeyCodec, codec.CollValue[internaltypes.VrfKeyStoreState](cdc)),
+		VrfKeyHistory:         collections.NewMap(sb, types.VrfKeyHistoryStateKey, "vrf_key_history", collections.PairKeyCodec(addressStringKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.VrfKeyHistoryStoreState](cdc)),
+		VrfKeyActivationIndex: collections.NewKeySet(sb, types.VrfKeyActivationIndexKey, "vrf_key_activation", collections.PairKeyCodec(collections.Uint64Key, addressStringKeyCodec)),
+		VrfKeyPruneIndex:      collections.NewKeySet(sb, types.VrfKeyPruneIndexKey, "vrf_key_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, collections.Uint64Key)),
 
-		ValidatorBridgeSigner: collections.NewMap(sb, types.ValidatorBridgeSignerKey, "validator_bridge_signer", collections.StringKey, codec.CollValue[types.ValidatorBridgeSignerState](cdc)),
+		ValidatorBridgeSigner: collections.NewMap(sb, types.ValidatorBridgeSignerKey, "validator_bridge_signer", addressStringKeyCodec, codec.CollValue[internaltypes.ValidatorBridgeSignerStoreState](cdc)),
 		BridgeRoute:           collections.NewItem(sb, types.BridgeRouteStateKey, "bridge_route", codec.CollValue[types.BridgeRouteState](cdc)),
 		BridgeSignerSet:       collections.NewItem(sb, types.BridgeSignerSetStateKey, "bridge_signer_set", codec.CollValue[types.BridgeSignerSetState](cdc)),
 		BridgeControl:         collections.NewItem(sb, types.BridgeControlStateKey, "bridge_control", codec.CollValue[types.BridgeControlState](cdc)),
@@ -391,7 +457,7 @@ func NewKeeper(
 		BridgeEpochUsage:      collections.NewMap(sb, types.BridgeEpochUsageStateKey, "bridge_epoch_usage", collections.Uint64Key, codec.CollValue[types.BridgeEpochUsageState](cdc)),
 		BridgeEpochUsagePrune: collections.NewKeySet(sb, types.BridgeEpochUsagePruneKey, "bridge_epoch_usage_prune", pairUint64KeyCodec),
 		BridgeSupply:          collections.NewItem(sb, types.BridgeSupplyStateKey, "bridge_supply", codec.CollValue[types.BridgeSupplyState](cdc)),
-		BridgeBootstrap:       collections.NewItem(sb, types.BridgeBootstrapStateKey, "bridge_bootstrap", codec.CollValue[types.BridgeBootstrapState](cdc)),
+		BridgeBootstrap:       collections.NewItem(sb, types.BridgeBootstrapStateKey, "bridge_bootstrap", codec.CollValue[internaltypes.BridgeBootstrapStoreState](cdc)),
 	}
 
 	schema, err := sb.Build()

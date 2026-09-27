@@ -50,6 +50,14 @@ func (k Keeper) reserveServiceKeyResponsibility(
 	sessionID, taskID string,
 	height uint64,
 ) error {
+	sessionBytes, err := decodeResponsibilityHash32("session_id", sessionID)
+	if err != nil {
+		return err
+	}
+	taskBytes, err := decodeResponsibilityHash32("task_id", taskID)
+	if err != nil {
+		return err
+	}
 	// service_authorization_nonce is left unset on purpose. The Hub owns the
 	// participant's current binding and stamps the acquiring generation itself; a
 	// value read here would be a second, racier copy of state this module does not
@@ -59,10 +67,18 @@ func (k Keeper) reserveServiceKeyResponsibility(
 		OperatorAddress:    strings.TrimSpace(operatorAddress),
 		ResponsibilityId:   responsibilityID,
 		ResponsibilityKind: kind,
-		SessionId:          sessionID,
-		TaskId:             taskID,
+		SessionId:          sessionBytes,
+		TaskId:             taskBytes,
 		CreatedHeight:      height,
 	})
+}
+
+func decodeResponsibilityHash32(field, value string) ([]byte, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != types.Hash32Len || hex.EncodeToString(decoded) != value {
+		return nil, fmt.Errorf("%s must be canonical lowercase Hash32", field)
+	}
+	return decoded, nil
 }
 
 func (k Keeper) releaseTaskOnlineResponsibilities(ctx context.Context, sessionID, taskID string, height uint64) error {
@@ -144,11 +160,33 @@ func ChallengeVerifierResponsibilityID(
 
 // WorkerOutputEvidenceResponsibilityID pins the accepted receipt Worker's
 // proof key until EvidenceCleanup. The repeated taskID is the frozen scope_id.
+//
+// Unlike the other responsibility kinds, Hub independently recomputes this one
+// (x/hub/keeper/participant_identity.go workerOutputEvidenceResponsibilityID)
+// to cross-check the acquiring caller, so this producer must hash the same
+// preimage bytes Hub does: raw Hash32 session/task IDs and the operator's
+// decoded account bytes, not their hex/Bech32 text. Using the shared
+// serviceKeyResponsibilityID helper here (which frames hex/Bech32 text for the
+// responsibility kinds Hub never recomputes) silently diverges from Hub's
+// formula and makes every WORKER_OUTPUT_EVIDENCE acquisition fail.
 func WorkerOutputEvidenceResponsibilityID(sessionID, taskID, worker string) ([]byte, error) {
-	return serviceKeyResponsibilityID(
-		shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, serviceKeyResponsibilityWorkerEvidence,
-		sessionID, taskID, taskID, worker,
-	)
+	sessionBytes, err := decodeResponsibilityHash32("session_id", sessionID)
+	if err != nil {
+		return nil, err
+	}
+	taskBytes, err := decodeResponsibilityHash32("task_id", taskID)
+	if err != nil {
+		return nil, err
+	}
+	workerBytes, err := sdk.AccAddressFromBech32(worker)
+	if err != nil || workerBytes.String() != worker {
+		return nil, fmt.Errorf("worker operator address is not canonical")
+	}
+	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainServiceKeyResponsibilityIDV1)).Raw(
+		shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX)),
+		shared.EnumBE(uint32(serviceKeyResponsibilityWorkerEvidence)),
+		sessionBytes, taskBytes, taskBytes, workerBytes,
+	).Sum()
 }
 
 func (k Keeper) reserveWorkerOutputEvidenceResponsibility(

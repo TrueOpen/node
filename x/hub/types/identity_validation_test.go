@@ -87,7 +87,7 @@ func TestHubStrictSignatureVerifiesRegisteredPubKey(t *testing.T) {
 	priv := secp256k1.GenPrivKey()
 	msg := types.CanonicalDailySupportConfirmationSigningBytes(
 		"chain-test", bytes.Repeat([]byte{0xab}, 20), 1, 1, 100,
-		[]types.ProfileKeyV1{{ModelId: "model", ProfileVersion: 1}},
+		[][]byte{bytes.Repeat([]byte{0x01}, 32)},
 	)
 	sig, err := types.SignSecp256k1DigestForTest(priv, msg)
 	require.NoError(t, err)

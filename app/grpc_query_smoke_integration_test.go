@@ -20,6 +20,7 @@ package app
 // handlers and are covered structurally by the OpenAPI sync (the OpenAPI sync).
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -66,7 +67,7 @@ func TestGRPCQueryUnknownRowReturnsErrorCode(t *testing.T) {
 	app := bootAppMinimal(t)
 
 	reqBytes, err := app.AppCodec().Marshal(&hubtypes.QueryModelRequest{
-		ModelId: "does-not-exist",
+		ModelId: bytes.Repeat([]byte{0xdd}, 32),
 	})
 	require.NoError(t, err)
 
@@ -88,7 +89,7 @@ func TestGRPCQueryInvalidArgumentReturnsErrorCode(t *testing.T) {
 	app := bootAppMinimal(t)
 
 	reqBytes, err := app.AppCodec().Marshal(&hubtypes.QueryModelRequest{
-		ModelId: "",
+		ModelId: nil,
 	})
 	require.NoError(t, err)
 

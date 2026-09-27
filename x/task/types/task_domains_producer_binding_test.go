@@ -75,12 +75,13 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 					ChainId:                   producerTaskString(t, vector, 1, "chain_id"),
 					TaskId:                    producerTaskBytes(t, vector, 2, "task_id"),
 					TaskHash:                  producerTaskBytes(t, vector, 3, "task_hash"),
-					ModelId:                   producerTaskString(t, vector, 4, "model_id"),
+					ModelId:                   producerTaskBytes(t, vector, 4, "model_id"),
 					ProfileVersion:            uint32(producerTaskUint(t, vector, 5, "profile_version")),
 					Member:                    producerTaskMember(t, vector, 6),
 					Duty:                      shared.Duty(producerTaskUint(t, vector, 7, "duty")),
 					ServiceAuthorizationNonce: producerTaskUint(t, vector, 8, "service_authorization_nonce"),
 					ExpiryHeight:              producerTaskUint(t, vector, 9, "expiry_height"),
+					RecipientPubkey:           producerTaskBytes(t, vector, 10, "recipient_pubkey"),
 				})
 				require.NoError(t, err)
 				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
@@ -94,12 +95,13 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 					VerifyRound:               uint32(producerTaskUint(t, vector, 3, "verify_round")),
 					InferReceiptHash:          producerTaskBytes(t, vector, 4, "infer_receipt_hash"),
 					OutputHash:                producerTaskBytes(t, vector, 5, "output_hash"),
-					ModelId:                   producerTaskString(t, vector, 6, "model_id"),
+					ModelId:                   producerTaskBytes(t, vector, 6, "model_id"),
 					ProfileVersion:            uint32(producerTaskUint(t, vector, 7, "profile_version")),
 					Member:                    producerTaskMember(t, vector, 8),
 					Duty:                      shared.Duty(producerTaskUint(t, vector, 9, "duty")),
 					ServiceAuthorizationNonce: producerTaskUint(t, vector, 10, "service_authorization_nonce"),
 					ExpiryHeight:              producerTaskUint(t, vector, 11, "expiry_height"),
+					RecipientPubkey:           producerTaskBytes(t, vector, 12, "recipient_pubkey"),
 				})
 				require.NoError(t, err)
 				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))

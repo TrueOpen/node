@@ -99,7 +99,7 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		AcceptedTaskHash:                 repeatByte(0x99),
 		AcceptedInputHash:                repeatByte(0xaa),
 		AcceptedOrderOpeningHash:         repeatByte(0xbb),
-		ModelId:                          "model-a",
+		ModelId:                          repeatByte(0x6d),
 		ProfileVersion:                   1,
 		TaskType:                         shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		OrderValue:                       shared.NewAmount(800),
@@ -127,6 +127,7 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		WinnerWorker:               genesisWorker,
 		WinnerDrawDigest:           repeatByte(0xcc),
 		GenerationParamsDigest:     repeatByte(0xce),
+		MinStakeSnapshot:           shared.NewAmount(10_000),
 	}}
 	genesis.TaskBudgets = []tasktypes.TaskBudgetState{{
 		TaskId:                 taskID,

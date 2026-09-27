@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -70,7 +71,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 			scope = handraise
 			continue
 		}
-		if handraise.ModelId != scope.ModelId || handraise.ProfileVersion != scope.ProfileVersion ||
+		if !bytes.Equal(handraise.ModelId, scope.ModelId) || handraise.ProfileVersion != scope.ProfileVersion ||
 			!bytes.Equal(handraise.Member.CandidatePoolSnapshotId, scope.Member.CandidatePoolSnapshotId) {
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker handraises do not share one frozen task scope")
 		}
@@ -98,13 +99,13 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		len(core.AcceptedTaskHash) != types.Hash32Len || !bytes.Equal(core.AcceptedTaskHash, existing.TaskHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker proposal task scope is unavailable")
 	}
-	assignment, err := m.k.TaskAssignment.Get(cache, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, existing.TaskId) ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
 		assignment.CandidatePoolRefReleased {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "worker proposal assignment scope is unavailable")
 	}
-	if scope.ModelId != core.ModelId || scope.ProfileVersion != core.ProfileVersion ||
+	if !bytes.Equal(scope.ModelId, core.ModelId) || scope.ProfileVersion != core.ProfileVersion ||
 		!bytes.Equal(scope.Member.CandidatePoolSnapshotId, assignment.CandidatePoolSnapshotId) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker proposal does not match the frozen task scope")
 	}
@@ -173,6 +174,10 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err != nil || orderValue == 0 {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "frozen order_value is unavailable")
 	}
+	minStake, err := shared.ParseAmount(assignment.MinStakeSnapshot)
+	if err != nil || minStake == 0 {
+		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "frozen minimum stake is unavailable")
+	}
 
 	proposalDigest, err := workerProposalDigest(
 		cacheCtx.ChainID(), core.TaskId, core.AcceptedTaskHash,
@@ -186,18 +191,27 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		ProposalDigest: proposalDigest[:], ProposerOperator: builder,
 	}
 
-	facts := make([]types.TaskCandidateFactState, len(msg.Handraises))
+	// A handraise that is no longer eligible by the time this proposal lands is
+	// skipped, not fatal: a Task Builder collects handraises from many
+	// independent operators and cannot guarantee every one is still eligible at
+	// inclusion time, so one stale or bad-faith handraise must not void every
+	// other operator's otherwise-valid candidacy in the same proposal. See
+	// errCandidateNotApplicable.
+	facts := make([]types.TaskCandidateFactState, 0, len(msg.Handraises))
 	newSlots := make([]uint32, 0, len(msg.Handraises))
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))
 	existingSlots := make([]uint32, 0, len(msg.Handraises))
-	for index, handraise := range msg.Handraises {
-		fact, err := m.k.freezeWorkerCandidateFact(cache, pool, handraise, orderValue, currentHeight)
+	for _, handraise := range msg.Handraises {
+		fact, err := m.k.freezeWorkerCandidateFact(cache, pool, handraise, orderValue, minStake, currentHeight)
 		if err != nil {
+			if errors.Is(err, errCandidateNotApplicable) {
+				continue
+			}
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 		}
-		facts[index] = fact
+		facts = append(facts, fact)
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
-		if persisted, err := m.k.TaskCandidateFact.Get(cache, factKey); err == nil {
+		if persisted, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			// An accepted fact is immutable; a second proposal may re-list the same
 			// slot only if it reproduces the accepted-time fact byte for byte.
 			if !proto.Equal(&persisted, &fact) {
@@ -265,7 +279,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		if _, added := newSlotSet[fact.Slot]; !added {
 			continue
 		}
-		if err := m.k.TaskCandidateFact.Set(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
+		if err := m.k.WriteTaskCandidateFact(cache, types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot), fact); err != nil {
 			return nil, err
 		}
 	}
@@ -284,7 +298,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err := m.k.TaskStageHandraiseUnion.Set(cache, stageKey, union); err != nil {
 		return nil, err
 	}
-	if err := m.k.BuilderStageProposal.Set(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
+	if err := m.k.WriteBuilderStageProposal(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
 		return nil, err
 	}
 	// No Builder contribution is credited here. the API contract:3398 says a
@@ -366,7 +380,11 @@ func (k Keeper) findAcceptedWorkerProposalReplay(
 		if err != nil {
 			return nil, false, err
 		}
-		retained, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, false, err
+		}
+		retained, err := k.ProjectBuilderStageProposalStore(stored)
 		if err != nil {
 			return nil, false, err
 		}
@@ -426,7 +444,7 @@ func (k Keeper) findAcceptedWorkerProposalReplay(
 func validateWorkerHandraiseEnvelope(chainID string, taskID, taskHash []byte, handraise *types.WorkerHandraiseV1) error {
 	if handraise == nil || handraise.SchemaVersion != types.WorkerHandraiseSchemaVersionV1 ||
 		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !bytes.Equal(handraise.TaskHash, taskHash) ||
-		handraise.ModelId == "" || handraise.ProfileVersion == 0 ||
+		len(handraise.ModelId) != types.Hash32Len || handraise.ProfileVersion == 0 ||
 		len(handraise.Member.CandidatePoolSnapshotId) != types.Hash32Len || handraise.Member.SlotVersion == 0 ||
 		handraise.Duty != shared.Duty_DUTY_WORKER || handraise.ExpiryHeight == 0 ||
 		len(handraise.ServiceSignature) != 64 {

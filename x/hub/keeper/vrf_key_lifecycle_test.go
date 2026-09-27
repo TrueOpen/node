@@ -51,7 +51,7 @@ func TestEndBlockActivatesVrfKeyBeforeNextEpochProposal(t *testing.T) {
 		f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(8))
 
 		require.NoError(t, f.keeper.EndBlocker(f.ctx))
-		state, err := f.keeper.VrfKey.Get(f.ctx, operator)
+		state, err := f.keeper.GetVrfKey(f.ctx, operator)
 		require.NoError(t, err)
 		require.Equal(t, vrfPubkey(1), state.ActiveVrfPubkey)
 		require.Equal(t, vrfPubkey(11), state.GetPendingVrfPubkey())

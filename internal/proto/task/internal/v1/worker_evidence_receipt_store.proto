@@ -1,0 +1,17 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// WorkerEvidenceReceiptStoreState stores the Worker operator as codec bytes.
+message WorkerEvidenceReceiptStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  bytes worker_operator_address = 3;
+  int32 evidence_kind = 4;
+  uint64 seq = 5;
+  bytes accepted_infer_receipt_hash = 6;
+  bytes evidence_digest = 7;
+  bytes fault_id = 8;
+  uint64 accepted_height = 9;
+}

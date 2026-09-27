@@ -15,7 +15,7 @@ import (
 const (
 	accountSigningVectorUser      = "trueopen1rfjz7r3u8t65teavh5utquj3kwvsj983p3jclz"
 	accountSigningVectorTaskHash  = "58c2b8fdfa6e5dac474ff4d4fd2089bac2cea26756daf0b40973bff15bb221b7"
-	accountSigningVectorSignature = "a992fe7b0fd6447bde4f21467064cfbd11f9012bd694d6106ac20e10c0f272d4216dceaabcd04f3c6da1fe3fc740c77dcf8ec9c7baf540926ae5f848cd04a85f1b"
+	accountSigningVectorSignature = "0d33bde9a788bc10284508fcf7a332050b141e2e4743b090f137b9fd21abb5ab44286a59df3b9b2f01c109087f65637305be3ba24a7863af78dd69d41649f3851b"
 )
 
 type testEIP712AccountPublicKey struct {
@@ -31,9 +31,9 @@ func TestTaskOrderEIP712PublicVector(t *testing.T) {
 	taskHash := mustDecodeEIP712Hex(t, accountSigningVectorTaskHash)
 	digest, err := BuildTaskOrderEIP712Digest(424242, "uusdc", order, taskHash)
 	require.NoError(t, err)
-	require.Equal(t, "54e6898d361f89f6e2a5a865d7d329459be265231a65729798452d2dcab0bb6d", hex.EncodeToString(digest.DomainSeparator[:]))
-	require.Equal(t, "fb12173fe8ccf6d610ae2164bb83470beaec83922d51105a60fadfed935b35f3", hex.EncodeToString(digest.HashStruct[:]))
-	require.Equal(t, "00ea0894077c1a005422d5f00332fe520aa1714443aa6a46249fec5a7d05f09d", hex.EncodeToString(digest.SigningDigest[:]))
+	require.Equal(t, "b7a73368af2c3101ea0a2e6f4c7d3668621d2dc7815c75aaf9d7b8943e6e378e", hex.EncodeToString(digest.DomainSeparator[:]))
+	require.Equal(t, "30575d2f720d371976f50864ec4c7b1e20bbe7dbe9fde908ace815166ad65871", hex.EncodeToString(digest.HashStruct[:]))
+	require.Equal(t, "3b35b22ee8da1c67009f834ea5270dbd356fd8d2a5598b4ea6b5ed0274d87367", hex.EncodeToString(digest.SigningDigest[:]))
 
 	recovered, err := RecoverEIP712Signer(digest.SigningDigest[:], mustDecodeEIP712Hex(t, accountSigningVectorSignature))
 	require.NoError(t, err)
@@ -113,12 +113,12 @@ func TestCanonicalEIP712SignatureRejectsAlternateForms(t *testing.T) {
 	}
 }
 
-func accountSigningVectorOrder(t *testing.T) TaskOrderV2 {
+func accountSigningVectorOrder(t *testing.T) TaskOrderV3 {
 	t.Helper()
-	return TaskOrderV2{
-		SchemaVersion: 2, ChainId: "trueopen-golden-1", UserAddress: accountSigningVectorUser,
+	return TaskOrderV3{
+		SchemaVersion: 3, ChainId: "trueopen-golden-1", UserAddress: accountSigningVectorUser,
 		SessionId:     mustDecodeEIP712Hex(t, "77625100ba4faa1306ae6eaf5a872a661443aa94f87c5530c4b178614e3d62f7"),
-		OrderSequence: 7, ModelId: "trueopen/golden-model", ProfileVersion: 1,
+		OrderSequence: 7, ModelId: bytes.Repeat([]byte{0x55}, Hash32Len), ProfileVersion: 1,
 		TaskType:  shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		InputHash: bytes.Repeat([]byte{0x42}, Hash32Len), InputSizeBytes: 1, InputBucket: 1, OutputBudgetBucket: 1,
 		GenerationParams: GenerationParamsV1{
@@ -133,6 +133,8 @@ func accountSigningVectorOrder(t *testing.T) TaskOrderV2 {
 		TimeoutBucketVersion: 1, SessionAnchorHeight: 1,
 		SessionAnchorBlockHash: bytes.Repeat([]byte{0x43}, Hash32Len),
 		BuilderSetId:           "builder-set-golden", BuilderSetHash: bytes.Repeat([]byte{0x44}, Hash32Len),
+		PayloadMode:        PayloadModeV1_PAYLOAD_MODE_V1_PLAINTEXT,
+		InputKeyCommitment: make([]byte, Hash32Len),
 	}
 }
 

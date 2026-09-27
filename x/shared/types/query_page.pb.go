@@ -22,7 +22,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// QueryPageRequestV1 is the only pagination request wire (§16.1). V1 allows
+// QueryPageRequestV1 is the only pagination request wire. V1 allows
 // keyset pagination only: there is no offset and no count_total. limit = 0 uses
 // max_query_page_limit; a non-zero value above that cap is InvalidArgument and
 // must not be silently clamped. page_token is the optional canonical PageTokenV1
@@ -85,7 +85,7 @@ func (m *QueryPageRequestV1) GetLimit() uint32 {
 }
 
 // QueryPageResponseV1 returns the next keyset token; it is empty when no next
-// item exists (§16.1). A non-empty token is only returned when the server has
+// item exists. A non-empty token is only returned when the server has
 // actually seen a next item.
 // QueryPageResponseV1 defines the QueryPageResponseV1 wire type.
 type QueryPageResponseV1 struct {
@@ -134,7 +134,7 @@ func (m *QueryPageResponseV1) GetNextPageToken() []byte {
 	return nil
 }
 
-// PageTokenV1 is the canonical decoded form of page_token (§16.1). The server
+// PageTokenV1 is the canonical decoded form of page_token. The server
 // recomputes rpc_method_digest and selector_digest and rejects cross-RPC,
 // cross-selector, non-canonical or oversized tokens. query_height pins every
 // later page to the consensus height read by the first page.

@@ -40,12 +40,12 @@ func (k Keeper) prepareSettlementFaults(
 	rows := make([]types.TaskFailureClassState, 0, len(rounds))
 	for _, verifyRound := range rounds {
 		roundKey := types.NewVerifyRoundKey(types.NewTaskKey(inputs.Core.TaskId), verifyRound)
-		round, err := k.VerificationRound.Get(ctx, roundKey)
+		round, err := k.ReadVerificationRound(ctx, roundKey)
 		if err != nil || round.XClosedHeight == nil {
 			return inputs, fmt.Errorf("verification round %d is unavailable", verifyRound)
 		}
 		deadlineFacts := VerificationDeadlineFacts{}
-		assignment, assignmentErr := k.VerifierAssignment.Get(ctx, roundKey)
+		assignment, assignmentErr := k.ReadVerifierAssignment(ctx, roundKey)
 		if assignmentErr == nil {
 			deadlineFacts, err = k.BuildVerificationDeadlineFacts(ctx, assignment)
 			if err != nil {
@@ -70,7 +70,7 @@ func (k Keeper) prepareSettlementFaults(
 			if verifyRound != types.ChallengeVerifyRoundV1 ||
 				existing.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND ||
 				!bytes.Equal(existing.TaskId, inputs.Core.TaskId) || existing.VerifyRound != verifyRound ||
-				existing.ModelId != inputs.Core.ModelId || existing.ProfileVersion != inputs.Core.ProfileVersion ||
+				!bytes.Equal(existing.ModelId, inputs.Core.ModelId) || existing.ProfileVersion != inputs.Core.ProfileVersion ||
 				existing.FailureClass != round.GetFailureClass() || existing.FreezeSignalEligible != freezeEligible ||
 				existing.AcceptedCommitCount != deadlineFacts.AcceptedCommitCount ||
 				existing.AcceptedResultReceiptCount != deadlineFacts.AcceptedResultCount ||

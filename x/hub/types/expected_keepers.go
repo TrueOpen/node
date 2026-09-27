@@ -43,7 +43,7 @@ type RoleFaultConsumerGate interface {
 }
 
 type FreezeSignalFailureScanRequest struct {
-	ModelID               string
+	ModelID               []byte
 	ProfileVersion        uint32
 	RiskWindowStartHeight uint64
 	RiskWindowEndHeight   uint64

@@ -15,6 +15,7 @@ type verifierAdmissionHubStub struct {
 	member                    hubtypes.CandidatePoolMemberState
 	binding                   hubtypes.CandidateSlotBindingState
 	profileHash               []byte
+	profileMinStake           uint64
 	performance               uint64
 	performanceV              uint64
 	signatureErr              error
@@ -38,31 +39,37 @@ func (s verifierAdmissionHubStub) GetCortexNode(_ sdk.Context, address sdk.AccAd
 	}, true
 }
 
-func (verifierAdmissionHubStub) GetModelStatus(sdk.Context, string) hubtypes.ModelStatus {
+func (verifierAdmissionHubStub) GetModelStatus(sdk.Context, []byte) hubtypes.ModelStatus {
 	return hubtypes.ModelStatusActive
 }
 
-func (s verifierAdmissionHubStub) GetProfileState(sdk.Context, string, uint32) (hubtypes.ProfileStateSnapshot, bool) {
+func (s verifierAdmissionHubStub) GetProfileState(sdk.Context, []byte, uint32) (hubtypes.ProfileStateSnapshot, bool) {
+	minStake := s.profileMinStake
+	if minStake == 0 {
+		minStake = 1_000_000
+	}
 	return hubtypes.ProfileStateSnapshot{
-		Status: hubtypes.ModelStatusActive, MinStake: 1_000_000,
+		Status: hubtypes.ModelStatusActive, MinStake: minStake,
 		ExecutionSnapshotHash: append([]byte(nil), s.profileHash...),
 	}, true
 }
 
-func (verifierAdmissionHubStub) IsProfileFrozen(sdk.Context, string, uint32) bool { return false }
+func (verifierAdmissionHubStub) IsProfileFrozen(sdk.Context, []byte, uint32) bool { return false }
 func (verifierAdmissionHubStub) IsEmergencyFrozen(sdk.Context) bool               { return false }
 
-func (verifierAdmissionHubStub) GetProfileCapability(_ sdk.Context, address sdk.AccAddress, modelID string, profileVersion uint32) (hubtypes.ProfileCapabilitySnapshot, bool) {
-	return hubtypes.ProfileCapabilitySnapshot{
-		OperatorAddress: address.String(), ModelID: modelID, ProfileVersion: profileVersion,
+func (verifierAdmissionHubStub) GetModelCapability(_ sdk.Context, address sdk.AccAddress, modelID []byte) (hubtypes.ModelCapabilitySnapshot, bool) {
+	return hubtypes.ModelCapabilitySnapshot{
+		OperatorAddress: address.String(), ModelID: append([]byte(nil), modelID...),
 		VerificationCapability: true, CapabilityVersion: 1,
 	}, true
 }
 
-func (verifierAdmissionHubStub) GetModelSupport(_ sdk.Context, address sdk.AccAddress, modelID string, profileVersion uint32) (hubtypes.ModelSupportSnapshot, bool) {
+func (verifierAdmissionHubStub) GetModelSupport(_ sdk.Context, address sdk.AccAddress, modelID []byte) (hubtypes.ModelSupportSnapshot, bool) {
 	return hubtypes.ModelSupportSnapshot{
-		OperatorAddress: address.String(), ModelID: modelID, ProfileVersion: profileVersion,
-		DeclaredSupport: true, SupportActive: true, SupportFreshUntilEpoch: 10, SupportVersion: 1,
+		OperatorAddress: address.String(), ModelID: append([]byte(nil), modelID...),
+		DeclaredSupport: true, SupportActive: true,
+		SuspendReason:          hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE,
+		SupportFreshUntilEpoch: 10, SupportVersion: 1,
 	}, true
 }
 

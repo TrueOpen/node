@@ -69,6 +69,11 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if err := k.setModelState(ctx, state); err != nil {
 			return err
 		}
+		if state.PendingEffectiveHeight != 0 {
+			if err := k.ModelSupportRecheckIndex.Set(ctx, types.NewModelSupportRecheckIndexKey(state.PendingEffectiveHeight, state.ModelId)); err != nil {
+				return err
+			}
+		}
 	}
 	for _, state := range genState.Profiles {
 		if err := k.setProfileState(ctx, state); err != nil {
@@ -79,17 +84,17 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		}
 	}
 	for _, state := range genState.CortexNodes {
-		if err := k.CortexNode.Set(ctx, state.OperatorAddress, state); err != nil {
+		if err := k.StoreCortexNode(ctx, state.OperatorAddress, state); err != nil {
 			return err
 		}
 		if state.ServiceKeyStatus == types.ServiceKeyStatusActive {
-			if err := k.CurrentServiceAddressIndex.Set(ctx, types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, state.CurrentServiceAddress), types.CurrentServiceAddressIndexState{OperatorAddress: state.OperatorAddress, ServiceAuthorizationNonce: state.ServiceAuthorizationNonce}); err != nil {
+			if err := k.StoreCurrentServiceAddressIndex(ctx, types.NewCurrentServiceAddressIndexKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, state.CurrentServiceAddress), types.CurrentServiceAddressIndexState{OperatorAddress: state.OperatorAddress, ServiceAuthorizationNonce: state.ServiceAuthorizationNonce}); err != nil {
 				return err
 			}
 		}
 	}
 	for _, state := range genState.ServiceBonds {
-		if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(state.OperatorAddress), state); err != nil {
+		if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(state.OperatorAddress), state); err != nil {
 			return err
 		}
 		if state.EffectiveActiveBond != state.ActiveBond {
@@ -103,7 +108,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	}
 	for _, state := range genState.ServiceUnbondings {
 		id := shared.Hash32Key(state.UnbondingId)
-		if err := k.Unbonding.Set(ctx, types.NewUnbondingKey(state.OperatorAddress, id), state); err != nil {
+		if err := k.WriteUnbondingValue(ctx, types.NewUnbondingKey(state.OperatorAddress, id), state); err != nil {
 			return err
 		}
 		if err := k.UnbondingByOperatorStatusIndex.Set(ctx, types.NewUnbondingByOperatorStatusKey(state.OperatorAddress, state.Status, state.MatureHeight, id)); err != nil {
@@ -130,7 +135,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if !bytes.Equal(expected, state.ReceiptHash) {
 			return fmt.Errorf("unbonding receipt %s receipt_hash does not match its canonical preimage", hexRef(id))
 		}
-		if err := k.UnbondingReceipt.Set(ctx, id, state); err != nil {
+		if err := k.WriteUnbondingReceiptValue(ctx, id, state); err != nil {
 			return err
 		}
 		if err := k.UnbondingReceiptPruneIndex.Set(ctx, types.NewUnbondingReceiptPruneKey(state.TerminalHeight+genState.Params.Service.UnbondingReceiptRetentionBlocks, id)); err != nil {
@@ -138,12 +143,12 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		}
 	}
 	for _, state := range genState.ServiceDescriptors {
-		if err := k.ServiceDescriptor.Set(ctx, types.NewParticipantKey(state.ParticipantType, state.OperatorAddress), state); err != nil {
+		if err := k.StoreServiceDescriptor(ctx, types.NewParticipantKey(state.ParticipantType, state.OperatorAddress), state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genState.TaskLiabilityReservations {
-		if err := k.TaskLiabilityReservation.Set(ctx, types.NewTaskLiabilityReservationKey(state.TaskId, state.Duty, state.OperatorAddress), state); err != nil {
+		if err := k.WriteTaskLiabilityValue(ctx, types.NewTaskLiabilityReservationKey(state.TaskId, state.Duty, state.OperatorAddress), state); err != nil {
 			return err
 		}
 		if state.Status == types.TaskLiabilityStatusReserved {
@@ -164,20 +169,20 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if err != nil {
 			return err
 		}
-		if err := k.ServiceKeyResponsibility.Set(ctx, key, state); err != nil {
+		if err := k.WriteServiceKeyResponsibilityValue(ctx, key, state); err != nil {
 			return err
 		}
 		if err := k.ServiceKeyResponsibilityByTaskIndex.Set(ctx, indexKey); err != nil {
 			return err
 		}
 	}
-	for _, state := range genState.ProfileCapabilities {
-		if err := k.ProfileCapability.Set(ctx, types.NewProfileCapabilityKey(state.OperatorAddress, state.ModelId, state.ProfileVersion), state); err != nil {
+	for _, state := range genState.ModelCapabilities {
+		if err := k.ModelCapability.Set(ctx, types.NewModelCapabilityKey(state.OperatorAddress, state.ModelId), state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genState.ModelSupports {
-		if err := k.ModelSupport.Set(ctx, types.NewModelSupportKey(state.OperatorAddress, state.ModelId, state.ProfileVersion), state); err != nil {
+		if err := k.ModelSupport.Set(ctx, types.NewModelSupportKey(state.OperatorAddress, state.ModelId), state); err != nil {
 			return err
 		}
 		// P1-11: index rebuild has exactly one implementation shared with the
@@ -190,8 +195,13 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 			return err
 		}
 	}
-	for _, state := range genState.SupportDeactivateCursors {
-		if err := k.SupportDeactivateCursor.Set(ctx, types.NewProfileStateKey(state.ModelId, state.ProfileVersion), state); err != nil {
+	for _, state := range genState.ModelSupportRecheckCursors {
+		if err := k.ModelSupportRecheckCursor.Set(ctx, state.ModelId, state); err != nil {
+			return err
+		}
+	}
+	for _, state := range genState.ModelSupportDeactivateCursors {
+		if err := k.ModelSupportDeactivateCursor.Set(ctx, state.ModelId, state); err != nil {
 			return err
 		}
 	}
@@ -212,7 +222,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	}
 
 	for _, state := range genState.Builders {
-		if err := k.Builder.Set(ctx, state.BuilderAddress, state); err != nil {
+		if err := k.StoreBuilder(ctx, state.BuilderAddress, state); err != nil {
 			return err
 		}
 		if state.CurrentServiceKeyStatus == types.ServiceKeyStatusActive {
@@ -224,18 +234,18 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 				OperatorAddress:           state.BuilderAddress,
 				ServiceAuthorizationNonce: state.ServiceAuthorizationNonce,
 			}
-			if err := k.CurrentServiceAddressIndex.Set(ctx, key, value); err != nil {
+			if err := k.StoreCurrentServiceAddressIndex(ctx, key, value); err != nil {
 				return err
 			}
 		}
 	}
 	for _, state := range genState.BuilderAdmissions {
-		if err := k.BuilderAdmission.Set(ctx, state.BuilderAddress, state); err != nil {
+		if err := k.storeBuilderAdmission(ctx, state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genState.BuilderSets {
-		if err := k.BuilderSet.Set(ctx, state.BuilderSetVersion, state); err != nil {
+		if err := k.StoreBuilderSet(ctx, state); err != nil {
 			return err
 		}
 	}
@@ -245,7 +255,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		}
 	}
 	if pending := genState.PendingBuilderSetReplacement; pending != nil {
-		if err := k.PendingBuilderSetReplacement.Set(ctx, *pending); err != nil {
+		if err := k.StorePendingBuilderSetReplacement(ctx, *pending); err != nil {
 			return err
 		}
 		key := types.NewBuilderSetReplacementKey(pending.EffectiveHeight, pending.NextBuilderSetVersion)
@@ -284,7 +294,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if err := state.Validate(); err != nil {
 			return fmt.Errorf("builder fault: %w", err)
 		}
-		if err := k.BuilderFault.Set(ctx, types.NewBuilderFaultKey(state.BuilderAddress, state.FaultId), state); err != nil {
+		if err := k.WriteBuilderFaultValue(ctx, types.NewBuilderFaultKey(state.BuilderAddress, state.FaultId), state); err != nil {
 			return err
 		}
 		if err := k.BuilderFaultPruneIndex.Set(ctx, types.NewBuilderFaultPruneKey(state.PruneHeight, state.BuilderAddress, state.FaultId)); err != nil {
@@ -300,7 +310,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 			return fmt.Errorf("slash summary source: %w", err)
 		}
 		key := types.NewSlashSummaryKey(state.SourceKind, sourceKey, state.EffectIndex)
-		if err := k.SlashSummary.Set(ctx, key, state); err != nil {
+		if err := k.WriteSlashSummaryValue(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -333,7 +343,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		return fmt.Errorf("reward epoch invariant: %w", err)
 	}
 	for _, state := range genState.Earnings {
-		if err := k.Earnings.Set(ctx, state.Address, state); err != nil {
+		if err := k.setEarnings(ctx, state); err != nil {
 			return err
 		}
 	}
@@ -440,11 +450,19 @@ func validateModelProfileGenesisCommitments(ctx context.Context, genState types.
 	chainID := sdk.UnwrapSDKContext(ctx).ChainID()
 	businessDenom := genState.Params.Phase0.BusinessDenom
 	seenDigests := make(map[string]string, len(genState.Profiles))
+	models := make(map[string]types.ModelState, len(genState.Models))
+	for _, model := range genState.Models {
+		models[hex.EncodeToString(model.ModelId)] = model
+	}
 	for _, state := range genState.Profiles {
 		if err := validateProfileStateWithParams(state, genState.Params); err != nil {
 			return fmt.Errorf("profile %s/%d: %w", state.ModelId, state.ProfileVersion, err)
 		}
-		projection := profileProjectionFromState(state)
+		model, exists := models[hex.EncodeToString(state.ModelId)]
+		if !exists {
+			return fmt.Errorf("profile %x/%d references missing model", state.ModelId, state.ProfileVersion)
+		}
+		projection := profileProjectionFromState(state, model)
 		projection.MinStake = sdk.NewCoin(businessDenom, sdkmath.NewIntFromUint64(state.MinStake))
 		projection.RegistrationFee = sdk.NewCoin(businessDenom, sdkmath.NewIntFromUint64(state.RegistrationFeePaid))
 		digest, _, err := types.ModelRegistrationDigest(chainID, state.ProposerAddress, projection)
@@ -455,7 +473,7 @@ func validateModelProfileGenesisCommitments(ctx context.Context, genState types.
 			return fmt.Errorf("profile %s/%d registration_digest does not match its canonical preimage", state.ModelId, state.ProfileVersion)
 		}
 		digestKey := hex.EncodeToString(digest)
-		profileKey := fmt.Sprintf("%s/%d", state.ModelId, state.ProfileVersion)
+		profileKey := fmt.Sprintf("%x/%d", state.ModelId, state.ProfileVersion)
 		if prior, exists := seenDigests[digestKey]; exists {
 			return fmt.Errorf("registration digest is shared by profiles %s and %s", prior, profileKey)
 		}
@@ -495,20 +513,12 @@ func (k Keeper) validateGenesisIdentityBindings(genState types.GenesisState) err
 		if state.ResponsibilityKind != types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE {
 			continue
 		}
-		sessionID, err := hex.DecodeString(state.SessionId)
-		if err != nil {
-			return fmt.Errorf("decode BUS_OBJECTIVE_EVIDENCE session_id: %w", err)
-		}
-		taskID, err := hex.DecodeString(state.TaskId)
-		if err != nil {
-			return fmt.Errorf("decode BUS_OBJECTIVE_EVIDENCE task_id: %w", err)
-		}
 		prepared, err := k.prepareBusObjectiveEvidenceResponsibility(
 			shared.BusObjectiveEvidenceResponsibilityV1{
 				SchemaVersion:             busObjectiveEvidenceResponsibilitySchemaVersion,
 				BuilderOperator:           state.OperatorAddress,
-				SessionId:                 sessionID,
-				TaskId:                    taskID,
+				SessionId:                 state.SessionId,
+				TaskId:                    state.TaskId,
 				ServiceAuthorizationNonce: state.ServiceAuthorizationNonce,
 			},
 		)
@@ -533,58 +543,76 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err != nil {
 		return nil, err
 	}
-	genesis.Models, err = collectMapValues[string, types.ModelState](ctx, k.Model)
+	genesis.Models, err = collectMapValuesChecked(ctx, k.Model, "model", func(key shared.Hash32Key, value types.ModelState) bool {
+		return modelKeyMatches(value, key)
+	})
 	if err != nil {
 		return nil, err
 	}
-	genesis.Profiles, err = collectMapValues[types.ProfileStateKeyPair, types.ProfileState](ctx, k.Profile)
+	genesis.Profiles, err = collectMapValuesChecked(ctx, k.Profile, "profile", func(key types.ProfileStateKeyPair, value types.ProfileState) bool {
+		return profileKeyMatches(value, key.K1(), key.K2())
+	})
 	if err != nil {
 		return nil, err
 	}
-	genesis.CortexNodes, err = collectMapValues[string, types.CortexNodeState](ctx, k.CortexNode)
+	genesis.CortexNodes, err = k.exportCortexNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.ServiceBonds, err = collectMapValues[string, types.ServiceBondState](ctx, k.ServiceBond)
+	genesis.ServiceBonds, err = k.exportServiceBonds(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if err := k.EnsureServiceBondEffectiveIndexInvariant(ctx); err != nil {
 		return nil, fmt.Errorf("service bond effective index: %w", err)
 	}
-	genesis.ServiceUnbondings, err = collectMapValues[types.UnbondingKeyPair, types.UnbondingState](ctx, k.Unbonding)
+	genesis.ServiceUnbondings, err = k.exportUnbondings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.ServiceUnbondingReceipts, err = collectMapValues[shared.Hash32Key, types.UnbondingReceiptState](ctx, k.UnbondingReceipt)
+	genesis.ServiceUnbondingReceipts, err = k.exportUnbondingReceipts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.ServiceDescriptors, err = collectMapValues[types.ParticipantKeyPair, types.ServiceDescriptorState](ctx, k.ServiceDescriptor)
+	genesis.ServiceDescriptors, err = k.exportServiceDescriptors(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.TaskLiabilityReservations, err = collectMapValues[types.TaskLiabilityReservationKeyTriple, types.TaskLiabilityReservationState](ctx, k.TaskLiabilityReservation)
+	genesis.TaskLiabilityReservations, err = k.exportTaskLiabilities(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.ServiceKeyResponsibilities, err = collectMapValues[types.ServiceKeyResponsibilityKeyTriple, types.ServiceKeyResponsibilityState](ctx, k.ServiceKeyResponsibility)
+	genesis.ServiceKeyResponsibilities, err = k.exportServiceKeyResponsibilities(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.ProfileCapabilities, err = collectMapValues[types.ProfileCapabilityKeyTriple, types.ProfileCapabilityState](ctx, k.ProfileCapability)
+	genesis.ModelCapabilities, err = collectMapValuesChecked(ctx, k.ModelCapability, "model capability", func(key types.ModelCapabilityKeyPair, value types.ModelCapabilityState) bool {
+		return modelCapabilityKeyMatches(value, key.K1(), key.K2())
+	})
 	if err != nil {
 		return nil, err
 	}
-	genesis.ModelSupports, err = collectMapValues[types.ModelSupportKeyTriple, types.ModelSupportState](ctx, k.ModelSupport)
+	genesis.ModelSupports, err = collectMapValuesChecked(ctx, k.ModelSupport, "model support", func(key types.ModelSupportKeyPair, value types.ModelSupportState) bool {
+		return modelSupportKeyMatches(value, key.K1(), key.K2())
+	})
 	if err != nil {
 		return nil, err
 	}
-	genesis.DailySupports, err = collectMapValues[types.DailySupportKey, types.DailySupportState](ctx, k.DailySupport)
+	genesis.DailySupports, err = collectMapValuesChecked(ctx, k.DailySupport, "daily support", func(key types.DailySupportKey, value types.DailySupportState) bool {
+		return dailySupportKeyMatches(value, key.K1(), key.K2())
+	})
 	if err != nil {
 		return nil, err
 	}
-	genesis.SupportDeactivateCursors, err = collectMapValues[types.ProfileStateKeyPair, types.SupportDeactivateCursorState](ctx, k.SupportDeactivateCursor)
+	genesis.ModelSupportRecheckCursors, err = collectMapValuesChecked(ctx, k.ModelSupportRecheckCursor, "model support recheck cursor", func(key shared.Hash32Key, value types.ModelSupportRecheckCursorState) bool {
+		return modelSupportRecheckCursorKeyMatches(value, key)
+	})
+	if err != nil {
+		return nil, err
+	}
+	genesis.ModelSupportDeactivateCursors, err = collectMapValuesChecked(ctx, k.ModelSupportDeactivateCursor, "model support deactivate cursor", func(key shared.Hash32Key, value types.ModelSupportDeactivateCursorState) bool {
+		return modelSupportDeactivateCursorKeyMatches(value, key)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -592,11 +620,11 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 
-	genesis.Builders, err = collectMapValues[string, types.BuilderState](ctx, k.Builder)
+	genesis.Builders, err = k.exportBuilders(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.BuilderAdmissions, err = collectMapValues[string, types.BuilderAdmissionState](ctx, k.BuilderAdmission)
+	genesis.BuilderAdmissions, err = k.exportBuilderAdmissionGenesis(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -605,12 +633,12 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	} else if !errors.Is(getErr, collections.ErrNotFound) {
 		return nil, getErr
 	}
-	if pending, getErr := k.PendingBuilderSetReplacement.Get(ctx); getErr == nil {
+	if pending, getErr := k.GetPendingBuilderSetReplacement(ctx); getErr == nil {
 		genesis.PendingBuilderSetReplacement = &pending
 	} else if !errors.Is(getErr, collections.ErrNotFound) {
 		return nil, getErr
 	}
-	genesis.BuilderSets, err = collectMapValues[uint64, types.BuilderSetState](ctx, k.BuilderSet)
+	genesis.BuilderSets, err = k.exportBuilderSets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +646,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err != nil {
 		return nil, err
 	}
-	genesis.BuilderFaults, err = collectMapValues[types.BuilderFaultKeyPair, types.BuilderFaultState](ctx, k.BuilderFault)
+	genesis.BuilderFaults, err = k.exportBuilderFaults(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -635,11 +663,11 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err := k.EnsureRoleFaultByTaskIndexInvariant(ctx); err != nil {
 		return nil, fmt.Errorf("role fault by task index: %w", err)
 	}
-	genesis.RoleFaults, err = collectMapValues[shared.Hash32Key, types.RoleFaultState](ctx, k.RoleFault)
+	genesis.RoleFaults, err = k.exportRoleFaults(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.SlashSummaries, err = collectMapValues[types.SlashSummaryKeyTriple, types.SlashSummaryState](ctx, k.SlashSummary)
+	genesis.SlashSummaries, err = k.exportSlashSummaries(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +676,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return nil, err
 	}
-	genesis.TreasurySpendReceipts, err = collectMapValues[types.TreasurySpendReceiptKeyPair, types.TreasurySpendReceiptState](ctx, k.TreasurySpendReceipt)
+	genesis.TreasurySpendReceipts, err = k.exportTreasurySpendReceipts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -660,11 +688,11 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err != nil {
 		return nil, err
 	}
-	genesis.TreasurySpendRecipientEpochs, err = collectMapValues[types.TreasurySpendRecipientEpochKeyPair, types.TreasurySpendRecipientEpochState](ctx, k.TreasurySpendRecipientEpoch)
+	genesis.TreasurySpendRecipientEpochs, err = k.exportTreasuryRecipientEpochs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	genesis.TreasurySpendEpochCleanupCursors, err = collectMapValues[uint64, types.TreasurySpendEpochCleanupCursorState](ctx, k.TreasurySpendEpochCleanupCursor)
+	genesis.TreasurySpendEpochCleanupCursors, err = k.exportTreasuryCleanupCursors(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +732,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err != nil {
 		return nil, err
 	}
-	genesis.Earnings, err = collectMapValues[string, types.EarningsState](ctx, k.Earnings)
+	genesis.Earnings, err = k.exportEarningsGenesis(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -750,6 +778,10 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 }
 
 func collectMapValues[K, V any](ctx context.Context, m collections.Map[K, V]) ([]V, error) {
+	return collectMapValuesChecked(ctx, m, "", nil)
+}
+
+func collectMapValuesChecked[K, V any](ctx context.Context, m collections.Map[K, V], name string, matches func(K, V) bool) ([]V, error) {
 	iter, err := m.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -757,11 +789,14 @@ func collectMapValues[K, V any](ctx context.Context, m collections.Map[K, V]) ([
 	defer iter.Close()
 	values := []V{}
 	for ; iter.Valid(); iter.Next() {
-		value, err := iter.Value()
+		entry, err := iter.KeyValue()
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, value)
+		if matches != nil && !matches(entry.Key, entry.Value) {
+			return nil, fmt.Errorf("%s key/value mismatch", name)
+		}
+		values = append(values, entry.Value)
 	}
 	return values, nil
 }

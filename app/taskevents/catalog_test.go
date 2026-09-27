@@ -18,10 +18,10 @@ import (
 )
 
 func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
-	// Wire v0.4.1 registry: 18, 70 and 106-108 are unallocated; 21 is
-	// REWARD_EPOCH_CLOSED, and 26-29 / 113 / 120-127 are allocated.
-	want := make([]int, 0, 67)
-	for code := 1; code <= 29; code++ {
+	// Wire RC2 reserves code 30 for a later verifier value-evidence payload.
+	// It is allocated in the enum but cannot be emitted before activation.
+	want := make([]int, 0, 68)
+	for code := 1; code <= 30; code++ {
 		if code == 18 {
 			continue
 		}
@@ -50,14 +50,14 @@ func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
 
 // TestProtocolEventCodeRegistryIsFullyCovered pins the §5.11 invariant that
 // shared.v1.ProtocolEventCodeV1 is the single event code registry and that
-// the two typed payload oneofs partition it exactly: every registered code has
+// the two typed payload oneofs partition every active code exactly: each has
 // exactly one payload, in exactly one of the two module-owned oneofs, and the
 // oneof field number equals the code value.
 func TestProtocolEventCodeRegistryIsFullyCovered(t *testing.T) {
 	taskWrappers := (&tasktypes.TaskProtocolEventPayloadV1{}).XXX_OneofWrappers()
 	hubWrappers := (&hubtypes.ProtocolEventPayloadV1{}).XXX_OneofWrappers()
-	// -1 drops PROTOCOL_EVENT_CODE_V1_UNSPECIFIED, which has no payload.
-	require.Len(t, append(append([]interface{}{}, taskWrappers...), hubWrappers...), len(shared.ProtocolEventCodeV1_name)-1)
+	// Exclude UNSPECIFIED and the explicitly reserved verifier evidence code.
+	require.Len(t, append(append([]interface{}{}, taskWrappers...), hubWrappers...), len(shared.ProtocolEventCodeV1_name)-2)
 
 	seen := make(map[shared.ProtocolEventCodeV1]struct{}, len(taskWrappers)+len(hubWrappers))
 
@@ -96,6 +96,7 @@ func TestProtocolEventCodeRegistryIsFullyCovered(t *testing.T) {
 		assertTypedEventRoundTrip(t, payload)
 		assertNarrowPublicEvent(t, payload)
 	}
+	require.NotContains(t, seen, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_VALUE_EVIDENCE_ACCEPTED)
 }
 
 func TestSessionCreatedTargetsOwnerAccount(t *testing.T) {

@@ -150,7 +150,7 @@ func (k Keeper) advanceCandidateBuild(ctx context.Context, cursor types.Candidat
 	for nextSlot < segmentEnd && visited < limit {
 		slot := uint32(nextSlot)
 		memberKey := types.NewCandidatePoolMemberKey(cursor.TargetEpoch, slot)
-		current, getErr := k.CandidateSlotCurrent.Get(ctx, slot)
+		current, getErr := k.ReadCandidateSlotCurrent(ctx, slot)
 		active := getErr == nil && current.Status == candidateSlotAllocated
 		if getErr != nil && !errors.Is(getErr, collections.ErrNotFound) {
 			return visited, getErr
@@ -164,7 +164,7 @@ func (k Keeper) advanceCandidateBuild(ctx context.Context, cursor types.Candidat
 		}
 		bit := nextSlot - segmentStart
 		if active {
-			binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(slot, current.SlotVersion))
+			binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(slot, current.SlotVersion))
 			if err != nil {
 				return visited, err
 			}
@@ -172,7 +172,7 @@ func (k Keeper) advanceCandidateBuild(ctx context.Context, cursor types.Candidat
 				return visited, fmt.Errorf("allocated slot has invalid immutable binding")
 			}
 			segmentState.Bitmap[bit/8] |= byte(1) << uint(bit%8)
-			if err := k.CandidatePoolMember.Set(ctx, memberKey, types.CandidatePoolMemberState{
+			if err := k.WriteCandidatePoolMember(ctx, memberKey, types.CandidatePoolMemberState{
 				Epoch: cursor.TargetEpoch, Slot: slot, SlotVersion: current.SlotVersion,
 				OperatorAddress: current.OperatorAddress, BindingHash: append([]byte(nil), binding.BindingHash...),
 			}); err != nil {
@@ -308,12 +308,12 @@ func (k Keeper) finalizeCandidateBuild(ctx context.Context, cursor types.Candida
 	}
 	for _, member := range members {
 		bindingKey := types.NewCandidateSlotBindingKey(member.Slot, member.SlotVersion)
-		binding, err := k.CandidateSlotBinding.Get(ctx, bindingKey)
+		binding, err := k.ReadCandidateSlotBinding(ctx, bindingKey)
 		if err != nil || binding.SnapshotRefCount == ^uint32(0) {
 			return fmt.Errorf("candidate binding refcount unavailable or overflow")
 		}
 		binding.SnapshotRefCount++
-		if err := k.CandidateSlotBinding.Set(ctx, bindingKey, binding); err != nil {
+		if err := k.WriteCandidateSlotBinding(ctx, bindingKey, binding); err != nil {
 			return err
 		}
 	}
@@ -347,7 +347,11 @@ func (k Keeper) candidateMembersForSegment(ctx context.Context, epoch uint64, se
 	defer iter.Close()
 	refs := make([]types.CandidatePoolMemberRef, 0)
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		state, err := k.ProjectCandidatePoolMemberStore(stored)
 		if err != nil {
 			return nil, err
 		}
@@ -371,7 +375,11 @@ func (k Keeper) candidateMembersForEpoch(ctx context.Context, epoch uint64) ([]t
 	defer iter.Close()
 	refs := make([]types.CandidatePoolMemberRef, 0)
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		state, err := k.ProjectCandidatePoolMemberStore(stored)
 		if err != nil {
 			return nil, err
 		}
@@ -379,7 +387,7 @@ func (k Keeper) candidateMembersForEpoch(ctx context.Context, epoch uint64) ([]t
 		if err != nil || canonical != state.OperatorAddress {
 			return nil, fmt.Errorf("candidate member has invalid operator address")
 		}
-		binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
+		binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 		if err != nil || binding.OperatorAddress != state.OperatorAddress || !equalCandidateBytes(binding.BindingHash, state.BindingHash) {
 			return nil, fmt.Errorf("candidate member immutable binding is invalid")
 		}

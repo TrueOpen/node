@@ -38,11 +38,12 @@ import (
 
 func TestQueryModelProfileReturnsSeededPair(t *testing.T) {
 	app := bootAppMinimal(t)
-	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight() + 1})
+	ctx := app.NewContextLegacy(true, cmtproto.Header{ChainID: SimAppChainID, Height: app.LastBlockHeight() + 1})
 
-	modelID := "gpt-oss-1"
 	const profVersion uint32 = 1
 	proposer := sdk.AccAddress(bytes.Repeat([]byte{0x41}, 20)).String()
+	modelID, err := hubtypes.DeriveModelIDV1(sdk.UnwrapSDKContext(ctx).ChainID(), "HUGGINGFACE", "trueopen/test-model", bytes.Repeat([]byte{0x41}, 20))
+	require.NoError(t, err)
 	projection := appTestModelProfileProjection(modelID, profVersion)
 	digest, _, err := hubtypes.ModelRegistrationDigest(sdk.UnwrapSDKContext(ctx).ChainID(), proposer, projection)
 	require.NoError(t, err)
@@ -86,7 +87,7 @@ var appTestServiceBondMinInitial = func() uint64 {
 	return value
 }()
 
-func appTestModelProfileProjection(modelID string, profileVersion uint32) shared.ModelProfileProjection {
+func appTestModelProfileProjection(modelID []byte, profileVersion uint32) shared.ModelProfileProjection {
 	requiredHash := bytes.Repeat([]byte{byte(profileVersion + 1)}, 32)
 	projection := shared.ModelProfileProjection{
 		ModelId: modelID, ProfileVersion: profileVersion,
@@ -104,7 +105,7 @@ func appTestModelProfileProjection(modelID string, profileVersion uint32) shared
 			JudgmentFunctionVersion:     "PREFILL_GENERATED_TOKEN_METRICS_V1",
 			CanonicalEncodingVersion:    "CANONICAL_OUTPUT_TEXT_V1",
 			MetricAggregateProofVersion: "PREFILL_METRIC_AGGREGATE_PROOF_V1",
-			EvidenceSchema:              shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+			EvidenceSchema:              shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 			Metrics: shared.MetricSpec{
 				ComparedTopK: 8,
 				NumericScale: shared.NumericScale_NUMERIC_SCALE_FP_1E6,
@@ -115,6 +116,11 @@ func appTestModelProfileProjection(modelID string, profileVersion uint32) shared
 		},
 		SchemaHash: requiredHash, PreviousProfileVersion: profileVersion - 1,
 		RegistrationFee: sdk.NewCoin(hubtypes.DefaultBusinessDenom, sdkmath.NewIntFromUint64(hubtypes.ModelRegistrationFeeMinMicroUSDC)),
+		Source: shared.SourceRefV1{
+			Provider: "HUGGINGFACE", RepoId: "trueopen/test-model", RepoType: "model",
+			ResolverVersion: "HF_RESOLVER_V1", Revision: "0123456789abcdef0123456789abcdef01234567",
+			SourceUri: "hf://trueopen/test-model@0123456789abcdef0123456789abcdef01234567",
+		},
 	}
 	evidenceSchemaHash, err := hubtypes.EvidenceSchemaHash(projection)
 	if err != nil {
@@ -130,13 +136,13 @@ func TestQueryModelProfileNotFoundForUnknownPair(t *testing.T) {
 	qs := hubkeeper.NewQueryServerImpl(app.HubKeeper)
 
 	_, err := qs.Profile(ctx, &hubtypes.QueryProfileRequest{
-		ModelId:        "does-not-exist",
+		ModelId:        bytes.Repeat([]byte{0xdd}, 32),
 		ProfileVersion: 99,
 	})
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 
-	_, err = qs.Model(ctx, &hubtypes.QueryModelRequest{ModelId: "does-not-exist"})
+	_, err = qs.Model(ctx, &hubtypes.QueryModelRequest{ModelId: bytes.Repeat([]byte{0xdd}, 32)})
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 }
@@ -155,15 +161,15 @@ func TestQueryModelProfileInvalidArgumentContract(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 
 	// Empty model_id
-	_, err = qs.Profile(ctx, &hubtypes.QueryProfileRequest{ModelId: "", ProfileVersion: 1})
+	_, err = qs.Profile(ctx, &hubtypes.QueryProfileRequest{ModelId: nil, ProfileVersion: 1})
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
-	_, err = qs.Model(ctx, &hubtypes.QueryModelRequest{ModelId: ""})
+	_, err = qs.Model(ctx, &hubtypes.QueryModelRequest{ModelId: nil})
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 
 	// profile_version == 0
-	_, err = qs.Profile(ctx, &hubtypes.QueryProfileRequest{ModelId: "m", ProfileVersion: 0})
+	_, err = qs.Profile(ctx, &hubtypes.QueryProfileRequest{ModelId: bytes.Repeat([]byte{0x6d}, 32), ProfileVersion: 0})
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }

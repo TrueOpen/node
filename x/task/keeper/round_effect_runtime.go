@@ -32,7 +32,7 @@ func (k Keeper) freezeRoundEconomicEffects(
 		return errorsmod.Wrap(types.ErrInvariantBroken, "round 2 is not terminal")
 	}
 	key := types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)
-	funding, err := k.RoundFunding.Get(ctx, key)
+	funding, err := k.ReadRoundFunding(ctx, key)
 	if err != nil || funding.XClosedHeight != nil || funding.XRoundOutcome != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "challenge funding is not open")
 	}
@@ -200,7 +200,7 @@ func (k Keeper) freezeRoundEconomicEffects(
 	}
 	round2.RoundEffectCount = uint32(len(effects))
 	round2.XRoundEffectPlanRoot = &types.VerificationRoundState_RoundEffectPlanRoot{RoundEffectPlanRoot: planRoot[:]}
-	if err := k.VerificationRound.Set(ctx, key, round2); err != nil {
+	if err := k.WriteVerificationRound(ctx, key, round2); err != nil {
 		return err
 	}
 	cursor := types.RoundEconomicEffectApplyCursorState{
@@ -218,7 +218,7 @@ func (k Keeper) disprovedRoundOneSubjects(
 	taskKey types.TaskKey,
 	round2Verdict types.TaskVerdict,
 ) ([]roundEffectSubject, error) {
-	round1, err := k.VerificationRound.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+	round1, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil || round1.XClosedHeight == nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 is unavailable")
 	}
@@ -226,7 +226,7 @@ func (k Keeper) disprovedRoundOneSubjects(
 	if err != nil {
 		return nil, err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return nil, err
 	}
@@ -279,11 +279,11 @@ func (k Keeper) applyRoundEconomicEffects(
 	if err != nil {
 		return 0, false, err
 	}
-	round, err := k.VerificationRound.Get(ctx, key)
+	round, err := k.ReadVerificationRound(ctx, key)
 	if err != nil || round.XClosedHeight == nil || round.RoundEffectCount == 0 || len(round.GetRoundEffectPlanRoot()) != types.Hash32Len {
 		return 0, false, errorsmod.Wrap(types.ErrInvariantBroken, "round effect plan is unavailable")
 	}
-	funding, err := k.RoundFunding.Get(ctx, key)
+	funding, err := k.ReadRoundFunding(ctx, key)
 	if err != nil {
 		return 0, false, err
 	}
@@ -309,7 +309,7 @@ func (k Keeper) applyRoundEconomicEffects(
 		}
 		cursor.NextEffectIndex++
 	}
-	if err := k.RoundFunding.Set(ctx, key, funding); err != nil {
+	if err := k.WriteRoundFunding(ctx, key, funding); err != nil {
 		return visited, false, err
 	}
 	oldIndex := types.NewVerifyRoundIndexKey(cursor.NextApplyHeight, taskKey, verifyRound)
@@ -519,10 +519,10 @@ func (k Keeper) finishRoundEconomicEffects(
 	round.XRoundEffectRoot = &types.VerificationRoundState_RoundEffectRoot{RoundEffectRoot: root[:]}
 	round.XFundingResolutionHash = &types.VerificationRoundState_FundingResolutionHash{FundingResolutionHash: resolution[:]}
 	key := types.NewVerifyRoundKey(taskKey, round.VerifyRound)
-	if err := k.RoundFunding.Set(ctx, key, funding); err != nil {
+	if err := k.WriteRoundFunding(ctx, key, funding); err != nil {
 		return err
 	}
-	if err := k.VerificationRound.Set(ctx, key, round); err != nil {
+	if err := k.WriteVerificationRound(ctx, key, round); err != nil {
 		return err
 	}
 	summary, err := k.TaskRoundSummary.Get(ctx, taskKey)
@@ -547,7 +547,7 @@ func (k Keeper) finishRoundEconomicEffects(
 }
 
 func (k Keeper) roundEffectSourceDuty(ctx context.Context, taskKey types.TaskKey, operator string) (shared.Duty, error) {
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err == nil && assignment.WinnerWorker == operator {
 		return shared.DutyWorker, nil
 	}

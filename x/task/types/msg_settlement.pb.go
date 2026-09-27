@@ -110,7 +110,7 @@ func (m *MsgSettleTask) GetSubmitterAddress() string {
 }
 
 // MsgSettleTaskResponse is the settlement receipt. Field numbers are frozen by
-// the API contract. Every field is Keeper-derived.
+// the wire API. Every field is Keeper-derived.
 // MsgSettleTaskResponse defines the MsgSettleTaskResponse wire type.
 type MsgSettleTaskResponse struct {
 	TaskId              []byte                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`

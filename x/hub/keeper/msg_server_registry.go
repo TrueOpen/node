@@ -19,14 +19,11 @@ func (m msgServer) SetModelStatus(ctx context.Context, req *types.MsgSetModelSta
 	if err := m.k.assertAuthority(req.Authority); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.ModelId) == "" || strings.TrimSpace(req.ModelId) != req.ModelId || !types.IsValidModelStatus(req.NewStatus) {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "canonical model_id and new_status are required")
-	}
-	if err := types.ValidateModelID(req.ModelId); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, err.Error())
+	if len(req.ModelId) != shared.Hash32KeySize || !types.IsValidModelStatus(req.NewStatus) {
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "raw model_id and new_status are required")
 	}
 	if req.NewStatus == types.ModelStatusActive {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "ACTIVE status is derived from active profile support and cannot be set by governance")
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "ACTIVE status is derived from model support and cannot be set by governance")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, commit := sdkCtx.CacheContext()
@@ -57,14 +54,11 @@ func (m msgServer) SetProfileStatus(ctx context.Context, req *types.MsgSetProfil
 	if err := m.k.assertAuthority(req.Authority); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.ModelId) == "" || strings.TrimSpace(req.ModelId) != req.ModelId || req.ProfileVersion == 0 || !types.IsValidModelStatus(req.NewStatus) {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "canonical model_id, profile_version, and new_status are required")
-	}
-	if err := types.ValidateModelID(req.ModelId); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, err.Error())
+	if len(req.ModelId) != shared.Hash32KeySize || req.ProfileVersion == 0 || !types.IsValidModelStatus(req.NewStatus) {
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "raw model_id, profile_version, and new_status are required")
 	}
 	if req.NewStatus == types.ModelStatusActive {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "ACTIVE status is derived from P30 support thresholds and cannot be set by governance")
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "profile status cannot be set to ACTIVE")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, commit := sdkCtx.CacheContext()
@@ -193,18 +187,14 @@ func (m msgServer) DeclareModelSupport(ctx context.Context, req *types.MsgDeclar
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.ModelId) == "" || strings.TrimSpace(req.ModelId) != req.ModelId ||
-		req.ProfileVersion == 0 || (!req.InferenceCapability && !req.VerificationCapability) {
-		return nil, errorsmod.Wrap(types.ErrInvalidModelCapability, "canonical model_id, positive profile_version, and at least one capability are required")
-	}
-	if err := types.ValidateModelID(req.ModelId); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidModelCapability, err.Error())
+	if len(req.ModelId) != shared.Hash32KeySize || (!req.InferenceCapability && !req.VerificationCapability) {
+		return nil, errorsmod.Wrap(types.ErrInvalidModelCapability, "raw model_id and at least one capability are required")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	height := sdkContextHeight(sdkCtx)
 	cacheCtx, commit := sdkCtx.CacheContext()
 	result, err := m.k.DeclareModelSupport(
-		sdk.WrapSDKContext(cacheCtx), operator, req.ModelId, req.ProfileVersion,
+		sdk.WrapSDKContext(cacheCtx), operator, req.ModelId,
 		req.InferenceCapability, req.VerificationCapability,
 		height,
 	)
@@ -242,7 +232,7 @@ func (m msgServer) BatchConfirmModelSupport(ctx context.Context, req *types.MsgB
 	}
 	commit()
 	return &types.MsgBatchConfirmModelSupportResponse{
-		AcceptedConfirmations: result.AcceptedConfirmations, RefreshedProfileCount: result.RefreshedProfiles,
+		AcceptedConfirmations: result.AcceptedConfirmations, RefreshedModelCount: result.RefreshedModels,
 		BatchDigest: result.BatchDigest, Status: result.Status,
 	}, nil
 }

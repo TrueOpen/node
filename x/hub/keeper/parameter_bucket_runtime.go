@@ -105,7 +105,7 @@ func (k Keeper) AcquireParameterBucketTaskRef(ctx context.Context, kind shared.B
 	if effective.Version != version {
 		return fmt.Errorf("parameter bucket version %d is not effective at height %d", version, height)
 	}
-	if effective.TaskRefCount == math.MaxUint64 {
+	if effective.TaskRefCount == math.MaxUint32 {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "parameter bucket task_ref_count overflow")
 	}
 	effective.TaskRefCount++

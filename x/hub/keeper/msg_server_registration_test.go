@@ -35,7 +35,7 @@ func TestRegisterModelProfileIsAtomicSignedAndReplaySafe(t *testing.T) {
 	)
 	server := keeper.NewMsgServerImpl(f.keeper)
 
-	profile1 := testModelProfileProjection("model-registration", 1, testServiceBondMinInitial)
+	profile1 := testModelProfileProjection("registration-chain", registrant.Address, "model-registration", 1, testServiceBondMinInitial)
 	profile1.MinStake.Denom = businessDenom
 	profile1.RegistrationFee = sdk.NewCoin(businessDenom, sdkmath.NewIntFromUint64(modelFee))
 	request1 := signedModelProfileRequest(t, f, registrant, profile1)
@@ -71,7 +71,7 @@ func TestRegisterModelProfileIsAtomicSignedAndReplaySafe(t *testing.T) {
 	registerHubTestAccount(t, f, unfunded)
 	invalid := &types.MsgRegisterModelProfile{
 		ProposerAddress: unfunded.Address,
-		Profile:         testModelProfileProjection("model-registration", 2, testServiceBondMinInitial),
+		Profile:         testModelProfileProjection("registration-chain", unfunded.Address, "model-registration", 2, testServiceBondMinInitial),
 	}
 	invalid.Profile.MinStake.Denom = businessDenom
 	invalid.Profile.RegistrationFee = sdk.NewCoin(businessDenom, sdkmath.NewIntFromUint64(updateFee))
@@ -79,7 +79,7 @@ func TestRegisterModelProfileIsAtomicSignedAndReplaySafe(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, updateFee, f.bank.balance(registrant.Address, businessDenom))
 
-	profile2 := testModelProfileProjection("model-registration", 2, testServiceBondMinInitial)
+	profile2 := testModelProfileProjection("registration-chain", registrant.Address, "model-registration", 2, testServiceBondMinInitial)
 	profile2.MinStake.Denom = businessDenom
 	profile2.RegistrationFee = sdk.NewCoin(businessDenom, sdkmath.NewIntFromUint64(updateFee))
 	response2, err := server.RegisterModelProfile(f.ctx, signedModelProfileRequest(t, f, registrant, profile2))
@@ -89,11 +89,11 @@ func TestRegisterModelProfileIsAtomicSignedAndReplaySafe(t *testing.T) {
 	require.Zero(t, f.bank.balance(registrant.Address, businessDenom))
 	require.Equal(t, modelFee+updateFee, f.bank.balance(treasuryAddress, businessDenom))
 
-	model, err := f.keeper.GetModel(f.ctx, "model-registration")
+	model, err := f.keeper.GetModel(f.ctx, profile1.ModelId)
 	require.NoError(t, err)
 	require.Equal(t, uint32(2), model.LatestProfileVersion)
 	require.Equal(t, modelFee+updateFee, model.RegistrationFeePaid)
-	profile, err := f.keeper.GetProfile(f.ctx, "model-registration", 2)
+	profile, err := f.keeper.GetProfile(f.ctx, profile1.ModelId, 2)
 	require.NoError(t, err)
 	require.Equal(t, types.ModelStatusRegistered, profile.Status)
 	require.Equal(t, updateFee, profile.RegistrationFeePaid)
@@ -120,7 +120,7 @@ func TestRegisterModelProfileReplayStaysIdempotentAfterBondFloorRaise(t *testing
 	)
 	server := keeper.NewMsgServerImpl(f.keeper)
 
-	profile := testModelProfileProjection("model-bond-floor-replay", 1, testServiceBondMinInitial)
+	profile := testModelProfileProjection("registration-chain", registrant.Address, "model-bond-floor-replay", 1, testServiceBondMinInitial)
 	request := signedModelProfileRequest(t, f, registrant, profile)
 	first, err := server.RegisterModelProfile(f.ctx, request)
 	require.NoError(t, err)
@@ -147,11 +147,11 @@ func TestRegisterModelProfileReplayStaysIdempotentAfterBondFloorRaise(t *testing
 
 	// The clamp is unchanged for a genuinely new registration: it simply runs one
 	// call deeper, past the receipt lookup.
-	fresh := testModelProfileProjection("model-bond-floor-fresh", 1, testServiceBondMinInitial)
+	fresh := testModelProfileProjection("registration-chain", registrant.Address, "model-bond-floor-fresh", 1, testServiceBondMinInitial)
 	fresh.RegistrationFee = sdk.NewCoin(types.DefaultBusinessDenom, sdkmath.NewIntFromUint64(types.ModelRegistrationFeeMinMicroUSDC+1))
 	_, err = server.RegisterModelProfile(f.ctx, signedModelProfileRequest(t, f, registrant, fresh))
 	require.ErrorContains(t, err, "below service bond floor")
-	hasFresh, err := f.keeper.Model.Has(f.ctx, "model-bond-floor-fresh")
+	hasFresh, err := f.keeper.Model.Has(f.ctx, shared.Hash32Key(fresh.ModelId))
 	require.NoError(t, err)
 	require.False(t, hasFresh)
 }

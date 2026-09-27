@@ -80,19 +80,20 @@ func seedBuilderDutySelection(t *testing.T, application *App, ctx sdk.Context) {
 		TaskId: taskID, SessionId: sessionID,
 		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED,
 	}))
-	require.NoError(t, application.TaskKeeper.TaskBuilderSelection.Set(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
+	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: builderSetID, BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),
 		SelectedTaskBuildersHash: selectedHash, CreatedHeight: receiptHeight,
 		BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}))
-	require.NoError(t, application.TaskKeeper.InferReceipt.Set(ctx, taskKey, tasktypes.InferReceiptState{
+	require.NoError(t, application.TaskKeeper.WriteInferReceipt(ctx, taskKey, tasktypes.InferReceiptState{
 		TaskId: taskID, WinnerWorker: worker, ReceiptHeight: receiptHeight,
 	}))
-	require.NoError(t, application.HubKeeper.BuilderSet.Set(ctx, builderSetVersion, hubtypes.BuilderSetState{
+	require.NoError(t, application.HubKeeper.StoreBuilderSet(ctx, hubtypes.BuilderSetState{
 		BuilderSetVersion: builderSetVersion,
 		BuilderSetId:      builderSetID,
 		BuilderSetHash:    builderSetHash,
+		BodyStatus:        shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE,
 	}))
 	require.NoError(t, application.HubKeeper.BuilderSetTaskRef.Set(ctx,
 		// v0.3 keys and stores the builder set by numeric version, not by the
@@ -104,7 +105,7 @@ func seedBuilderDutySelection(t *testing.T, application *App, ctx sdk.Context) {
 	))
 	workerResponsibilityID, err := taskkeeper.WorkerOutputEvidenceResponsibilityID(sessionHex, taskHex, worker)
 	require.NoError(t, err)
-	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx,
+	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx,
 		hubtypes.NewServiceKeyResponsibilityKey(
 			shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, worker, workerResponsibilityID,
 		),
@@ -113,7 +114,7 @@ func seedBuilderDutySelection(t *testing.T, application *App, ctx sdk.Context) {
 			OperatorAddress:    worker,
 			ResponsibilityId:   workerResponsibilityID,
 			ResponsibilityKind: hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE,
-			SessionId:          sessionHex, TaskId: taskHex, CreatedHeight: receiptHeight,
+			SessionId:          append([]byte(nil), sessionID...), TaskId: append([]byte(nil), taskID...), CreatedHeight: receiptHeight,
 			ServiceAuthorizationNonce: 1,
 		},
 	))
@@ -122,12 +123,12 @@ func seedBuilderDutySelection(t *testing.T, application *App, ctx sdk.Context) {
 	for _, builder := range builders {
 		responsibilityID, err := taskkeeper.BuilderStageResponsibilityID(sessionHex, taskHex, kind, builder)
 		require.NoError(t, err)
-		require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx,
+		require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx,
 			hubtypes.NewServiceKeyResponsibilityKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder, responsibilityID),
 			hubtypes.ServiceKeyResponsibilityState{
 				ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
 				OperatorAddress: builder, ResponsibilityId: responsibilityID,
-				ResponsibilityKind: kind, SessionId: sessionHex, TaskId: taskHex,
+				ResponsibilityKind: kind, SessionId: append([]byte(nil), sessionID...), TaskId: append([]byte(nil), taskID...),
 				CreatedHeight: receiptHeight,
 			},
 		))
@@ -145,7 +146,7 @@ func seedBusObjectiveEvidenceResponsibility(
 ) {
 	t.Helper()
 	const authorizationNonce = uint64(9)
-	require.NoError(t, application.HubKeeper.Builder.Set(ctx, builder, hubtypes.BuilderState{
+	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, hubtypes.BuilderState{
 		BuilderAddress: builder, ServiceAuthorizationNonce: authorizationNonce,
 		CurrentServiceKeyStatus: hubtypes.ServiceKeyStatusActive, PendingEvidenceSubmissionCount: 1,
 	}))
@@ -160,10 +161,10 @@ func seedBusObjectiveEvidenceResponsibility(
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
 		OperatorAddress: builder, ResponsibilityId: responsibilityID,
 		ResponsibilityKind: hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE,
-		SessionId:          hex.EncodeToString(sessionID), TaskId: hex.EncodeToString(taskID),
+		SessionId:          append([]byte(nil), sessionID...), TaskId: append([]byte(nil), taskID...),
 		CreatedHeight: createdHeight, ServiceAuthorizationNonce: authorizationNonce,
 	}
-	require.NoError(t, application.HubKeeper.ServiceKeyResponsibility.Set(ctx,
+	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx,
 		hubtypes.NewServiceKeyResponsibilityKey(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder, responsibilityID),
 		state,
 	))

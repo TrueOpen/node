@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -24,8 +25,8 @@ func TestValidateHubPageRequestLimit(t *testing.T) {
 func TestHubQueryScopesRejectNonCanonicalIdentifiers(t *testing.T) {
 	require.Error(t, validateTaskScope(" session-1", "task-1"))
 	require.Error(t, validateTaskScope("session-1", "task-1 "))
-	_, _, err := validateModelProfileQueryScope(" model-a", 1)
+	_, _, err := validateModelProfileQueryScope([]byte(" model-a"), 1)
 	require.Error(t, err)
-	_, _, err = validateModelProfileQueryScope("model-a", 0)
+	_, _, err = validateModelProfileQueryScope(bytes.Repeat([]byte{0x6d}, 32), 0)
 	require.Error(t, err)
 }

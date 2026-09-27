@@ -103,20 +103,22 @@ func TestLocalnetGenesisSeedBootsReadyForTasks(t *testing.T) {
 	require.Equal(t, uint64(1), builderSet.EffectiveHeight)
 
 	modelSeed := seed.Models[0].Profile
-	model, err := application.HubKeeper.Model.Get(ctx, modelSeed.ModelID)
+	modelID, err := genesisSeedModelID(chainID, seed.Models[0])
+	require.NoError(t, err)
+	model, err := application.HubKeeper.Model.Get(ctx, modelID)
 	require.NoError(t, err)
 	require.Equal(t, hubtypes.ModelStatusActive, model.Status)
 	profile, err := application.HubKeeper.Profile.Get(
 		ctx,
-		hubtypes.NewProfileStateKey(modelSeed.ModelID, modelSeed.ProfileVersion),
+		hubtypes.NewProfileStateKey(modelID, modelSeed.ProfileVersion),
 	)
 	require.NoError(t, err)
-	require.Equal(t, hubtypes.ModelStatusActive, profile.Status)
-	require.Equal(t, uint32(4), profile.ActiveSupporterCount)
+	require.Equal(t, hubtypes.ModelStatusRegistered, profile.Status)
+	require.Equal(t, uint32(4), model.ActiveSupporterCount)
 	for _, cortex := range seed.CortexNodes {
 		support, err := application.HubKeeper.ModelSupport.Get(
 			ctx,
-			hubtypes.NewModelSupportKey(cortex.OperatorAddress, modelSeed.ModelID, modelSeed.ProfileVersion),
+			hubtypes.NewModelSupportKey(cortex.OperatorAddress, modelID),
 		)
 		require.NoError(t, err)
 		require.True(t, support.DeclaredSupport)

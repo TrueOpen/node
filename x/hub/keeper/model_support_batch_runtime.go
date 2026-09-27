@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
@@ -18,7 +17,7 @@ import (
 
 type modelSupportBatchResult struct {
 	AcceptedConfirmations uint32
-	RefreshedProfiles     uint32
+	RefreshedModels       uint32
 	BatchDigest           []byte
 	Status                shared.MutationStatusV1
 }
@@ -51,7 +50,7 @@ func (k Keeper) processModelSupportBatch(
 	// requireCanonicalAddress already hands back the decoded bytes, so the strict
 	// ascending check just uses them.
 	var previousOperator []byte
-	var totalProfiles uint64
+	var totalModels uint64
 	statuses := make([]shared.MutationStatusV1, len(confirmations))
 	objectIDs := make([][]byte, len(confirmations))
 	result := modelSupportBatchResult{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}
@@ -65,12 +64,12 @@ func (k Keeper) processModelSupportBatch(
 			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, "confirmations must be sorted and unique by operator_address")
 		}
 		previousOperator = append([]byte(nil), operatorBytes...)
-		if err := validateCanonicalSupportedProfiles(confirmation.SupportedProfiles, params.Support.MaxSupportedProfilesPerOperator); err != nil {
+		if err := validateCanonicalSupportedModels(confirmation.SupportedModels, params.Support.MaxSupportedModelsPerOperator); err != nil {
 			return modelSupportBatchResult{}, err
 		}
-		totalProfiles += uint64(len(confirmation.SupportedProfiles))
-		if totalProfiles > uint64(params.Support.MaxDailySupportItemsPerBatch) {
-			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, "profile item count exceeds the configured bound")
+		totalModels += uint64(len(confirmation.SupportedModels))
+		if totalModels > uint64(params.Support.MaxDailySupportItemsPerBatch) {
+			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, "model item count exceeds the configured bound")
 		}
 		if len(confirmation.ServiceSignature) != 64 {
 			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, "service_signature must be exactly 64 bytes")
@@ -87,7 +86,7 @@ func (k Keeper) processModelSupportBatch(
 		}
 		signingBytes, err := types.CanonicalDailySupportConfirmationSigningBytesV1(
 			chainID, operatorBytes, epoch, confirmation.ServiceAuthorizationNonce,
-			confirmation.ExpiryHeight, confirmation.SupportedProfiles,
+			confirmation.ExpiryHeight, confirmation.SupportedModels,
 		)
 		if err != nil {
 			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, err.Error())
@@ -95,14 +94,14 @@ func (k Keeper) processModelSupportBatch(
 		if err := k.VerifyCurrentCortexServiceDigest(ctx, operatorAddress, confirmation.ServiceSignature, signingBytes, height); err != nil {
 			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, err.Error())
 		}
-		profilesHash, err := types.CanonicalSupportedProfilesHashV1(confirmation.SupportedProfiles)
+		modelsHash, err := types.CanonicalSupportedModelsHashV1(confirmation.SupportedModels)
 		if err != nil {
 			return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, err.Error())
 		}
 		signatureDigestArray := sha256.Sum256(confirmation.ServiceSignature)
 		state := types.DailySupportState{
 			Epoch: epoch, OperatorAddress: operatorAddress,
-			SupportedProfilesHash: profilesHash, SignatureDigest: signatureDigestArray[:], AcceptedHeight: height,
+			SupportedModelsHash: modelsHash, SignatureDigest: signatureDigestArray[:], AcceptedHeight: height,
 		}
 		if err := state.Validate(); err != nil {
 			return modelSupportBatchResult{}, err
@@ -123,8 +122,8 @@ func (k Keeper) processModelSupportBatch(
 		if !errors.Is(err, collections.ErrNotFound) {
 			return modelSupportBatchResult{}, err
 		}
-		for _, profile := range confirmation.SupportedProfiles {
-			_, changed, err := k.refreshModelSupport(ctx, operatorAddress, profile.ModelId, profile.ProfileVersion, epoch, height)
+		for _, modelID := range confirmation.SupportedModels {
+			_, changed, err := k.refreshModelSupport(ctx, operatorAddress, modelID, epoch, height)
 			if err != nil {
 				// An item whose refresh preconditions no longer hold is skipped, not
 				// fatal: it writes nothing, and failing here would discard every other
@@ -136,10 +135,10 @@ func (k Keeper) processModelSupportBatch(
 				return modelSupportBatchResult{}, err
 			}
 			if changed {
-				if result.RefreshedProfiles == math.MaxUint32 {
-					return modelSupportBatchResult{}, fmt.Errorf("refreshed profile count overflow")
+				if result.RefreshedModels == math.MaxUint32 {
+					return modelSupportBatchResult{}, fmt.Errorf("refreshed model count overflow")
 				}
-				result.RefreshedProfiles++
+				result.RefreshedModels++
 			}
 		}
 		if err := k.DailySupport.Set(ctx, types.NewDailySupportKey(epoch, operatorAddress), state); err != nil {
@@ -179,23 +178,19 @@ func dailySupportConfirmationID(chainID string, epoch uint64, operatorAddress []
 	).Sum()
 }
 
-func validateCanonicalSupportedProfiles(profiles []types.ProfileKeyV1, maxProfiles uint32) error {
-	if len(profiles) == 0 || uint32(len(profiles)) > maxProfiles {
-		return errorsmod.Wrap(types.ErrInvalidSupportBatch, "supported_profiles count is outside the configured bounds")
+func validateCanonicalSupportedModels(models [][]byte, maxModels uint32) error {
+	if len(models) == 0 || uint32(len(models)) > maxModels {
+		return errorsmod.Wrap(types.ErrInvalidSupportBatch, "supported_models count is outside the configured bounds")
 	}
-	var previousModel string
-	var previousProfile uint32
-	for index, profile := range profiles {
-		if profile.ModelId == "" || strings.TrimSpace(profile.ModelId) != profile.ModelId || profile.ProfileVersion == 0 {
-			return errorsmod.Wrap(types.ErrInvalidSupportBatch, "profile refs must be canonical and non-empty")
+	var previousModel []byte
+	for index, modelID := range models {
+		if len(modelID) != shared.Hash32KeySize {
+			return errorsmod.Wrap(types.ErrInvalidSupportBatch, "model IDs must be raw Hash32")
 		}
-		if err := types.ValidateModelID(profile.ModelId); err != nil {
-			return errorsmod.Wrap(types.ErrInvalidSupportBatch, err.Error())
+		if index > 0 && bytes.Compare(modelID, previousModel) <= 0 {
+			return errorsmod.Wrap(types.ErrInvalidSupportBatch, "supported_models must be sorted and unique")
 		}
-		if index > 0 && (profile.ModelId < previousModel || profile.ModelId == previousModel && profile.ProfileVersion <= previousProfile) {
-			return errorsmod.Wrap(types.ErrInvalidSupportBatch, "supported_profiles must be sorted and unique")
-		}
-		previousModel, previousProfile = profile.ModelId, profile.ProfileVersion
+		previousModel = modelID
 	}
 	return nil
 }
@@ -216,6 +211,6 @@ func canonicalSupportBatchDigest(chainID string, objectIDs [][]byte, statuses []
 
 func dailySupportEqual(left, right types.DailySupportState) bool {
 	return left.Epoch == right.Epoch && left.OperatorAddress == right.OperatorAddress &&
-		bytes.Equal(left.SupportedProfilesHash, right.SupportedProfilesHash) &&
+		bytes.Equal(left.SupportedModelsHash, right.SupportedModelsHash) &&
 		bytes.Equal(left.SignatureDigest, right.SignatureDigest)
 }

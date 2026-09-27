@@ -16,13 +16,14 @@ func TestProfilePriceSamplesAreReplaySafeAndAppliedOncePerProfile(t *testing.T) 
 	require.NoError(t, f.keeper.Params.Set(f.ctx, types.DefaultHubParams()))
 	const modelID = "price-sample-model"
 	registerTestModelProfile(t, f, modelID, 1, testServiceBondMinInitial, 1)
+	modelHash := testModelID(testHubChainID, hubAddress(t, 250), modelID)
 	sdkCtx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(10).WithEventManager(sdk.NewEventManager())
 	ctx := sdk.WrapSDKContext(sdkCtx)
 
 	samples := []shared.ProfilePriceSampleV1{
-		{TaskId: bytes.Repeat([]byte{0x11}, 32), ModelId: modelID, ProfileVersion: 1, PriceBid: 1_100},
-		{TaskId: bytes.Repeat([]byte{0x12}, 32), ModelId: modelID, ProfileVersion: 1, PriceBid: 1_200},
-		{TaskId: bytes.Repeat([]byte{0x13}, 32), ModelId: modelID, ProfileVersion: 1, PriceBid: 900},
+		{TaskId: bytes.Repeat([]byte{0x11}, 32), ModelId: modelHash, ProfileVersion: 1, PriceBid: 1_100},
+		{TaskId: bytes.Repeat([]byte{0x12}, 32), ModelId: modelHash, ProfileVersion: 1, PriceBid: 1_200},
+		{TaskId: bytes.Repeat([]byte{0x13}, 32), ModelId: modelHash, ProfileVersion: 1, PriceBid: 900},
 	}
 	for _, sample := range samples {
 		require.NoError(t, f.keeper.RecordProfilePriceSample(ctx, sample))
@@ -35,7 +36,7 @@ func TestProfilePriceSamplesAreReplaySafeAndAppliedOncePerProfile(t *testing.T) 
 	visited, err := f.keeper.ProcessProfilePriceSamples(ctx, 10, 10)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), visited)
-	profile, err := f.keeper.Profile.Get(ctx, types.NewProfileStateKey(modelID, 1))
+	profile, err := f.keeper.Profile.Get(ctx, types.NewProfileStateKey(modelHash, 1))
 	require.NoError(t, err)
 	require.Equal(t, uint64(1_010), profile.RefPrice)
 	require.Equal(t, uint64(10), profile.UpdatedHeight)

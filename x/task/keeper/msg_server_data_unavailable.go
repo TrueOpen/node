@@ -46,7 +46,7 @@ func (m msgServer) ReportDataUnavailable(ctx context.Context, req *types.MsgRepo
 	if err != nil || !bytes.Equal(core.TaskId, req.TaskId) {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task core unavailable")
 	}
-	assignment, err := m.k.VerifierAssignment.Get(cache, types.NewVerifyRoundKey(taskKey, req.VerifyRound))
+	assignment, err := m.k.ReadVerifierAssignment(cache, types.NewVerifyRoundKey(taskKey, req.VerifyRound))
 	if err != nil || validateVerifierAssignmentScope(assignment, req.TaskId, req.VerifyRound) != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier assignment unavailable")
 	}
@@ -55,7 +55,7 @@ func (m msgServer) ReportDataUnavailable(ctx context.Context, req *types.MsgRepo
 		types.VerificationStatus_VERIFICATION_STATUS_COMMITTING); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task is not accepting data unavailable reports")
 	}
-	selection, err := m.k.TaskBuilderSelection.Get(cache, taskKey)
+	selection, err := m.k.GetTaskBuilderSelection(cache, taskKey)
 	if err != nil || selection.BodyStatus != shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE ||
 		selection.SelectedTaskBuilderCount == 0 || selection.SelectedTaskBuilderCount != uint32(len(selection.SelectedTaskBuilders)) {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "active Task Builder selection unavailable")
@@ -113,7 +113,7 @@ func (m msgServer) ReportDataUnavailable(ctx context.Context, req *types.MsgRepo
 		UnavailableTaskBuilderBitmap:      attempt.UnavailableTaskBuilderBitmap,
 		ServiceAuthorizationNonceSnapshot: nonce, ReportHeight: height, ReportDigest: reportDigest,
 	}
-	if err := m.k.DataUnavailableReport.Set(cache, key, state); err != nil {
+	if err := m.k.WriteDataUnavailableReport(cache, key, state); err != nil {
 		return nil, err
 	}
 	if err := emitTypedEvent(cache, &types.EventDataUnavailableReported{
@@ -154,7 +154,7 @@ func (k Keeper) resolveDataUnavailableSubmitter(
 }
 
 func (k Keeper) getDataUnavailableReportIfExists(ctx context.Context, key types.VerifyActorKey) (types.DataUnavailableReportState, bool, error) {
-	state, err := k.DataUnavailableReport.Get(ctx, key)
+	state, err := k.ReadDataUnavailableReport(ctx, key)
 	if err != nil {
 		if errIsNotFound(err) {
 			return types.DataUnavailableReportState{}, false, nil

@@ -30,7 +30,7 @@ func (k Keeper) runTaskCleanup(ctx context.Context, _ types.SessionKey, taskKey 
 	if limit == 0 {
 		return evidenceCleanupProgress{}, nil
 	}
-	if _, err := k.TaskTerminalSummary.Get(ctx, taskKey); err == nil {
+	if _, err := k.ReadTaskTerminalSummary(ctx, taskKey); err == nil {
 		if err := removeDeadlineIndex(ctx, k.EvidenceCleanupIndex, taskKey, targetHeight); err != nil {
 			return evidenceCleanupProgress{}, err
 		}
@@ -165,7 +165,7 @@ func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (
 	if err != nil {
 		return false, err
 	}
-	if round2, err := k.VerificationRound.Get(ctx,
+	if round2, err := k.ReadVerificationRound(ctx,
 		types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)); err == nil {
 		if round2.XClosedHeight == nil || len(round2.GetRoundEffectRoot()) != types.Hash32Len ||
 			uint32(len(effects)) != round2.RoundEffectCount {
@@ -191,7 +191,7 @@ func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (
 			!bytes.Equal(root[:], summary.Round2EffectRootOrZero32) {
 			return false, fmt.Errorf("task cleanup round effect root mismatch")
 		}
-		funding, err := k.RoundFunding.Get(ctx,
+		funding, err := k.ReadRoundFunding(ctx,
 			types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1))
 		if err != nil || funding.XClosedHeight == nil ||
 			len(funding.GetFundingResolutionHash()) != types.Hash32Len {
@@ -212,7 +212,7 @@ func (k Keeper) taskCleanupBaseBlocked(ctx context.Context, taskKey types.TaskKe
 		core.XTaskFinalityHeight == nil {
 		return true, nil
 	}
-	settlement, err := k.TaskSettlement.Get(ctx, taskKey)
+	settlement, err := k.ReadTaskSettlement(ctx, taskKey)
 	if errors.Is(err, collections.ErrNotFound) {
 		return true, nil
 	}
@@ -387,10 +387,10 @@ func (k Keeper) cleanupVerifierWindow(ctx context.Context, taskKey types.TaskKey
 }
 
 func (k Keeper) cleanupReceiptDetails(ctx context.Context, taskKey types.TaskKey, cursor *types.TaskCleanupCursorState) (taskCleanupStepResult, error) {
-	receipt, err := k.InferReceipt.Get(ctx, taskKey)
+	receipt, err := k.ReadInferReceipt(ctx, taskKey)
 	if err == nil && len(receipt.RequiredEvidenceCommitments) != 0 {
 		receipt.RequiredEvidenceCommitments = nil
-		if err := k.InferReceipt.Set(ctx, taskKey, receipt); err != nil {
+		if err := k.WriteInferReceipt(ctx, taskKey, receipt); err != nil {
 			return taskCleanupStepResult{}, err
 		}
 		return taskCleanupStepResult{visited: 1}, nil
@@ -418,7 +418,11 @@ func (k Keeper) cleanupDataUnavailable(ctx context.Context, taskKey types.TaskKe
 		if err != nil {
 			return taskCleanupStepResult{}, err
 		}
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return taskCleanupStepResult{}, err
+		}
+		state, err := k.ProjectDataUnavailableAggregateStore(stored)
 		if err != nil {
 			return taskCleanupStepResult{}, err
 		}
@@ -426,7 +430,7 @@ func (k Keeper) cleanupDataUnavailable(ctx context.Context, taskKey types.TaskKe
 		case types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED:
 			state.ReportDigestsByVerifierSlot = nil
 			state.Status = types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_PRUNED
-			if err := k.BuilderDataUnavailableAggregate.Set(ctx, key, state); err != nil {
+			if err := k.WriteDataUnavailableAggregate(ctx, key, state); err != nil {
 				return taskCleanupStepResult{}, err
 			}
 			return taskCleanupStepResult{visited: 1}, nil
@@ -450,11 +454,11 @@ func (k Keeper) cleanupResponsibilities(ctx context.Context, taskKey types.TaskK
 	if err != nil {
 		return taskCleanupStepResult{}, err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return taskCleanupStepResult{}, err
 	}
-	selection, err := k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil {
 		return taskCleanupStepResult{}, err
 	}
@@ -490,7 +494,7 @@ func (k Keeper) cleanupResponsibilities(ctx context.Context, taskKey types.TaskK
 		}
 		selection.SelectedTaskBuilders = nil
 		selection.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED
-		if err := k.TaskBuilderSelection.Set(ctx, taskKey, selection); err != nil {
+		if err := k.StoreTaskBuilderSelection(ctx, taskKey, selection); err != nil {
 			return taskCleanupStepResult{}, err
 		}
 	}
@@ -553,7 +557,7 @@ func (k Keeper) removeTaskDeadlineIndexes(ctx context.Context, taskKey types.Tas
 		} else if !errors.Is(err, collections.ErrNotFound) {
 			return err
 		}
-		if verifier, err := k.VerifierAssignment.Get(ctx, roundKey); err == nil {
+		if verifier, err := k.ReadVerifierAssignment(ctx, roundKey); err == nil {
 			if err := k.CommitDeadlineIndex.Remove(ctx, types.NewDeadlineIndexKey(verifier.CommitDeadlineHeight, taskKey)); err != nil {
 				return err
 			}
@@ -605,7 +609,7 @@ func (k Keeper) compactTask(ctx context.Context, taskKey types.TaskKey, cursor *
 	if err := k.removeCompactedTaskDetails(ctx, taskKey, commitKeys); err != nil {
 		return taskCleanupStepResult{}, err
 	}
-	if err := k.TaskTerminalSummary.Set(ctx, taskKey, summary); err != nil {
+	if err := k.WriteTaskTerminalSummary(ctx, taskKey, summary); err != nil {
 		return taskCleanupStepResult{}, err
 	}
 	if err := k.registerEpochTaskSummarySource(ctx, summary); err != nil {
@@ -677,7 +681,7 @@ func (k Keeper) cleanupCompactionBodies(ctx context.Context, taskKey types.TaskK
 
 func (k Keeper) deleteOneTaskCommitDetail(ctx context.Context, taskKey types.TaskKey) (bool, error) {
 	for _, round := range []uint32{types.VerifyRoundV1, types.ChallengeVerifyRoundV1} {
-		assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, round))
+		assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, round))
 		if errors.Is(err, collections.ErrNotFound) {
 			continue
 		}
@@ -710,19 +714,19 @@ func (k Keeper) buildTaskTerminalSummary(ctx context.Context, taskKey types.Task
 	if err != nil {
 		return types.TaskTerminalSummaryState{}, nil, err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil {
 		return types.TaskTerminalSummaryState{}, nil, err
 	}
-	selection, err := k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil {
 		return types.TaskTerminalSummaryState{}, nil, err
 	}
-	settlement, err := k.TaskSettlement.Get(ctx, taskKey)
+	settlement, err := k.ReadTaskSettlement(ctx, taskKey)
 	if err != nil {
 		return types.TaskTerminalSummaryState{}, nil, err
 	}
-	retained, err := k.SettlementFactsRetained.Get(ctx, taskKey)
+	retained, err := k.ReadSettlementFacts(ctx, taskKey)
 	if err != nil {
 		return types.TaskTerminalSummaryState{}, nil, err
 	}
@@ -739,7 +743,7 @@ func (k Keeper) buildTaskTerminalSummary(ctx context.Context, taskKey types.Task
 	round2Selected := append([]byte(nil), zero32...)
 	commitKeys := []types.CommitKey{}
 	for _, round := range []uint32{types.VerifyRoundV1, types.ChallengeVerifyRoundV1} {
-		verifier, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, round))
+		verifier, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, round))
 		if errors.Is(err, collections.ErrNotFound) {
 			continue
 		}
@@ -762,7 +766,7 @@ func (k Keeper) buildTaskTerminalSummary(ctx context.Context, taskKey types.Task
 		}
 	}
 	fundingResolution := append([]byte(nil), zero32...)
-	if round2, err := k.VerificationRound.Get(ctx,
+	if round2, err := k.ReadVerificationRound(ctx,
 		types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1)); err == nil {
 		fundingResolution = append([]byte(nil), round2.GetFundingResolutionHash()...)
 	} else if !errors.Is(err, collections.ErrNotFound) {
@@ -951,7 +955,7 @@ func (k Keeper) SweepTaskTerminalSummaryPrune(ctx context.Context, currentHeight
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		cacheCtx, write := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
-		summary, err := k.TaskTerminalSummary.Get(cache, key.K2())
+		summary, err := k.ReadTaskTerminalSummary(cache, key.K2())
 		if errors.Is(err, collections.ErrNotFound) {
 			if err := k.TaskTerminalSummaryPruneIndex.Remove(cache, key); err != nil {
 				return visited, err

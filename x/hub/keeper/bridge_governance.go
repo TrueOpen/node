@@ -342,7 +342,7 @@ func (k Keeper) ExecuteRotateBridgeSignerV1(
 	if _, err := types.RotateBridgeSignerActionDigest(sdkCtx.ChainID(), action); err != nil {
 		return err
 	}
-	current, err := k.ValidatorBridgeSigner.Get(ctx, action.TargetOperator)
+	current, err := k.getValidatorBridgeSigner(ctx, action.TargetOperator)
 	if err != nil {
 		return fmt.Errorf("operator %s has no registered bridge signer", action.TargetOperator)
 	}
@@ -373,7 +373,7 @@ func (k Keeper) ExecuteRotateBridgeSignerV1(
 	current.PopSignature = append([]byte(nil), action.NextBridgeSignerPopSignature...)
 	current.KeyVersion = next
 	current.RegisteredHeight = height
-	if err := k.ValidatorBridgeSigner.Set(ctx, action.TargetOperator, current); err != nil {
+	if err := k.storeValidatorBridgeSigner(ctx, current); err != nil {
 		return err
 	}
 	mustEmitHubEvent(ctx, &types.EventBridgeSignerRotated{

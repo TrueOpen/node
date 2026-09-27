@@ -75,7 +75,7 @@ func (k Keeper) taskAuthorityIsFinal(ctx context.Context, taskKey types.TaskKey)
 			core.XTaskFinalityHeight == nil {
 			return false, nil
 		}
-		settlement, err := k.TaskSettlement.Get(ctx, taskKey)
+		settlement, err := k.ReadTaskSettlement(ctx, taskKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			return false, nil
 		}
@@ -91,7 +91,7 @@ func (k Keeper) taskAuthorityIsFinal(ctx context.Context, taskKey types.TaskKey)
 	if !errors.Is(err, collections.ErrNotFound) {
 		return false, err
 	}
-	terminal, err := k.TaskTerminalSummary.Get(ctx, taskKey)
+	terminal, err := k.ReadTaskTerminalSummary(ctx, taskKey)
 	if errors.Is(err, collections.ErrNotFound) {
 		return false, nil
 	}

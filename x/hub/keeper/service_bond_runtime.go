@@ -152,7 +152,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
 	idKey := shared.Hash32Key(unbondingID)
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
 	if err := k.reconcileSupportsAfterBondChange(
@@ -164,7 +164,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 	if err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
-	if err := k.Unbonding.Set(ctx, types.NewUnbondingKey(operatorAddress, idKey), unbonding); err != nil {
+	if err := k.WriteUnbondingValue(ctx, types.NewUnbondingKey(operatorAddress, idKey), unbonding); err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
 	if err := k.UnbondingMaturityIndex.Set(ctx, types.NewUnbondingMaturityIndexKey(matureHeight, operatorAddress, idKey)); err != nil {
@@ -191,9 +191,9 @@ func (k Keeper) withdrawServiceUnbondedByID(ctx context.Context, chainID, operat
 		return WithdrawServiceUnbondedResult{}, err
 	}
 	idKey := shared.Hash32Key(unbondingID)
-	unbonding, err := k.Unbonding.Get(ctx, types.NewUnbondingKey(operatorAddress, idKey))
+	unbonding, err := k.ReadUnbondingValue(ctx, types.NewUnbondingKey(operatorAddress, idKey))
 	if errors.Is(err, collections.ErrNotFound) {
-		receipt, receiptErr := k.UnbondingReceipt.Get(ctx, idKey)
+		receipt, receiptErr := k.ReadUnbondingReceiptValue(ctx, idKey)
 		if receiptErr != nil {
 			if errors.Is(receiptErr, collections.ErrNotFound) {
 				return WithdrawServiceUnbondedResult{}, errorsmod.Wrap(types.ErrUnbondingNotFound, "service unbonding not found")
@@ -308,7 +308,7 @@ func (k Keeper) withdrawServiceUnbondingRows(ctx context.Context, chainID, opera
 	if err := bond.Validate(); err != nil {
 		return WithdrawServiceUnbondedResult{}, err
 	}
-	if err := k.ServiceBond.Set(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
+	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return WithdrawServiceUnbondedResult{}, err
 	}
 	// Ruling 29 conditional keep: withdrawal only changes membership when it
@@ -387,7 +387,7 @@ func (k Keeper) terminateServiceUnbonding(ctx context.Context, chainID string, r
 	if err := k.UnbondingByOperatorStatusIndex.Remove(ctx, types.NewUnbondingByOperatorStatusKey(row.OperatorAddress, row.Status, row.MatureHeight, idKey)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
-	if err := k.UnbondingReceipt.Set(ctx, idKey, receipt); err != nil {
+	if err := k.WriteUnbondingReceiptValue(ctx, idKey, receipt); err != nil {
 		return err
 	}
 	return k.UnbondingReceiptPruneIndex.Set(ctx, types.NewUnbondingReceiptPruneKey(pruneHeight, idKey))
@@ -433,7 +433,11 @@ func (k Keeper) countOutstandingServiceUnbondings(ctx context.Context, operatorA
 		if err != nil {
 			return 0, err
 		}
-		if entry.Key.K1() != operatorAddress || entry.Value.OperatorAddress != operatorAddress {
+		state, err := k.ProjectUnbondingStore(entry.Value)
+		if err != nil {
+			return 0, err
+		}
+		if entry.Key.K1() != operatorAddress || state.OperatorAddress != operatorAddress {
 			return 0, fmt.Errorf("service unbonding does not match its operator prefix")
 		}
 		count++
@@ -452,7 +456,11 @@ func (k Keeper) serviceUnbondingsForOperator(ctx context.Context, operatorAddres
 	defer iter.Close()
 	rows := make([]types.UnbondingState, 0)
 	for ; iter.Valid(); iter.Next() {
-		row, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		row, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +490,7 @@ func RequiredServiceBondForProfile(profile types.ProfileState) uint64 {
 }
 
 func (k Keeper) deactivateDeclaredSupports(ctx context.Context, operatorAddress, reason string, height uint64) error {
-	return k.collectAndDeactivateSupports(ctx, operatorAddress, reason, height, func(types.ProfileState) bool { return true })
+	return k.collectAndDeactivateSupports(ctx, operatorAddress, reason, height)
 }
 
 // suspendDeclaredSupportsForJail is deactivateDeclaredSupports' non-terminal
@@ -491,12 +499,12 @@ func (k Keeper) deactivateDeclaredSupports(ctx context.Context, operatorAddress,
 // at the reduced candidate_jail_factor and can walk jail_count back to 0. See
 // suspendModelSupportForJail for why the declaration must survive.
 func (k Keeper) suspendDeclaredSupportsForJail(ctx context.Context, operatorAddress string, height uint64) error {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, func(types.ProfileState) bool { return true })
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
 	for _, support := range supports {
-		if err := k.suspendModelSupportForJail(ctx, support.OperatorAddress, support.ModelId, support.ProfileVersion, height); err != nil {
+		if err := k.suspendModelSupportForJail(ctx, support.OperatorAddress, support.ModelId, height); err != nil {
 			return err
 		}
 	}
@@ -507,8 +515,8 @@ func (k Keeper) suspendDeclaredSupportsForJail(ctx context.Context, operatorAddr
 // of them is mutated. The scan is bounded by
 // params.Support.MaxSupportedProfilesPerOperator (§6.1), unlike the
 // profile->operators direction.
-func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress string, shouldSelect func(types.ProfileState) bool) ([]types.ModelSupportState, error) {
-	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedTripleRange[string, string, uint32](strings.TrimSpace(operatorAddress)))
+func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress string) ([]types.ModelSupportState, error) {
+	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedPairRange[string, shared.Hash32Key](strings.TrimSpace(operatorAddress)))
 	if err != nil {
 		return nil, err
 	}
@@ -519,31 +527,25 @@ func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress str
 		if err != nil {
 			return nil, err
 		}
-		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2(), key.K3()))
+		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2()))
 		if err != nil {
 			return nil, err
 		}
 		if !support.DeclaredSupport {
 			continue
 		}
-		profile, err := k.GetProfile(ctx, support.ModelId, support.ProfileVersion)
-		if err != nil {
-			return nil, err
-		}
-		if shouldSelect(profile) {
-			supports = append(supports, support)
-		}
+		supports = append(supports, support)
 	}
 	return supports, nil
 }
 
-func (k Keeper) collectAndDeactivateSupports(ctx context.Context, operatorAddress, reason string, height uint64, shouldDeactivate func(types.ProfileState) bool) error {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, shouldDeactivate)
+func (k Keeper) collectAndDeactivateSupports(ctx context.Context, operatorAddress, reason string, height uint64) error {
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
 	for _, support := range supports {
-		if _, err := k.deactivateModelSupport(ctx, support.OperatorAddress, support.ModelId, support.ProfileVersion, reason, height); err != nil {
+		if _, err := k.deactivateModelSupport(ctx, support.OperatorAddress, support.ModelId, reason, height); err != nil {
 			return err
 		}
 	}
@@ -551,7 +553,7 @@ func (k Keeper) collectAndDeactivateSupports(ctx context.Context, operatorAddres
 }
 
 func (k Keeper) loadServiceBond(ctx context.Context, operatorAddress string) (types.ServiceBondState, bool, error) {
-	state, err := k.ServiceBond.Get(ctx, types.NewServiceBondKey(strings.TrimSpace(operatorAddress)))
+	state, err := k.ReadServiceBondValue(ctx, types.NewServiceBondKey(strings.TrimSpace(operatorAddress)))
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return types.ServiceBondState{}, false, nil

@@ -61,7 +61,7 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 	}
 
 	for _, state := range genesis.SessionNonces {
-		if err := setUnique(ctx, k.SessionNonce, state.UserAddress, state, "session nonce"); err != nil {
+		if err := setUniqueSessionNonce(ctx, k, state); err != nil {
 			return err
 		}
 	}
@@ -70,7 +70,7 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		if err != nil {
 			return err
 		}
-		if err := setUnique(ctx, k.Stream, key, state, "stream"); err != nil {
+		if err := setUniqueStream(ctx, k, key, state); err != nil {
 			return err
 		}
 	}
@@ -106,7 +106,7 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		if err != nil {
 			return err
 		}
-		if err := setUnique(ctx, k.SessionTerminalSummary, key, state, "session terminal summary"); err != nil {
+		if err := setUniqueSessionTerminalSummary(ctx, k, key, state); err != nil {
 			return err
 		}
 	}
@@ -117,7 +117,18 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		}
 	}
 	for _, state := range genesis.TaskAssignments {
-		if err := setTaskPrimary(ctx, k.TaskAssignment, state.TaskId, state, "task assignment"); err != nil {
+		key, err := genesisHashKey("task assignment task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.TaskAssignment.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task assignment")
+		}
+		if err := k.WriteTaskAssignment(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -127,7 +138,18 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		}
 	}
 	for _, state := range genesis.InferReceipts {
-		if err := setTaskPrimary(ctx, k.InferReceipt, state.TaskId, state, "infer receipt"); err != nil {
+		key, err := genesisHashKey("infer receipt task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.InferReceipt.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate infer receipt")
+		}
+		if err := k.WriteInferReceipt(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -137,7 +159,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewWorkerEvidenceReceiptKey(taskID, state.WorkerOperatorAddress, state.EvidenceKind, state.Seq)
-		if err := setUnique(ctx, k.WorkerEvidenceReceipt, key, state, "worker evidence receipt"); err != nil {
+		has, err := k.WorkerEvidenceReceipt.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate worker evidence receipt")
+		}
+		if err := k.WriteWorkerEvidenceReceipt(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -147,7 +176,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewTaskCandidateFactKey(taskID, state.Stage, state.Slot)
-		if err := setUnique(ctx, k.TaskCandidateFact, key, state, "task candidate fact"); err != nil {
+		has, err := k.TaskCandidateFact.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task candidate fact")
+		}
+		if err := k.WriteTaskCandidateFact(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -161,7 +197,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewBuilderStageProposalKey(taskID, state.Stage, digest)
-		if err := setUnique(ctx, k.BuilderStageProposal, key, state, "builder proposal"); err != nil {
+		has, err := k.BuilderStageProposal.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate builder proposal")
+		}
+		if err := k.WriteBuilderStageProposal(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -194,7 +237,18 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		}
 	}
 	for _, state := range genesis.TaskBuilderSelections {
-		if err := setTaskPrimary(ctx, k.TaskBuilderSelection, state.TaskId, state, "task builder selection"); err != nil {
+		taskID, err := genesisHashKey("task builder selection task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.TaskBuilderSelection.Has(ctx, taskID)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task builder selection primary key")
+		}
+		if err := k.StoreTaskBuilderSelection(ctx, taskID, state); err != nil {
 			return err
 		}
 	}
@@ -230,12 +284,31 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewVerifierWindowMemberKey(taskID, state.VerifyRound, state.RankIndex)
-		if err := setUnique(ctx, k.VerifierCandidateWindowMember, key, state, "verifier window member"); err != nil {
+		has, err := k.VerifierCandidateWindowMember.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate verifier window member")
+		}
+		if err := k.WriteVerifierWindowMember(ctx, key, state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genesis.VerifierAssignments {
-		if err := setRoundPrimary(ctx, k.VerifierAssignment, state.TaskId, state.VerifyRound, state, "verifier assignment"); err != nil {
+		taskID, err := genesisHashKey("verifier assignment task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		key := types.NewVerifyRoundKey(taskID, state.VerifyRound)
+		has, err := k.VerifierAssignment.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate verifier assignment")
+		}
+		if err := k.WriteVerifierAssignment(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -244,7 +317,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		if err != nil {
 			return err
 		}
-		if err := setUnique(ctx, k.CommitState, key, state, "commit"); err != nil {
+		has, err := k.CommitState.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate commit")
+		}
+		if err := k.WriteCommit(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -253,7 +333,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		if err != nil {
 			return err
 		}
-		if err := setUnique(ctx, k.ResultReceiptState, key, state, "result receipt"); err != nil {
+		has, err := k.ResultReceiptState.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate result receipt")
+		}
+		if err := k.WriteResultReceipt(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -263,7 +350,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewVerifyActorKey(taskID, state.VerifyRound, state.VerifierOperatorAddress)
-		if err := setUnique(ctx, k.DataUnavailableReport, key, state, "data unavailable report"); err != nil {
+		has, err := k.DataUnavailableReport.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate data unavailable report")
+		}
+		if err := k.WriteDataUnavailableReport(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -273,18 +367,49 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewVerifyActorKey(taskID, state.VerifyRound, state.BuilderOperatorAddress)
-		if err := setUnique(ctx, k.BuilderDataUnavailableAggregate, key, state, "builder data unavailable aggregate"); err != nil {
+		has, err := k.BuilderDataUnavailableAggregate.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate builder data unavailable aggregate")
+		}
+		if err := k.WriteDataUnavailableAggregate(ctx, key, state); err != nil {
 			return err
 		}
 	}
 
 	for _, state := range genesis.VerificationRounds {
-		if err := setRoundPrimary(ctx, k.VerificationRound, state.TaskId, state.VerifyRound, state, "verification round"); err != nil {
+		taskID, err := genesisHashKey("verification round task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		key := types.NewVerifyRoundKey(taskID, state.VerifyRound)
+		has, err := k.VerificationRound.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate verification round")
+		}
+		if err := k.WriteVerificationRound(ctx, key, state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genesis.RoundFundings {
-		if err := setRoundPrimary(ctx, k.RoundFunding, state.TaskId, state.VerifyRound, state, "round funding"); err != nil {
+		taskID, err := genesisHashKey("round funding task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		key := types.NewVerifyRoundKey(taskID, state.VerifyRound)
+		has, err := k.RoundFunding.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate round funding")
+		}
+		if err := k.WriteRoundFunding(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -318,7 +443,14 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewTaskGasReimbursementKey(taskID, txHash, state.ItemIndex)
-		if err := setUnique(ctx, k.TaskGasReimbursement, key, state, "task gas reimbursement"); err != nil {
+		has, err := k.TaskGasReimbursement.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task gas reimbursement")
+		}
+		if err := k.WriteGasReimbursement(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -328,17 +460,46 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 		key := types.NewVerifierPayoutKey(taskID, state.SelectedVerifierIndex)
-		if err := setUnique(ctx, k.VerifierPayout, key, state, "verifier payout"); err != nil {
+		has, err := k.VerifierPayout.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate verifier payout")
+		}
+		if err := k.WriteVerifierPayout(ctx, key, state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genesis.TaskSettlements {
-		if err := setTaskPrimary(ctx, k.TaskSettlement, state.TaskId, state, "task settlement"); err != nil {
+		key, err := genesisHashKey("task settlement task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.TaskSettlement.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task settlement")
+		}
+		if err := k.WriteTaskSettlement(ctx, key, state); err != nil {
 			return err
 		}
 	}
 	for _, state := range genesis.SettlementFactsRetained {
-		if err := setTaskPrimary(ctx, k.SettlementFactsRetained, state.TaskId, state, "settlement facts retained"); err != nil {
+		key, err := genesisHashKey("settlement facts retained task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.SettlementFactsRetained.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate settlement facts retained")
+		}
+		if err := k.WriteSettlementFacts(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -353,7 +514,18 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 		}
 	}
 	for _, state := range genesis.TaskTerminalSummaries {
-		if err := setTaskPrimary(ctx, k.TaskTerminalSummary, state.TaskId, state, "task terminal summary"); err != nil {
+		key, err := genesisHashKey("task terminal summary task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		has, err := k.TaskTerminalSummary.Has(ctx, key)
+		if err != nil {
+			return err
+		}
+		if has {
+			return fmt.Errorf("duplicate task terminal summary")
+		}
+		if err := k.WriteTaskTerminalSummary(ctx, key, state); err != nil {
 			return err
 		}
 	}
@@ -445,7 +617,7 @@ func (k Keeper) validateGenesisHubRefs(ctx context.Context, genesis types.Genesi
 		if err != nil {
 			return fmt.Errorf("missing Hub parameter bucket version: %w", err)
 		}
-		if bucket.TaskRefCount != group.count {
+		if uint64(bucket.TaskRefCount) != group.count {
 			return fmt.Errorf("Hub parameter bucket task_ref_count=%d, imported Task refs=%d", bucket.TaskRefCount, group.count)
 		}
 	}
@@ -480,7 +652,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 		sessionID, _ := genesisHashKey("stream session_id", stream.SessionId)
 		switch stream.Status {
 		case types.SessionStatus_SESSION_STATUS_ACTIVE, types.SessionStatus_SESSION_STATUS_IDLE:
-			if err := k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(stream.OwnerUserAddress, sessionID)); err != nil {
+			owner, err := k.sessionAddressToStore("session owner index", stream.OwnerUserAddress)
+			if err != nil {
+				return err
+			}
+			if err := k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(owner, sessionID)); err != nil {
 				return err
 			}
 			if err := k.refreshSessionLifecycleIndex(ctx, stream); err != nil {
@@ -537,7 +713,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 			}
 		}
 		if core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_PENDING && assignment.WinnerWorker != "" {
-			if err := k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(assignment.WinnerWorker, taskID)); err != nil {
+			worker, err := k.sessionAddressToStore("worker active-task index", assignment.WinnerWorker)
+			if err != nil {
+				return err
+			}
+			if err := k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(worker, taskID)); err != nil {
 				return err
 			}
 		}
@@ -615,7 +795,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 		}
 		if core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_PENDING {
 			for _, selected := range assignment.SelectedVerifiers {
-				if err := k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(selected.OperatorAddress, taskID)); err != nil {
+				verifier, err := k.sessionAddressToStore("verifier active-job index", selected.OperatorAddress)
+				if err != nil {
+					return err
+				}
+				if err := k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(verifier, taskID)); err != nil {
 					return err
 				}
 			}
@@ -753,10 +937,10 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.ParamsMeta, err = k.GetTaskParamsMeta(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.SessionNonces, err = collectMapValues(ctx, k.SessionNonce); err != nil {
+	if genesis.SessionNonces, err = k.exportSessionNonces(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.Streams, err = collectMapValues(ctx, k.Stream); err != nil {
+	if genesis.Streams, err = k.exportStreams(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.OrderSequences, err = collectMapValues(ctx, k.OrderSequence); err != nil {
@@ -768,37 +952,37 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.SessionHistoryPruneCursors, err = collectMapValues(ctx, k.SessionHistoryPruneCursor); err != nil {
 		return nil, err
 	}
-	if genesis.SessionTerminalSummaries, err = collectMapValues(ctx, k.SessionTerminalSummary); err != nil {
+	if genesis.SessionTerminalSummaries, err = k.exportSessionTerminalSummaries(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.TaskCores, err = collectMapValues(ctx, k.TaskCore); err != nil {
 		return nil, err
 	}
-	if genesis.TaskAssignments, err = collectMapValues(ctx, k.TaskAssignment); err != nil {
+	if genesis.TaskAssignments, err = k.exportTaskAssignments(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.AssignmentCandidateSets, err = collectMapValues(ctx, k.AssignmentCandidateSet); err != nil {
 		return nil, err
 	}
-	if genesis.InferReceipts, err = collectMapValues(ctx, k.InferReceipt); err != nil {
+	if genesis.InferReceipts, err = k.exportInferReceipts(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.WorkerEvidenceReceipts, err = collectMapValues(ctx, k.WorkerEvidenceReceipt); err != nil {
+	if genesis.WorkerEvidenceReceipts, err = k.exportWorkerEvidenceReceipts(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.VerifierAssignments, err = collectMapValues(ctx, k.VerifierAssignment); err != nil {
+	if genesis.VerifierAssignments, err = k.exportVerifierAssignments(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.Commits, err = collectMapValues(ctx, k.CommitState); err != nil {
+	if genesis.Commits, err = k.exportCommits(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.ResultReceipts, err = collectMapValues(ctx, k.ResultReceiptState); err != nil {
+	if genesis.ResultReceipts, err = k.exportResultReceipts(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.TaskCandidateFacts, err = collectMapValues(ctx, k.TaskCandidateFact); err != nil {
+	if genesis.TaskCandidateFacts, err = k.exportTaskCandidateFacts(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.BuilderStageProposals, err = collectMapValues(ctx, k.BuilderStageProposal); err != nil {
+	if genesis.BuilderStageProposals, err = k.exportBuilderStageProposals(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.TaskStageHandraiseUnions, err = collectMapValues(ctx, k.TaskStageHandraiseUnion); err != nil {
@@ -810,7 +994,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.TaskCandidateFinalizeCursors, err = collectMapValues(ctx, k.TaskCandidateFinalizeCursor); err != nil {
 		return nil, err
 	}
-	if genesis.TaskBuilderSelections, err = collectMapValues(ctx, k.TaskBuilderSelection); err != nil {
+	if genesis.TaskBuilderSelections, err = k.exportTaskBuilderSelections(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.VerifierCandidateWindows, err = collectMapValues(ctx, k.VerifierCandidateWindow); err != nil {
@@ -819,13 +1003,13 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.VerifierCandidateEligibilitySegments, err = collectMapValues(ctx, k.VerifierCandidateEligibilitySegment); err != nil {
 		return nil, err
 	}
-	if genesis.VerifierCandidateWindowMembers, err = collectMapValues(ctx, k.VerifierCandidateWindowMember); err != nil {
+	if genesis.VerifierCandidateWindowMembers, err = k.exportVerifierWindowMembers(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.DataUnavailableReports, err = collectMapValues(ctx, k.DataUnavailableReport); err != nil {
+	if genesis.DataUnavailableReports, err = k.exportDataUnavailableReports(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.BuilderDataUnavailableAggregates, err = collectMapValues(ctx, k.BuilderDataUnavailableAggregate); err != nil {
+	if genesis.BuilderDataUnavailableAggregates, err = k.exportDataUnavailableAggregates(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.TaskFailureClasses, err = collectMapValues(ctx, k.TaskFailureClass); err != nil {
@@ -837,7 +1021,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.TaskCleanupCursors, err = collectMapValues(ctx, k.TaskCleanupCursor); err != nil {
 		return nil, err
 	}
-	if genesis.TaskTerminalSummaries, err = collectMapValues(ctx, k.TaskTerminalSummary); err != nil {
+	if genesis.TaskTerminalSummaries, err = k.exportTaskTerminalSummaries(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.EpochTaskSummaryCursors, err = collectMapValues(ctx, k.EpochTaskSummaryCursor); err != nil {
@@ -846,13 +1030,13 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.EpochTaskSummaryReceipts, err = collectMapValues(ctx, k.EpochTaskSummaryReceipt); err != nil {
 		return nil, err
 	}
-	if genesis.TaskGasReimbursements, err = collectMapValues(ctx, k.TaskGasReimbursement); err != nil {
+	if genesis.TaskGasReimbursements, err = k.exportGasReimbursements(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.VerificationRounds, err = collectMapValues(ctx, k.VerificationRound); err != nil {
+	if genesis.VerificationRounds, err = k.exportVerificationRounds(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.RoundFundings, err = collectMapValues(ctx, k.RoundFunding); err != nil {
+	if genesis.RoundFundings, err = k.exportRoundFundings(ctx); err != nil {
 		return nil, err
 	}
 	if genesis.RoundEconomicEffects, err = collectMapValues(ctx, k.RoundEconomicEffect); err != nil {
@@ -864,13 +1048,13 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.TaskRoundSummaries, err = collectMapValues(ctx, k.TaskRoundSummary); err != nil {
 		return nil, err
 	}
-	if genesis.VerifierPayouts, err = collectMapValues(ctx, k.VerifierPayout); err != nil {
+	if genesis.VerifierPayouts, err = k.exportVerifierPayouts(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.TaskSettlements, err = collectMapValues(ctx, k.TaskSettlement); err != nil {
+	if genesis.TaskSettlements, err = k.exportTaskSettlements(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.SettlementFactsRetained, err = collectMapValues(ctx, k.SettlementFactsRetained); err != nil {
+	if genesis.SettlementFactsRetained, err = k.exportSettlementFacts(ctx); err != nil {
 		return nil, err
 	}
 	if err := genesis.Validate(); err != nil {

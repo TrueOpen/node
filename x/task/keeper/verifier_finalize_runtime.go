@@ -445,7 +445,11 @@ func (k Keeper) finalizeVerifierLegalSetAtHeight(
 		if key.K3() < cursor.NextSlot {
 			continue
 		}
-		fact, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return false, visited, rowBytes, err
+		}
+		fact, err := k.ProjectTaskCandidateFactStore(stored)
 		if err != nil {
 			return false, visited, rowBytes, err
 		}

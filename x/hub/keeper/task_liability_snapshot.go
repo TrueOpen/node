@@ -27,7 +27,7 @@ func (k Keeper) GetTaskLiabilityReservation(
 	if err != nil {
 		return types.TaskLiabilityReservationSnapshot{}, err
 	}
-	row, err := k.TaskLiabilityReservation.Get(ctx, types.NewTaskLiabilityReservationKey(taskID, duty, operator))
+	row, err := k.ReadTaskLiabilityValue(ctx, types.NewTaskLiabilityReservationKey(taskID, duty, operator))
 	if err != nil {
 		return types.TaskLiabilityReservationSnapshot{}, err
 	}

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"math/bits"
 	"unicode/utf8"
@@ -8,13 +9,13 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-func TaskOrderHash(order TaskOrderV2) ([32]byte, error) {
+func TaskOrderHash(order TaskOrderV3) ([32]byte, error) {
 	var zero [32]byte
 	fields, err := canonicalTaskOrderFields(order)
 	if err != nil {
 		return zero, err
 	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainTaskOrderV2)).Field(fields...).Sum()
+	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainTaskOrderV3)).Field(fields...).Sum()
 	if err != nil {
 		return zero, err
 	}
@@ -23,7 +24,7 @@ func TaskOrderHash(order TaskOrderV2) ([32]byte, error) {
 
 // TaskOrderCosts derives the only Phase 0 worker, verifier and competition
 // values. Both multiplications use a 128-bit intermediate and one floor.
-func TaskOrderCosts(order TaskOrderV2, verifyRatioBps uint32) (workerMax, verifyMax, orderValue shared.Amount, err error) {
+func TaskOrderCosts(order TaskOrderV3, verifyRatioBps uint32) (workerMax, verifyMax, orderValue shared.Amount, err error) {
 	priceBid, err := shared.ParseAmount(order.PriceBid)
 	if err != nil || priceBid == 0 {
 		return workerMax, verifyMax, orderValue, fmt.Errorf("price_bid must be canonical and positive")
@@ -83,7 +84,7 @@ func mulDivFloorUint64(left, right, denominator uint64) (uint64, bool) {
 // generation_params_digest stands in for field 13 (generation_params): it is the
 // task-scoped commitment the assignment row actually retains, so the challenge
 // path compares like for like instead of re-deriving the nested params frame.
-func AcceptedTaskOrderOpeningHash(order TaskOrderV2, generationParamsDigest []byte) ([32]byte, error) {
+func AcceptedTaskOrderOpeningHash(order TaskOrderV3, generationParamsDigest []byte) ([32]byte, error) {
 	var zero [32]byte
 	fields, err := canonicalOrderLightFields(order, generationParamsDigest)
 	if err != nil {
@@ -144,7 +145,7 @@ func TaskBuilderRank(seed [32]byte, builderAddress string) ([32]byte, error) {
 //
 // Neither point licenses text elsewhere: a field typed uint32/uint64 in proto is
 // always fixed-width big endian.
-func canonicalTaskOrderFields(order TaskOrderV2) ([]shared.CanonicalFieldV1, error) {
+func canonicalTaskOrderFields(order TaskOrderV3) ([]shared.CanonicalFieldV1, error) {
 	if err := validateTaskOrderScalarScope(order); err != nil {
 		return nil, err
 	}
@@ -184,17 +185,18 @@ func canonicalTaskOrderFields(order TaskOrderV2) ([]shared.CanonicalFieldV1, err
 	fields = append(fields, shared.RawCanonicalFieldsV1(
 		shared.Uint64BE(order.TimeoutBucketVersion), shared.Uint64BE(order.SessionAnchorHeight),
 		order.SessionAnchorBlockHash, []byte(order.BuilderSetId), order.BuilderSetHash,
+		shared.EnumBE(uint32(order.PayloadMode)), order.InputKeyCommitment, order.UserRecipientPubkey,
 	)...)
 	return fields, nil
 }
 
-// canonicalOrderLightFields enumerates the 20 §10.1 light fields in TaskOrderV2
+// canonicalOrderLightFields enumerates the 20 §10.1 light fields in TaskOrderV3
 // field-number ascending order: numbers 2-12, generation_params_digest in place
 // of number 13, then numbers 18-25. Every framing choice mirrors
 // canonicalTaskOrderFields above so the two projections of the same message can
 // never disagree about how one field is encoded - in particular deadline_policy
 // is the recursive one-field frame of DeadlinePolicyV1, not a bare EnumBE.
-func canonicalOrderLightFields(order TaskOrderV2, generationParamsDigest []byte) ([]shared.CanonicalFieldV1, error) {
+func canonicalOrderLightFields(order TaskOrderV3, generationParamsDigest []byte) ([]shared.CanonicalFieldV1, error) {
 	if err := validateTaskOrderScalarScope(order); err != nil {
 		return nil, err
 	}
@@ -257,8 +259,8 @@ func canonicalGenerationParamsFrame(params GenerationParamsV1) (shared.Canonical
 	return frame, nil
 }
 
-func validateTaskOrderScalarScope(order TaskOrderV2) error {
-	if order.SchemaVersion != 2 || order.ChainId == "" || !utf8.ValidString(order.ChainId) || order.ModelId == "" || !utf8.ValidString(order.ModelId) ||
+func validateTaskOrderScalarScope(order TaskOrderV3) error {
+	if order.SchemaVersion != 3 || order.ChainId == "" || !utf8.ValidString(order.ChainId) || len(order.ModelId) != Hash32Len ||
 		len(order.SessionId) != Hash32Len || order.ProfileVersion == 0 || !isTaskTypeV1(order.TaskType) ||
 		len(order.InputHash) != Hash32Len || order.InputSizeBytes == 0 || order.OutputBudgetBucket == 0 ||
 		order.EarliestSubmitHeight == 0 || order.OrderExpireHeight == 0 || order.EarliestSubmitHeight >= order.OrderExpireHeight ||
@@ -266,6 +268,10 @@ func validateTaskOrderScalarScope(order TaskOrderV2) error {
 		order.TimeoutBucketVersion == 0 || order.SessionAnchorHeight == 0 || len(order.SessionAnchorBlockHash) != Hash32Len ||
 		order.BuilderSetId == "" || !utf8.ValidString(order.BuilderSetId) || len(order.BuilderSetHash) != Hash32Len {
 		return fmt.Errorf("task order scalar scope is invalid")
+	}
+	if order.PayloadMode != PayloadModeV1_PAYLOAD_MODE_V1_PLAINTEXT || len(order.InputKeyCommitment) != Hash32Len ||
+		!bytes.Equal(order.InputKeyCommitment, make([]byte, Hash32Len)) || len(order.UserRecipientPubkey) != 0 {
+		return fmt.Errorf("plaintext task order encryption fields are invalid")
 	}
 	priceBid, priceErr := shared.ParseAmount(order.PriceBid)
 	maxFee, maxFeeErr := shared.ParseAmount(order.MaxFee)

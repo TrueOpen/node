@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"sort"
-	"strings"
 
 	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,7 +21,7 @@ func (q queryServer) CortexNode(ctx context.Context, req *types.QueryCortexNodeR
 	if err != nil {
 		return nil, err
 	}
-	node, err := q.k.CortexNode.Get(ctx, operatorAddress)
+	node, err := q.k.ReadCortexNodeStore(ctx, operatorAddress)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "cortex node not found")
 	}
@@ -37,7 +36,7 @@ func (q queryServer) ServiceBond(ctx context.Context, req *types.QueryServiceBon
 	if err != nil {
 		return nil, err
 	}
-	bond, err := q.k.ServiceBond.Get(ctx, types.NewServiceBondKey(operatorAddress))
+	bond, err := q.k.ReadServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service bond not found")
 	}
@@ -139,7 +138,7 @@ func (q queryServer) ServiceDescriptor(ctx context.Context, req *types.QueryServ
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	descriptor, err := q.k.ServiceDescriptor.Get(ctx, types.NewParticipantKey(req.ParticipantType, operatorAddress))
+	descriptor, err := q.k.GetServiceDescriptor(ctx, types.NewParticipantKey(req.ParticipantType, operatorAddress))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service descriptor not found")
 	}
@@ -157,8 +156,8 @@ func (q queryServer) ServiceLifecycle(ctx context.Context, req *types.QueryServi
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	bond, bondErr := q.k.ServiceBond.Get(ctx, operatorAddress)
-	node, nodeErr := q.k.CortexNode.Get(ctx, operatorAddress)
+	bond, bondErr := q.k.ReadServiceBondValue(ctx, operatorAddress)
+	node, nodeErr := q.k.ReadCortexNodeStore(ctx, operatorAddress)
 	if errors.Is(bondErr, collections.ErrNotFound) && errors.Is(nodeErr, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service lifecycle not found")
 	}
@@ -180,31 +179,31 @@ func (q queryServer) ServiceLifecycle(ctx context.Context, req *types.QueryServi
 	return &types.QueryServiceLifecycleResponse{Lifecycle: view}, nil
 }
 
-func (q queryServer) ProfileCapability(ctx context.Context, req *types.QueryProfileCapabilityRequest) (*types.QueryProfileCapabilityResponse, error) {
-	operatorAddress, modelID, profileVersion, err := q.queryProviderProfile(ctx, req)
+func (q queryServer) ModelCapability(ctx context.Context, req *types.QueryModelCapabilityRequest) (*types.QueryModelCapabilityResponse, error) {
+	operatorAddress, modelID, err := q.queryOperatorModel(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	capability, err := q.k.ProfileCapability.Get(ctx, types.NewProfileCapabilityKey(operatorAddress, modelID, profileVersion))
+	capability, err := q.k.ModelCapability.Get(ctx, types.NewModelCapabilityKey(operatorAddress, modelID))
 	if errors.Is(err, collections.ErrNotFound) {
-		return nil, status.Error(codes.NotFound, "profile capability not found")
+		return nil, status.Error(codes.NotFound, "model capability not found")
 	}
-	if err != nil || capability.Validate() != nil {
-		return nil, status.Error(codes.Internal, "invalid profile capability state")
+	if err != nil || !modelCapabilityKeyMatches(capability, operatorAddress, modelID) || capability.Validate() != nil {
+		return nil, status.Error(codes.Internal, "invalid model capability state")
 	}
-	return &types.QueryProfileCapabilityResponse{Capability: capability}, nil
+	return &types.QueryModelCapabilityResponse{Capability: capability}, nil
 }
 
 func (q queryServer) ModelSupport(ctx context.Context, req *types.QueryModelSupportRequest) (*types.QueryModelSupportResponse, error) {
-	operatorAddress, modelID, profileVersion, err := q.queryProviderProfile(ctx, req)
+	operatorAddress, modelID, err := q.queryOperatorModel(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	support, err := q.k.ModelSupport.Get(ctx, types.NewModelSupportKey(operatorAddress, modelID, profileVersion))
+	support, err := q.k.ModelSupport.Get(ctx, types.NewModelSupportKey(operatorAddress, modelID))
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "model support not found")
 	}
-	if err != nil || support.Validate() != nil {
+	if err != nil || !modelSupportKeyMatches(support, operatorAddress, modelID) || support.Validate() != nil {
 		return nil, status.Error(codes.Internal, "invalid model support state")
 	}
 	return &types.QueryModelSupportResponse{Support: support}, nil
@@ -222,7 +221,7 @@ func (q queryServer) DailySupport(ctx context.Context, req *types.QueryDailySupp
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "daily support not found")
 	}
-	if err != nil || support.Validate() != nil {
+	if err != nil || !dailySupportKeyMatches(support, req.Epoch, operatorAddress) || support.Validate() != nil {
 		return nil, status.Error(codes.Internal, "invalid daily support state")
 	}
 	return &types.QueryDailySupportResponse{Support: support}, nil
@@ -239,23 +238,22 @@ func (q queryServer) queryOperator(ctx context.Context, req interface{ GetOperat
 	return operatorAddress, nil
 }
 
-func (q queryServer) queryProviderProfile(ctx context.Context, req interface {
+func (q queryServer) queryOperatorModel(ctx context.Context, req interface {
 	GetOperatorAddress() string
-	GetModelId() string
-	GetProfileVersion() uint32
-}) (string, string, uint32, error) {
+	GetModelId() []byte
+}) (string, []byte, error) {
 	if req == nil {
-		return "", "", 0, status.Error(codes.InvalidArgument, "invalid request")
+		return "", nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 	_, operatorAddress, err := q.k.requireCanonicalAddress("operator_address", req.GetOperatorAddress())
 	if err != nil {
-		return "", "", 0, status.Error(codes.InvalidArgument, err.Error())
+		return "", nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	modelID := req.GetModelId()
-	if modelID == "" || modelID != strings.TrimSpace(modelID) || types.ValidateModelID(modelID) != nil || req.GetProfileVersion() == 0 {
-		return "", "", 0, status.Error(codes.InvalidArgument, "canonical model_id and positive profile_version are required")
+	if len(modelID) != shared.Hash32KeySize {
+		return "", nil, status.Error(codes.InvalidArgument, "model_id must be raw Hash32")
 	}
-	return operatorAddress, modelID, req.GetProfileVersion(), nil
+	return operatorAddress, modelID, nil
 }
 
 func (k Keeper) unbondingsForQuery(ctx context.Context, operatorAddress string, filter types.UnbondingStatus) ([]types.UnbondingState, error) {
@@ -266,7 +264,11 @@ func (k Keeper) unbondingsForQuery(ctx context.Context, operatorAddress string, 
 	defer iter.Close()
 	rows := make([]types.UnbondingState, 0)
 	for ; iter.Valid(); iter.Next() {
-		row, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return nil, err
+		}
+		row, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return nil, err
 		}

@@ -89,7 +89,7 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	// UpdateHubParams applies one governance Hub params version.
 	UpdateHubParams(ctx context.Context, in *MsgUpdateHubParams, opts ...grpc.CallOption) (*MsgUpdateHubParamsResponse, error)
-	// ClaimEarnings is the single pull-payment entry (§9.6a). The former
+	// ClaimEarnings is the single pull-payment entry. The former
 	// per-class MsgClaimServiceReward / MsgClaimBuilderReward /
 	// MsgClaimInfrastructureReward are deleted: ClaimClassV1 selects the class.
 	// ClaimEarnings executes the ClaimEarnings operation.
@@ -129,15 +129,15 @@ type MsgClient interface {
 	SubmitFreezeSignal(ctx context.Context, in *MsgSubmitFreezeSignal, opts ...grpc.CallOption) (*MsgSubmitFreezeSignalResponse, error)
 	// EmergencyFreezeVote records one validator ballot.
 	EmergencyFreezeVote(ctx context.Context, in *MsgEmergencyFreezeVote, opts ...grpc.CallOption) (*MsgEmergencyFreezeVoteResponse, error)
-	// UpdateTimeoutBucket moved here from task.v1.Msg: the data-structure contract
-	// §2.4 names the Hub governance handler the only writer of parameter bucket
+	// UpdateTimeoutBucket moved here from task.v1.Msg: the wire storage model
+	// this contract names the Hub governance handler the only writer of parameter bucket
 	// versions, and x/task only reference-counts them.
 	// UpdateTimeoutBucket executes the UpdateTimeoutBucket operation.
 	UpdateTimeoutBucket(ctx context.Context, in *MsgUpdateTimeoutBucket, opts ...grpc.CallOption) (*MsgUpdateTimeoutBucketResponse, error)
-	// RunRewardEpoch is the single bounded reward runner (§9.6a); the former
+	// RunRewardEpoch is the single bounded reward runner; the former
 	// MsgRunBuilderRewardEpoch and MsgRunTreasuryEpoch are deleted because
 	// reward_bucket selects the competition bucket and treasury flow is not a
-	// separate epoch runner. It may only trigger event codes 40 and 70 (§5.11); no
+	// separate epoch runner. It may only trigger event codes 40 and 70; no
 	// runner-level summary event exists.
 	// RunRewardEpoch executes the RunRewardEpoch operation.
 	RunRewardEpoch(ctx context.Context, in *MsgRunRewardEpoch, opts ...grpc.CallOption) (*MsgRunRewardEpochResponse, error)
@@ -335,7 +335,7 @@ func (c *msgClient) RunRewardEpoch(ctx context.Context, in *MsgRunRewardEpoch, o
 type MsgServer interface {
 	// UpdateHubParams applies one governance Hub params version.
 	UpdateHubParams(context.Context, *MsgUpdateHubParams) (*MsgUpdateHubParamsResponse, error)
-	// ClaimEarnings is the single pull-payment entry (§9.6a). The former
+	// ClaimEarnings is the single pull-payment entry. The former
 	// per-class MsgClaimServiceReward / MsgClaimBuilderReward /
 	// MsgClaimInfrastructureReward are deleted: ClaimClassV1 selects the class.
 	// ClaimEarnings executes the ClaimEarnings operation.
@@ -375,15 +375,15 @@ type MsgServer interface {
 	SubmitFreezeSignal(context.Context, *MsgSubmitFreezeSignal) (*MsgSubmitFreezeSignalResponse, error)
 	// EmergencyFreezeVote records one validator ballot.
 	EmergencyFreezeVote(context.Context, *MsgEmergencyFreezeVote) (*MsgEmergencyFreezeVoteResponse, error)
-	// UpdateTimeoutBucket moved here from task.v1.Msg: the data-structure contract
-	// §2.4 names the Hub governance handler the only writer of parameter bucket
+	// UpdateTimeoutBucket moved here from task.v1.Msg: the wire storage model
+	// this contract names the Hub governance handler the only writer of parameter bucket
 	// versions, and x/task only reference-counts them.
 	// UpdateTimeoutBucket executes the UpdateTimeoutBucket operation.
 	UpdateTimeoutBucket(context.Context, *MsgUpdateTimeoutBucket) (*MsgUpdateTimeoutBucketResponse, error)
-	// RunRewardEpoch is the single bounded reward runner (§9.6a); the former
+	// RunRewardEpoch is the single bounded reward runner; the former
 	// MsgRunBuilderRewardEpoch and MsgRunTreasuryEpoch are deleted because
 	// reward_bucket selects the competition bucket and treasury flow is not a
-	// separate epoch runner. It may only trigger event codes 40 and 70 (§5.11); no
+	// separate epoch runner. It may only trigger event codes 40 and 70; no
 	// runner-level summary event exists.
 	// RunRewardEpoch executes the RunRewardEpoch operation.
 	RunRewardEpoch(context.Context, *MsgRunRewardEpoch) (*MsgRunRewardEpochResponse, error)

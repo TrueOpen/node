@@ -38,7 +38,7 @@ func TestAssignmentRandomnessQueryUsesTheDrawBeaconDomain(t *testing.T) {
 		found: true,
 	}
 	f.keeper.hubKeeper = stub
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, types.NewTaskKey(taskID), types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, types.NewTaskKey(taskID), types.TaskAssignmentState{
 		TaskId: taskID, AssignmentRandomnessHeight: 25,
 		AssignmentCandidateSetHash: bytes.Repeat([]byte{0x34}, types.Hash32Len),
 	}))
@@ -70,7 +70,7 @@ func TestAssignmentRandomnessQueryProjectsAPlaceholderBeaconWithoutAProofDigest(
 		found: true,
 	}
 	f.keeper.hubKeeper = stub
-	require.NoError(t, f.keeper.TaskAssignment.Set(f.ctx, types.NewTaskKey(taskID), types.TaskAssignmentState{
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, types.NewTaskKey(taskID), types.TaskAssignmentState{
 		TaskId: taskID, AssignmentRandomnessHeight: 25,
 		AssignmentCandidateSetHash: bytes.Repeat([]byte{0x37}, types.Hash32Len),
 	}))

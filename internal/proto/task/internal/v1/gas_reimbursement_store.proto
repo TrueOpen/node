@@ -1,0 +1,19 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// TaskGasReimbursementStoreState stores the fee payer as codec bytes.
+message TaskGasReimbursementStoreState {
+  bytes task_id = 1;
+  bytes tx_hash = 2;
+  uint32 item_index = 3;
+  int32 reimbursement_kind = 4;
+  bytes fee_payer = 5;
+  uint64 gas_basis = 6;
+  string actual_fee_paid_atomic_units = 7;
+  string necessary_fee_atomic_units = 8;
+  string reimbursed_amount_atomic_units = 9;
+  uint64 fee_policy_version = 10;
+  uint64 accepted_height = 11;
+}

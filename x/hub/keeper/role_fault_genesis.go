@@ -14,7 +14,7 @@ import (
 func (k Keeper) initRoleFaultGenesis(ctx context.Context, states []types.RoleFaultState, retention uint64) error {
 	for _, state := range states {
 		faultID := shared.Hash32Key(state.FaultId)
-		if err := k.RoleFault.Set(ctx, types.NewRoleFaultKey(faultID), state); err != nil {
+		if err := k.WriteRoleFaultValue(ctx, types.NewRoleFaultKey(faultID), state); err != nil {
 			return err
 		}
 		pruneHeight, err := checkedAdd(state.RecordedHeight, retention)
@@ -62,7 +62,7 @@ func (k Keeper) EnsureRoleFaultByTaskIndexInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		state, err := k.RoleFault.Get(ctx, key.K2())
+		state, err := k.ReadRoleFaultValue(ctx, key.K2())
 		if err != nil {
 			return fmt.Errorf("role fault by task %s/%s has no primary", hexRef(key.K1()), hexRef(key.K2()))
 		}
@@ -108,7 +108,7 @@ func (k Keeper) RoleFaultsForTask(ctx context.Context, taskID []byte) ([]types.R
 		if err != nil {
 			return nil, err
 		}
-		state, err := k.RoleFault.Get(ctx, key.K2())
+		state, err := k.ReadRoleFaultValue(ctx, key.K2())
 		if err != nil {
 			return nil, fmt.Errorf("role fault by task %s/%s has no primary", hexRef(key.K1()), hexRef(key.K2()))
 		}
@@ -143,7 +143,7 @@ func (k Keeper) validateRoleFaultPruneIndex(ctx context.Context, retention uint6
 		if prior, duplicate := indexed[pruneKey(key.K2())]; duplicate {
 			return fmt.Errorf("role fault %s has duplicate prune heights %d and %d", hexRef(key.K2()), prior, key.K1())
 		}
-		state, err := k.RoleFault.Get(ctx, key.K2())
+		state, err := k.ReadRoleFaultValue(ctx, key.K2())
 		if err != nil {
 			return fmt.Errorf("role fault prune %d/%s has no primary", key.K1(), hexRef(key.K2()))
 		}

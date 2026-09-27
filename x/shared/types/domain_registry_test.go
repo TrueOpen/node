@@ -37,9 +37,9 @@ func TestDomainRegistryV1IsSelfConsistent(t *testing.T) {
 func TestDomainRegistryV1UsesOnlyCurrentContractDomains(t *testing.T) {
 	current := []string{
 		shared.DomainHubParamsV2,
-		shared.DomainTaskOrderV2,
-		shared.DomainResultV2,
-		shared.DomainResultCommitmentV2,
+		shared.DomainTaskOrderV3,
+		shared.DomainResultV3,
+		shared.DomainResultCommitmentV3,
 		shared.DomainVerifyRoundFactsV1,
 		shared.DomainRoundEffectPlanV1,
 		shared.DomainSettlementPlanV1,
@@ -53,7 +53,12 @@ func TestDomainRegistryV1UsesOnlyCurrentContractDomains(t *testing.T) {
 	removed := []string{
 		"TRUEOPEN_HUB_PARAMS_V1",
 		"TRUEOPEN_TASK_ORDER_V1",
+		"TRUEOPEN_TASK_ORDER_V2",
 		"TRUEOPEN_RESULT_V1",
+		"TRUEOPEN_RESULT_V2",
+		"TRUEOPEN_RESULT_COMMITMENT_V2",
+		"TRUEOPEN_INFER_RECEIPT_V2",
+		"TRUEOPEN_WORKER_VALUE_COMMITMENT_V2",
 		"TRUEOPEN_RESULT_COMMITMENT_V1",
 		"TRUEOPEN_REGISTERED_FULL_RESULT_REFS_V1",
 		"TRUEOPEN_TASK_EVIDENCE_ROOT_V1",

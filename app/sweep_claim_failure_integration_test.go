@@ -73,7 +73,10 @@ func TestClaimEarningsRejectsMalformedSigner(t *testing.T) {
 
 	// State invariance: the malformed claim must not create an earnings
 	// row under the bogus key.
-	has, err := app.HubKeeper.Earnings.Has(ctx, "not-a-bech32-address")
+	_, err = app.HubKeeper.Earnings.Has(ctx, "not-a-bech32-address")
+	require.Error(t, err, "invalid address keys must fail before reading storage")
+	rows, err := app.HubKeeper.Earnings.Iterate(ctx, nil)
 	require.NoError(t, err)
-	require.False(t, has, "rejected claim must not create an earnings row")
+	require.False(t, rows.Valid(), "rejected claim must not create an earnings row")
+	require.NoError(t, rows.Close())
 }

@@ -82,7 +82,7 @@ func (k Keeper) InvariantChecks() []InvariantCheck {
 		{InvariantCandidatePoolPointer, "the current candidate pool pointer resolves to an ACTIVE snapshot with a body", k.EnsureCandidatePoolPointerInvariant},
 		{InvariantSlashSummaries, "slash summaries and their fault/challenge source receipts agree in both directions", k.EnsureSlashSummaryInvariant},
 		{InvariantRoleFaultByTaskIndex, "the derived role-fault by-task index and its primaries agree in both directions", k.EnsureRoleFaultByTaskIndexInvariant},
-		{InvariantModelProfileAggregates, "model active_profile_count, latest_profile_version and registration_fee_paid equal a row-by-row recount of their profiles", k.EnsureModelProfileAggregateInvariant},
+		{InvariantModelProfileAggregates, "model latest_profile_version and registration_fee_paid equal a row-by-row recount of their profiles", k.EnsureModelProfileAggregateInvariant},
 		{InvariantFreezeRiskSchedule, "every non-delisted profile has exactly one idle schedule or one active freeze window", k.EnsureFreezeRiskScheduleInvariant},
 		{InvariantBuilderFaultPrune, "every retained Builder fault has exactly one immutable prune schedule", k.EnsureBuilderFaultPruneInvariant},
 		// These three were written but never routed, so they only ever ran on
@@ -97,8 +97,8 @@ func (k Keeper) InvariantChecks() []InvariantCheck {
 	}
 }
 
-func freezeScheduleProfileID(modelID string, profileVersion uint32) string {
-	return modelID + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
+func freezeScheduleProfileID(modelID []byte, profileVersion uint32) string {
+	return hex.EncodeToString(modelID) + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
 }
 
 // EnsureFreezeRiskScheduleInvariant proves the derived driver in both
@@ -236,12 +236,17 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			nodeRows.Close()
 			return err
 		}
-		if entry.Key != entry.Value.OperatorAddress {
+		state, err := k.ProjectCortexNodeStore(entry.Value)
+		if err != nil {
+			nodeRows.Close()
+			return err
+		}
+		if entry.Key != state.OperatorAddress {
 			nodeRows.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "cortex node %s identity does not match its key", entry.Key)
 		}
-		nodes[entry.Key] = entry.Value
-		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX), 10)+"\x00"+entry.Key] = participant{entry.Value.CurrentDescriptorVersion}
+		nodes[entry.Key] = state
+		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX), 10)+"\x00"+entry.Key] = participant{state.CurrentDescriptorVersion}
 	}
 	if err := nodeRows.Close(); err != nil {
 		return err
@@ -258,9 +263,14 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			bonds.Close()
 			return err
 		}
+		bond, err := k.ProjectServiceBondStore(entry.Value)
+		if err != nil {
+			bonds.Close()
+			return err
+		}
 		seenBonds[entry.Key] = struct{}{}
 		node, hasNode := nodes[entry.Key]
-		terminal := entry.Value.Status == types.ServiceBondStatusExited || entry.Value.Status == types.ServiceBondStatusTombstoned
+		terminal := bond.Status == types.ServiceBondStatusExited || bond.Status == types.ServiceBondStatusTombstoned
 		validProofOnly := terminal && hasNode && node.ServiceKeyStatus == types.ServiceKeyStatusRevoked &&
 			node.CurrentDescriptorVersion == 0 &&
 			(node.ActiveTaskLiabilityCount != 0 || node.PendingStageDutyCount != 0 || node.PendingEvidenceSubmissionCount != 0)
@@ -288,7 +298,12 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			builders.Close()
 			return err
 		}
-		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER), 10)+"\x00"+entry.Key] = participant{entry.Value.CurrentDescriptorVersion}
+		state, err := k.ProjectBuilderStore(entry.Value)
+		if err != nil {
+			builders.Close()
+			return err
+		}
+		participants[strconv.FormatInt(int64(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER), 10)+"\x00"+entry.Key] = participant{state.CurrentDescriptorVersion}
 	}
 	if err := builders.Close(); err != nil {
 		return err
@@ -305,9 +320,14 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 			descriptors.Close()
 			return err
 		}
+		state, err := k.ProjectServiceDescriptorStore(entry.Value)
+		if err != nil {
+			descriptors.Close()
+			return err
+		}
 		id := strconv.FormatInt(int64(entry.Key.K1()), 10) + "\x00" + entry.Key.K2()
 		owner, exists := participants[id]
-		if !exists || entry.Value.OperatorAddress != entry.Key.K2() || int32(entry.Value.ParticipantType) != entry.Key.K1() || owner.descriptorVersion != entry.Value.DescriptorVersion {
+		if !exists || state.OperatorAddress != entry.Key.K2() || int32(state.ParticipantType) != entry.Key.K1() || owner.descriptorVersion != state.DescriptorVersion {
 			descriptors.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "service descriptor %s has no matching participant primary", id)
 		}
@@ -325,8 +345,8 @@ func (k Keeper) EnsureServiceIdentityLifecycleInvariant(ctx context.Context) err
 	return nil
 }
 
-func supportLifecycleID(operator, modelID string, profileVersion uint32) string {
-	return operator + "\x00" + modelID + "\x00" + strconv.FormatUint(uint64(profileVersion), 10)
+func supportLifecycleID(operator string, modelID []byte) string {
+	return operator + "\x00" + hex.EncodeToString(modelID)
 }
 
 // EnsureSupportLifecycleInvariant proves the ownership rule used by bounded
@@ -353,8 +373,8 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 			return err
 		}
 		state := entry.Value
-		id := supportLifecycleID(entry.Key.K1(), entry.Key.K2(), entry.Key.K3())
-		if entry.Key.K1() != state.OperatorAddress || entry.Key.K2() != state.ModelId || entry.Key.K3() != state.ProfileVersion {
+		id := supportLifecycleID(entry.Key.K1(), entry.Key.K2())
+		if entry.Key.K1() != state.OperatorAddress || !bytes.Equal(entry.Key.K2(), state.ModelId) {
 			rows.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "model support %s identity does not match its key", id)
 		}
@@ -364,17 +384,17 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "operator %s support count overflows", state.OperatorAddress)
 		}
 		countByOperator[state.OperatorAddress]++
-		if countByOperator[state.OperatorAddress] > params.Support.MaxSupportedProfilesPerOperator {
+		if countByOperator[state.OperatorAddress] > params.Support.MaxSupportedModelsPerOperator {
 			rows.Close()
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "operator %s exceeds max supported profiles", state.OperatorAddress)
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "operator %s exceeds max supported models", state.OperatorAddress)
 		}
 	}
 	if err := rows.Close(); err != nil {
 		return err
 	}
 
-	capabilities := map[string]types.ProfileCapabilityState{}
-	caps, err := k.ProfileCapability.Iterate(ctx, nil)
+	capabilities := map[string]types.ModelCapabilityState{}
+	caps, err := k.ModelCapability.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -385,20 +405,20 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 			return err
 		}
 		state := entry.Value
-		id := supportLifecycleID(entry.Key.K1(), entry.Key.K2(), entry.Key.K3())
-		if entry.Key.K1() != state.OperatorAddress || entry.Key.K2() != state.ModelId || entry.Key.K3() != state.ProfileVersion {
+		id := supportLifecycleID(entry.Key.K1(), entry.Key.K2())
+		if entry.Key.K1() != state.OperatorAddress || !bytes.Equal(entry.Key.K2(), state.ModelId) {
 			caps.Close()
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile capability %s identity does not match its key", id)
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model capability %s identity does not match its key", id)
 		}
 		support, exists := supports[id]
 		if !exists {
 			caps.Close()
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile capability %s has no owned support row", id)
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model capability %s has no owned support row", id)
 		}
 		if support.FirstActivationDuty == shared.DutyWorker && !state.InferenceCapability ||
 			support.FirstActivationDuty == shared.DutyVerifier && !state.VerificationCapability {
 			caps.Close()
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile capability %s does not declare its support activation duty", id)
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model capability %s does not declare its support activation duty", id)
 		}
 		capabilities[id] = state
 	}
@@ -420,7 +440,7 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 			operatorRows.Close()
 			return err
 		}
-		id := supportLifecycleID(key.K1(), key.K2(), key.K3())
+		id := supportLifecycleID(key.K1(), key.K2())
 		if _, exists := supports[id]; !exists {
 			operatorRows.Close()
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "model support by-operator index %s has no primary", id)
@@ -431,8 +451,8 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 		return err
 	}
 
-	byProfile := map[string]struct{}{}
-	profileRows, err := k.ModelSupportByProfileIndex.Iterate(ctx, nil)
+	byModel := map[string]struct{}{}
+	profileRows, err := k.ModelSupportByModelIndex.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -442,18 +462,18 @@ func (k Keeper) EnsureSupportLifecycleInvariant(ctx context.Context) error {
 			profileRows.Close()
 			return err
 		}
-		id := supportLifecycleID(key.K3(), key.K1(), key.K2())
+		id := supportLifecycleID(key.K2(), key.K1())
 		if _, exists := supports[id]; !exists {
 			profileRows.Close()
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "model support by-profile index %s has no primary", id)
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model support by-model index %s has no primary", id)
 		}
-		byProfile[id] = struct{}{}
+		byModel[id] = struct{}{}
 	}
 	if err := profileRows.Close(); err != nil {
 		return err
 	}
-	if len(byOperator) != len(supports) || len(byProfile) != len(supports) {
-		return errorsmod.Wrapf(types.ErrInvariantBroken, "support index cardinality mismatch (primary=%d by_operator=%d by_profile=%d)", len(supports), len(byOperator), len(byProfile))
+	if len(byOperator) != len(supports) || len(byModel) != len(supports) {
+		return errorsmod.Wrapf(types.ErrInvariantBroken, "support index cardinality mismatch (primary=%d by_operator=%d by_model=%d)", len(supports), len(byOperator), len(byModel))
 	}
 	return nil
 }
@@ -469,7 +489,7 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 	type locator struct {
 		kind   types.SlashSourceKind
 		source [shared.Hash32KeySize]byte
-		index  uint64
+		index  uint32
 	}
 	sourceKey := func(raw shared.Hash32Key) [shared.Hash32KeySize]byte {
 		var key [shared.Hash32KeySize]byte
@@ -488,7 +508,11 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			rows.Close()
 			return err
 		}
-		state := entry.Value
+		state, err := k.ProjectSlashSummaryStore(entry.Value)
+		if err != nil {
+			rows.Close()
+			return err
+		}
 		if err := state.Validate(); err != nil {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "invalid slash summary: "+err.Error())
@@ -525,7 +549,11 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			faults.Close()
 			return err
 		}
-		fault := entry.Value
+		fault, err := k.ProjectRoleFaultStore(entry.Value)
+		if err != nil {
+			faults.Close()
+			return err
+		}
 		if err := fault.Validate(); err != nil {
 			faults.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "invalid role fault: "+err.Error())
@@ -583,7 +611,10 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		if err != nil {
 			return err
 		}
-		state := entry.Value
+		state, err := k.ProjectCandidateSlotCurrentStore(entry.Value)
+		if err != nil {
+			return err
+		}
 		if state.Slot != entry.Key {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate slot %d does not match its store key %d", state.Slot, entry.Key)
 		}
@@ -612,7 +643,7 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		// A slot that names an operator must resolve its immutable binding, and
 		// the binding must name the same operator (§3.3 line 223).
 		if state.OperatorAddress != "" {
-			binding, err := k.CandidateSlotBinding.Get(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
+			binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 			if err != nil {
 				return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate slot %d/%d has no immutable binding", state.Slot, state.SlotVersion)
 			}
@@ -639,11 +670,15 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 		if !exists {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "operator candidate slot index entry %s has no live slot", entry.Key)
 		}
-		if entry.Value.OperatorAddress != entry.Key || entry.Value.Slot != want.Slot || entry.Value.SlotVersion != want.SlotVersion {
+		state, err := k.ProjectOperatorCandidateSlotStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		if state.OperatorAddress != entry.Key || state.Slot != want.Slot || state.SlotVersion != want.SlotVersion {
 			return errorsmod.Wrapf(
 				types.ErrInvariantBroken,
 				"operator candidate slot index entry %s points at %d/%d but the slot table says %d/%d",
-				entry.Key, entry.Value.Slot, entry.Value.SlotVersion, want.Slot, want.SlotVersion,
+				entry.Key, state.Slot, state.SlotVersion, want.Slot, want.SlotVersion,
 			)
 		}
 		seen++
@@ -930,7 +965,11 @@ func (k Keeper) EnsureServiceBondEpochInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectServiceBondStore(stored)
 		if err != nil {
 			return err
 		}
@@ -964,330 +1003,213 @@ func (k Keeper) EnsureServiceBondEpochInvariant(ctx context.Context) error {
 	return nil
 }
 
-// profileSupportAggregate carries one profile through the support-aggregate
-// invariant: the stored aggregates plus the immutable min_stake that bounds every
-// snapshot folded into them, against the running recount from the support rows.
-type profileSupportAggregate struct {
-	minStake      uint64
-	storedActive  uint64
-	storedEligibl uint64
-	storedCount   uint32
-	activeStake   uint64
-	eligibleStake uint64
-	activeCount   uint32
+// modelSupportAggregate compares the authoritative model row with support rows.
+type modelSupportAggregate struct {
+	minStake    uint64
+	storedStake uint64
+	storedCount uint32
+	stake       uint64
+	count       uint32
+	rechecking  bool
 }
 
-// EnsureSupportAggregateInvariant recomputes the three ProfileState support
-// aggregates from the ModelSupportState rows. ProfileState.active_supporter_count
-// /active_support_stake/eligible_support_stake drive the §4 activation threshold,
-// so a drift there silently changes which profiles are ACTIVE and therefore which
-// operators may be assigned work.
-//
-// The fold below is deliberately the *production* fold, not a second reading of
-// it. keeper.applyModelSupportMutation adds eligible_support_stake_snapshot and
-// active_support_stake_snapshot unconditionally and moves active_supporter_count
-// iff active_support_stake_snapshot > 0 (the data-structure contract:730
-// "active_support_stake_snapshot holds the value that was actually added to the
-// numerator, eligible_support_stake_snapshot holds the value that was actually
-// added to the denominator"). An
-// invariant that instead re-derived its own inclusion test from declared_support
-// and support_active would be a second, independently drifting predicate — which
-// is precisely the class of bug it is supposed to catch. The two flag-shaped
-// guards this check does keep are equivalences that make the production rule
-// well-defined, asserted rather than assumed:
-//
-//   - ModelSupportState.Validate() covers "!declared_support => no residual
-//     snapshot", so the unconditional denominator add cannot pick up a withdrawn
-//     row.
-//   - support_active <=> active_support_stake_snapshot > 0 is maintained by all
-//     four snapshot writers in model_support_runtime.go (declare, activate,
-//     deactivate, daily refresh); every one of them sets the flag and the
-//     numerator snapshot together, and SupportVoteWeight only reports eligible
-//     when the weight is non-zero. Asserting it here is what makes
-//     "count iff snapshot > 0" and "count iff support_active" the same rule.
-//
-// What this check deliberately does NOT do is re-run types.SupportVoteWeight per
-// row and require equality with the stored snapshot. The snapshots are
-// last-mutation values by contract, so at an arbitrary height a freshly recomputed
-// weight legitimately differs: a bond top-up, the epoch lag inside
-// types.EffectiveActiveBond, the budgeted SupportDeactivateCursor drain after a
-// freeze and the budgeted ProcessExpiredModelSupports sweep all leave a stale but
-// correct snapshot in place for one or more blocks, and
-// the data-structure contract:730 forbids re-deriving the old value from the
-// changed bond ("deducing the old value back out of the changed bond is not
-// allowed").
-// Worse, the equality form would be adversarially reachable: unbonding only
-// deactivates supports whose bond fell below profile.min_stake
-// (deactivateSupportsBelowBond), so any operator could unbond to just above
-// min_stake and halt FinalizeBlock for the whole chain.
-// the data-structure contract:728 assigns
-// the full row-by-row recompute to Genesis for the same reason, and
-// types.validateSupportGenesis performs it there at GenesisEpoch.
-//
-// The height-robust part of that recompute is kept: every non-zero snapshot must
-// lie in [min_stake, min_stake * active_support_stake_cap_multiplier], read from
-// the one copy of the cap formula (types.SupportVoteWeightCeiling). profile.min_stake
-// is written once at registration and never again, and all four §4 support
-// thresholds are genesis-only with RequiresSupportReindex (types/params.go:577-584),
-// so both ends of that interval are fixed for the life of the chain — which is
-// what lets this bound catch a snapshot no legal bond could ever have produced
-// for the profile.
-//
-// Cost: two sequential prefix iterations (Profile, then ModelSupport) with no
-// point Gets, plus one Params.Get — O(P + S) reads and O(P) scalars of memory,
-// the same class as the check it replaces.
+// EnsureSupportAggregateInvariant folds active snapshots by model. A bounded
+// threshold recheck may temporarily leave old snapshots outside the new cap,
+// but the model aggregate must always equal the sum of stored active rows.
 func (k Keeper) EnsureSupportAggregateInvariant(ctx context.Context) error {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return err
 	}
-	expected := map[string]*profileSupportAggregate{}
-	profiles, err := k.Profile.Iterate(ctx, nil)
+	expected := map[string]*modelSupportAggregate{}
+	models, err := k.Model.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer profiles.Close()
-	for ; profiles.Valid(); profiles.Next() {
-		state, err := profiles.Value()
+	for ; models.Valid(); models.Next() {
+		entry, err := models.KeyValue()
 		if err != nil {
+			models.Close()
 			return err
 		}
-		id := state.ModelId + "/" + strconv.FormatUint(uint64(state.ProfileVersion), 10)
-		expected[id] = &profileSupportAggregate{
-			minStake:      state.MinStake,
-			storedActive:  state.ActiveSupportStake,
-			storedEligibl: state.EligibleSupportStake,
-			storedCount:   state.ActiveSupporterCount,
+		if !bytes.Equal(entry.Key, entry.Value.ModelId) {
+			models.Close()
+			return errorsmod.Wrap(types.ErrInvariantBroken, "model key does not match primary row")
 		}
+		expected[hex.EncodeToString(entry.Key)] = &modelSupportAggregate{
+			minStake:    entry.Value.SupportMinStake,
+			storedStake: entry.Value.ActiveSupportStake,
+			storedCount: entry.Value.ActiveSupporterCount,
+		}
+	}
+	if err := models.Close(); err != nil {
+		return err
+	}
+	cursors, err := k.ModelSupportRecheckCursor.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ; cursors.Valid(); cursors.Next() {
+		modelID, err := cursors.Key()
+		if err != nil {
+			cursors.Close()
+			return err
+		}
+		aggregate, found := expected[hex.EncodeToString(modelID)]
+		if !found {
+			cursors.Close()
+			return errorsmod.Wrap(types.ErrInvariantBroken, "support recheck cursor references missing model")
+		}
+		aggregate.rechecking = true
+	}
+	if err := cursors.Close(); err != nil {
+		return err
 	}
 	supports, err := k.ModelSupport.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer supports.Close()
 	for ; supports.Valid(); supports.Next() {
 		entry, err := supports.KeyValue()
 		if err != nil {
+			supports.Close()
 			return err
 		}
 		state := entry.Value
-		id := state.ModelId + "/" + strconv.FormatUint(uint64(state.ProfileVersion), 10)
-		operatorKey := entry.Key.K1() + "/" + entry.Key.K2() + "/" + strconv.FormatUint(uint64(entry.Key.K3()), 10)
-		if entry.Key.K1() != state.OperatorAddress || entry.Key.K2() != state.ModelId || entry.Key.K3() != state.ProfileVersion {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model support stored under key %s carries identity %s/%s/%d",
-				operatorKey, state.OperatorAddress, state.ModelId, state.ProfileVersion,
-			)
+		if entry.Key.K1() != state.OperatorAddress || !bytes.Equal(entry.Key.K2(), state.ModelId) {
+			supports.Close()
+			return errorsmod.Wrap(types.ErrInvariantBroken, "support key disagrees with primary row")
 		}
 		if err := state.Validate(); err != nil {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "model support %s is invalid: %s", operatorKey, err.Error())
+			supports.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "invalid model support: %s", err)
 		}
-		// See the doc comment: this equivalence is what lets the fold below use the
-		// single production inclusion rule instead of a second hand-written one.
-		if state.SupportActive != (state.ActiveSupportStakeSnapshot > 0) {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model support %s has support_active %t with active_support_stake_snapshot %d",
-				operatorKey, state.SupportActive, state.ActiveSupportStakeSnapshot,
-			)
+		id := hex.EncodeToString(state.ModelId)
+		aggregate, found := expected[id]
+		if !found {
+			supports.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "support references missing model %s", id)
 		}
-		aggregate, ok := expected[id]
-		if !ok {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "support rows reference missing profile %s", id)
+		if state.ActiveSupportStakeSnapshot == 0 {
+			continue
 		}
-		ceiling, err := types.SupportVoteWeightCeiling(aggregate.minStake, params.Support)
-		if err != nil {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile %s support stake ceiling: %s", id, err.Error())
-		}
-		for _, snapshot := range [...]struct {
-			field string
-			value uint64
-		}{
-			{"eligible_support_stake_snapshot", state.EligibleSupportStakeSnapshot},
-			{"active_support_stake_snapshot", state.ActiveSupportStakeSnapshot},
-		} {
-			if snapshot.value == 0 {
-				continue
+		if !aggregate.rechecking {
+			ceiling, err := types.SupportVoteWeightCeiling(aggregate.minStake, params.Support)
+			if err != nil {
+				supports.Close()
+				return err
 			}
-			if snapshot.value < aggregate.minStake || snapshot.value > ceiling {
-				return errorsmod.Wrapf(
-					types.ErrInvariantBroken,
-					"model support %s %s %d is outside the support vote weight range [%d,%d] of profile %s",
-					operatorKey, snapshot.field, snapshot.value, aggregate.minStake, ceiling, id,
-				)
+			if state.ActiveSupportStakeSnapshot < aggregate.minStake || state.ActiveSupportStakeSnapshot > ceiling {
+				supports.Close()
+				return errorsmod.Wrapf(types.ErrInvariantBroken, "support snapshot for model %s is outside [%d,%d]", id, aggregate.minStake, ceiling)
 			}
 		}
-		if ^uint64(0)-aggregate.eligibleStake < state.EligibleSupportStakeSnapshot {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "eligible support stake overflow for %s", id)
+		if ^uint64(0)-aggregate.stake < state.ActiveSupportStakeSnapshot || aggregate.count == ^uint32(0) {
+			supports.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "support aggregate overflow for model %s", id)
 		}
-		aggregate.eligibleStake += state.EligibleSupportStakeSnapshot
-		if ^uint64(0)-aggregate.activeStake < state.ActiveSupportStakeSnapshot {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "active support stake overflow for %s", id)
-		}
-		aggregate.activeStake += state.ActiveSupportStakeSnapshot
-		if state.ActiveSupportStakeSnapshot > 0 {
-			if aggregate.activeCount == ^uint32(0) {
-				return errorsmod.Wrapf(types.ErrInvariantBroken, "active supporter count overflow for %s", id)
-			}
-			aggregate.activeCount++
-		}
+		aggregate.stake += state.ActiveSupportStakeSnapshot
+		aggregate.count++
+	}
+	if err := supports.Close(); err != nil {
+		return err
 	}
 	for id, aggregate := range expected {
-		if aggregate.storedCount != aggregate.activeCount ||
-			aggregate.storedActive != aggregate.activeStake ||
-			aggregate.storedEligibl != aggregate.eligibleStake {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"profile %s support aggregates (%d,%d,%d) do not match support rows (%d,%d,%d)",
-				id, aggregate.storedCount, aggregate.storedActive, aggregate.storedEligibl,
-				aggregate.activeCount, aggregate.activeStake, aggregate.eligibleStake,
-			)
+		if aggregate.storedStake != aggregate.stake || aggregate.storedCount != aggregate.count {
+			return errorsmod.Wrapf(types.ErrInvariantBroken,
+				"model %s support aggregate (%d,%d) differs from rows (%d,%d)",
+				id, aggregate.storedCount, aggregate.storedStake, aggregate.count, aggregate.stake)
 		}
 	}
 	return nil
 }
 
-// modelProfileAggregate is the row-by-row recount of one model's profiles.
+// modelProfileAggregate recounts one model's immutable profile version chain.
 type modelProfileAggregate struct {
-	activeProfiles  uint32
 	profileCount    uint32
 	maxVersion      uint32
 	registrationFee uint64
 }
 
-// EnsureModelProfileAggregateInvariant recounts ModelState.active_profile_count,
-// latest_profile_version and registration_fee_paid from the ProfileState rows.
-//
-// active_profile_count is a delta-maintained field:
-// the data-structure contract:704 "if a profile's ACTIVE status changes, also
-// maintain ModelState.active_profile_count in step", and the only writer
-// is the +/-1 pair in deriveProfileAndModelStatus plus applyActiveProfileCountDelta
-// on the governance path. Delta bookkeeping fails in exactly the way an aggregate
-// read cannot see: once a transition is missed or double-counted the field is
-// wrong forever, and because deriveModelStatus turns "active_profile_count > 0"
-// straight into ModelState.status == ACTIVE, a drift of one silently changes the
-// parent gate of every profile under the model (the data-structure contract:696
-// "model ACTIVE can only mean that at least one profile has matured"). The
-// governance-unfreeze path makes that bookkeeping
-// materially more dynamic: landing on REGISTERED returns status_source to
-// auto-derivation, so a single Tx now runs applyActiveProfileCountDelta (which
-// moves nothing when neither end is ACTIVE) and then a fresh support derivation
-// that may increment - a net +1 that no aggregate-reading check can distinguish
-// from a lost update. This invariant therefore never reads the field to validate
-// it; it counts the ACTIVE profiles and compares.
-//
-// The recount is the same one the data-structure contract:728 already requires
-// of Genesis ("ModelState.active_profile_count must be recomputed from the final
-// status of each profile and match item by item; imported derived aggregates are
-// not accepted") and that types.validateModelGenesis performs at import,
-// so a violation here is exactly a state this chain could export but never
-// re-import. The two neighbouring fields come along because they are folded from
-// the same iteration for free and are the reason the recount is total:
-// latest_profile_version must equal both the profile count and the highest
-// version present, which is what proves no profile row is missing from the scan.
-//
-// Cost: two sequential prefix iterations (Profile, then Model) with no point Gets
-// - O(P + M) reads and O(M) scalars of memory. Profile is already scanned by
-// EnsureSupportAggregateInvariant in the same registry pass, so the marginal cost
-// of the new check is one Model scan.
+// EnsureModelProfileAggregateInvariant checks the profile version chain and
+// registration fees. Profile status never becomes ACTIVE and does not drive
+// model support aggregates.
 func (k Keeper) EnsureModelProfileAggregateInvariant(ctx context.Context) error {
 	expected := map[string]*modelProfileAggregate{}
 	profiles, err := k.Profile.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer profiles.Close()
 	for ; profiles.Valid(); profiles.Next() {
 		entry, err := profiles.KeyValue()
 		if err != nil {
+			profiles.Close()
 			return err
 		}
 		state := entry.Value
-		id := state.ModelId + "/" + strconv.FormatUint(uint64(state.ProfileVersion), 10)
-		if entry.Key.K1() != state.ModelId || entry.Key.K2() != strconv.FormatUint(uint64(state.ProfileVersion), 10) {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"profile stored under key %s/%s carries identity %s",
-				entry.Key.K1(), entry.Key.K2(), id,
-			)
+		id := hex.EncodeToString(state.ModelId)
+		if !bytes.Equal(entry.Key.K1(), state.ModelId) || entry.Key.K2() != state.ProfileVersion {
+			profiles.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile key disagrees with row %s/%d", id, state.ProfileVersion)
 		}
-		// Version 0 is not a legal profile: model registration starts at 1 and
-		// advances by exactly one, so a zero here would silently pass the
-		// count/max-version cross-check below.
-		if state.ProfileVersion == 0 {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile %s has profile_version 0", id)
+		if state.ProfileVersion == 0 || state.Status == types.ModelStatusActive {
+			profiles.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile %s/%d has invalid version or ACTIVE status", id, state.ProfileVersion)
 		}
-		aggregate, ok := expected[state.ModelId]
-		if !ok {
+		aggregate := expected[id]
+		if aggregate == nil {
 			aggregate = &modelProfileAggregate{}
-			expected[state.ModelId] = aggregate
+			expected[id] = aggregate
 		}
-		if state.Status == types.ModelStatusActive {
-			if aggregate.activeProfiles == ^uint32(0) {
-				return errorsmod.Wrapf(types.ErrInvariantBroken, "model %s active profile count overflow", state.ModelId)
-			}
-			aggregate.activeProfiles++
+		if aggregate.profileCount == ^uint32(0) || ^uint64(0)-aggregate.registrationFee < state.RegistrationFeePaid {
+			profiles.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "profile aggregate overflow for model %s", id)
 		}
 		aggregate.profileCount++
 		if state.ProfileVersion > aggregate.maxVersion {
 			aggregate.maxVersion = state.ProfileVersion
 		}
-		if ^uint64(0)-aggregate.registrationFee < state.RegistrationFeePaid {
-			return errorsmod.Wrapf(types.ErrInvariantBroken, "model %s registration fees overflow", state.ModelId)
-		}
 		aggregate.registrationFee += state.RegistrationFeePaid
+	}
+	if err := profiles.Close(); err != nil {
+		return err
 	}
 	models, err := k.Model.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer models.Close()
 	for ; models.Valid(); models.Next() {
 		entry, err := models.KeyValue()
 		if err != nil {
+			models.Close()
 			return err
 		}
 		state := entry.Value
-		if entry.Key != state.ModelId {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model stored under key %s carries model_id %s", entry.Key, state.ModelId,
-			)
+		id := hex.EncodeToString(state.ModelId)
+		if !bytes.Equal(entry.Key, state.ModelId) {
+			models.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model key disagrees with row %s", id)
 		}
-		aggregate, ok := expected[state.ModelId]
-		if !ok {
-			aggregate = &modelProfileAggregate{}
+		aggregate := expected[id]
+		if aggregate == nil {
+			models.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model %s has no profiles", id)
 		}
-		if state.ActiveProfileCount != aggregate.activeProfiles {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model %s active_profile_count %d does not match %d ACTIVE profile rows",
-				state.ModelId, state.ActiveProfileCount, aggregate.activeProfiles,
-			)
-		}
-		// latest_profile_version, the profile count and the highest stored version
-		// agree only when the versions are contiguous 1..latest with no gaps and no
-		// row beyond the head, which is what registration maintains (+1 per profile,
-		// no profile is ever removed).
 		if state.LatestProfileVersion != aggregate.profileCount || state.LatestProfileVersion != aggregate.maxVersion {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model %s latest_profile_version %d does not match %d contiguous profile rows up to version %d",
-				state.ModelId, state.LatestProfileVersion, aggregate.profileCount, aggregate.maxVersion,
-			)
+			models.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model %s profile version chain is not contiguous", id)
 		}
 		if state.RegistrationFeePaid != aggregate.registrationFee {
-			return errorsmod.Wrapf(
-				types.ErrInvariantBroken,
-				"model %s registration_fee_paid %d does not match %d summed over its profile rows",
-				state.ModelId, state.RegistrationFeePaid, aggregate.registrationFee,
-			)
+			models.Close()
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "model %s registration fees disagree with profiles", id)
 		}
-		delete(expected, state.ModelId)
+		delete(expected, id)
+	}
+	if err := models.Close(); err != nil {
+		return err
 	}
 	for modelID := range expected {
-		return errorsmod.Wrapf(types.ErrInvariantBroken, "profile rows reference missing model %s", modelID)
+		return errorsmod.Wrapf(types.ErrInvariantBroken, "profiles reference missing model %s", modelID)
 	}
 	return nil
 }
@@ -1332,7 +1254,10 @@ func (k Keeper) EnsureTaskLiabilityIndexInvariant(ctx context.Context) error {
 			return err
 		}
 		taskID, duty, operator := entry.Key.K1(), shared.Duty(entry.Key.K2()), entry.Key.K3()
-		state := entry.Value
+		state, err := k.ProjectTaskLiabilityStore(entry.Value)
+		if err != nil {
+			return err
+		}
 		if !bytes.Equal(state.TaskId, taskID) || state.Duty != duty || state.OperatorAddress != operator {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "task liability %s/%d/%s does not match its store key", hexRef(taskID), duty, operator)
 		}
@@ -1416,7 +1341,11 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 	}
 	defer nodes.Close()
 	for ; nodes.Valid(); nodes.Next() {
-		state, err := nodes.Value()
+		stored, err := nodes.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectCortexNodeStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1439,7 +1368,11 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 	}
 	defer builders.Close()
 	for ; builders.Valid(); builders.Next() {
-		state, err := builders.Value()
+		stored, err := builders.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectBuilderStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1471,11 +1404,15 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 		if !exists {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "current service address index entry %s has no active participant", entry.Key.K2())
 		}
-		if entry.Value.OperatorAddress != want.operator || entry.Value.ServiceAuthorizationNonce != want.nonce {
+		state, err := k.ProjectCurrentServiceAddressIndexStore(entry.Value)
+		if err != nil {
+			return err
+		}
+		if state.OperatorAddress != want.operator || state.ServiceAuthorizationNonce != want.nonce {
 			return errorsmod.Wrapf(
 				types.ErrInvariantBroken,
 				"current service address index entry %s points at %s/%d but the identity is %s/%d",
-				entry.Key.K2(), entry.Value.OperatorAddress, entry.Value.ServiceAuthorizationNonce, want.operator, want.nonce,
+				entry.Key.K2(), state.OperatorAddress, state.ServiceAuthorizationNonce, want.operator, want.nonce,
 			)
 		}
 		indexed++
@@ -1520,9 +1457,20 @@ func (k Keeper) EnsureRewardsEarningsInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		key, err := iter.Key()
 		if err != nil {
 			return err
+		}
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.earningsStorePublicProjection(stored)
+		if err != nil {
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "earnings projection: %s", err)
+		}
+		if key != state.Address {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "earnings key/address mismatch")
 		}
 		taskFee, err := shared.ParseAmount(state.ClaimableTaskFee)
 		if err != nil {
@@ -1574,7 +1522,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectServiceBondStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1594,7 +1546,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer unbondings.Close()
 	for ; unbondings.Valid(); unbondings.Next() {
-		state, err := unbondings.Value()
+		stored, err := unbondings.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectUnbondingStore(stored)
 		if err != nil {
 			return err
 		}
@@ -1618,7 +1574,11 @@ func (k Keeper) EnsureServiceBondInvariant(ctx context.Context) error {
 	}
 	defer liabilities.Close()
 	for ; liabilities.Valid(); liabilities.Next() {
-		state, err := liabilities.Value()
+		stored, err := liabilities.Value()
+		if err != nil {
+			return err
+		}
+		state, err := k.ProjectTaskLiabilityStore(stored)
 		if err != nil {
 			return err
 		}

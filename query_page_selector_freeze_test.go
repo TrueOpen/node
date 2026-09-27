@@ -59,7 +59,7 @@ func TestPaginatedQueryRPCSetMatchesTheSelectorSchema(t *testing.T) {
 //
 // querySelectorVariantsV1 derives the variants from the production schema, so the
 // two cannot drift; what this test guards is that the projection stays lossless -
-// the same keys, the same ordered field names, the same empty-tail notes - if the
+// the same keys and ordered field names - if the
 // projection is ever rewritten. The registry is what non-Go implementations read,
 // so a projection that silently dropped a field would hand them a preimage the
 // producer does not build.
@@ -75,7 +75,6 @@ func TestQuerySelectorRegistryVariantsMatchTheProductionSchema(t *testing.T) {
 		schema, known := shared.QueryPageSelectorSchemaV1[variant.Key]
 		require.True(t, known, "registry variant %q is not a registered paginated RPC", variant.Key)
 		require.Equal(t, schema.Fields, variant.Fields, "variant %q lost or gained a selector field", variant.Key)
-		require.Equal(t, schema.Note, variant.Note, "variant %q lost its empty-tail justification", variant.Key)
 	}
 }
 

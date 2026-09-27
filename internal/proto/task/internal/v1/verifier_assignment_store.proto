@@ -1,0 +1,29 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// SelectedVerifierStoreV1 stores the verifier operator as codec bytes.
+message SelectedVerifierStoreV1 {
+  bytes operator_address = 1;
+  uint32 slot = 2;
+  uint64 slot_version = 3;
+}
+
+// VerifierAssignmentStoreState preserves selected verifier order.
+message VerifierAssignmentStoreState {
+  bytes task_id = 1;
+  uint32 verify_round = 2;
+  uint64 open_verify_height = 3;
+  bytes verifier_candidate_window_hash = 4;
+  bytes verifier_legal_set_hash = 5;
+  bytes selected_verifiers_hash = 6;
+  uint64 selection_randomness_height = 7;
+  bytes selection_randomness_beacon = 8;
+  repeated SelectedVerifierStoreV1 selected_verifiers = 9;
+  uint32 selected_verifier_count = 10;
+  uint32 verifier_handraise_count = 11;
+  uint64 commit_deadline_height = 12;
+  uint64 reveal_deadline_height = 13;
+  uint64 verify_deadline_height = 14;
+}

@@ -118,7 +118,7 @@ func validateBuilderEvidenceCommonScope(authority builderEvidenceTaskAuthority, 
 	if len(envelope.Scope.TaskHash) != 0 && !bytes.Equal(envelope.Scope.TaskHash, authority.core.AcceptedTaskHash) {
 		return fmt.Errorf("%w: task_hash", errBuilderEvidenceScopeMismatch)
 	}
-	if envelope.Scope.ModelID != nil && *envelope.Scope.ModelID != authority.core.ModelId {
+	if len(envelope.Scope.ModelID) != 0 && !bytes.Equal(envelope.Scope.ModelID, authority.core.ModelId) {
 		return fmt.Errorf("%w: model_id", errBuilderEvidenceScopeMismatch)
 	}
 	return nil
@@ -149,7 +149,7 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 		if err := k.validateBuilderWorkerActor(ctx, taskKey, scope.PayloadActor); err != nil {
 			return err
 		}
-		receipt, err := k.InferReceipt.Get(ctx, taskKey)
+		receipt, err := k.ReadInferReceipt(ctx, taskKey)
 		if errors.Is(err, collections.ErrNotFound) {
 			return fmt.Errorf("%w: OPEN_VERIFY requires an accepted InferReceipt", errBuilderEvidenceWrongStage)
 		}
@@ -183,11 +183,11 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 
 func (k Keeper) validateBuilderOrderBroadcast(core types.TaskCoreState, envelope bus.VerifiedEvidenceEnvelope) error {
 	if len(envelope.OrderBytes) == 0 {
-		return fmt.Errorf("ORDER_BROADCAST did not expose exact TaskOrderV2 bytes")
+		return fmt.Errorf("ORDER_BROADCAST did not expose exact TaskOrderV3 bytes")
 	}
-	var order types.TaskOrderV2
+	var order types.TaskOrderV3
 	if err := order.Unmarshal(envelope.OrderBytes); err != nil {
-		return fmt.Errorf("decode ORDER_BROADCAST TaskOrderV2: %w", err)
+		return fmt.Errorf("decode ORDER_BROADCAST TaskOrderV3: %w", err)
 	}
 	digest, err := types.TaskOrderHash(order)
 	if err != nil {
@@ -198,7 +198,7 @@ func (k Keeper) validateBuilderOrderBroadcast(core types.TaskCoreState, envelope
 		return err
 	}
 	if !bytes.Equal(digest[:], core.AcceptedTaskHash) || !bytes.Equal(order.SessionId, core.SessionId) ||
-		order.OrderSequence != core.OrderSequence || order.ModelId != core.ModelId || actor != core.UserAddress {
+		order.OrderSequence != core.OrderSequence || !bytes.Equal(order.ModelId, core.ModelId) || actor != core.UserAddress {
 		return fmt.Errorf("%w: ORDER_BROADCAST TaskOrder authority", errBuilderEvidenceScopeMismatch)
 	}
 	if envelope.Scope.PayloadActor == nil {
@@ -219,7 +219,7 @@ func (k Keeper) validateBuilderWorkerActor(ctx context.Context, taskKey types.Ta
 	if err != nil {
 		return err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("%w: finalized Worker assignment", errBuilderEvidenceWrongStage)
 	}
@@ -246,7 +246,11 @@ func (k Keeper) validateBuilderCandidateActor(ctx context.Context, taskKey types
 	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		fact, err := iter.Value()
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		fact, err := k.ProjectTaskCandidateFactStore(stored)
 		if err != nil {
 			return err
 		}
@@ -261,7 +265,7 @@ func (k Keeper) validateBuilderVerifierAssignment(ctx context.Context, taskKey t
 	if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
 		return fmt.Errorf("%w: verifier action verify_round", errBuilderEvidenceWrongStage)
 	}
-	assignment, err := k.VerifierAssignment.Get(ctx, types.NewVerifyRoundKey(taskKey, *scope.VerifyRound))
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, *scope.VerifyRound))
 	if errors.Is(err, collections.ErrNotFound) {
 		return fmt.Errorf("%w: finalized Verifier assignment", errBuilderEvidenceWrongStage)
 	}

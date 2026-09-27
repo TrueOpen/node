@@ -55,15 +55,16 @@ type paramsVector struct {
 	// ProtoMessage is the fully-qualified name of the params message whose
 	// descriptor defines the leaf order below. It is what makes the nested fields
 	// derivable instead of hand-maintained.
-	ProtoMessage  string              `json:"proto_message"`
-	ChainID       string              `json:"chain_id"`
-	ParamsVersion uint64              `json:"params_version"`
-	Fields        []paramsField       `json:"fields"`
-	PreimageHex   string              `json:"preimage_hex"`
-	DigestHex     string              `json:"digest_hex"`
-	Tamper        []paramsTamperCase  `json:"tamper"`
-	Replay        []paramsReplayCase  `json:"replay"`
-	Leaves        *paramsLeafAccounts `json:"leaf_accounting,omitempty"`
+	ProtoMessage      string              `json:"proto_message"`
+	ChainID           string              `json:"chain_id"`
+	ParamsVersion     uint64              `json:"params_version"`
+	Fields            []paramsField       `json:"fields"`
+	PreimageHex       string              `json:"preimage_hex"`
+	PreimageSizeBytes uint64              `json:"preimage_size_bytes"`
+	DigestHex         string              `json:"digest_hex"`
+	Tamper            []paramsTamperCase  `json:"tamper"`
+	Replay            []paramsReplayCase  `json:"replay"`
+	Leaves            *paramsLeafAccounts `json:"leaf_accounting,omitempty"`
 }
 
 // paramsLeafAccounts publishes what the tree contains, so a non-Go implementation
@@ -170,7 +171,14 @@ func TestParamsFixtureGoldenVectors(t *testing.T) {
 			spec, registered := shared.DomainSpecFor(vector.Domain)
 			require.True(t, registered)
 			require.Equal(t, vector.Framing, spec.Framing.String())
-			require.Equal(t, []string{"chain_id", "params_version", "params"}, spec.Fields)
+			switch vector.Domain {
+			case shared.DomainHubParamsV2:
+				require.Equal(t, []string{"chain_id", "new_version", "canonical HubParamsV2"}, spec.Fields)
+			case shared.DomainTaskParamsV1:
+				require.Equal(t, []string{"chain_id", "params_version", "params"}, spec.Fields)
+			default:
+				t.Fatalf("unexpected params domain %s", vector.Domain)
+			}
 			require.NotEmpty(t, vector.ContractSection)
 			require.NotEmpty(t, vector.Producer)
 

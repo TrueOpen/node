@@ -23,7 +23,7 @@ func (k Keeper) RegisterBuilder(ctx context.Context, address string, height uint
 	if height == 0 {
 		return types.BuilderState{}, fmt.Errorf("builder registration height must be positive")
 	}
-	if existing, err := k.Builder.Get(ctx, address); err == nil {
+	if existing, err := k.GetBuilderState(ctx, address); err == nil {
 		return existing, nil
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return types.BuilderState{}, err
@@ -50,7 +50,7 @@ func (k Keeper) loadBuilder(ctx context.Context, address string) (types.BuilderS
 	if err != nil {
 		return types.BuilderState{}, false, err
 	}
-	state, err := k.Builder.Get(ctx, canonical)
+	state, err := k.GetBuilderState(ctx, canonical)
 	if errors.Is(err, collections.ErrNotFound) {
 		return types.BuilderState{}, false, nil
 	}
@@ -99,7 +99,7 @@ func (k Keeper) submitBuilderEvidenceFault(ctx context.Context, evidence canonic
 		return types.BuilderFaultState{}, types.BuilderState{}, false, err
 	}
 	key := types.NewBuilderFaultKey(fault.BuilderAddress, fault.FaultId)
-	if existing, err := k.BuilderFault.Get(ctx, key); err == nil {
+	if existing, err := k.ReadBuilderFaultValue(ctx, key); err == nil {
 		if builderFaultMatchesEvidence(existing, evidence) {
 			return existing, builder, false, nil
 		}
@@ -107,7 +107,7 @@ func (k Keeper) submitBuilderEvidenceFault(ctx context.Context, evidence canonic
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return types.BuilderFaultState{}, types.BuilderState{}, false, err
 	}
-	if err := k.BuilderFault.Set(ctx, key, fault); err != nil {
+	if err := k.WriteBuilderFaultValue(ctx, key, fault); err != nil {
 		return types.BuilderFaultState{}, types.BuilderState{}, false, err
 	}
 	if err := k.BuilderFaultPruneIndex.Set(ctx, types.NewBuilderFaultPruneKey(pruneHeight, fault.BuilderAddress, fault.FaultId)); err != nil {
@@ -117,7 +117,7 @@ func (k Keeper) submitBuilderEvidenceFault(ctx context.Context, evidence canonic
 }
 
 func (k Keeper) builderEvidenceReplay(ctx context.Context, evidence canonicalBuilderEvidence) (types.BuilderFaultState, bool, error) {
-	fault, err := k.BuilderFault.Get(ctx, types.NewBuilderFaultKey(evidence.BuilderOperator, evidence.FaultID))
+	fault, err := k.ReadBuilderFaultValue(ctx, types.NewBuilderFaultKey(evidence.BuilderOperator, evidence.FaultID))
 	if errors.Is(err, collections.ErrNotFound) {
 		return types.BuilderFaultState{}, false, nil
 	}
@@ -224,7 +224,7 @@ func (k Keeper) GetBuilderSetByID(ctx sdk.Context, builderSetID string) (types.B
 	if err != nil {
 		return types.BuilderSetState{}, err
 	}
-	state, err := k.BuilderSet.Get(ctx, version)
+	state, err := k.GetBuilderSet(ctx, version)
 	if err != nil {
 		return types.BuilderSetState{}, err
 	}
@@ -252,7 +252,7 @@ func (k Keeper) GetBuilderSetForHeight(ctx sdk.Context, height uint64) (types.Bu
 	if err != nil {
 		return types.BuilderSetState{}, err
 	}
-	state, err := k.BuilderSet.Get(ctx, entry.Key.K2())
+	state, err := k.GetBuilderSet(ctx, entry.Key.K2())
 	if err != nil {
 		return types.BuilderSetState{}, err
 	}

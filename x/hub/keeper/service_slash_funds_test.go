@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/collections"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TrueOpen/node/x/hub/keeper"
@@ -27,9 +28,9 @@ func TestServiceSlashWaterfallMovesCustodyWritesSummaryAndTerminatesUnbonding(t 
 	require.Equal(t, uint64(600_000), bond.ActiveBond)
 
 	taskID := bytes.Repeat([]byte{0xaa}, 32)
-	earnings := types.EarningsState{Address: operator, ClaimableAmount: shared.NewAmount(20), ClaimableTaskFee: shared.NewAmount(20), ClaimableServiceReward: shared.NewAmount(0), ClaimableBuilderReward: shared.NewAmount(0), EarningsVersion: 1, LastUpdatedHeight: 21}
-	require.NoError(t, earnings.Validate())
-	require.NoError(t, f.keeper.Earnings.Set(f.ctx, operator, earnings))
+	sessionID := bytes.Repeat([]byte{0xbb}, 32)
+	require.NoError(t, f.keeper.CreditTaskSettlementEarnings(f.ctx, sessionID, taskID,
+		[]types.TaskEarningsCredit{{Beneficiary: operator, Amount: shared.NewAmount(20)}}, 21))
 	f.bank.seedModule(types.RewardsModuleName, 20)
 
 	fault := seedRoleFaultForTest(
@@ -52,7 +53,7 @@ func TestServiceSlashWaterfallMovesCustodyWritesSummaryAndTerminatesUnbonding(t 
 	require.Equal(t, uint64(7), result.Unfilled)
 
 	fault.XSlashSummaryId = &types.RoleFaultState_SlashSummaryId{SlashSummaryId: append([]byte(nil), fault.FaultId...)}
-	require.NoError(t, f.keeper.RoleFault.Set(f.ctx, fault.FaultId, fault))
+	require.NoError(t, f.keeper.WriteRoleFaultValue(f.ctx, fault.FaultId, fault))
 	require.NoError(t, f.keeper.EnsureSlashSummaryInvariant(f.ctx))
 	require.NoError(t, f.keeper.EnsureServiceBondInvariant(f.ctx))
 	require.NoError(t, f.keeper.EnsureRewardsEarningsInvariant(f.ctx))
@@ -61,16 +62,28 @@ func TestServiceSlashWaterfallMovesCustodyWritesSummaryAndTerminatesUnbonding(t 
 	require.Equal(t, result.Applied, f.bank.moduleBalance(types.TreasuryModuleName))
 
 	idKey := shared.Hash32Key(unbonding.UnbondingId)
-	_, err = f.keeper.Unbonding.Get(f.ctx, types.NewUnbondingKey(operator, idKey))
+	_, err = f.keeper.ReadUnbondingValue(f.ctx, types.NewUnbondingKey(operator, idKey))
 	require.ErrorIs(t, err, collections.ErrNotFound)
-	receipt, err := f.keeper.UnbondingReceipt.Get(f.ctx, idKey)
+	receipt, err := f.keeper.ReadUnbondingReceiptValue(f.ctx, idKey)
 	require.NoError(t, err)
+	storedReceipt, err := f.keeper.UnbondingReceipt.Get(f.ctx, idKey)
+	require.NoError(t, err)
+	operatorBytes, err := sdk.AccAddressFromBech32(receipt.OperatorAddress)
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedReceipt.OperatorAddress)
 	require.Equal(t, types.UnbondingReceiptTerminalStatus_UNBONDING_RECEIPT_TERMINAL_STATUS_FULLY_SLASHED, receipt.TerminalStatus)
 	require.Equal(t, uint64(400_000), receipt.SlashedAmount)
-	summary, err := f.keeper.SlashSummary.Get(f.ctx, types.NewSlashSummaryKey(
+	summary, err := f.keeper.ReadSlashSummaryValue(f.ctx, types.NewSlashSummaryKey(
 		types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, fault.FaultId, 0,
 	))
 	require.NoError(t, err)
+	storedSummary, err := f.keeper.SlashSummary.Get(f.ctx, types.NewSlashSummaryKey(
+		types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, fault.FaultId, 0,
+	))
+	require.NoError(t, err)
+	summaryOperatorBytes, err := sdk.AccAddressFromBech32(summary.OperatorAddress)
+	require.NoError(t, err)
+	require.Equal(t, []byte(summaryOperatorBytes), storedSummary.OperatorAddress)
 	require.Equal(t, shared.NewAmount(400_000), summary.UnbondingDebit)
 	require.Equal(t, shared.NewAmount(7), summary.UnfilledAmount)
 
@@ -130,9 +143,9 @@ func TestServiceUnbondingCapIncludesMatureRowsAndRoundTrips(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = f.keeper.ProcessUnbondingMaturities(f.ctx, second.MatureHeight, 10, 1<<20)
 	require.NoError(t, err)
-	first, err = f.keeper.Unbonding.Get(f.ctx, types.NewUnbondingKey(operator, first.UnbondingId))
+	first, err = f.keeper.ReadUnbondingValue(f.ctx, types.NewUnbondingKey(operator, first.UnbondingId))
 	require.NoError(t, err)
-	second, err = f.keeper.Unbonding.Get(f.ctx, types.NewUnbondingKey(operator, second.UnbondingId))
+	second, err = f.keeper.ReadUnbondingValue(f.ctx, types.NewUnbondingKey(operator, second.UnbondingId))
 	require.NoError(t, err)
 	require.Equal(t, types.UnbondingStatusMature, first.Status)
 	require.Equal(t, types.UnbondingStatusMature, second.Status)
@@ -151,7 +164,7 @@ func TestApplyServiceSlashBankFailureRollsBackStateAndSummary(t *testing.T) {
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
 	operator := hubAddress(t, 233)
 	const activeBond = uint64(math.MaxInt64) + 1
-	require.NoError(t, f.keeper.ServiceBond.Set(f.ctx, operator, types.ServiceBondState{
+	require.NoError(t, f.keeper.WriteServiceBondValue(f.ctx, operator, types.ServiceBondState{
 		OperatorAddress: operator, ActiveBond: activeBond, EffectiveActiveBond: activeBond,
 		BondVersion: 1, Status: types.ServiceBondStatusActive,
 	}))
@@ -161,7 +174,7 @@ func TestApplyServiceSlashBankFailureRollsBackStateAndSummary(t *testing.T) {
 	bond, err := f.keeper.GetServiceBondState(f.ctx, operator)
 	require.NoError(t, err)
 	require.Equal(t, activeBond, bond.ActiveBond)
-	_, err = f.keeper.SlashSummary.Get(f.ctx, types.NewSlashSummaryKey(
+	_, err = f.keeper.ReadSlashSummaryValue(f.ctx, types.NewSlashSummaryKey(
 		request.SourceKind, request.SourceID, request.EffectIndex,
 	))
 	require.ErrorIs(t, err, collections.ErrNotFound)
@@ -205,7 +218,7 @@ func TestTaskRoleFaultConsumesLiabilitySlashesCustodyAndJails(t *testing.T) {
 	require.Equal(t, before.ActiveBond-expected, after.ActiveBond)
 	require.Equal(t, beforeServiceCustody-expected, f.bank.moduleBalance(types.ServiceBondModuleName))
 	require.Equal(t, expected, f.bank.moduleBalance(types.TreasuryModuleName))
-	stored, err := f.keeper.TaskLiabilityReservation.Get(f.ctx, types.NewTaskLiabilityReservationKey(reservation.TaskId, shared.DutyWorker, operator))
+	stored, err := f.keeper.ReadTaskLiabilityValue(f.ctx, types.NewTaskLiabilityReservationKey(reservation.TaskId, shared.DutyWorker, operator))
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusSlashed, stored.Status)
 	fault := onlyRoleFaultForTask(t, f, reservation.TaskId)
@@ -249,7 +262,9 @@ func onlyRoleFaultForTask(t *testing.T, f *fixture, taskID []byte) types.RoleFau
 	require.NoError(t, err)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		state, err := iter.Value()
+		stored, err := iter.Value()
+		require.NoError(t, err)
+		state, err := f.keeper.ProjectRoleFaultStore(stored)
 		require.NoError(t, err)
 		if bytes.Equal(state.TaskId, taskID) {
 			return state
@@ -332,7 +347,7 @@ func TestSettlementVerifierFaultKeepsTaskClassificationSource(t *testing.T) {
 	// invariant, i.e. the SETTLEMENT-sourced path writes the same
 	// RoleFault<->SlashSummary pair the DEADLINE-sourced path does.
 	require.Len(t, fault.GetSlashSummaryId(), 32)
-	summary, err := f.keeper.SlashSummary.Get(f.ctx, types.NewSlashSummaryKey(
+	summary, err := f.keeper.ReadSlashSummaryValue(f.ctx, types.NewSlashSummaryKey(
 		types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, fault.FaultId, 0,
 	))
 	require.NoError(t, err)

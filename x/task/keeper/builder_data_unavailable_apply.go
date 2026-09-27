@@ -60,7 +60,7 @@ func (k Keeper) applyDataUnavailableBuilderFaults(ctx context.Context, core type
 		if !attested[index] {
 			continue
 		}
-		aggregate, err := k.BuilderDataUnavailableAggregate.Get(
+		aggregate, err := k.ReadDataUnavailableAggregate(
 			ctx, types.NewVerifyActorKey(taskKey, types.VerifyRoundV1, builder),
 		)
 		if errIsNotFound(err) {

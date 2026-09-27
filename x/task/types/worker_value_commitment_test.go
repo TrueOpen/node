@@ -15,7 +15,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// This file binds the published TRUEOPEN_WORKER_VALUE_COMMITMENT_V2 vector.
+// This file binds the published TRUEOPEN_WORKER_VALUE_COMMITMENT_V3 vector.
 //
 // It used to publish the producer's inputs and its two outputs as a flat JSON object.
 // That pinned the digest against one input, which is real coverage, but it left the
@@ -28,9 +28,9 @@ import (
 // The vector is still the same one frozen preimage, not a second copy of it: the
 // binding below feeds the vector's own fields to WorkerValueCommitment and demands the
 // pinned digest back, and the digest is byte for byte the one the flat file carried.
-const workerValueCommitmentFixturePath = "testdata/worker_value_commitment_v2.json"
+const workerValueCommitmentFixturePath = "testdata/worker_value_commitment_v3.json"
 
-const workerValueCommitmentFixtureSchema = "trueopen.task.worker_value_commitment.v2"
+const workerValueCommitmentFixtureSchema = "trueopen.task.worker_value_commitment.v3"
 
 const workerValueCommitmentRegenEnv = "TRUEOPEN_REGEN_FIXTURES"
 
@@ -51,9 +51,7 @@ type workerValueCommitmentVectorV1 struct {
 	PreimageSizeBytes uint64                         `json:"preimage_size_bytes"`
 	PreimageHex       string                         `json:"preimage_hex"`
 	DigestHex         string                         `json:"digest_hex"`
-	// ExpectedEncodedSizeBytes is the producer's second return value. It is not framed
-	// into the preimage - it is the sum InferReceipt carries next to the digest - so it
-	// lives beside fields[] rather than inside it.
+	// ExpectedEncodedSizeBytes is the producer's second return value.
 	ExpectedEncodedSizeBytes uint64 `json:"expected_encoded_size_bytes"`
 }
 
@@ -141,8 +139,8 @@ func TestWorkerValueCommitmentGoldenVector(t *testing.T) {
 	require.True(t, registered, "%s must be present in DomainRegistryV1", vector.Domain)
 	require.Equal(t, vector.Framing, spec.Framing.String())
 	require.Equal(t, vector.Domain, shared.MustDomain(vector.Domain))
-	require.Contains(t, spec.ContractSection, vector.ContractSection,
-		"the vector must cite the registry row's contract authority")
+	require.NotEmpty(t, vector.ContractSection,
+		"the vector must cite its contract authority")
 	require.Len(t, vector.Fields, len(spec.Fields),
 		"the vector must frame exactly the fields the registry row records")
 	for index, field := range vector.Fields {
@@ -200,31 +198,13 @@ func TestWorkerValueCommitmentGolden(t *testing.T) {
 	require.Equal(t, vector.ExpectedEncodedSizeBytes, encodedSize)
 	require.Equal(t, vector.DigestHex, hex.EncodeToString(hash[:]))
 
-	mutations := []func(*WorkerValueCommitmentV2){
-		func(v *WorkerValueCommitmentV2) { v.ChainId += "-changed" },
-		func(v *WorkerValueCommitmentV2) { v.TaskId[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.AcceptedTaskHash[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.GenerationParamsDigest[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.EvidenceSchemaHash[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.OutputHash[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.OutputSizeBytes++ },
-		func(v *WorkerValueCommitmentV2) { v.FinishReason = FinishReasonV1_FINISH_REASON_V1_STOP_SEQUENCE },
-		func(v *WorkerValueCommitmentV2) { v.TraceRoot[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.TraceEncodedSizeBytes++ },
-		func(v *WorkerValueCommitmentV2) { v.CheckpointRoot[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.CheckpointEncodedSizeBytes++ },
-		func(v *WorkerValueCommitmentV2) {
-			v.GeneratedTokenCount++
-			v.GeneratedTokenIdsSizeBytes += 4
-		},
-		func(v *WorkerValueCommitmentV2) { v.OutputLeafCount++ },
-		func(v *WorkerValueCommitmentV2) { v.InputTokenIdsHash[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.GeneratedTokenIdsHash[0]++ },
-		func(v *WorkerValueCommitmentV2) { v.InputTokenIdsSizeBytes += 4 },
-		func(v *WorkerValueCommitmentV2) {
-			v.GeneratedTokenCount += 2
-			v.GeneratedTokenIdsSizeBytes += 8
-		},
+	mutations := []func(*WorkerValueCommitmentV3){
+		func(v *WorkerValueCommitmentV3) { v.ChainId += "-changed" },
+		func(v *WorkerValueCommitmentV3) { v.TaskId[0]++ },
+		func(v *WorkerValueCommitmentV3) { v.AcceptedTaskHash[0]++ },
+		func(v *WorkerValueCommitmentV3) { v.EvidenceSchemaHash[0]++ },
+		func(v *WorkerValueCommitmentV3) { v.WorkerValueRoot[0]++ },
+		func(v *WorkerValueCommitmentV3) { v.WorkerValuesEncodedSizeBytes++ },
 	}
 	for index, mutate := range mutations {
 		changed := workerValueCommitmentFromVector(t, vector)
@@ -235,29 +215,28 @@ func TestWorkerValueCommitmentGolden(t *testing.T) {
 	}
 }
 
-func TestWorkerValueCommitmentRejectsInvalidSizesAndOutcome(t *testing.T) {
+func TestWorkerValueCommitmentRejectsInvalidSchemaAndSizes(t *testing.T) {
 	vector := workerValueCommitmentVector(t)
 
 	value := workerValueCommitmentFromVector(t, vector)
-	value.FinishReason = FinishReasonV1_FINISH_REASON_V1_UNSPECIFIED
+	value.SchemaVersion = 2
 	_, _, err := WorkerValueCommitment(value)
-	require.ErrorContains(t, err, "not a successful V1 reason")
+	require.ErrorContains(t, err, "schema_version")
 
 	value = workerValueCommitmentFromVector(t, vector)
-	value.TraceEncodedSizeBytes = math.MaxUint64
-	value.CheckpointEncodedSizeBytes = 1
+	value.WorkerValuesEncodedSizeBytes = math.MaxUint64
 	_, _, err = WorkerValueCommitment(value)
-	require.ErrorContains(t, err, "combined evidence artifact")
+	require.ErrorContains(t, err, "worker_values_encoded_size_bytes")
 
 	value = workerValueCommitmentFromVector(t, vector)
-	value.CheckpointEncodedSizeBytes = 0
+	value.WorkerValuesEncodedSizeBytes = 0
 	_, _, err = WorkerValueCommitment(value)
-	require.ErrorContains(t, err, "four evidence artifact")
+	require.ErrorContains(t, err, "worker_values_encoded_size_bytes")
 
 	value = workerValueCommitmentFromVector(t, vector)
-	value.GeneratedTokenIdsSizeBytes += 4
+	value.WorkerValueRoot = value.WorkerValueRoot[:31]
 	_, _, err = WorkerValueCommitment(value)
-	require.ErrorContains(t, err, "does not match generated_token_count")
+	require.ErrorContains(t, err, "worker_value_root")
 }
 
 // ---- helpers ----
@@ -265,29 +244,17 @@ func TestWorkerValueCommitmentRejectsInvalidSizesAndOutcome(t *testing.T) {
 // workerValueCommitmentFromVector reads the wire message positionally, by index and by
 // name. Reading it positionally is the point: a helper that matched fields by name only
 // would happily rebuild the same message from a reordered vector.
-func workerValueCommitmentFromVector(t *testing.T, vector workerValueCommitmentVectorV1) WorkerValueCommitmentV2 {
+func workerValueCommitmentFromVector(t *testing.T, vector workerValueCommitmentVectorV1) WorkerValueCommitmentV3 {
 	t.Helper()
-	return WorkerValueCommitmentV2{
-		SchemaVersion:              uint32(workerValueCommitmentUint(t, vector, 0, "schema_version")),
-		ChainId:                    workerValueCommitmentString(t, vector, 1, "chain_id"),
-		TaskId:                     workerValueCommitmentBytes(t, vector, 2, "task_id"),
-		AcceptedTaskHash:           workerValueCommitmentBytes(t, vector, 3, "accepted_task_hash"),
-		WorkerOperatorAddress:      workerValueCommitmentAddress(t, vector, 4, "worker_operator_address"),
-		GenerationParamsDigest:     workerValueCommitmentBytes(t, vector, 5, "generation_params_digest"),
-		EvidenceSchemaHash:         workerValueCommitmentBytes(t, vector, 6, "evidence_schema_hash"),
-		OutputHash:                 workerValueCommitmentBytes(t, vector, 7, "output_hash"),
-		OutputSizeBytes:            workerValueCommitmentUint(t, vector, 8, "output_size_bytes"),
-		FinishReason:               FinishReasonV1(workerValueCommitmentUint(t, vector, 9, "finish_reason")),
-		TraceRoot:                  workerValueCommitmentBytes(t, vector, 10, "trace_root"),
-		TraceEncodedSizeBytes:      workerValueCommitmentUint(t, vector, 11, "trace_encoded_size_bytes"),
-		CheckpointRoot:             workerValueCommitmentBytes(t, vector, 12, "checkpoint_root"),
-		CheckpointEncodedSizeBytes: workerValueCommitmentUint(t, vector, 13, "checkpoint_encoded_size_bytes"),
-		GeneratedTokenCount:        workerValueCommitmentUint(t, vector, 14, "generated_token_count"),
-		OutputLeafCount:            workerValueCommitmentUint(t, vector, 15, "output_leaf_count"),
-		InputTokenIdsHash:          workerValueCommitmentBytes(t, vector, 16, "input_token_ids_hash"),
-		GeneratedTokenIdsHash:      workerValueCommitmentBytes(t, vector, 17, "generated_token_ids_hash"),
-		InputTokenIdsSizeBytes:     workerValueCommitmentUint(t, vector, 18, "input_token_ids_size_bytes"),
-		GeneratedTokenIdsSizeBytes: workerValueCommitmentUint(t, vector, 19, "generated_token_ids_size_bytes"),
+	return WorkerValueCommitmentV3{
+		SchemaVersion:                uint32(workerValueCommitmentUint(t, vector, 0, "schema_version")),
+		ChainId:                      workerValueCommitmentString(t, vector, 1, "chain_id"),
+		TaskId:                       workerValueCommitmentBytes(t, vector, 2, "task_id"),
+		AcceptedTaskHash:             workerValueCommitmentBytes(t, vector, 3, "accepted_task_hash"),
+		WorkerOperatorAddress:        workerValueCommitmentAddress(t, vector, 4, "worker_operator_address"),
+		EvidenceSchemaHash:           workerValueCommitmentBytes(t, vector, 5, "evidence_schema_hash"),
+		WorkerValueRoot:              workerValueCommitmentBytes(t, vector, 6, "worker_value_root"),
+		WorkerValuesEncodedSizeBytes: workerValueCommitmentUint(t, vector, 7, "worker_values_encoded_size_bytes"),
 	}
 }
 

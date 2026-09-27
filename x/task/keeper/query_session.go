@@ -24,7 +24,7 @@ func (q *queryServer) Session(ctx context.Context, req *types.QuerySessionReques
 	if err != nil {
 		return nil, err
 	}
-	stream, err := q.k.Stream.Get(ctx, sessionKey)
+	stream, err := q.k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "session not found")
@@ -47,7 +47,7 @@ func (q *queryServer) SessionNonce(ctx context.Context, req *types.QuerySessionN
 	if err != nil {
 		return nil, err
 	}
-	state, err := q.k.SessionNonce.Get(ctx, owner)
+	state, err := q.k.ReadSessionNonce(ctx, owner)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return &types.QuerySessionNonceResponse{}, nil
@@ -80,19 +80,16 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 	if err != nil {
 		return nil, status.Error(codes.Internal, "canonical user address cannot be decoded")
 	}
-	queryHeight, lastSessionKey, rpcDigest, selectorDigest, err := q.decodeStringPairQueryPageToken(
-		ctx, token, shared.QueryRPCTaskSessionsByOwnerV1, owner, q.k.SessionByOwnerIndex.KeyCodec(), ownerBytes,
+	queryHeight, lastSessionKey, rpcDigest, selectorDigest, err := q.decodeAddressPairQueryPageToken(
+		ctx, token, shared.QueryRPCTaskSessionsByOwnerV1, ownerBytes, q.k.SessionByOwnerIndex.KeyCodec(), ownerBytes,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	// The owner prefix is unchanged (K1 is still an address string), and the K2
-	// cursor bound keeps its meaning: Hash32KeyCodec's terminal encoding is a
-	// bare 32 bytes, so `prefix||session_id||0x00` still lands strictly after the
-	// cursor row and strictly before the next session_id, exactly as the raw
-	// terminal encoding of the lowercase-hex string did.
-	rng := collections.NewPrefixedPairRange[string, types.Hash32Key](owner)
+	// The address prefix is raw codec bytes. The terminal Hash32 cursor remains
+	// a fixed 32-byte component and advances only within this owner prefix.
+	rng := collections.NewPrefixedPairRange[types.AddrKey, types.Hash32Key](ownerBytes)
 	if len(lastSessionKey) != 0 {
 		rng = rng.StartExclusive(lastSessionKey)
 	}
@@ -107,7 +104,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 	var lastReturnedSessionKey types.SessionKey
 	for ; iter.Valid(); iter.Next() {
 		if uint32(len(response.Sessions)) >= limit {
-			pageToken, err := q.encodeSessionsByOwnerPageToken(owner, lastReturnedSessionKey, rpcDigest, selectorDigest, queryHeight)
+			pageToken, err := q.encodeSessionsByOwnerPageToken(ownerBytes, lastReturnedSessionKey, rpcDigest, selectorDigest, queryHeight)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -121,7 +118,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		stream, err := q.k.Stream.Get(ctx, key.K2())
+		stream, err := q.k.ReadStream(ctx, key.K2())
 		if err != nil {
 			// §16.1: a stale index row inside a page is an invariant break.
 			return nil, status.Errorf(codes.Internal, "session_by_owner index points at missing stream %s", hex32(key.K2()))
@@ -134,7 +131,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 			if len(response.Sessions) == 0 {
 				return nil, status.Error(codes.Internal, "single session row exceeds the response byte cap")
 			}
-			pageToken, err := q.encodeSessionsByOwnerPageToken(owner, lastReturnedSessionKey, rpcDigest, selectorDigest, queryHeight)
+			pageToken, err := q.encodeSessionsByOwnerPageToken(ownerBytes, lastReturnedSessionKey, rpcDigest, selectorDigest, queryHeight)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -152,16 +149,16 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 }
 
 func (q *queryServer) encodeSessionsByOwnerPageToken(
-	owner string,
+	owner types.AddrKey,
 	sessionKey types.SessionKey,
 	rpcDigest, selectorDigest []byte,
 	queryHeight uint64,
 ) ([]byte, error) {
-	primaryKey, err := encodeStringPairPrimaryKey(q.k.SessionByOwnerIndex.KeyCodec(), types.NewSessionByOwnerKey(owner, sessionKey))
+	primaryKey, err := encodeAddressPairPrimaryKey(q.k.SessionByOwnerIndex.KeyCodec(), types.NewSessionByOwnerKey(owner, sessionKey))
 	if err != nil {
 		return nil, err
 	}
-	return encodeStringPairQueryPageToken(rpcDigest, selectorDigest, primaryKey, queryHeight)
+	return encodeAddressPairQueryPageToken(rpcDigest, selectorDigest, primaryKey, queryHeight)
 }
 
 // SessionTerminalSummary is §16.2 `QuerySessionTerminalSummary`.
@@ -173,7 +170,7 @@ func (q *queryServer) SessionTerminalSummary(ctx context.Context, req *types.Que
 	if err != nil {
 		return nil, err
 	}
-	summary, err := q.k.SessionTerminalSummary.Get(ctx, sessionKey)
+	summary, err := q.k.ReadSessionTerminalSummary(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, "session terminal summary not found")

@@ -24,11 +24,11 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// DailySupportState is one operator/epoch support heartbeat row (data-structure contract 6.1).
+// DailySupportState is one operator/epoch support heartbeat row (wire storage model 6.1).
 type DailySupportState struct {
-	Epoch                 uint64 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	OperatorAddress       string `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
-	SupportedProfilesHash []byte `protobuf:"bytes,3,opt,name=supported_profiles_hash,json=supportedProfilesHash,proto3" json:"supported_profiles_hash,omitempty"`
+	Epoch               uint64 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	OperatorAddress     string `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
+	SupportedModelsHash []byte `protobuf:"bytes,3,opt,name=supported_models_hash,json=supportedModelsHash,proto3" json:"supported_models_hash,omitempty"`
 	// SHA256(raw_signature_64), retained as a 32-byte audit/exact-replay fingerprint.
 	// The 64-byte signature was verified before initial live acceptance and is not retained.
 	// This digest is not authorization state and never enters a signing/business digest;
@@ -84,9 +84,9 @@ func (m *DailySupportState) GetOperatorAddress() string {
 	return ""
 }
 
-func (m *DailySupportState) GetSupportedProfilesHash() []byte {
+func (m *DailySupportState) GetSupportedModelsHash() []byte {
 	if m != nil {
-		return m.SupportedProfilesHash
+		return m.SupportedModelsHash
 	}
 	return nil
 }
@@ -105,28 +105,27 @@ func (m *DailySupportState) GetAcceptedHeight() uint64 {
 	return 0
 }
 
-// ProfileCapabilityState is one operator/profile declared capability row (6.1).
-type ProfileCapabilityState struct {
+// ModelCapabilityState is one operator/model declared capability row.
+type ModelCapabilityState struct {
 	OperatorAddress        string `protobuf:"bytes,1,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
-	ModelId                string `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
-	ProfileVersion         uint32 `protobuf:"varint,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ModelId                []byte `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	InferenceCapability    bool   `protobuf:"varint,4,opt,name=inference_capability,json=inferenceCapability,proto3" json:"inference_capability,omitempty"`
 	VerificationCapability bool   `protobuf:"varint,5,opt,name=verification_capability,json=verificationCapability,proto3" json:"verification_capability,omitempty"`
 	CapabilityVersion      uint64 `protobuf:"varint,6,opt,name=capability_version,json=capabilityVersion,proto3" json:"capability_version,omitempty"`
 }
 
-func (m *ProfileCapabilityState) Reset()         { *m = ProfileCapabilityState{} }
-func (m *ProfileCapabilityState) String() string { return proto.CompactTextString(m) }
-func (*ProfileCapabilityState) ProtoMessage()    {}
-func (*ProfileCapabilityState) Descriptor() ([]byte, []int) {
+func (m *ModelCapabilityState) Reset()         { *m = ModelCapabilityState{} }
+func (m *ModelCapabilityState) String() string { return proto.CompactTextString(m) }
+func (*ModelCapabilityState) ProtoMessage()    {}
+func (*ModelCapabilityState) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f57614124e03084b, []int{1}
 }
-func (m *ProfileCapabilityState) XXX_Unmarshal(b []byte) error {
+func (m *ModelCapabilityState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ProfileCapabilityState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ModelCapabilityState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ProfileCapabilityState.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ModelCapabilityState.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -136,92 +135,77 @@ func (m *ProfileCapabilityState) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return b[:n], nil
 	}
 }
-func (m *ProfileCapabilityState) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProfileCapabilityState.Merge(m, src)
+func (m *ModelCapabilityState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelCapabilityState.Merge(m, src)
 }
-func (m *ProfileCapabilityState) XXX_Size() int {
+func (m *ModelCapabilityState) XXX_Size() int {
 	return m.Size()
 }
-func (m *ProfileCapabilityState) XXX_DiscardUnknown() {
-	xxx_messageInfo_ProfileCapabilityState.DiscardUnknown(m)
+func (m *ModelCapabilityState) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelCapabilityState.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ProfileCapabilityState proto.InternalMessageInfo
+var xxx_messageInfo_ModelCapabilityState proto.InternalMessageInfo
 
-func (m *ProfileCapabilityState) GetOperatorAddress() string {
+func (m *ModelCapabilityState) GetOperatorAddress() string {
 	if m != nil {
 		return m.OperatorAddress
 	}
 	return ""
 }
 
-func (m *ProfileCapabilityState) GetModelId() string {
+func (m *ModelCapabilityState) GetModelId() []byte {
 	if m != nil {
 		return m.ModelId
 	}
-	return ""
+	return nil
 }
 
-func (m *ProfileCapabilityState) GetProfileVersion() uint32 {
-	if m != nil {
-		return m.ProfileVersion
-	}
-	return 0
-}
-
-func (m *ProfileCapabilityState) GetInferenceCapability() bool {
+func (m *ModelCapabilityState) GetInferenceCapability() bool {
 	if m != nil {
 		return m.InferenceCapability
 	}
 	return false
 }
 
-func (m *ProfileCapabilityState) GetVerificationCapability() bool {
+func (m *ModelCapabilityState) GetVerificationCapability() bool {
 	if m != nil {
 		return m.VerificationCapability
 	}
 	return false
 }
 
-func (m *ProfileCapabilityState) GetCapabilityVersion() uint64 {
+func (m *ModelCapabilityState) GetCapabilityVersion() uint64 {
 	if m != nil {
 		return m.CapabilityVersion
 	}
 	return 0
 }
 
-// SupportDeactivateCursorState makes profile-wide support deactivation bounded.
-// MsgSetProfileStatus / MsgSetModelStatus no longer walk every supporter inside
-// the handler; they enqueue exactly one cursor row per affected profile and the
-// EndBlock processor resumes from last_operator_address under the global visited
-// budget (: every visited row, including stale ones, costs
-// one unit).
-//
-// reason carries the existing ModelSupportDeactivate* value so the EndBlock
-// processor can call the same DeactivateModelSupport path as the synchronous
-// bond/jail callers, with no second reason vocabulary.
-// SupportDeactivateCursorState defines the SupportDeactivateCursorState wire type.
-type SupportDeactivateCursorState struct {
-	ModelId             string `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
-	ProfileVersion      uint32 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
-	Reason              string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	LastOperatorAddress string `protobuf:"bytes,4,opt,name=last_operator_address,json=lastOperatorAddress,proto3" json:"last_operator_address,omitempty"`
-	VisitedCount        uint64 `protobuf:"varint,5,opt,name=visited_count,json=visitedCount,proto3" json:"visited_count,omitempty"`
-	EnqueuedHeight      uint64 `protobuf:"varint,6,opt,name=enqueued_height,json=enqueuedHeight,proto3" json:"enqueued_height,omitempty"`
+// ModelSupportRecheckCursorState resumes a bounded model support threshold
+// recheck after the threshold changes.
+type ModelSupportRecheckCursorState struct {
+	ModelId             []byte `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	EffectiveHeight     uint64 `protobuf:"varint,2,opt,name=effective_height,json=effectiveHeight,proto3" json:"effective_height,omitempty"`
+	LastOperatorAddress string `protobuf:"bytes,3,opt,name=last_operator_address,json=lastOperatorAddress,proto3" json:"last_operator_address,omitempty"`
+	VisitedCount        uint64 `protobuf:"varint,4,opt,name=visited_count,json=visitedCount,proto3" json:"visited_count,omitempty"`
+	SuspendedCount      uint64 `protobuf:"varint,5,opt,name=suspended_count,json=suspendedCount,proto3" json:"suspended_count,omitempty"`
+	RestoredCount       uint64 `protobuf:"varint,6,opt,name=restored_count,json=restoredCount,proto3" json:"restored_count,omitempty"`
+	MinStakeLowered     bool   `protobuf:"varint,7,opt,name=min_stake_lowered,json=minStakeLowered,proto3" json:"min_stake_lowered,omitempty"`
 }
 
-func (m *SupportDeactivateCursorState) Reset()         { *m = SupportDeactivateCursorState{} }
-func (m *SupportDeactivateCursorState) String() string { return proto.CompactTextString(m) }
-func (*SupportDeactivateCursorState) ProtoMessage()    {}
-func (*SupportDeactivateCursorState) Descriptor() ([]byte, []int) {
+func (m *ModelSupportRecheckCursorState) Reset()         { *m = ModelSupportRecheckCursorState{} }
+func (m *ModelSupportRecheckCursorState) String() string { return proto.CompactTextString(m) }
+func (*ModelSupportRecheckCursorState) ProtoMessage()    {}
+func (*ModelSupportRecheckCursorState) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f57614124e03084b, []int{2}
 }
-func (m *SupportDeactivateCursorState) XXX_Unmarshal(b []byte) error {
+func (m *ModelSupportRecheckCursorState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SupportDeactivateCursorState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ModelSupportRecheckCursorState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SupportDeactivateCursorState.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ModelSupportRecheckCursorState.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -231,65 +215,146 @@ func (m *SupportDeactivateCursorState) XXX_Marshal(b []byte, deterministic bool)
 		return b[:n], nil
 	}
 }
-func (m *SupportDeactivateCursorState) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SupportDeactivateCursorState.Merge(m, src)
+func (m *ModelSupportRecheckCursorState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelSupportRecheckCursorState.Merge(m, src)
 }
-func (m *SupportDeactivateCursorState) XXX_Size() int {
+func (m *ModelSupportRecheckCursorState) XXX_Size() int {
 	return m.Size()
 }
-func (m *SupportDeactivateCursorState) XXX_DiscardUnknown() {
-	xxx_messageInfo_SupportDeactivateCursorState.DiscardUnknown(m)
+func (m *ModelSupportRecheckCursorState) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelSupportRecheckCursorState.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SupportDeactivateCursorState proto.InternalMessageInfo
+var xxx_messageInfo_ModelSupportRecheckCursorState proto.InternalMessageInfo
 
-func (m *SupportDeactivateCursorState) GetModelId() string {
+func (m *ModelSupportRecheckCursorState) GetModelId() []byte {
 	if m != nil {
 		return m.ModelId
 	}
-	return ""
+	return nil
 }
 
-func (m *SupportDeactivateCursorState) GetProfileVersion() uint32 {
+func (m *ModelSupportRecheckCursorState) GetEffectiveHeight() uint64 {
 	if m != nil {
-		return m.ProfileVersion
+		return m.EffectiveHeight
 	}
 	return 0
 }
 
-func (m *SupportDeactivateCursorState) GetReason() string {
-	if m != nil {
-		return m.Reason
-	}
-	return ""
-}
-
-func (m *SupportDeactivateCursorState) GetLastOperatorAddress() string {
+func (m *ModelSupportRecheckCursorState) GetLastOperatorAddress() string {
 	if m != nil {
 		return m.LastOperatorAddress
 	}
 	return ""
 }
 
-func (m *SupportDeactivateCursorState) GetVisitedCount() uint64 {
+func (m *ModelSupportRecheckCursorState) GetVisitedCount() uint64 {
 	if m != nil {
 		return m.VisitedCount
 	}
 	return 0
 }
 
-func (m *SupportDeactivateCursorState) GetEnqueuedHeight() uint64 {
+func (m *ModelSupportRecheckCursorState) GetSuspendedCount() uint64 {
 	if m != nil {
-		return m.EnqueuedHeight
+		return m.SuspendedCount
 	}
 	return 0
 }
 
-// ModelSupportState is the single roleless operator/profile support row (6.1); it carries no duty selector.
+func (m *ModelSupportRecheckCursorState) GetRestoredCount() uint64 {
+	if m != nil {
+		return m.RestoredCount
+	}
+	return 0
+}
+
+func (m *ModelSupportRecheckCursorState) GetMinStakeLowered() bool {
+	if m != nil {
+		return m.MinStakeLowered
+	}
+	return false
+}
+
+// ModelSupportDeactivateCursorState resumes a bounded, one-way sweep that
+// deactivates every ModelSupportState row for a model after it transitions
+// to FROZEN or DELISTED. Unlike ModelSupportRecheckCursorState this cursor
+// has no branches: every visited row is deactivated. While this cursor
+// exists for a model_id, MsgSetModelStatus for that model_id is rejected,
+// including transitioning back to REGISTERED. The cursor is deleted when
+// the sweep completes; support declarations are not restored afterward.
+type ModelSupportDeactivateCursorState struct {
+	ModelId             []byte `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	LastOperatorAddress string `protobuf:"bytes,2,opt,name=last_operator_address,json=lastOperatorAddress,proto3" json:"last_operator_address,omitempty"`
+	VisitedCount        uint64 `protobuf:"varint,3,opt,name=visited_count,json=visitedCount,proto3" json:"visited_count,omitempty"`
+	DeactivatedCount    uint64 `protobuf:"varint,4,opt,name=deactivated_count,json=deactivatedCount,proto3" json:"deactivated_count,omitempty"`
+}
+
+func (m *ModelSupportDeactivateCursorState) Reset()         { *m = ModelSupportDeactivateCursorState{} }
+func (m *ModelSupportDeactivateCursorState) String() string { return proto.CompactTextString(m) }
+func (*ModelSupportDeactivateCursorState) ProtoMessage()    {}
+func (*ModelSupportDeactivateCursorState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f57614124e03084b, []int{3}
+}
+func (m *ModelSupportDeactivateCursorState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ModelSupportDeactivateCursorState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ModelSupportDeactivateCursorState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ModelSupportDeactivateCursorState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelSupportDeactivateCursorState.Merge(m, src)
+}
+func (m *ModelSupportDeactivateCursorState) XXX_Size() int {
+	return m.Size()
+}
+func (m *ModelSupportDeactivateCursorState) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelSupportDeactivateCursorState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelSupportDeactivateCursorState proto.InternalMessageInfo
+
+func (m *ModelSupportDeactivateCursorState) GetModelId() []byte {
+	if m != nil {
+		return m.ModelId
+	}
+	return nil
+}
+
+func (m *ModelSupportDeactivateCursorState) GetLastOperatorAddress() string {
+	if m != nil {
+		return m.LastOperatorAddress
+	}
+	return ""
+}
+
+func (m *ModelSupportDeactivateCursorState) GetVisitedCount() uint64 {
+	if m != nil {
+		return m.VisitedCount
+	}
+	return 0
+}
+
+func (m *ModelSupportDeactivateCursorState) GetDeactivatedCount() uint64 {
+	if m != nil {
+		return m.DeactivatedCount
+	}
+	return 0
+}
+
+// ModelSupportState is the single operator/model support row.
 type ModelSupportState struct {
 	OperatorAddress        string                     `protobuf:"bytes,1,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
-	ModelId                string                     `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
-	ProfileVersion         uint32                     `protobuf:"varint,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ModelId                []byte                     `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	DeclaredSupport        bool                       `protobuf:"varint,4,opt,name=declared_support,json=declaredSupport,proto3" json:"declared_support,omitempty"`
 	SupportActive          bool                       `protobuf:"varint,5,opt,name=support_active,json=supportActive,proto3" json:"support_active,omitempty"`
 	ActivationKind         ModelSupportActivationKind `protobuf:"varint,6,opt,name=activation_kind,json=activationKind,proto3,enum=hub.v1.ModelSupportActivationKind" json:"activation_kind,omitempty"`
@@ -303,20 +368,21 @@ type ModelSupportState struct {
 	// Types that are valid to be assigned to P30Source:
 	//	*ModelSupportState_P30CutoffEpoch
 	//	*ModelSupportState_P30Bootstrap
-	P30Source                    isModelSupportState_P30Source `protobuf_oneof:"p30_source"`
-	SupportFreshUntilEpoch       uint64                        `protobuf:"varint,11,opt,name=support_fresh_until_epoch,json=supportFreshUntilEpoch,proto3" json:"support_fresh_until_epoch,omitempty"`
-	LastRefreshTaskId            []byte                        `protobuf:"bytes,12,opt,name=last_refresh_task_id,json=lastRefreshTaskId,proto3" json:"last_refresh_task_id,omitempty"`
-	LastRefreshHeight            uint64                        `protobuf:"varint,13,opt,name=last_refresh_height,json=lastRefreshHeight,proto3" json:"last_refresh_height,omitempty"`
-	ActiveSupportStakeSnapshot   uint64                        `protobuf:"varint,14,opt,name=active_support_stake_snapshot,json=activeSupportStakeSnapshot,proto3" json:"active_support_stake_snapshot,omitempty"`
-	EligibleSupportStakeSnapshot uint64                        `protobuf:"varint,15,opt,name=eligible_support_stake_snapshot,json=eligibleSupportStakeSnapshot,proto3" json:"eligible_support_stake_snapshot,omitempty"`
-	SupportVersion               uint64                        `protobuf:"varint,16,opt,name=support_version,json=supportVersion,proto3" json:"support_version,omitempty"`
+	P30Source                  isModelSupportState_P30Source `protobuf_oneof:"p30_source"`
+	SupportFreshUntilEpoch     uint64                        `protobuf:"varint,11,opt,name=support_fresh_until_epoch,json=supportFreshUntilEpoch,proto3" json:"support_fresh_until_epoch,omitempty"`
+	LastRefreshTaskId          []byte                        `protobuf:"bytes,12,opt,name=last_refresh_task_id,json=lastRefreshTaskId,proto3" json:"last_refresh_task_id,omitempty"`
+	LastRefreshHeight          uint64                        `protobuf:"varint,13,opt,name=last_refresh_height,json=lastRefreshHeight,proto3" json:"last_refresh_height,omitempty"`
+	ActiveSupportStakeSnapshot uint64                        `protobuf:"varint,14,opt,name=active_support_stake_snapshot,json=activeSupportStakeSnapshot,proto3" json:"active_support_stake_snapshot,omitempty"`
+	SupportVersion             uint64                        `protobuf:"varint,16,opt,name=support_version,json=supportVersion,proto3" json:"support_version,omitempty"`
+	FirstSupportProfileVersion uint32                        `protobuf:"varint,18,opt,name=first_support_profile_version,json=firstSupportProfileVersion,proto3" json:"first_support_profile_version,omitempty"`
+	SuspendReason              ModelSupportSuspendReason     `protobuf:"varint,19,opt,name=suspend_reason,json=suspendReason,proto3,enum=hub.v1.ModelSupportSuspendReason" json:"suspend_reason,omitempty"`
 }
 
 func (m *ModelSupportState) Reset()         { *m = ModelSupportState{} }
 func (m *ModelSupportState) String() string { return proto.CompactTextString(m) }
 func (*ModelSupportState) ProtoMessage()    {}
 func (*ModelSupportState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f57614124e03084b, []int{3}
+	return fileDescriptor_f57614124e03084b, []int{4}
 }
 func (m *ModelSupportState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -375,18 +441,11 @@ func (m *ModelSupportState) GetOperatorAddress() string {
 	return ""
 }
 
-func (m *ModelSupportState) GetModelId() string {
+func (m *ModelSupportState) GetModelId() []byte {
 	if m != nil {
 		return m.ModelId
 	}
-	return ""
-}
-
-func (m *ModelSupportState) GetProfileVersion() uint32 {
-	if m != nil {
-		return m.ProfileVersion
-	}
-	return 0
+	return nil
 }
 
 func (m *ModelSupportState) GetDeclaredSupport() bool {
@@ -473,18 +532,25 @@ func (m *ModelSupportState) GetActiveSupportStakeSnapshot() uint64 {
 	return 0
 }
 
-func (m *ModelSupportState) GetEligibleSupportStakeSnapshot() uint64 {
-	if m != nil {
-		return m.EligibleSupportStakeSnapshot
-	}
-	return 0
-}
-
 func (m *ModelSupportState) GetSupportVersion() uint64 {
 	if m != nil {
 		return m.SupportVersion
 	}
 	return 0
+}
+
+func (m *ModelSupportState) GetFirstSupportProfileVersion() uint32 {
+	if m != nil {
+		return m.FirstSupportProfileVersion
+	}
+	return 0
+}
+
+func (m *ModelSupportState) GetSuspendReason() ModelSupportSuspendReason {
+	if m != nil {
+		return m.SuspendReason
+	}
+	return ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_UNSPECIFIED
 }
 
 // XXX_OneofWrappers is for the internal use of the proto package.
@@ -497,73 +563,80 @@ func (*ModelSupportState) XXX_OneofWrappers() []interface{} {
 
 func init() {
 	proto.RegisterType((*DailySupportState)(nil), "hub.v1.DailySupportState")
-	proto.RegisterType((*ProfileCapabilityState)(nil), "hub.v1.ProfileCapabilityState")
-	proto.RegisterType((*SupportDeactivateCursorState)(nil), "hub.v1.SupportDeactivateCursorState")
+	proto.RegisterType((*ModelCapabilityState)(nil), "hub.v1.ModelCapabilityState")
+	proto.RegisterType((*ModelSupportRecheckCursorState)(nil), "hub.v1.ModelSupportRecheckCursorState")
+	proto.RegisterType((*ModelSupportDeactivateCursorState)(nil), "hub.v1.ModelSupportDeactivateCursorState")
 	proto.RegisterType((*ModelSupportState)(nil), "hub.v1.ModelSupportState")
 }
 
 func init() { proto.RegisterFile("hub/v1/daily_support.proto", fileDescriptor_f57614124e03084b) }
 
 var fileDescriptor_f57614124e03084b = []byte{
-	// 920 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x55, 0xcd, 0x6e, 0x23, 0x45,
-	0x10, 0xb6, 0x4d, 0x7e, 0x1b, 0xff, 0xb6, 0x13, 0xef, 0x24, 0xda, 0x35, 0x51, 0x60, 0xb5, 0x01,
-	0x69, 0xed, 0x84, 0x08, 0xad, 0x90, 0x10, 0x52, 0xec, 0x2c, 0xca, 0x6a, 0x41, 0x41, 0x93, 0x65,
-	0x0f, 0x5c, 0x46, 0xed, 0x99, 0xb2, 0xa7, 0xe5, 0x71, 0xf7, 0xd0, 0xdd, 0x63, 0xe1, 0x17, 0xe0,
-	0xcc, 0x89, 0x87, 0xe0, 0xcc, 0x91, 0x07, 0xd8, 0xe3, 0x8a, 0x13, 0x47, 0x94, 0x3c, 0x02, 0x2f,
-	0x80, 0xfa, 0x67, 0xec, 0x09, 0x1b, 0xb4, 0xe2, 0xb6, 0xc7, 0xfe, 0xea, 0xab, 0x9a, 0xaa, 0xaf,
-	0xbf, 0xae, 0x41, 0xfb, 0x71, 0x36, 0xea, 0xcf, 0x4f, 0xfa, 0x11, 0xa1, 0xc9, 0x22, 0x90, 0x59,
-	0x9a, 0x72, 0xa1, 0x7a, 0xa9, 0xe0, 0x8a, 0xe3, 0x8d, 0x38, 0x1b, 0xf5, 0xe6, 0x27, 0xfb, 0x7b,
-	0x21, 0x97, 0x33, 0x2e, 0x03, 0x83, 0xf6, 0xed, 0xc1, 0x52, 0xf6, 0xdb, 0x2e, 0x3d, 0xe4, 0xb3,
-	0x19, 0x67, 0x0e, 0xec, 0xc8, 0x98, 0x08, 0x88, 0xde, 0xc0, 0x1f, 0xac, 0x70, 0x01, 0x52, 0x05,
-	0xc0, 0x42, 0x1e, 0x51, 0x36, 0xb1, 0xe1, 0xc3, 0x9f, 0x2a, 0xa8, 0x75, 0xae, 0xdb, 0xb8, 0xb2,
-	0x5d, 0x5c, 0x29, 0xa2, 0x00, 0xef, 0xa0, 0x75, 0x48, 0x79, 0x18, 0x7b, 0xe5, 0x83, 0xf2, 0xd1,
-	0x9a, 0x6f, 0x0f, 0x78, 0x88, 0x9a, 0x3c, 0x05, 0x41, 0x14, 0x17, 0x01, 0x89, 0x22, 0x01, 0x52,
-	0x7a, 0x95, 0x83, 0xf2, 0xd1, 0xf6, 0xc0, 0xfb, 0xe3, 0xb7, 0xc7, 0x3b, 0xae, 0xc7, 0x33, 0x1b,
-	0xb9, 0x52, 0x82, 0xb2, 0x89, 0xdf, 0xc8, 0x33, 0x1c, 0x8c, 0xbf, 0x40, 0xf7, 0xdc, 0xc0, 0x10,
-	0xe9, 0xe1, 0xc6, 0x34, 0x01, 0x19, 0xc4, 0x44, 0xc6, 0xde, 0x7b, 0x07, 0xe5, 0xa3, 0xea, 0x60,
-	0xed, 0xd5, 0xdf, 0x5e, 0xc5, 0xdf, 0x5d, 0x92, 0xbe, 0x75, 0x9c, 0x0b, 0x22, 0x63, 0xdc, 0x47,
-	0x4d, 0x49, 0x27, 0x8c, 0xa8, 0x4c, 0x40, 0x10, 0xd1, 0x09, 0x48, 0xe5, 0xad, 0x15, 0xd2, 0x1a,
-	0xcb, 0xe8, 0xb9, 0x09, 0xe2, 0x47, 0xa8, 0x41, 0xc2, 0x10, 0x52, 0xfd, 0xb5, 0x18, 0xe8, 0x24,
-	0x56, 0xde, 0xba, 0x99, 0xa9, 0x9e, 0xc3, 0x17, 0x06, 0x3d, 0xfc, 0xbd, 0x82, 0x3a, 0xee, 0x53,
-	0x43, 0x92, 0x92, 0x11, 0x4d, 0xa8, 0x5a, 0x58, 0x35, 0xee, 0x9a, 0xbb, 0xfc, 0x7f, 0xe7, 0xde,
-	0x43, 0x5b, 0x33, 0x1e, 0x41, 0x12, 0xd0, 0xc8, 0x8a, 0xe6, 0x6f, 0x9a, 0xf3, 0xb3, 0x48, 0xf7,
-	0xe8, 0x84, 0x08, 0xe6, 0x20, 0x24, 0xe5, 0xcc, 0x48, 0x51, 0xf3, 0xeb, 0x0e, 0x7e, 0x69, 0x51,
-	0x7c, 0x82, 0x76, 0x28, 0x1b, 0x83, 0x00, 0x16, 0x42, 0x10, 0x2e, 0xbb, 0x34, 0x0a, 0x6c, 0xf9,
-	0xed, 0x65, 0x6c, 0x35, 0x00, 0x7e, 0x82, 0xee, 0xcd, 0x41, 0xd0, 0x31, 0x0d, 0x89, 0xa2, 0x9c,
-	0x15, 0xb3, 0xd6, 0x4d, 0x56, 0xa7, 0x18, 0x2e, 0x24, 0x3e, 0x46, 0x78, 0xc5, 0x5d, 0xf6, 0xb5,
-	0x61, 0xb4, 0x6b, 0xad, 0x22, 0xae, 0xb5, 0xc3, 0x5f, 0x2a, 0xe8, 0xbe, 0xb3, 0xd0, 0x39, 0x90,
-	0x50, 0xd1, 0x39, 0x51, 0x30, 0xcc, 0x84, 0xe4, 0xc2, 0x8a, 0x58, 0x9c, 0xbf, 0xfc, 0xd6, 0xf9,
-	0x2b, 0x77, 0xce, 0xdf, 0x41, 0x1b, 0x02, 0x88, 0x74, 0xfa, 0x6c, 0xfb, 0xee, 0x84, 0xbf, 0x46,
-	0xbb, 0x09, 0x91, 0x2a, 0x78, 0xe3, 0x96, 0xd6, 0xde, 0x72, 0x4b, 0x6d, 0x9d, 0x76, 0xf9, 0xaf,
-	0x9b, 0xfa, 0x10, 0xd5, 0xe6, 0x54, 0x52, 0xed, 0x98, 0x90, 0x67, 0x2c, 0x37, 0x4c, 0xd5, 0x81,
-	0x43, 0x8d, 0xe9, 0x9e, 0x81, 0xfd, 0x90, 0x41, 0xb6, 0xf2, 0x95, 0xd5, 0xa6, 0x9e, 0xc3, 0xce,
-	0x57, 0xbf, 0x6e, 0xa2, 0xd6, 0x37, 0x7a, 0xd0, 0x5b, 0x0f, 0xec, 0x9d, 0xb1, 0xd4, 0xc7, 0xa8,
-	0x19, 0x41, 0x98, 0xe8, 0x15, 0x91, 0x2f, 0x22, 0x67, 0xa7, 0x46, 0x8e, 0xbb, 0xc6, 0xf1, 0x43,
-	0x54, 0x77, 0x8c, 0xc0, 0x5c, 0x30, 0x38, 0x07, 0xd5, 0x1c, 0x7a, 0x66, 0x40, 0xfc, 0x5c, 0xbf,
-	0x38, 0x73, 0xff, 0xda, 0x6f, 0x53, 0xca, 0x22, 0xa3, 0x4c, 0xfd, 0xd3, 0xc3, 0x9e, 0x5d, 0x6d,
-	0xbd, 0xa2, 0x1c, 0x67, 0x4b, 0xea, 0x73, 0xca, 0x22, 0xfd, 0x2a, 0x8b, 0x67, 0x3c, 0x44, 0xbb,
-	0x63, 0x2a, 0xa4, 0xfb, 0xa2, 0x2d, 0x19, 0x65, 0x6a, 0xe1, 0x6d, 0x9a, 0x92, 0x8d, 0x9e, 0xdd,
-	0x6e, 0xba, 0xea, 0x79, 0xa6, 0x16, 0x7e, 0xdb, 0xb0, 0x57, 0x45, 0x35, 0x88, 0x9f, 0xe4, 0x45,
-	0xf2, 0xf6, 0x15, 0x91, 0x53, 0x2d, 0xda, 0x56, 0x61, 0x73, 0x60, 0x43, 0x71, 0x5d, 0xbd, 0x20,
-	0x72, 0xfa, 0x2c, 0xc2, 0x9f, 0xa3, 0xbd, 0xdb, 0x89, 0x5c, 0x44, 0x20, 0x82, 0x39, 0x49, 0x32,
-	0xf0, 0xb6, 0xcd, 0x75, 0x77, 0x8a, 0x69, 0x97, 0x3a, 0xfc, 0x52, 0x47, 0xf1, 0x27, 0xa8, 0x99,
-	0x9e, 0x1e, 0x07, 0x61, 0xa6, 0xf8, 0x78, 0x1c, 0xd8, 0x65, 0x8a, 0x74, 0xc6, 0x45, 0xc9, 0xaf,
-	0xa7, 0xa7, 0xc7, 0x43, 0x13, 0x78, 0x6a, 0xf6, 0xea, 0x43, 0x54, 0xd3, 0xdc, 0x11, 0xe7, 0x4a,
-	0x2a, 0x41, 0x52, 0xaf, 0xa5, 0x75, 0xbd, 0x28, 0xf9, 0xd5, 0xf4, 0xf4, 0x78, 0x90, 0xa3, 0xba,
-	0x9b, 0xbc, 0x8f, 0xb1, 0x00, 0x19, 0x07, 0x19, 0x53, 0x34, 0x71, 0xb5, 0xdf, 0xb7, 0xdd, 0x38,
-	0xc2, 0x57, 0x3a, 0xfe, 0x9d, 0x0e, 0xdb, 0x2f, 0x7c, 0x86, 0x76, 0xcc, 0x03, 0x11, 0x60, 0x33,
-	0x73, 0x01, 0xaa, 0x05, 0x01, 0x5a, 0x9a, 0xe1, 0x5b, 0x82, 0x9b, 0xbf, 0x87, 0xda, 0xb7, 0xd2,
-	0x9c, 0xd1, 0x6b, 0x76, 0x09, 0x14, 0xf8, 0xd6, 0xeb, 0xf8, 0x0c, 0x3d, 0xb0, 0xce, 0x58, 0x0a,
-	0x26, 0x15, 0x99, 0x42, 0x20, 0x19, 0x49, 0x65, 0xcc, 0x95, 0x57, 0x37, 0x99, 0xfb, 0x96, 0xb4,
-	0x7a, 0x10, 0x53, 0xb8, 0x72, 0x0c, 0xfc, 0x14, 0x7d, 0x00, 0x09, 0x9d, 0xd0, 0x51, 0xf2, 0x9f,
-	0x45, 0x1a, 0xa6, 0xc8, 0xfd, 0x9c, 0x76, 0x67, 0x99, 0x47, 0xa8, 0x91, 0x67, 0xe7, 0xfe, 0x6f,
-	0xda, 0xe7, 0xe9, 0x60, 0xe7, 0xff, 0x41, 0x15, 0x21, 0xad, 0xbd, 0xe4, 0x99, 0x08, 0x61, 0xf0,
-	0xe5, 0xab, 0xeb, 0x6e, 0xf9, 0xf5, 0x75, 0xb7, 0xfc, 0xd7, 0x75, 0xb7, 0xfc, 0xf3, 0x4d, 0xb7,
-	0xf4, 0xfa, 0xa6, 0x5b, 0xfa, 0xf3, 0xa6, 0x5b, 0xfa, 0xfe, 0xa3, 0x09, 0x55, 0xda, 0xbe, 0x21,
-	0x9f, 0xf5, 0x5f, 0x88, 0x0c, 0x2e, 0x53, 0x60, 0x7d, 0xc6, 0x23, 0xe8, 0xff, 0xd8, 0xd7, 0xbf,
-	0x63, 0xb5, 0x48, 0x41, 0x8e, 0x36, 0xcc, 0x4f, 0xf5, 0xf4, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0x5c, 0x60, 0x0a, 0xb3, 0xe1, 0x07, 0x00, 0x00,
+	// 1013 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0xdd, 0x6e, 0x1b, 0x45,
+	0x14, 0xce, 0xba, 0xf9, 0xeb, 0x10, 0xff, 0xad, 0x93, 0xb0, 0x8d, 0x54, 0x93, 0x1a, 0x2a, 0xd2,
+	0xa2, 0xda, 0x49, 0x23, 0x54, 0xb8, 0x41, 0x4a, 0x1c, 0x50, 0xaa, 0x16, 0x05, 0xad, 0x4b, 0x2f,
+	0xb8, 0x59, 0x8d, 0x77, 0x8e, 0xbd, 0x23, 0xdb, 0x33, 0xab, 0x99, 0x59, 0x83, 0x6f, 0x79, 0x02,
+	0xee, 0x78, 0x11, 0x1e, 0xa2, 0x37, 0x48, 0x15, 0x57, 0x48, 0xdc, 0xa0, 0x84, 0x37, 0xe0, 0x05,
+	0xd0, 0xfc, 0xec, 0x7a, 0x43, 0x83, 0x50, 0x25, 0xc4, 0xe5, 0x7e, 0xe7, 0xfb, 0x66, 0xce, 0xf9,
+	0xce, 0x99, 0x63, 0xa3, 0xbd, 0x24, 0x1b, 0xf6, 0xe6, 0x47, 0x3d, 0x82, 0xe9, 0x74, 0x11, 0xc9,
+	0x2c, 0x4d, 0xb9, 0x50, 0xdd, 0x54, 0x70, 0xc5, 0xfd, 0xf5, 0x24, 0x1b, 0x76, 0xe7, 0x47, 0x7b,
+	0x77, 0x62, 0x2e, 0x67, 0x5c, 0x46, 0x06, 0xed, 0xd9, 0x0f, 0x4b, 0xd9, 0x6b, 0x39, 0x79, 0xcc,
+	0x67, 0x33, 0xce, 0x1c, 0xb8, 0x2b, 0x13, 0x2c, 0x80, 0xbc, 0x81, 0xdf, 0x5d, 0xe2, 0x02, 0xa4,
+	0x8a, 0x80, 0xc5, 0x9c, 0x50, 0x36, 0xb6, 0xe1, 0xce, 0xf7, 0x15, 0xd4, 0x3c, 0xd3, 0x69, 0x0c,
+	0x6c, 0x16, 0x03, 0x85, 0x15, 0xf8, 0xdb, 0x68, 0x0d, 0x52, 0x1e, 0x27, 0x81, 0xb7, 0xef, 0x1d,
+	0xac, 0x86, 0xf6, 0xc3, 0xef, 0xa3, 0x06, 0x4f, 0x41, 0x60, 0xc5, 0x45, 0x84, 0x09, 0x11, 0x20,
+	0x65, 0x50, 0xd9, 0xf7, 0x0e, 0x6e, 0x9f, 0x06, 0xbf, 0xfc, 0xf4, 0x68, 0xdb, 0xe5, 0x78, 0x62,
+	0x23, 0x03, 0x25, 0x28, 0x1b, 0x87, 0xf5, 0x5c, 0xe1, 0x60, 0xff, 0x13, 0xb4, 0xe3, 0x0a, 0x06,
+	0x12, 0xcd, 0x38, 0x81, 0xa9, 0x8c, 0x12, 0x2c, 0x93, 0xe0, 0xd6, 0xbe, 0x77, 0xb0, 0x75, 0xba,
+	0xfa, 0xea, 0xcf, 0xa0, 0x12, 0xb6, 0x0a, 0xca, 0x97, 0x86, 0x71, 0x8e, 0x65, 0xe2, 0xf7, 0x50,
+	0x43, 0xd2, 0x31, 0xc3, 0x2a, 0x13, 0x10, 0x11, 0x3a, 0x06, 0xa9, 0x82, 0xd5, 0x92, 0xa8, 0x5e,
+	0x44, 0xcf, 0x4c, 0xd0, 0xff, 0x10, 0xd5, 0x71, 0x1c, 0x43, 0xaa, 0x6f, 0x4a, 0x80, 0x8e, 0x13,
+	0x15, 0xac, 0x99, 0x7a, 0x6a, 0x39, 0x7c, 0x6e, 0xd0, 0xce, 0x8f, 0x15, 0xb4, 0x6d, 0x2e, 0xea,
+	0xe3, 0x14, 0x0f, 0xe9, 0x94, 0xaa, 0x85, 0xf5, 0xe1, 0xa6, 0x8a, 0xbd, 0xb7, 0xad, 0xf8, 0x3d,
+	0xb4, 0x69, 0xea, 0x8c, 0x28, 0x31, 0x76, 0xe5, 0xf9, 0x6e, 0x18, 0xf4, 0x29, 0xf1, 0x8f, 0xd0,
+	0x36, 0x65, 0x23, 0x10, 0xc0, 0x62, 0x88, 0xe2, 0x22, 0x05, 0x53, 0xdc, 0x66, 0xd8, 0x2a, 0x62,
+	0xcb, 0xec, 0xfc, 0x27, 0xe8, 0xdd, 0x39, 0x08, 0x3a, 0xa2, 0x31, 0x56, 0x94, 0xb3, 0xb2, 0x6a,
+	0xcd, 0xa8, 0x76, 0xcb, 0xe1, 0x92, 0xf0, 0x11, 0xf2, 0x97, 0xdc, 0x68, 0x0e, 0x42, 0x52, 0xce,
+	0x82, 0x75, 0x63, 0x4b, 0x73, 0x19, 0x79, 0x69, 0x03, 0x9d, 0xdf, 0x2a, 0xa8, 0x6d, 0x9c, 0x71,
+	0xe3, 0x11, 0x42, 0x9c, 0x40, 0x3c, 0xe9, 0x67, 0x42, 0x72, 0x61, 0x3d, 0x2a, 0x97, 0xe7, 0xdd,
+	0x54, 0xde, 0x03, 0xd4, 0x80, 0xd1, 0x08, 0x62, 0x45, 0xe7, 0x90, 0xf7, 0xa1, 0x62, 0x2e, 0xac,
+	0x17, 0xb8, 0x6d, 0x84, 0xff, 0x1c, 0xed, 0x4c, 0xb1, 0x54, 0xd1, 0x1b, 0xa6, 0xdf, 0xfa, 0x17,
+	0xd3, 0x5b, 0x5a, 0x76, 0xf1, 0x37, 0xe3, 0xdf, 0x47, 0xd5, 0x39, 0x95, 0x54, 0xb7, 0x3f, 0xe6,
+	0x19, 0xb3, 0xd3, 0xb2, 0x1a, 0x6e, 0x39, 0xb0, 0xaf, 0x31, 0x3d, 0x24, 0x32, 0x93, 0x29, 0x30,
+	0x52, 0xd0, 0xdc, 0x90, 0x14, 0xb0, 0x25, 0xde, 0x47, 0x35, 0xfd, 0x80, 0xb8, 0x28, 0x78, 0xd6,
+	0xb5, 0x6a, 0x8e, 0x5a, 0xda, 0x43, 0xd4, 0x9c, 0x51, 0x16, 0x49, 0x85, 0x27, 0x10, 0x4d, 0xf9,
+	0xb7, 0x20, 0x80, 0x04, 0x1b, 0xa6, 0x27, 0xf5, 0x19, 0x65, 0x03, 0x8d, 0x3f, 0xb7, 0x70, 0xe7,
+	0x0f, 0x0f, 0xdd, 0x2b, 0xbb, 0x7b, 0x06, 0x58, 0xbb, 0x81, 0x15, 0xbc, 0x95, 0xc1, 0xff, 0xe8,
+	0x5a, 0xe5, 0x3f, 0x71, 0xed, 0xd6, 0x0d, 0xae, 0x7d, 0x84, 0x9a, 0xa4, 0x48, 0xf6, 0xba, 0xbd,
+	0x8d, 0x52, 0xc0, 0x90, 0x3b, 0x3f, 0x6f, 0xa0, 0x66, 0xb9, 0xcc, 0xff, 0xf3, 0x6d, 0x3d, 0x40,
+	0x0d, 0x02, 0xf1, 0x54, 0xaf, 0xc0, 0x7c, 0xd1, 0xba, 0x77, 0x55, 0xcf, 0x71, 0x97, 0x95, 0x6e,
+	0xb0, 0x63, 0x44, 0xa6, 0x00, 0x70, 0x4f, 0xa9, 0xea, 0xd0, 0x13, 0x03, 0xfa, 0xcf, 0xf4, 0x56,
+	0x31, 0xf5, 0xe9, 0x87, 0x37, 0xa1, 0x8c, 0x98, 0x41, 0xa8, 0x3d, 0xee, 0x74, 0xed, 0xea, 0xee,
+	0x96, 0x6b, 0x3d, 0x29, 0xa8, 0xcf, 0x28, 0x23, 0x7a, 0xf3, 0x94, 0xbf, 0xfd, 0x3e, 0xda, 0x19,
+	0x51, 0x21, 0xdd, 0x8d, 0xf6, 0x48, 0x92, 0xa9, 0x85, 0x99, 0x98, 0xda, 0xe3, 0x7a, 0xd7, 0x6e,
+	0x6f, 0x7d, 0xea, 0x59, 0xa6, 0x16, 0x61, 0xcb, 0xb0, 0x97, 0x87, 0x6a, 0xd0, 0x7f, 0x92, 0x1f,
+	0x92, 0xa7, 0xaf, 0xb0, 0x9c, 0x68, 0x47, 0x36, 0x4b, 0x8e, 0xf8, 0x86, 0xe2, 0xb2, 0x7a, 0x81,
+	0xe5, 0xe4, 0x29, 0xf1, 0x3f, 0x45, 0x77, 0xae, 0x0b, 0xb9, 0x20, 0x20, 0xa2, 0x39, 0x9e, 0x66,
+	0x10, 0xdc, 0x36, 0xdd, 0xdc, 0x2d, 0xcb, 0x2e, 0x74, 0xf8, 0xa5, 0x8e, 0xfa, 0x0f, 0x51, 0x23,
+	0x3d, 0x3e, 0x8c, 0xe2, 0x4c, 0xf1, 0xd1, 0x28, 0xb2, 0x3f, 0x16, 0x48, 0x2b, 0xce, 0x57, 0xc2,
+	0x5a, 0x7a, 0x7c, 0xd8, 0x37, 0x81, 0xcf, 0xcd, 0xef, 0xc6, 0x7d, 0x54, 0xd5, 0xdc, 0x21, 0xe7,
+	0x4a, 0x2a, 0x81, 0xd3, 0xa0, 0xa9, 0x7d, 0x3d, 0x5f, 0x09, 0xb7, 0xd2, 0xe3, 0xc3, 0xd3, 0x1c,
+	0xd5, 0xd9, 0xe4, 0x79, 0x8c, 0x04, 0xc8, 0x24, 0xca, 0x98, 0xa2, 0x53, 0x77, 0xf6, 0x3b, 0x36,
+	0x1b, 0x47, 0xf8, 0x42, 0xc7, 0xbf, 0xd6, 0x61, 0x7b, 0xc3, 0xc7, 0x68, 0xdb, 0xbc, 0x00, 0x01,
+	0x56, 0x99, 0x1b, 0xb0, 0x55, 0x32, 0xa0, 0xa9, 0x19, 0xa1, 0x25, 0xb8, 0xfa, 0xbb, 0xa8, 0x75,
+	0x4d, 0xe6, 0x96, 0x53, 0xd5, 0x6e, 0xc3, 0x12, 0xdf, 0xad, 0xa7, 0x13, 0x74, 0xd7, 0x4e, 0x46,
+	0x61, 0x98, 0x7d, 0xe6, 0x92, 0xe1, 0x54, 0x26, 0x5c, 0x05, 0x35, 0xa3, 0xdc, 0xb3, 0xa4, 0xe5,
+	0xb4, 0x4f, 0x60, 0xe0, 0x18, 0x76, 0xdd, 0x58, 0x6d, 0xbe, 0x7c, 0x1b, 0xf9, 0xba, 0x31, 0xb0,
+	0xdb, 0xbc, 0xfa, 0xae, 0xeb, 0xbd, 0x49, 0x05, 0x1f, 0xd1, 0x29, 0x14, 0x32, 0x7f, 0xdf, 0x3b,
+	0xa8, 0x86, 0x7b, 0xe5, 0xfe, 0x7c, 0x65, 0x29, 0xf9, 0x11, 0xe7, 0x28, 0xdf, 0x61, 0x91, 0x00,
+	0x2c, 0x39, 0x0b, 0x5a, 0x66, 0xaa, 0xee, 0xdd, 0x34, 0xa8, 0x03, 0xcb, 0x0c, 0x0d, 0x51, 0xcf,
+	0x7c, 0xe9, 0xf3, 0x74, 0x0b, 0x21, 0xdd, 0x41, 0xc9, 0x33, 0x11, 0xc3, 0xe9, 0x67, 0xaf, 0x2e,
+	0xdb, 0xde, 0xeb, 0xcb, 0xb6, 0xf7, 0xfb, 0x65, 0xdb, 0xfb, 0xe1, 0xaa, 0xbd, 0xf2, 0xfa, 0xaa,
+	0xbd, 0xf2, 0xeb, 0x55, 0x7b, 0xe5, 0x9b, 0x0f, 0xc6, 0x54, 0xe9, 0xb3, 0x63, 0x3e, 0xeb, 0xbd,
+	0x10, 0x19, 0x5c, 0xa4, 0xc0, 0x7a, 0x8c, 0x13, 0xe8, 0x7d, 0xd7, 0xd3, 0x7f, 0x5a, 0xd4, 0x22,
+	0x05, 0x39, 0x5c, 0x37, 0x7f, 0x3d, 0x8e, 0xff, 0x0a, 0x00, 0x00, 0xff, 0xff, 0xe3, 0x90, 0x08,
+	0x3c, 0x07, 0x09, 0x00, 0x00,
 }
 
 func (m *DailySupportState) Marshal() (dAtA []byte, err error) {
@@ -598,10 +671,10 @@ func (m *DailySupportState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x22
 	}
-	if len(m.SupportedProfilesHash) > 0 {
-		i -= len(m.SupportedProfilesHash)
-		copy(dAtA[i:], m.SupportedProfilesHash)
-		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.SupportedProfilesHash)))
+	if len(m.SupportedModelsHash) > 0 {
+		i -= len(m.SupportedModelsHash)
+		copy(dAtA[i:], m.SupportedModelsHash)
+		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.SupportedModelsHash)))
 		i--
 		dAtA[i] = 0x1a
 	}
@@ -620,7 +693,7 @@ func (m *DailySupportState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ProfileCapabilityState) Marshal() (dAtA []byte, err error) {
+func (m *ModelCapabilityState) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -630,12 +703,12 @@ func (m *ProfileCapabilityState) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ProfileCapabilityState) MarshalTo(dAtA []byte) (int, error) {
+func (m *ModelCapabilityState) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ProfileCapabilityState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ModelCapabilityState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -665,11 +738,6 @@ func (m *ProfileCapabilityState) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		i--
 		dAtA[i] = 0x20
 	}
-	if m.ProfileVersion != 0 {
-		i = encodeVarintDailySupport(dAtA, i, uint64(m.ProfileVersion))
-		i--
-		dAtA[i] = 0x18
-	}
 	if len(m.ModelId) > 0 {
 		i -= len(m.ModelId)
 		copy(dAtA[i:], m.ModelId)
@@ -687,7 +755,7 @@ func (m *ProfileCapabilityState) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	return len(dAtA) - i, nil
 }
 
-func (m *SupportDeactivateCursorState) Marshal() (dAtA []byte, err error) {
+func (m *ModelSupportRecheckCursorState) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -697,44 +765,99 @@ func (m *SupportDeactivateCursorState) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SupportDeactivateCursorState) MarshalTo(dAtA []byte) (int, error) {
+func (m *ModelSupportRecheckCursorState) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SupportDeactivateCursorState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ModelSupportRecheckCursorState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.EnqueuedHeight != 0 {
-		i = encodeVarintDailySupport(dAtA, i, uint64(m.EnqueuedHeight))
+	if m.MinStakeLowered {
+		i--
+		if m.MinStakeLowered {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.RestoredCount != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.RestoredCount))
 		i--
 		dAtA[i] = 0x30
+	}
+	if m.SuspendedCount != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.SuspendedCount))
+		i--
+		dAtA[i] = 0x28
 	}
 	if m.VisitedCount != 0 {
 		i = encodeVarintDailySupport(dAtA, i, uint64(m.VisitedCount))
 		i--
-		dAtA[i] = 0x28
+		dAtA[i] = 0x20
 	}
 	if len(m.LastOperatorAddress) > 0 {
 		i -= len(m.LastOperatorAddress)
 		copy(dAtA[i:], m.LastOperatorAddress)
 		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.LastOperatorAddress)))
 		i--
-		dAtA[i] = 0x22
-	}
-	if len(m.Reason) > 0 {
-		i -= len(m.Reason)
-		copy(dAtA[i:], m.Reason)
-		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.Reason)))
-		i--
 		dAtA[i] = 0x1a
 	}
-	if m.ProfileVersion != 0 {
-		i = encodeVarintDailySupport(dAtA, i, uint64(m.ProfileVersion))
+	if m.EffectiveHeight != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.EffectiveHeight))
 		i--
 		dAtA[i] = 0x10
+	}
+	if len(m.ModelId) > 0 {
+		i -= len(m.ModelId)
+		copy(dAtA[i:], m.ModelId)
+		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.ModelId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ModelSupportDeactivateCursorState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ModelSupportDeactivateCursorState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ModelSupportDeactivateCursorState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.DeactivatedCount != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.DeactivatedCount))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.VisitedCount != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.VisitedCount))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.LastOperatorAddress) > 0 {
+		i -= len(m.LastOperatorAddress)
+		copy(dAtA[i:], m.LastOperatorAddress)
+		i = encodeVarintDailySupport(dAtA, i, uint64(len(m.LastOperatorAddress)))
+		i--
+		dAtA[i] = 0x12
 	}
 	if len(m.ModelId) > 0 {
 		i -= len(m.ModelId)
@@ -766,6 +889,20 @@ func (m *ModelSupportState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.SuspendReason != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.SuspendReason))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.FirstSupportProfileVersion != 0 {
+		i = encodeVarintDailySupport(dAtA, i, uint64(m.FirstSupportProfileVersion))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
 	if m.P30Source != nil {
 		{
 			size := m.P30Source.Size()
@@ -781,11 +918,6 @@ func (m *ModelSupportState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		dAtA[i] = 0x1
 		i--
 		dAtA[i] = 0x80
-	}
-	if m.EligibleSupportStakeSnapshot != 0 {
-		i = encodeVarintDailySupport(dAtA, i, uint64(m.EligibleSupportStakeSnapshot))
-		i--
-		dAtA[i] = 0x78
 	}
 	if m.ActiveSupportStakeSnapshot != 0 {
 		i = encodeVarintDailySupport(dAtA, i, uint64(m.ActiveSupportStakeSnapshot))
@@ -850,11 +982,6 @@ func (m *ModelSupportState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0x20
-	}
-	if m.ProfileVersion != 0 {
-		i = encodeVarintDailySupport(dAtA, i, uint64(m.ProfileVersion))
-		i--
-		dAtA[i] = 0x18
 	}
 	if len(m.ModelId) > 0 {
 		i -= len(m.ModelId)
@@ -928,7 +1055,7 @@ func (m *DailySupportState) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
 	}
-	l = len(m.SupportedProfilesHash)
+	l = len(m.SupportedModelsHash)
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
 	}
@@ -942,7 +1069,7 @@ func (m *DailySupportState) Size() (n int) {
 	return n
 }
 
-func (m *ProfileCapabilityState) Size() (n int) {
+func (m *ModelCapabilityState) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -956,9 +1083,6 @@ func (m *ProfileCapabilityState) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
 	}
-	if m.ProfileVersion != 0 {
-		n += 1 + sovDailySupport(uint64(m.ProfileVersion))
-	}
 	if m.InferenceCapability {
 		n += 2
 	}
@@ -971,7 +1095,7 @@ func (m *ProfileCapabilityState) Size() (n int) {
 	return n
 }
 
-func (m *SupportDeactivateCursorState) Size() (n int) {
+func (m *ModelSupportRecheckCursorState) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -981,10 +1105,35 @@ func (m *SupportDeactivateCursorState) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
 	}
-	if m.ProfileVersion != 0 {
-		n += 1 + sovDailySupport(uint64(m.ProfileVersion))
+	if m.EffectiveHeight != 0 {
+		n += 1 + sovDailySupport(uint64(m.EffectiveHeight))
 	}
-	l = len(m.Reason)
+	l = len(m.LastOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovDailySupport(uint64(l))
+	}
+	if m.VisitedCount != 0 {
+		n += 1 + sovDailySupport(uint64(m.VisitedCount))
+	}
+	if m.SuspendedCount != 0 {
+		n += 1 + sovDailySupport(uint64(m.SuspendedCount))
+	}
+	if m.RestoredCount != 0 {
+		n += 1 + sovDailySupport(uint64(m.RestoredCount))
+	}
+	if m.MinStakeLowered {
+		n += 2
+	}
+	return n
+}
+
+func (m *ModelSupportDeactivateCursorState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ModelId)
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
 	}
@@ -995,8 +1144,8 @@ func (m *SupportDeactivateCursorState) Size() (n int) {
 	if m.VisitedCount != 0 {
 		n += 1 + sovDailySupport(uint64(m.VisitedCount))
 	}
-	if m.EnqueuedHeight != 0 {
-		n += 1 + sovDailySupport(uint64(m.EnqueuedHeight))
+	if m.DeactivatedCount != 0 {
+		n += 1 + sovDailySupport(uint64(m.DeactivatedCount))
 	}
 	return n
 }
@@ -1014,9 +1163,6 @@ func (m *ModelSupportState) Size() (n int) {
 	l = len(m.ModelId)
 	if l > 0 {
 		n += 1 + l + sovDailySupport(uint64(l))
-	}
-	if m.ProfileVersion != 0 {
-		n += 1 + sovDailySupport(uint64(m.ProfileVersion))
 	}
 	if m.DeclaredSupport {
 		n += 2
@@ -1053,11 +1199,14 @@ func (m *ModelSupportState) Size() (n int) {
 	if m.ActiveSupportStakeSnapshot != 0 {
 		n += 1 + sovDailySupport(uint64(m.ActiveSupportStakeSnapshot))
 	}
-	if m.EligibleSupportStakeSnapshot != 0 {
-		n += 1 + sovDailySupport(uint64(m.EligibleSupportStakeSnapshot))
-	}
 	if m.SupportVersion != 0 {
 		n += 2 + sovDailySupport(uint64(m.SupportVersion))
+	}
+	if m.FirstSupportProfileVersion != 0 {
+		n += 2 + sovDailySupport(uint64(m.FirstSupportProfileVersion))
+	}
+	if m.SuspendReason != 0 {
+		n += 2 + sovDailySupport(uint64(m.SuspendReason))
 	}
 	return n
 }
@@ -1169,7 +1318,7 @@ func (m *DailySupportState) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SupportedProfilesHash", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SupportedModelsHash", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1196,9 +1345,9 @@ func (m *DailySupportState) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SupportedProfilesHash = append(m.SupportedProfilesHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.SupportedProfilesHash == nil {
-				m.SupportedProfilesHash = []byte{}
+			m.SupportedModelsHash = append(m.SupportedModelsHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.SupportedModelsHash == nil {
+				m.SupportedModelsHash = []byte{}
 			}
 			iNdEx = postIndex
 		case 4:
@@ -1275,7 +1424,7 @@ func (m *DailySupportState) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ProfileCapabilityState) Unmarshal(dAtA []byte) error {
+func (m *ModelCapabilityState) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1298,10 +1447,10 @@ func (m *ProfileCapabilityState) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ProfileCapabilityState: wiretype end group for non-group")
+			return fmt.Errorf("proto: ModelCapabilityState: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ProfileCapabilityState: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ModelCapabilityState: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1340,7 +1489,7 @@ func (m *ProfileCapabilityState) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ModelId", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowDailySupport
@@ -1350,43 +1499,26 @@ func (m *ProfileCapabilityState) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if byteLen < 0 {
 				return ErrInvalidLengthDailySupport
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + byteLen
 			if postIndex < 0 {
 				return ErrInvalidLengthDailySupport
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ModelId = string(dAtA[iNdEx:postIndex])
+			m.ModelId = append(m.ModelId[:0], dAtA[iNdEx:postIndex]...)
+			if m.ModelId == nil {
+				m.ModelId = []byte{}
+			}
 			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ProfileVersion", wireType)
-			}
-			m.ProfileVersion = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowDailySupport
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ProfileVersion |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InferenceCapability", wireType)
@@ -1467,7 +1599,7 @@ func (m *ProfileCapabilityState) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
+func (m *ModelSupportRecheckCursorState) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1490,17 +1622,17 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SupportDeactivateCursorState: wiretype end group for non-group")
+			return fmt.Errorf("proto: ModelSupportRecheckCursorState: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SupportDeactivateCursorState: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ModelSupportRecheckCursorState: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ModelId", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowDailySupport
@@ -1510,29 +1642,31 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if byteLen < 0 {
 				return ErrInvalidLengthDailySupport
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + byteLen
 			if postIndex < 0 {
 				return ErrInvalidLengthDailySupport
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ModelId = string(dAtA[iNdEx:postIndex])
+			m.ModelId = append(m.ModelId[:0], dAtA[iNdEx:postIndex]...)
+			if m.ModelId == nil {
+				m.ModelId = []byte{}
+			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ProfileVersion", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveHeight", wireType)
 			}
-			m.ProfileVersion = 0
+			m.EffectiveHeight = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowDailySupport
@@ -1542,44 +1676,12 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.ProfileVersion |= uint32(b&0x7F) << shift
+				m.EffectiveHeight |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Reason", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowDailySupport
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthDailySupport
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthDailySupport
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Reason = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LastOperatorAddress", wireType)
 			}
@@ -1611,7 +1713,7 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 			}
 			m.LastOperatorAddress = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field VisitedCount", wireType)
 			}
@@ -1630,11 +1732,11 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 6:
+		case 5:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EnqueuedHeight", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SuspendedCount", wireType)
 			}
-			m.EnqueuedHeight = 0
+			m.SuspendedCount = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowDailySupport
@@ -1644,7 +1746,200 @@ func (m *SupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.EnqueuedHeight |= uint64(b&0x7F) << shift
+				m.SuspendedCount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RestoredCount", wireType)
+			}
+			m.RestoredCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RestoredCount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinStakeLowered", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.MinStakeLowered = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDailySupport(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthDailySupport
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ModelSupportDeactivateCursorState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDailySupport
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ModelSupportDeactivateCursorState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ModelSupportDeactivateCursorState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ModelId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthDailySupport
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDailySupport
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ModelId = append(m.ModelId[:0], dAtA[iNdEx:postIndex]...)
+			if m.ModelId == nil {
+				m.ModelId = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDailySupport
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDailySupport
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LastOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VisitedCount", wireType)
+			}
+			m.VisitedCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.VisitedCount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeactivatedCount", wireType)
+			}
+			m.DeactivatedCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.DeactivatedCount |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1735,7 +2030,7 @@ func (m *ModelSupportState) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ModelId", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowDailySupport
@@ -1745,43 +2040,26 @@ func (m *ModelSupportState) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if byteLen < 0 {
 				return ErrInvalidLengthDailySupport
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + byteLen
 			if postIndex < 0 {
 				return ErrInvalidLengthDailySupport
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ModelId = string(dAtA[iNdEx:postIndex])
+			m.ModelId = append(m.ModelId[:0], dAtA[iNdEx:postIndex]...)
+			if m.ModelId == nil {
+				m.ModelId = []byte{}
+			}
 			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ProfileVersion", wireType)
-			}
-			m.ProfileVersion = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowDailySupport
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ProfileVersion |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DeclaredSupport", wireType)
@@ -2024,25 +2302,6 @@ func (m *ModelSupportState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 15:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EligibleSupportStakeSnapshot", wireType)
-			}
-			m.EligibleSupportStakeSnapshot = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowDailySupport
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.EligibleSupportStakeSnapshot |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 16:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SupportVersion", wireType)
@@ -2083,6 +2342,44 @@ func (m *ModelSupportState) Unmarshal(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.P30Source = &ModelSupportState_P30Bootstrap{b}
+		case 18:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FirstSupportProfileVersion", wireType)
+			}
+			m.FirstSupportProfileVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FirstSupportProfileVersion |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SuspendReason", wireType)
+			}
+			m.SuspendReason = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDailySupport
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SuspendReason |= ModelSupportSuspendReason(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipDailySupport(dAtA[iNdEx:])

@@ -25,9 +25,17 @@ func (k Keeper) RegisterModelProfileState(
 	if proposer == "" || proposer != strings.TrimSpace(proposer) {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("proposer address must be canonical")
 	}
+	proposerBytes, canonicalProposer, err := k.requireCanonicalAddress("proposer_address", proposer)
+	if err != nil || canonicalProposer != proposer {
+		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("proposer address must be canonical")
+	}
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
+	}
+	derivedModelID, err := types.DeriveModelIDV1(sdk.UnwrapSDKContext(ctx).ChainID(), projection.Source.Provider, projection.Source.RepoId, proposerBytes)
+	if err != nil || !bytes.Equal(derivedModelID, projection.ModelId) {
+		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("model_id does not match the derived repository identity")
 	}
 	parsedMinStake, err := modelRegistrationCoinAmount("min_stake", projection.MinStake, params.Phase0.BusinessDenom)
 	if err != nil || parsedMinStake != minStake {
@@ -44,11 +52,15 @@ func (k Keeper) RegisterModelProfileState(
 		}
 		profile, profileErr := k.GetProfile(ctx, receipt.ModelId, receipt.ProfileVersion)
 		if profileErr != nil || !bytes.Equal(profile.RegistrationDigest, registrationDigest) ||
-			receipt.ModelId != projection.ModelId || receipt.ProfileVersion != projection.ProfileVersion ||
+			!bytes.Equal(receipt.ModelId, projection.ModelId) || receipt.ProfileVersion != projection.ProfileVersion ||
 			profile.ProposerAddress != proposer || profile.RegistrationFeePaid != registrationFee {
 			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("registration receipt invariant mismatch")
 		}
-		storedProjection := profileProjectionFromState(profile)
+		model, modelErr := k.GetModel(ctx, receipt.ModelId)
+		if modelErr != nil {
+			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, modelErr
+		}
+		storedProjection := profileProjectionFromState(profile, model)
 		storedProjection.MinStake = sdk.NewCoin(params.Phase0.BusinessDenom, sdkmath.NewIntFromUint64(profile.MinStake))
 		storedProjection.RegistrationFee = sdk.NewCoin(params.Phase0.BusinessDenom, sdkmath.NewIntFromUint64(profile.RegistrationFeePaid))
 		left, leftErr := types.CanonicalModelProfileProjection(projection)
@@ -56,8 +68,7 @@ func (k Keeper) RegisterModelProfileState(
 		if leftErr != nil || rightErr != nil || !bytes.Equal(left, right) {
 			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("registration receipt projection mismatch")
 		}
-		model, err := k.GetModel(ctx, receipt.ModelId)
-		return model, profile, receipt, true, err
+		return model, profile, receipt, true, nil
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
@@ -66,6 +77,7 @@ func (k Keeper) RegisterModelProfileState(
 	if err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
+	var oldPendingHeight, recheckHeight uint64
 	expectedFee := params.Treasury.ModelProfileRegistrationFee
 	if exists {
 		expectedFee = params.Treasury.ProfileVersionUpdateFee
@@ -80,12 +92,14 @@ func (k Keeper) RegisterModelProfileState(
 		}
 		model = types.ModelState{
 			ModelId: projection.ModelId, ProposerAddress: proposer,
-			Status: types.ModelStatusRegistered, StatusSource: types.ModelStatusSourceAutoProfile,
+			Status: types.ModelStatusRegistered, StatusSource: types.ModelStatusSourceAutoSupport,
 			LatestProfileVersion: projection.ProfileVersion, RegistrationFeePaid: registrationFee,
 			CreatedHeight: height, UpdatedHeight: height,
+			SupportMinStake: minStake, Provider: projection.Source.Provider, RepoId: projection.Source.RepoId,
 		}
 	} else {
-		if model.ProposerAddress != proposer {
+		oldPendingHeight = model.PendingEffectiveHeight
+		if model.ProposerAddress != proposer || model.Provider != projection.Source.Provider || model.RepoId != projection.Source.RepoId {
 			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("model registrant does not match proposer")
 		}
 		if projection.ProfileVersion != model.LatestProfileVersion+1 || projection.PreviousProfileVersion != model.LatestProfileVersion {
@@ -105,6 +119,22 @@ func (k Keeper) RegisterModelProfileState(
 			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("model registration fee overflow: %w", err)
 		}
 		model.UpdatedHeight = height
+		if minStake > model.SupportMinStake {
+			if params.Service.MinStakeGracePeriodBlocks == 0 {
+				return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("min_stake_grace_period_blocks must be positive")
+			}
+			recheckHeight, err = checkedAdd(height, params.Service.MinStakeGracePeriodBlocks)
+			if err != nil {
+				return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
+			}
+			model.PendingSupportMinStake = minStake
+			model.PendingEffectiveHeight = recheckHeight
+		} else if minStake < model.SupportMinStake || oldPendingHeight != 0 {
+			model.SupportMinStake = minStake
+			model.PendingSupportMinStake = 0
+			model.PendingEffectiveHeight = 0
+			recheckHeight = height
+		}
 	}
 
 	bondFloor, err := k.serviceBondMinInitial(ctx)
@@ -133,6 +163,16 @@ func (k Keeper) RegisterModelProfileState(
 	if err := k.setModelState(ctx, model); err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
+	if oldPendingHeight != 0 {
+		if err := k.ModelSupportRecheckIndex.Remove(ctx, types.NewModelSupportRecheckIndexKey(oldPendingHeight, model.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
+		}
+	}
+	if recheckHeight != 0 {
+		if err := k.ModelSupportRecheckIndex.Set(ctx, types.NewModelSupportRecheckIndexKey(recheckHeight, model.ModelId)); err != nil {
+			return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
+		}
+	}
 	if err := k.setProfileState(ctx, profile); err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
@@ -155,14 +195,17 @@ func profileStateFromProjection(proposer string, p shared.ModelProfileProjection
 		VerificationThresholds: p.VerificationThresholds, BatchVerification: p.BatchVerification,
 		PricingProfile: p.PricingProfile, TimeoutBootstrapProfile: p.TimeoutBootstrapProfile,
 		SchemaHash: append([]byte(nil), p.SchemaHash...), Status: types.ModelStatusRegistered,
-		StatusSource: types.ProfileStatusSourceAutoSupport, RegistrationFeePaid: fee,
+		StatusSource: types.ProfileStatusSourceGovernance, RegistrationFeePaid: fee,
 		PreviousProfileVersion: p.PreviousProfileVersion, ProposerAddress: proposer,
 		RegistrationDigest: append([]byte(nil), digest...), CreatedHeight: height, UpdatedHeight: height,
 		RefPrice: p.PricingProfile.InitialOutputPrice,
+		Source: shared.ProfileSourceRefV1{SourceUri: p.Source.SourceUri, Revision: p.Source.Revision,
+			ResolverVersion: p.Source.ResolverVersion, RepoType: p.Source.RepoType},
+		ToolCallParser: p.ToolCallParser, ReasoningParser: p.ReasoningParser,
 	}
 }
 
-func profileProjectionFromState(s types.ProfileState) shared.ModelProfileProjection {
+func profileProjectionFromState(s types.ProfileState, model types.ModelState) shared.ModelProfileProjection {
 	return shared.ModelProfileProjection{
 		ModelId: s.ModelId, ProfileVersion: s.ProfileVersion, ManifestHash: s.ManifestHash,
 		TokenizerHash: s.TokenizerHash, RuntimeClass: s.RuntimeClass, RequiredTopK: s.RequiredTopK,
@@ -171,42 +214,65 @@ func profileProjectionFromState(s types.ProfileState) shared.ModelProfileProject
 		VerificationThresholds: s.VerificationThresholds, BatchVerification: s.BatchVerification,
 		PricingProfile: s.PricingProfile, TimeoutBootstrapProfile: s.TimeoutBootstrapProfile,
 		SchemaHash: s.SchemaHash, PreviousProfileVersion: s.PreviousProfileVersion,
+		Source: shared.SourceRefV1{Provider: model.Provider, RepoId: model.RepoId,
+			SourceUri: s.Source.SourceUri, Revision: s.Source.Revision,
+			ResolverVersion: s.Source.ResolverVersion, RepoType: s.Source.RepoType},
+		ToolCallParser: s.ToolCallParser, ReasoningParser: s.ReasoningParser,
 	}
 }
 
-func (k Keeper) GetModel(ctx context.Context, modelID string) (types.ModelState, error) {
+func (k Keeper) GetModel(ctx context.Context, modelID []byte) (types.ModelState, error) {
 	state, exists, err := k.loadModel(ctx, modelID)
 	if err != nil {
 		return types.ModelState{}, err
 	}
 	if !exists {
-		return types.ModelState{}, fmt.Errorf("model %s not found", modelID)
+		return types.ModelState{}, fmt.Errorf("model %x not found", modelID)
 	}
 	return state, nil
 }
 
-func (k Keeper) SetModelStatus(ctx context.Context, modelID string, newStatus types.ModelProfileStatus, reason types.GovernanceReason, height uint64) (types.ModelState, error) {
+func (k Keeper) SetModelStatus(ctx context.Context, modelID []byte, newStatus types.ModelProfileStatus, reason types.GovernanceReason, height uint64) (types.ModelState, error) {
 	return k.setModelStatusWithSource(ctx, modelID, newStatus, types.ModelStatusSourceGovernance, reason, height)
 }
 
-func (k Keeper) setModelStatusWithSource(ctx context.Context, modelID string, newStatus types.ModelProfileStatus, source types.ModelStatusSource, reason types.GovernanceReason, height uint64) (types.ModelState, error) {
+func (k Keeper) setModelStatusWithSource(ctx context.Context, modelID []byte, newStatus types.ModelProfileStatus, source types.ModelStatusSource, reason types.GovernanceReason, height uint64) (types.ModelState, error) {
+	if has, err := k.ModelSupportDeactivateCursor.Has(ctx, modelID); err != nil {
+		return types.ModelState{}, err
+	} else if has {
+		return types.ModelState{}, fmt.Errorf("model support deactivation must finish before another model status change")
+	}
 	state, err := k.GetModel(ctx, modelID)
 	if err != nil {
 		return types.ModelState{}, err
 	}
 	if !isValidModelStatusTransition(state.Status, newStatus) {
-		return types.ModelState{}, fmt.Errorf("cannot transition model %s from %s to %s", modelID, state.Status, newStatus)
+		return types.ModelState{}, fmt.Errorf("cannot transition model %x from %s to %s", modelID, state.Status, newStatus)
 	}
 	oldStatus := state.Status
 	state.Status, state.StatusSource, state.UpdatedHeight = newStatus, source, height
 	if statusReturnsToAutoDerivation(newStatus) {
-		state.StatusSource = types.ModelStatusSourceAutoProfile
+		state.StatusSource = types.ModelStatusSourceAutoSupport
 	}
 	if err := state.Validate(); err != nil {
 		return types.ModelState{}, err
 	}
 	if statusDisablesSupport(newStatus) {
-		if err := k.deactivateModelSupports(ctx, state.ModelId, types.ModelSupportDeactivateFrozen, height); err != nil {
+		// A threshold recheck in flight is meaningless once the model can no
+		// longer support at all, and one model may only have one batch support
+		// transition in flight at a time: clear it here rather than reject the
+		// governance action, which must win over a not-yet-effective threshold
+		// change.
+		if state.PendingEffectiveHeight != 0 {
+			if err := k.ModelSupportRecheckIndex.Remove(ctx, types.NewModelSupportRecheckIndexKey(state.PendingEffectiveHeight, state.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+				return types.ModelState{}, err
+			}
+			state.PendingSupportMinStake, state.PendingEffectiveHeight = 0, 0
+		}
+		if err := k.ModelSupportRecheckCursor.Remove(ctx, state.ModelId); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			return types.ModelState{}, err
+		}
+		if err := k.EnqueueModelSupportDeactivation(ctx, state.ModelId); err != nil {
 			return types.ModelState{}, err
 		}
 	}
@@ -228,32 +294,32 @@ func (k Keeper) setModelStatusWithSource(ctx context.Context, modelID string, ne
 	return state, nil
 }
 
-func (k Keeper) GetProfile(ctx context.Context, modelID string, profileVersion uint32) (types.ProfileState, error) {
+func (k Keeper) GetProfile(ctx context.Context, modelID []byte, profileVersion uint32) (types.ProfileState, error) {
 	state, exists, err := k.loadProfile(ctx, modelID, profileVersion)
 	if err != nil {
 		return types.ProfileState{}, err
 	}
 	if !exists {
-		return types.ProfileState{}, fmt.Errorf("profile %s/%d not found", modelID, profileVersion)
+		return types.ProfileState{}, fmt.Errorf("profile %x/%d not found", modelID, profileVersion)
 	}
 	return state, nil
 }
 
-func (k Keeper) SetProfileStatus(ctx context.Context, modelID string, profileVersion uint32, newStatus types.ModelProfileStatus, height uint64) (types.ProfileState, error) {
+func (k Keeper) SetProfileStatus(ctx context.Context, modelID []byte, profileVersion uint32, newStatus types.ModelProfileStatus, height uint64) (types.ProfileState, error) {
 	return k.setProfileStatusWithSource(ctx, modelID, profileVersion, newStatus, types.ProfileStatusSourceGovernance, height)
 }
-func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID string, profileVersion uint32, newStatus types.ModelProfileStatus, source types.ProfileStatusSource, height uint64) (types.ProfileState, error) {
+func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID []byte, profileVersion uint32, newStatus types.ModelProfileStatus, source types.ProfileStatusSource, height uint64) (types.ProfileState, error) {
 	state, err := k.GetProfile(ctx, modelID, profileVersion)
 	if err != nil {
 		return types.ProfileState{}, err
 	}
 	if !isValidProfileStatusTransition(state.Status, newStatus) {
-		return types.ProfileState{}, fmt.Errorf("cannot transition profile %s/%d from %s to %s", modelID, profileVersion, state.Status, newStatus)
+		return types.ProfileState{}, fmt.Errorf("cannot transition profile %x/%d from %s to %s", modelID, profileVersion, state.Status, newStatus)
 	}
 	oldStatus := state.Status
 	state.Status, state.StatusSource, state.UpdatedHeight = newStatus, source, height
-	if statusReturnsToAutoDerivation(newStatus) {
-		state.StatusSource = types.ProfileStatusSourceAutoSupport
+	if newStatus == types.ModelStatusRegistered {
+		state.StatusSource = types.ProfileStatusSourceGovernance
 	}
 	// Only the structural check belongs on a lifecycle transition, exactly like
 	// the model-side sibling setModelStatusWithSource above.
@@ -267,22 +333,14 @@ func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID string, 
 	// before the write and the profile became permanently ungovernable. A
 	// parameter change must not reinterpret an already-admitted profile; the
 	// clamp belongs solely to RegisterModelProfileState. The asymmetry made this
-	// worse rather than safer: setProfileEmergencyFrozen and
-	// deriveProfileAndModelStatus only ever validated structurally, so the floor
-	// bricked the governance entry alone and left the validator freeze quorum as
-	// the only way to move such a profile.
+	// worse rather than safer: setProfileEmergencyFrozen and deriveModelStatus
+	// only ever validated structurally, so the floor bricked the governance
+	// entry alone and left the validator freeze quorum as the only way to move
+	// such a profile.
 	if err := state.Validate(); err != nil {
 		return types.ProfileState{}, err
 	}
-	if statusDisablesSupport(newStatus) {
-		if err := k.deactivateProfileSupports(ctx, modelID, profileVersion, types.ModelSupportDeactivateFrozen, height); err != nil {
-			return types.ProfileState{}, err
-		}
-	}
 	if err := k.setProfileState(ctx, state); err != nil {
-		return types.ProfileState{}, err
-	}
-	if err := k.applyActiveProfileCountDelta(ctx, modelID, oldStatus, newStatus, height); err != nil {
 		return types.ProfileState{}, err
 	}
 	// Source is the trigger of this transition, not the lock that was just written;
@@ -291,65 +349,12 @@ func (k Keeper) setProfileStatusWithSource(ctx context.Context, modelID string, 
 		ModelId: modelID, ProfileVersion: profileVersion,
 		OldStatus: oldStatus, NewStatus: newStatus, Source: source,
 	})
-	// The unfreeze handed the row back to the support aggregates, so the aggregates
-	// decide the status from here. Re-running the derivation inside the same Tx is
-	// what keeps the API contract rule 5 ("the response returns the
-	// persisted status") honest: an
-	// unfreeze that lands on aggregates still above the activation thresholds
-	// persists ACTIVE, and the response reports ACTIVE rather than a REGISTERED that
-	// no longer exists in the store. REGISTERED -> ACTIVE is a legal matrix edge, so
-	// the two-step FROZEN -> REGISTERED -> ACTIVE walk never invents the illegal
-	// FROZEN -> ACTIVE edge that a single fused write would have produced.
-	if statusReturnsToAutoDerivation(newStatus) {
-		if err := k.deriveProfileAndModelStatus(ctx, &state, height); err != nil {
-			return types.ProfileState{}, err
-		}
-	}
 	return state, nil
 }
 
-// applyActiveProfileCountDelta keeps ModelState.active_profile_count in step with
-// a single profile status write in O(1).
-//
-// Neither setProfileStatusWithSource nor setProfileEmergencyFrozen used to touch
-// the counter. Before P0-3 an ACTIVE -> FROZEN transition happened to be repaired
-// indirectly: the synchronous supporter fan-out zeroed every support row, and
-// deriveProfileAndModelStatus then saw StatusSource == AUTO_SUPPORT, dropped the
-// profile back to REGISTERED and decremented there. With the fan-out now
-// asynchronous, status and StatusSource land as GOVERNANCE/EMERGENCY first and
-// the cursor drain never recomputes them, so the counter would drift up forever.
-// Governance setting a profile straight to ACTIVE never incremented it either.
-//
-// Model-level freezes are unaffected: their profiles keep StatusSource ==
-// AUTO_SUPPORT, so deriveProfileAndModelStatus still owns those transitions.
-func (k Keeper) applyActiveProfileCountDelta(ctx context.Context, modelID string, oldStatus, newStatus types.ModelProfileStatus, height uint64) error {
-	wasActive := oldStatus == types.ModelStatusActive
-	isActive := newStatus == types.ModelStatusActive
-	if wasActive == isActive {
-		return nil
-	}
-	model, err := k.GetModel(ctx, modelID)
-	if err != nil {
-		return err
-	}
-	if isActive {
-		model.ActiveProfileCount, err = checkedAddUint32(model.ActiveProfileCount, 1)
-		if err != nil {
-			return fmt.Errorf("model %s active_profile_count overflow: %w", modelID, err)
-		}
-	} else {
-		if model.ActiveProfileCount == 0 {
-			return fmt.Errorf("model %s active_profile_count underflow", modelID)
-		}
-		model.ActiveProfileCount--
-	}
-	model.UpdatedHeight = height
-	return k.setModelState(ctx, model)
-}
-
-func (k Keeper) loadModel(ctx context.Context, modelID string) (types.ModelState, bool, error) {
-	if err := types.ValidateModelID(modelID); err != nil {
-		return types.ModelState{}, false, err
+func (k Keeper) loadModel(ctx context.Context, modelID []byte) (types.ModelState, bool, error) {
+	if len(modelID) != shared.Hash32KeySize {
+		return types.ModelState{}, false, fmt.Errorf("model_id must be raw Hash32")
 	}
 	state, err := k.Model.Get(ctx, modelID)
 	if errors.Is(err, collections.ErrNotFound) {
@@ -357,9 +362,9 @@ func (k Keeper) loadModel(ctx context.Context, modelID string) (types.ModelState
 	}
 	return state, err == nil, err
 }
-func (k Keeper) loadProfile(ctx context.Context, modelID string, profileVersion uint32) (types.ProfileState, bool, error) {
-	if err := types.ValidateModelID(modelID); err != nil {
-		return types.ProfileState{}, false, err
+func (k Keeper) loadProfile(ctx context.Context, modelID []byte, profileVersion uint32) (types.ProfileState, bool, error) {
+	if len(modelID) != shared.Hash32KeySize {
+		return types.ProfileState{}, false, fmt.Errorf("model_id must be raw Hash32")
 	}
 	state, err := k.Profile.Get(ctx, types.NewProfileStateKey(modelID, profileVersion))
 	if errors.Is(err, collections.ErrNotFound) {
@@ -395,9 +400,8 @@ func statusDisablesSupport(status types.ModelProfileStatus) bool {
 
 // statusReturnsToAutoDerivation reports whether landing on `status` hands the row
 // back to the automatic status derivation, i.e. whether status_source must be
-// reset to AUTO_PROFILE / AUTO_SUPPORT. Model and profile share the predicate for
-// the same reason isParentModelOpenForProfile and isProfileOpenForOrders do: the
-// two sides must not drift apart.
+// reset to AUTO_PROFILE / AUTO_SUPPORT. Model and profile share the predicate so
+// the two sides cannot drift apart.
 //
 // REGISTERED is the only such status. It is the base status that
 // deriveProfileAndModelStatus itself writes whenever the aggregates fall back
@@ -428,13 +432,8 @@ func statusReturnsToAutoDerivation(status types.ModelProfileStatus) bool {
 	return status == types.ModelStatusRegistered
 }
 
-// isParentModelOpenForProfile and isProfileOpenForOrders are named views of one
-// predicate, types.IsModelProfileStatusOpen, so the model and profile sides can
-// never drift apart.
+// isParentModelOpenForProfile is a named view of types.IsModelProfileStatusOpen.
 func isParentModelOpenForProfile(status types.ModelProfileStatus) bool {
-	return types.IsModelProfileStatusOpen(status)
-}
-func isProfileOpenForOrders(status types.ModelProfileStatus) bool {
 	return types.IsModelProfileStatusOpen(status)
 }
 

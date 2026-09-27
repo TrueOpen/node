@@ -88,7 +88,7 @@ func (k Keeper) creditTaskEarnings(ctx context.Context, sessionID, taskID []byte
 	if err := state.Validate(); err != nil {
 		return err
 	}
-	if err := k.Earnings.Set(ctx, address, state); err != nil {
+	if err := k.setEarnings(ctx, state); err != nil {
 		return err
 	}
 	mustEmitHubEvent(ctx, &types.EventEarningsAccrued{
@@ -153,7 +153,7 @@ func (k Keeper) claimEarnings(ctx context.Context, address string, claimClass ty
 		// untyped internal error, so a client can tell "not yet" from "broken".
 		return ClaimEarningsResult{}, status.Error(codes.FailedPrecondition, "FEATURE_DISABLED")
 	}
-	state, err := k.Earnings.Get(ctx, canonical)
+	state, err := k.getEarnings(ctx, canonical)
 	if errors.Is(err, collections.ErrNotFound) {
 		return ClaimEarningsResult{Address: canonical, State: emptyEarnings(canonical)}, nil
 	}
@@ -233,7 +233,7 @@ func (k Keeper) claimEarnings(ctx context.Context, address string, claimClass ty
 }
 
 func (k Keeper) getOrInitEarnings(ctx context.Context, address string) (types.EarningsState, error) {
-	state, err := k.Earnings.Get(ctx, address)
+	state, err := k.getEarnings(ctx, address)
 	if errors.Is(err, collections.ErrNotFound) {
 		return emptyEarnings(address), nil
 	}
@@ -261,12 +261,12 @@ func (k Keeper) storeOrRemoveEmptyEarnings(ctx context.Context, state types.Earn
 		return err
 	}
 	if taskFee == 0 && serviceReward == 0 && builderReward == 0 {
-		return k.Earnings.Remove(ctx, state.Address)
+		return k.removeEarnings(ctx, state.Address)
 	}
 	if err := state.Validate(); err != nil {
 		return err
 	}
-	return k.Earnings.Set(ctx, state.Address, state)
+	return k.setEarnings(ctx, state)
 }
 
 func (k Keeper) requireModuleBalance(ctx context.Context, moduleName string, amount uint64) error {

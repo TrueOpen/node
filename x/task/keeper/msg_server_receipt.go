@@ -28,7 +28,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		return nil, err
 	}
 	receipt := req.Receipt
-	if receipt.SchemaVersion != types.InferReceiptSchemaVersionV2 || receipt.ChainId != sdkCtx.ChainID() ||
+	if receipt.SchemaVersion != types.InferReceiptSchemaVersionV3 || receipt.ChainId != sdkCtx.ChainID() ||
 		len(receipt.TaskId) != types.Hash32Len || len(receipt.TaskHash) != types.Hash32Len ||
 		len(receipt.GenerationParamsDigest) != types.Hash32Len || len(receipt.OutputHash) != types.Hash32Len ||
 		receipt.OutputLeafCount == 0 || receipt.ExpiryHeight == 0 ||
@@ -110,7 +110,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		core.TaskPhase != types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED || core.ReceiptStatus != types.ReceiptStatus_RECEIPT_STATUS_NONE {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "infer receipt task scope does not match")
 	}
-	assignment, err := m.k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := m.k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || assignment.WinnerWorker != receipt.WorkerOperatorAddress ||
 		!bytes.Equal(assignment.GenerationParamsDigest, receipt.GenerationParamsDigest) ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||
@@ -222,7 +222,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	core.ReceiptStatus = types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING
 	core.UpdatedHeight = height
-	if err := m.k.InferReceipt.Set(cache, taskKey, receiptState); err != nil {
+	if err := m.k.WriteInferReceipt(cache, taskKey, receiptState); err != nil {
 		return nil, err
 	}
 	if err := m.k.VerifierCandidateWindow.Set(cache, windowKey, header); err != nil {
@@ -273,7 +273,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	); err != nil {
 		return nil, err
 	}
-	selection, err := m.k.TaskBuilderSelection.Get(cache, taskKey)
+	selection, err := m.k.GetTaskBuilderSelection(cache, taskKey)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Task Builder selection is unavailable at verifier-window freeze")
 	}
@@ -310,7 +310,7 @@ func validateLockedProfileEvidenceCommitments(
 	profile hubtypes.ProfileStateSnapshot,
 	commitments []types.EvidenceCommitmentV1,
 ) error {
-	if profile.ModelID != core.ModelId || profile.ProfileVersion != core.ProfileVersion {
+	if !bytes.Equal(profile.ModelID, core.ModelId) || profile.ProfileVersion != core.ProfileVersion {
 		return fmt.Errorf("locked Profile scope does not match the Task")
 	}
 	verification := profile.ExecutionSnapshot.VerificationProfile
@@ -334,6 +334,9 @@ func validateLockedProfileEvidenceCommitments(
 		return fmt.Errorf("locked Profile evidence_schema is invalid: %w", err)
 	}
 	requirements := verification.EvidenceSchema.RequiredInferEvidence
+	if len(requirements) != 2 {
+		return fmt.Errorf("locked Profile must require Worker value and Worker token evidence")
+	}
 	if len(commitments) != len(requirements) {
 		return fmt.Errorf("required_evidence_commitments must exactly match the locked Profile requirement count")
 	}
@@ -342,8 +345,10 @@ func validateLockedProfileEvidenceCommitments(
 		if item.EvidenceKind != requirement.EvidenceKind {
 			return fmt.Errorf("required_evidence_commitments[%d] kind does not match the locked Profile", index)
 		}
-		if requirement.CommitmentSchemaVersion != types.WorkerValueCommitmentSchemaVersionV2 ||
-			requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING {
+		if index == 0 && (requirement.CommitmentSchemaVersion != types.WorkerValueCommitmentSchemaVersionV3 ||
+			requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING) ||
+			index == 1 && (requirement.CommitmentSchemaVersion != shared.WorkerTokenCommitmentSchemaVersionV1 ||
+				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING) {
 			return fmt.Errorf("required_evidence_commitments[%d] uses an unsupported commitment schema", index)
 		}
 		if item.EncodedSizeBytes == 0 || item.EncodedSizeBytes > requirement.MaxEncodedSizeBytes {
@@ -391,7 +396,7 @@ func (k Keeper) requireInferReceiptSubmitter(ctx context.Context, taskKey types.
 
 func inferReceiptReplayMatches(
 	state types.InferReceiptState,
-	receipt types.InferReceiptV2,
+	receipt types.InferReceiptV3,
 	evidenceHash, signingDigest, signatureDigest []byte,
 ) bool {
 	if !bytes.Equal(state.TaskId, receipt.TaskId) || state.WinnerWorker != receipt.WorkerOperatorAddress ||
@@ -421,7 +426,7 @@ func inferReceiptReplayMatches(
 }
 
 func (k Keeper) getInferReceiptIfExists(ctx context.Context, taskKey types.TaskKey) (types.InferReceiptState, bool, error) {
-	state, err := k.InferReceipt.Get(ctx, taskKey)
+	state, err := k.ReadInferReceipt(ctx, taskKey)
 	if err != nil {
 		if errIsNotFound(err) {
 			return types.InferReceiptState{}, false, nil
@@ -433,6 +438,6 @@ func (k Keeper) getInferReceiptIfExists(ctx context.Context, taskKey types.TaskK
 
 // inferReceiptSigningDigest is the only Keeper entry point to the frozen
 // TRUEOPEN_INFER_RECEIPT_V2 preimage.
-func inferReceiptSigningDigest(receipt types.InferReceiptV2) ([32]byte, error) {
+func inferReceiptSigningDigest(receipt types.InferReceiptV3) ([32]byte, error) {
 	return types.InferReceiptSigningDigest(receipt)
 }

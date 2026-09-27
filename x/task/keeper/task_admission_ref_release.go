@@ -19,11 +19,11 @@ func (k Keeper) releaseTaskAdmissionRefs(ctx context.Context, core types.TaskCor
 	if err != nil {
 		return err
 	}
-	assignment, err := k.TaskAssignment.Get(ctx, taskKey)
+	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, core.TaskId) {
 		return fmt.Errorf("terminal Task assignment is unavailable for admission-ref release")
 	}
-	selection, err := k.TaskBuilderSelection.Get(ctx, taskKey)
+	selection, err := k.GetTaskBuilderSelection(ctx, taskKey)
 	if err != nil || !bytes.Equal(selection.TaskId, core.TaskId) {
 		return fmt.Errorf("terminal Task Builder selection is unavailable for admission-ref release")
 	}
@@ -40,7 +40,7 @@ func (k Keeper) releaseTaskAdmissionRefs(ctx context.Context, core types.TaskCor
 			return fmt.Errorf("candidate pool Task ref is missing before release")
 		}
 		assignment.CandidatePoolRefReleased = true
-		if err := k.TaskAssignment.Set(ctx, taskKey, assignment); err != nil {
+		if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 			return err
 		}
 	}
@@ -56,7 +56,7 @@ func (k Keeper) releaseTaskAdmissionRefs(ctx context.Context, core types.TaskCor
 			return fmt.Errorf("BuilderSet Task ref is missing before release")
 		}
 		selection.BuilderSetRefReleased = true
-		if err := k.TaskBuilderSelection.Set(ctx, taskKey, selection); err != nil {
+		if err := k.StoreTaskBuilderSelection(ctx, taskKey, selection); err != nil {
 			return err
 		}
 	}

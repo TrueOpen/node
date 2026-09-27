@@ -1,0 +1,44 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// ValidatorBridgeSignerStoreState keeps the operator address in codec bytes.
+message ValidatorBridgeSignerStoreState {
+  bytes operator_address = 1;
+  bytes bridge_signer_address_raw20 = 2;
+  uint64 key_version = 3;
+  bytes pop_signature = 4;
+  uint64 registered_height = 5;
+}
+
+// TreasurySpendRecipientEpochStoreState keeps the recipient in codec bytes.
+message TreasurySpendRecipientEpochStoreState {
+  uint64 reward_epoch = 1;
+  bytes recipient_address = 2;
+  string spent_amount_atomic_units = 3;
+}
+
+// TreasurySpendReceiptStoreState retains a raw recipient address.
+message TreasurySpendReceiptStoreState {
+  uint64 proposal_id = 1;
+  uint32 item_index = 2;
+  uint64 executed_height = 3;
+  uint64 prune_height = 4;
+  bytes action_digest = 5;
+  uint64 treasury_version_after = 6;
+  bytes recipient = 7;
+  string amount_atomic_units = 8;
+  uint64 reward_epoch = 9;
+  int32 purpose_code = 10;
+}
+
+// TreasurySpendEpochCleanupCursorStoreState retains a raw resume address.
+message TreasurySpendEpochCleanupCursorStoreState {
+  uint64 reward_epoch = 1;
+  uint64 cleanup_height = 2;
+  bytes last_recipient_address = 3;
+  uint64 visited_count = 4;
+  uint64 deleted_count = 5;
+  bool has_last_recipient_address = 6;
+}

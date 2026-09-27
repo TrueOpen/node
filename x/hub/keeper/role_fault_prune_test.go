@@ -46,8 +46,10 @@ func writeRoleFaultForPrune(t *testing.T, f *fixture, operator string, recordedH
 	for ; iter.Valid(); iter.Next() {
 		entry, err := iter.KeyValue()
 		require.NoError(t, err)
-		if hex.EncodeToString(entry.Value.TaskId) == taskID {
-			faultID, state = entry.Key, entry.Value
+		projected, err := f.keeper.ProjectRoleFaultStore(entry.Value)
+		require.NoError(t, err)
+		if hex.EncodeToString(projected.TaskId) == taskID {
+			faultID, state = entry.Key, projected
 			break
 		}
 	}
@@ -74,7 +76,7 @@ func TestRoleFaultWriterSchedulesAndTerminalGatePrunes(t *testing.T) {
 	require.Equal(t, uint64(1), visited)
 	require.Equal(t, fault.TaskId, gate.task)
 	require.Equal(t, fault.EvidenceDigest, gate.digest)
-	_, err = f.keeper.RoleFault.Get(f.ctx, faultID)
+	_, err = f.keeper.ReadRoleFaultValue(f.ctx, faultID)
 	require.NoError(t, err)
 	has, err = f.keeper.RoleFaultPruneIndex.Has(f.ctx, types.NewRoleFaultPruneKey(due+1, faultID))
 	require.NoError(t, err)
@@ -84,7 +86,7 @@ func TestRoleFaultWriterSchedulesAndTerminalGatePrunes(t *testing.T) {
 	visited, err = f.keeper.ProcessRoleFaultPrunes(f.ctx, due+1, 10)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), visited)
-	_, err = f.keeper.RoleFault.Get(f.ctx, faultID)
+	_, err = f.keeper.ReadRoleFaultValue(f.ctx, faultID)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	has, err = f.keeper.RoleFaultPruneIndex.Has(f.ctx, types.NewRoleFaultPruneKey(due+1, faultID))
 	require.NoError(t, err)
@@ -144,6 +146,11 @@ func TestRoleFaultPruneIndexRebuildSurvivesRestart(t *testing.T) {
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.Len(t, exported.RoleFaults, 1)
+	storedFault, err := f.keeper.RoleFault.Get(f.ctx, faultID)
+	require.NoError(t, err)
+	operatorBytes, err := sdk.AccAddressFromBech32(exported.RoleFaults[0].OperatorAddress)
+	require.NoError(t, err)
+	require.Equal(t, []byte(operatorBytes), storedFault.OperatorAddress)
 
 	restarted := initFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
@@ -153,7 +160,7 @@ func TestRoleFaultPruneIndexRebuildSurvivesRestart(t *testing.T) {
 	has, err = restarted.keeper.RoleFaultPruneIndex.Has(restarted.ctx, types.NewRoleFaultPruneKey(due+1, faultID))
 	require.NoError(t, err)
 	require.False(t, has, "derived retry indexes are not exported as independent state")
-	_, err = restarted.keeper.RoleFault.Get(restarted.ctx, faultID)
+	_, err = restarted.keeper.ReadRoleFaultValue(restarted.ctx, faultID)
 	require.NoError(t, err)
 }
 
@@ -215,6 +222,6 @@ func TestRoleFaultPruneGateErrorsAreAtomicAndCharged(t *testing.T) {
 	visited, err := f.keeper.ProcessRoleFaultPrunes(f.ctx, due, 1)
 	require.Equal(t, uint64(1), visited)
 	require.ErrorContains(t, err, "gate failure")
-	_, err = f.keeper.RoleFault.Get(f.ctx, faultID)
+	_, err = f.keeper.ReadRoleFaultValue(f.ctx, faultID)
 	require.NoError(t, err)
 }
