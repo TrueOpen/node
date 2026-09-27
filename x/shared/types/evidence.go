@@ -4,18 +4,26 @@ import "fmt"
 
 const (
 	EvidenceSchemaVersionV1              = uint32(1)
-	WorkerValueCommitmentSchemaVersionV2 = uint32(2)
+	WorkerValueCommitmentSchemaVersionV3 = uint32(3)
+	WorkerTokenCommitmentSchemaVersionV1 = uint32(1)
 	MaxEvidenceEncodedSizeBytesV1        = uint64(1 << 40)
 )
 
-func NewWorkerValueEvidenceSchemaV1(maxEncodedSizeBytes uint64) EvidenceSchemaV1 {
+func NewPhase0WorkerEvidenceSchemaV1(maxValueBytes, maxTokenBytes uint64) EvidenceSchemaV1 {
 	return EvidenceSchemaV1{
 		SchemaVersion: EvidenceSchemaVersionV1,
-		RequiredInferEvidence: []InferEvidenceRequirementV1{{
-			EvidenceKind:            EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
-			CommitmentSchemaVersion: WorkerValueCommitmentSchemaVersionV2,
-			MaxEncodedSizeBytes:     maxEncodedSizeBytes,
-		}},
+		RequiredInferEvidence: []InferEvidenceRequirementV1{
+			{
+				EvidenceKind:            EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
+				CommitmentSchemaVersion: WorkerValueCommitmentSchemaVersionV3,
+				MaxEncodedSizeBytes:     maxValueBytes,
+			},
+			{
+				EvidenceKind:            EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
+				CommitmentSchemaVersion: WorkerTokenCommitmentSchemaVersionV1,
+				MaxEncodedSizeBytes:     maxTokenBytes,
+			},
+		},
 	}
 }
 
@@ -50,6 +58,7 @@ func ValidateEvidenceSchemaV1(schema EvidenceSchemaV1) error {
 func IsKnownEvidenceKind(kind EvidenceKind) bool {
 	switch kind {
 	case EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
+		EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
 		EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING,
 		EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING:
 		return true

@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"sort"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestQueryModelsWalksRegistryInCanonicalKeyOrder(t *testing.T) {
 	response, err := queries.Models(f.ctx, &types.QueryModelsRequest{})
 	require.NoError(t, err)
 	require.Empty(t, response.Page.NextPageToken)
-	require.Equal(t, []string{"model-a", "model-b", "model-b0", "model-c"}, modelIDsOf(response.Models))
+	require.Equal(t, modelIDsForLabels(hubAddress(t, 240), []string{"model-a", "model-b", "model-b0", "model-c"}), modelIDsOf(response.Models))
 }
 
 func TestQueryBuildersWalksRegistryInCanonicalKeyOrder(t *testing.T) {
@@ -42,7 +43,7 @@ func TestQueryBuildersWalksRegistryInCanonicalKeyOrder(t *testing.T) {
 	response, err := queries.Builders(f.ctx, &types.QueryBuildersRequest{})
 	require.NoError(t, err)
 	require.Empty(t, response.Page.NextPageToken)
-	require.Equal(t, sortedStrings(seeded), builderAddressesOf(response.Builders))
+	require.Equal(t, sortedBuilderAddresses(t, seeded), builderAddressesOf(response.Builders))
 }
 
 // An empty registry is an empty list with an empty token, not NotFound: the
@@ -95,12 +96,12 @@ func TestQueryModelsPagesEveryRowExactlyOnce(t *testing.T) {
 			break
 		}
 	}
-	require.Equal(t, want, got)
+	require.Equal(t, modelIDsForLabels(hubAddress(t, 240), want), got)
 }
 
 func TestQueryBuildersPagesEveryRowExactlyOnce(t *testing.T) {
 	f, queries := newRegistryDiscoveryFixture(t)
-	want := sortedStrings(seedBuilderRegistry(t, f, 211, 212, 213, 214, 215))
+	want := sortedBuilderAddresses(t, seedBuilderRegistry(t, f, 211, 212, 213, 214, 215))
 
 	var got []string
 	var token []byte
@@ -253,7 +254,7 @@ func TestRegistryDiscoveryRejectsNonCanonicalTokenKeys(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 
 	_, err = queries.Builders(f.ctx, &types.QueryBuildersRequest{Page: shared.QueryPageRequestV1{
-		PageToken: mustDiscoveryPageToken(t, sdkCtx, "/hub.v1.Query/Builders", []byte("not-a-bech32-address")),
+		PageToken: mustDiscoveryPageToken(t, sdkCtx, "/hub.v1.Query/Builders", bytes.Repeat([]byte{0x01}, 256)),
 	}})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
@@ -287,7 +288,7 @@ func TestRegistryDiscoveryStopsAtResponseByteCapAndKeepsPaging(t *testing.T) {
 	}
 	full, err := queries.Models(f.ctx, &types.QueryModelsRequest{})
 	require.NoError(t, err)
-	require.Equal(t, want, modelIDsOf(full.Models))
+	require.Equal(t, modelIDsForLabels(hubAddress(t, 240), want), modelIDsOf(full.Models))
 
 	// One byte above four rows: the row loop admits four, its token then does not
 	// fit, so a correct handler returns fewer rows with a usable token.
@@ -316,7 +317,7 @@ func TestRegistryDiscoveryStopsAtResponseByteCapAndKeepsPaging(t *testing.T) {
 			break
 		}
 	}
-	require.Equal(t, want, got)
+	require.Equal(t, modelIDsForLabels(hubAddress(t, 240), want), got)
 }
 
 // A row whose body disagrees with its key, or whose invariants no longer hold,
@@ -325,8 +326,8 @@ func TestRegistryDiscoveryStopsAtResponseByteCapAndKeepsPaging(t *testing.T) {
 func TestQueryModelsFailsOnCorruptRow(t *testing.T) {
 	f, queries := newRegistryDiscoveryFixture(t)
 	corrupt := modelListState("model-a", types.ModelStatusActive, hubAddress(t, 240), 1)
-	corrupt.ModelId = "model-b"
-	require.NoError(t, f.keeper.Model.Set(f.ctx, "model-a", corrupt))
+	corrupt.ModelId = testModelID(testHubChainID, hubAddress(t, 240), "model-b")
+	require.NoError(t, f.keeper.Model.Set(f.ctx, shared.Hash32Key(testModelID(testHubChainID, hubAddress(t, 240), "model-a")), corrupt))
 
 	_, err := queries.Models(f.ctx, &types.QueryModelsRequest{})
 	require.Equal(t, codes.Internal, status.Code(err))
@@ -431,9 +432,31 @@ func mustMarshalPageToken(t *testing.T, token *shared.PageTokenV1) []byte {
 func modelIDsOf(models []types.ModelState) []string {
 	out := make([]string, 0, len(models))
 	for _, model := range models {
-		out = append(out, model.ModelId)
+		out = append(out, hex.EncodeToString(model.ModelId))
 	}
 	return out
+}
+
+func modelIDsForLabels(proposer string, labels []string) []string {
+	ids := make([]string, 0, len(labels))
+	for _, label := range labels {
+		ids = append(ids, hex.EncodeToString(testModelID(testHubChainID, proposer, label)))
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func sortedBuilderAddresses(t *testing.T, addresses []string) []string {
+	t.Helper()
+	result := append([]string(nil), addresses...)
+	sort.Slice(result, func(i, j int) bool {
+		left, err := sdk.AccAddressFromBech32(result[i])
+		require.NoError(t, err)
+		right, err := sdk.AccAddressFromBech32(result[j])
+		require.NoError(t, err)
+		return bytes.Compare(left, right) < 0
+	})
+	return result
 }
 
 func builderAddressesOf(builders []types.BuilderState) []string {
@@ -441,11 +464,5 @@ func builderAddressesOf(builders []types.BuilderState) []string {
 	for _, builder := range builders {
 		out = append(out, builder.BuilderAddress)
 	}
-	return out
-}
-
-func sortedStrings(values []string) []string {
-	out := append([]string(nil), values...)
-	sort.Strings(out)
 	return out
 }

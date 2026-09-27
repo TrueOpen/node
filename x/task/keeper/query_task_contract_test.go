@@ -41,6 +41,7 @@ func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
 	require.Equal(t, genesis.TaskCores[0].AcceptedTaskHash, active.Core.AcceptedTaskHash)
 	require.NotNil(t, active.Assignment)
 	require.Equal(t, genesis.TaskAssignments[0].GenerationParamsDigest, active.Assignment.GenerationParamsDigest)
+	require.Equal(t, genesis.TaskAssignments[0].MinStakeSnapshot, active.Assignment.MinStakeSnapshot)
 	require.Nil(t, active.Assignment.XWinnerWorker, "a pending draw must not project a winner")
 	require.Nil(t, active.Assignment.XWinnerDrawDigest)
 	require.Nil(t, active.Assignment.XWinnerConfirmHeight)
@@ -57,6 +58,7 @@ func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
 	assignment, err := server.TaskAssignment(f.ctx, &tasktypes.QueryTaskAssignmentRequest{TaskId: taskID})
 	require.NoError(t, err)
 	require.Equal(t, genesis.TaskAssignments[0].GenerationParamsDigest, assignment.Assignment.GenerationParamsDigest)
+	require.Equal(t, genesis.TaskAssignments[0].MinStakeSnapshot, assignment.Assignment.MinStakeSnapshot)
 
 	// §16.1: a malformed selector is InvalidArgument, never an empty result.
 	_, err = server.Task(f.ctx, &tasktypes.QueryTaskRequest{TaskId: []byte{0x01}})

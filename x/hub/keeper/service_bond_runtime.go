@@ -490,7 +490,7 @@ func RequiredServiceBondForProfile(profile types.ProfileState) uint64 {
 }
 
 func (k Keeper) deactivateDeclaredSupports(ctx context.Context, operatorAddress, reason string, height uint64) error {
-	return k.collectAndDeactivateSupports(ctx, operatorAddress, reason, height, func(types.ProfileState) bool { return true })
+	return k.collectAndDeactivateSupports(ctx, operatorAddress, reason, height)
 }
 
 // suspendDeclaredSupportsForJail is deactivateDeclaredSupports' non-terminal
@@ -499,12 +499,12 @@ func (k Keeper) deactivateDeclaredSupports(ctx context.Context, operatorAddress,
 // at the reduced candidate_jail_factor and can walk jail_count back to 0. See
 // suspendModelSupportForJail for why the declaration must survive.
 func (k Keeper) suspendDeclaredSupportsForJail(ctx context.Context, operatorAddress string, height uint64) error {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, func(types.ProfileState) bool { return true })
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
 	for _, support := range supports {
-		if err := k.suspendModelSupportForJail(ctx, support.OperatorAddress, support.ModelId, support.ProfileVersion, height); err != nil {
+		if err := k.suspendModelSupportForJail(ctx, support.OperatorAddress, support.ModelId, height); err != nil {
 			return err
 		}
 	}
@@ -515,8 +515,8 @@ func (k Keeper) suspendDeclaredSupportsForJail(ctx context.Context, operatorAddr
 // of them is mutated. The scan is bounded by
 // params.Support.MaxSupportedProfilesPerOperator (§6.1), unlike the
 // profile->operators direction.
-func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress string, shouldSelect func(types.ProfileState) bool) ([]types.ModelSupportState, error) {
-	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedTripleRange[string, string, uint32](strings.TrimSpace(operatorAddress)))
+func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress string) ([]types.ModelSupportState, error) {
+	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedPairRange[string, shared.Hash32Key](strings.TrimSpace(operatorAddress)))
 	if err != nil {
 		return nil, err
 	}
@@ -527,31 +527,25 @@ func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress str
 		if err != nil {
 			return nil, err
 		}
-		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2(), key.K3()))
+		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2()))
 		if err != nil {
 			return nil, err
 		}
 		if !support.DeclaredSupport {
 			continue
 		}
-		profile, err := k.GetProfile(ctx, support.ModelId, support.ProfileVersion)
-		if err != nil {
-			return nil, err
-		}
-		if shouldSelect(profile) {
-			supports = append(supports, support)
-		}
+		supports = append(supports, support)
 	}
 	return supports, nil
 }
 
-func (k Keeper) collectAndDeactivateSupports(ctx context.Context, operatorAddress, reason string, height uint64, shouldDeactivate func(types.ProfileState) bool) error {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, shouldDeactivate)
+func (k Keeper) collectAndDeactivateSupports(ctx context.Context, operatorAddress, reason string, height uint64) error {
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
 	for _, support := range supports {
-		if _, err := k.deactivateModelSupport(ctx, support.OperatorAddress, support.ModelId, support.ProfileVersion, reason, height); err != nil {
+		if _, err := k.deactivateModelSupport(ctx, support.OperatorAddress, support.ModelId, reason, height); err != nil {
 			return err
 		}
 	}

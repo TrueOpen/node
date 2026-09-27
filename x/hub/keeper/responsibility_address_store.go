@@ -114,8 +114,8 @@ func (k Keeper) serviceKeyResponsibilityToStore(state types.ServiceKeyResponsibi
 		OperatorAddress:           address,
 		ResponsibilityId:          append([]byte(nil), state.ResponsibilityId...),
 		ResponsibilityKind:        int32(state.ResponsibilityKind),
-		SessionId:                 state.SessionId,
-		TaskId:                    state.TaskId,
+		SessionId:                 append([]byte(nil), state.SessionId...),
+		TaskId:                    append([]byte(nil), state.TaskId...),
 		CreatedHeight:             state.CreatedHeight,
 		ServiceAuthorizationNonce: state.ServiceAuthorizationNonce,
 	}, nil
@@ -131,8 +131,8 @@ func (k Keeper) ProjectServiceKeyResponsibilityStore(stored internaltypes.Servic
 		OperatorAddress:           address,
 		ResponsibilityId:          append([]byte(nil), stored.ResponsibilityId...),
 		ResponsibilityKind:        types.ServiceKeyResponsibilityKind(stored.ResponsibilityKind),
-		SessionId:                 stored.SessionId,
-		TaskId:                    stored.TaskId,
+		SessionId:                 append([]byte(nil), stored.SessionId...),
+		TaskId:                    append([]byte(nil), stored.TaskId...),
 		CreatedHeight:             stored.CreatedHeight,
 		ServiceAuthorizationNonce: stored.ServiceAuthorizationNonce,
 	}, nil

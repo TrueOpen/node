@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -40,7 +41,7 @@ func TestGenerationParamsV1Golden(t *testing.T) {
 	require.Equal(t, "CHAT", fixture.TaskType)
 
 	payload, err := tasktypes.CanonicalGenerationParamsV1(
-		fixture.ModelID,
+		mustDecodeGenerationModelID(t, fixture.ModelID),
 		fixture.ProfileVersion,
 		shared.TaskType_TASK_TYPE_CHAT,
 		fixture.OutputBudgetBucket,
@@ -55,7 +56,7 @@ func TestGenerationParamsV1Golden(t *testing.T) {
 	require.Equal(t, fixture.CanonicalJSON, string(payload))
 
 	digest, err := tasktypes.GenerationParamsDigest(
-		fixture.ModelID,
+		mustDecodeGenerationModelID(t, fixture.ModelID),
 		fixture.ProfileVersion,
 		shared.TaskType_TASK_TYPE_CHAT,
 		fixture.OutputBudgetBucket,
@@ -88,7 +89,7 @@ func TestGenerationParamsV1RejectsNonCanonicalInputs(t *testing.T) {
 	assertRejected := func(t *testing.T, params tasktypes.GenerationParamsV1) {
 		t.Helper()
 		_, err := tasktypes.CanonicalGenerationParamsV1(
-			"qwen3-test", 1, shared.TaskType_TASK_TYPE_CHAT, 1, params, limits,
+			bytes.Repeat([]byte{0x55}, 32), 1, shared.TaskType_TASK_TYPE_CHAT, 1, params, limits,
 		)
 		require.Error(t, err)
 	}
@@ -115,7 +116,7 @@ func TestGenerationParamsV1RejectsNonCanonicalInputs(t *testing.T) {
 	})
 	t.Run("unsupported task type", func(t *testing.T) {
 		_, err := tasktypes.CanonicalGenerationParamsV1(
-			"qwen3-test", 1, shared.TaskType_TASK_TYPE_EMBEDDING, 1, valid, limits,
+			bytes.Repeat([]byte{0x55}, 32), 1, shared.TaskType_TASK_TYPE_EMBEDDING, 1, valid, limits,
 		)
 		require.Error(t, err)
 	})
@@ -134,7 +135,7 @@ func regenerateGenerationParamsFixture(
 	t.Helper()
 
 	digest, err := tasktypes.GenerationParamsDigest(
-		fixture.ModelID,
+		mustDecodeGenerationModelID(t, fixture.ModelID),
 		fixture.ProfileVersion,
 		shared.TaskType_TASK_TYPE_CHAT,
 		fixture.OutputBudgetBucket,
@@ -155,4 +156,12 @@ func regenerateGenerationParamsFixture(
 	require.NoError(t, os.WriteFile(path, append(encoded, '\n'), 0o644))
 	t.Fatalf("regenerated %s; unset %s and review the diff against the frozen contract before committing",
 		path, generationParamsRegenEnv)
+}
+
+func mustDecodeGenerationModelID(t *testing.T, value string) []byte {
+	t.Helper()
+	require.Regexp(t, `^0x[0-9a-f]{64}$`, value)
+	raw, err := hex.DecodeString(value[2:])
+	require.NoError(t, err)
+	return raw
 }

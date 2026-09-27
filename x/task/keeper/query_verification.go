@@ -437,7 +437,7 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 // - task_id then verify_round, per §16.2's request field order - and hands them
 // to the one shared producer.
 //
-// It cannot use decodeStringPairQueryPageToken above: this query's primary key is
+// It cannot use decodeAddressPairQueryPageToken above: this query's primary key is
 // the (task_id, verify_round, verifier_operator_address) triple rather than a
 // (string, Hash32) pair. Only the primary key differs, though, so the digest pair
 // must still come from the same place.

@@ -175,15 +175,15 @@ func (k Keeper) applyVerifyCommit(ctx context.Context, plan verifyCommitPlan) er
 	return nil
 }
 
-func (k Keeper) planVerifyResult(ctx context.Context, receipt types.ResultReceiptV2, submitter string) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResult(ctx context.Context, receipt types.ResultReceiptV3, submitter string) (verifyResultPlan, error) {
 	return k.planVerifyResultWithAuthority(ctx, receipt, submitter, false)
 }
 
-func (k Keeper) planVerifyResultForBuilder(ctx context.Context, receipt types.ResultReceiptV2, submitter string) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResultForBuilder(ctx context.Context, receipt types.ResultReceiptV3, submitter string) (verifyResultPlan, error) {
 	return k.planVerifyResultWithAuthority(ctx, receipt, submitter, true)
 }
 
-func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types.ResultReceiptV2, submitter string, builderRelay bool) (verifyResultPlan, error) {
+func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types.ResultReceiptV3, submitter string, builderRelay bool) (verifyResultPlan, error) {
 	var plan verifyResultPlan
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	height, err := currentBlockHeight(ctx)
@@ -290,7 +290,7 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 	}
 	commitment, err := types.ResultCommitmentHash(
 		receipt.ChainId, receipt.TaskId, core.AcceptedTaskHash, receipt.VerifyRound,
-		operator, payloadHash[:], receipt.Salt,
+		operator, receipt.VerifierValueRoot, receipt.Salt,
 	)
 	if err != nil || !bytes.Equal(commit.CommitHash, commitment[:]) {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, "result receipt does not open verifier commitment")
@@ -348,7 +348,7 @@ func (k Keeper) applyVerifyResult(ctx context.Context, plan verifyResultPlan) er
 		SessionId: plan.core.SessionId, TaskId: plan.core.TaskId,
 		VerifyRound: plan.round, Verifier: plan.verifier,
 		ResultReceiptSigningDigest: plan.state.ResultReceiptSigningDigest,
-		ResultPayloadHash:          plan.state.ResultPayloadHash,
+		VerifierValueRoot:          plan.state.VerifierValueRoot,
 	}); err != nil {
 		return err
 	}
@@ -383,8 +383,8 @@ func validateVerifyCommitEnvelope(chainID string, height uint64, commit types.Ve
 	return err
 }
 
-func validateVerifyResultEnvelope(chainID string, height uint64, receipt types.ResultReceiptV2) error {
-	if receipt.SchemaVersion != types.ResultReceiptSchemaVersionV2 || receipt.ChainId != chainID || len(receipt.TaskId) != types.Hash32Len ||
+func validateVerifyResultEnvelope(chainID string, height uint64, receipt types.ResultReceiptV3) error {
+	if receipt.SchemaVersion != types.ResultReceiptSchemaVersionV3 || receipt.ChainId != chainID || len(receipt.TaskId) != types.Hash32Len ||
 		!isPhase0VerifyRound(receipt.VerifyRound) || len(receipt.GenerationParamsDigest) != types.Hash32Len ||
 		len(receipt.MetricRoot) != types.Hash32Len || len(receipt.AggregateProofHash) != types.Hash32Len ||
 		len(receipt.VerifierEvidenceBundleHash) != types.Hash32Len || len(receipt.Salt) != types.Hash32Len ||
@@ -515,7 +515,7 @@ func commitReplayMatches(state types.CommitState, commit types.VerifyCommitV1, k
 		bytes.Equal(state.CommitSigningDigest, digest) && bytes.Equal(state.SignatureDigest, signatureDigest)
 }
 
-func resultReplayMatches(state types.ResultReceiptState, receipt types.ResultReceiptV2, key, summaryHash, digest, signatureDigest []byte) bool {
+func resultReplayMatches(state types.ResultReceiptState, receipt types.ResultReceiptV3, key, summaryHash, digest, signatureDigest []byte) bool {
 	return bytes.Equal(state.CommitKey, key) && bytes.Equal(state.TaskId, receipt.TaskId) && state.VerifyRound == receipt.VerifyRound &&
 		state.VerifierOperatorAddress == receipt.VerifierOperatorAddress && bytes.Equal(state.MetricRoot, receipt.MetricRoot) &&
 		proto.Equal(&state.MetricSummary, &receipt.MetricSummary) && bytes.Equal(state.MetricSummaryHash, summaryHash) &&

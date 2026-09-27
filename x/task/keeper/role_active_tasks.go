@@ -20,7 +20,11 @@ func (k Keeper) AddWorkerActiveTaskIndex(ctx context.Context, workerAddress stri
 	if err != nil {
 		return err
 	}
-	return k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(workerAddress, taskKey))
+	worker, err := k.sessionAddressToStore("worker active-task index", workerAddress)
+	if err != nil {
+		return err
+	}
+	return k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(worker, taskKey))
 }
 
 // AddVerifierActiveJobIndex records that a verifier holds an in-flight job.
@@ -33,7 +37,11 @@ func (k Keeper) AddVerifierActiveJobIndex(ctx context.Context, verifierAddress s
 	if err != nil {
 		return err
 	}
-	return k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(verifierAddress, taskKey))
+	verifier, err := k.sessionAddressToStore("verifier active-job index", verifierAddress)
+	if err != nil {
+		return err
+	}
+	return k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(verifier, taskKey))
 }
 
 // RemoveRoleActiveTaskIndexes clears both role indexes of one task. It is driven
@@ -52,7 +60,11 @@ func (k Keeper) RemoveRoleActiveTaskIndexes(ctx context.Context, taskID []byte) 
 	}
 	if err == nil {
 		if worker := strings.TrimSpace(assignment.WinnerWorker); worker != "" {
-			if err := removeRoleActiveTaskKey(ctx, k.WorkerActiveTaskIndex, types.NewWorkerActiveTaskKey(worker, taskKey)); err != nil {
+			workerBytes, err := k.sessionAddressToStore("worker active-task index", worker)
+			if err != nil {
+				return err
+			}
+			if err := removeRoleActiveTaskKey(ctx, k.WorkerActiveTaskIndex, types.NewWorkerActiveTaskKey(workerBytes, taskKey)); err != nil {
 				return err
 			}
 		}
@@ -70,7 +82,11 @@ func (k Keeper) RemoveRoleActiveTaskIndexes(ctx context.Context, taskID []byte) 
 			if operator == "" {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "verifier assignment contains an empty operator address")
 			}
-			if err := removeRoleActiveTaskKey(ctx, k.VerifierActiveJobIndex, types.NewVerifierActiveJobKey(operator, taskKey)); err != nil {
+			verifier, err := k.sessionAddressToStore("verifier active-job index", operator)
+			if err != nil {
+				return err
+			}
+			if err := removeRoleActiveTaskKey(ctx, k.VerifierActiveJobIndex, types.NewVerifierActiveJobKey(verifier, taskKey)); err != nil {
 				return err
 			}
 		}

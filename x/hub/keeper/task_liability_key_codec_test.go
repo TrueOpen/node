@@ -13,12 +13,13 @@ import (
 )
 
 // The task_id component of all four keyspaces is raw Hash32; operator_address
-// stays text and BuilderSet version is uint64. encodeCustodyKey and signCompare are shared with
+// uses decoded codec bytes and BuilderSet version is uint64. encodeCustodyKey and signCompare are shared with
 // custody_key_codec_test.go.
 func TestTaskLiabilityCollectionsUseRawHash32TaskIDs(t *testing.T) {
 	f := initFixture(t)
 	taskID := bytes.Repeat([]byte{0x61}, shared.Hash32KeySize)
 	const operator = "trueopen1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3w3xs0"
+	operatorBytes := hubAddressBytes(t, operator)
 	duty := shared.DutyWorker
 
 	// Non-terminal Hash32 is exactly 32 bytes with no length prefix and no
@@ -26,7 +27,7 @@ func TestTaskLiabilityCollectionsUseRawHash32TaskIDs(t *testing.T) {
 	reservation := encodeCustodyKey(t, f.keeper.TaskLiabilityReservation.KeyCodec(),
 		types.NewTaskLiabilityReservationKey(taskID, duty, operator))
 	require.Equal(t, taskID, reservation[:shared.Hash32KeySize])
-	require.Len(t, reservation, shared.Hash32KeySize+4+len(operator))
+	require.Len(t, reservation, shared.Hash32KeySize+4+len(operatorBytes))
 
 	byTask := encodeCustodyKey(t, f.keeper.TaskLiabilityByTaskIndex.KeyCodec(),
 		types.NewTaskLiabilityByTaskKey(taskID, duty, operator))
@@ -35,7 +36,7 @@ func TestTaskLiabilityCollectionsUseRawHash32TaskIDs(t *testing.T) {
 	// operator_address leads here, so the Hash32 sits in the middle.
 	byOperator := encodeCustodyKey(t, f.keeper.ActiveLiabilityByOperatorIndex.KeyCodec(),
 		types.NewActiveLiabilityByOperatorKey(operator, taskID, duty))
-	require.Equal(t, taskID, byOperator[len(operator)+1:len(operator)+1+shared.Hash32KeySize])
+	require.Equal(t, taskID, byOperator[len(operatorBytes)+1:len(operatorBytes)+1+shared.Hash32KeySize])
 
 	builderRef := encodeCustodyKey(t, f.keeper.BuilderSetTaskRef.KeyCodec(),
 		types.NewBuilderSetTaskRefKey(taskID, 7))

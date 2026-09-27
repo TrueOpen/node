@@ -98,24 +98,19 @@ func hubGenesisWithIndexesForChain(chainID string) *types.GenesisState {
 	const minStake = uint64(1_000)
 	const activeBond = uint64(1_000_000)
 	supportWeight := minStake * uint64(genesis.Params.Support.ActiveSupportStakeCapMultiplier)
+	genesis.Params.Support.ActiveSupporterMinCount = 1
+	modelID := testModelID(chainID, proposer, "model-a")
 
 	genesis.Models = []types.ModelState{{
-		ModelId: "model-a", ProposerAddress: proposer,
-		Status: types.ModelStatusActive, StatusSource: types.ModelStatusSourceAutoProfile,
-		LatestProfileVersion: 1, ActiveProfileCount: 1,
+		ModelId: modelID, ProposerAddress: proposer,
+		Status: types.ModelStatusActive, StatusSource: types.ModelStatusSourceAutoSupport,
+		LatestProfileVersion: 1, SupportMinStake: minStake,
+		ActiveSupporterCount: 1, ActiveSupportStake: supportWeight,
+		Provider: "HUGGINGFACE", RepoId: "trueopen/model-a",
 		RegistrationFeePaid: types.ModelRegistrationFeeMinMicroUSDC,
 		CreatedHeight:       1, UpdatedHeight: 1,
 	}}
-	profile := mustTestProfileState("model-a", proposer, 1, minStake, 1)
-	projection := testModelProfileProjection(profile.ModelId, profile.ProfileVersion, profile.MinStake)
-	digest, _, err := types.ModelRegistrationDigest(chainID, proposer, projection)
-	if err != nil {
-		panic(err)
-	}
-	profile.RegistrationDigest = digest
-	profile.ActiveSupporterCount = 1
-	profile.ActiveSupportStake = supportWeight
-	profile.EligibleSupportStake = supportWeight
+	profile := mustTestProfileStateForChain(chainID, "model-a", proposer, 1, minStake, 1)
 	genesis.Profiles = []types.ProfileState{profile}
 	genesis.CortexNodes = []types.CortexNodeState{{
 		SchemaVersion: 1, OperatorAddress: provider,
@@ -132,8 +127,8 @@ func hubGenesisWithIndexesForChain(chainID string) *types.GenesisState {
 		OperatorAddress:    provider,
 		ResponsibilityId:   hubHashBytes("challenge-verifier-genesis"),
 		ResponsibilityKind: types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_CHALLENGE_VERIFIER,
-		SessionId:          "session-genesis",
-		TaskId:             "task-genesis",
+		SessionId:          hubHashBytes("session-genesis"),
+		TaskId:             hubHashBytes("task-genesis"),
 		CreatedHeight:      2,
 		// The exported row carries the generation that acquired it, which for this
 		// provider is the nonce its registration minted.
@@ -160,31 +155,37 @@ func hubGenesisWithIndexesForChain(chainID string) *types.GenesisState {
 		Status:                  types.TaskLiabilityStatusReleased,
 		CandidatePoolSnapshotId: hubHashBytes("task-liability-genesis-snapshot"), Slot: 0, SlotVersion: 1,
 	}}
-	genesis.ProfileCapabilities = []types.ProfileCapabilityState{{
-		OperatorAddress: provider, ModelId: "model-a", ProfileVersion: 1,
+	genesis.ModelCapabilities = []types.ModelCapabilityState{{
+		OperatorAddress: provider, ModelId: modelID,
 		InferenceCapability: true, VerificationCapability: true,
 		CapabilityVersion: 1,
 	}}
 	genesis.ModelSupports = []types.ModelSupportState{{
-		OperatorAddress:              provider,
-		ModelId:                      "model-a",
-		ProfileVersion:               1,
-		DeclaredSupport:              true,
-		SupportActive:                true,
-		ActivationKind:               types.ModelSupportActivationVerifierAssignedValid,
-		FirstActivationDuty:          shared.DutyVerifier,
-		FirstSupportTaskId:           hubHashBytes("first-support-task"),
-		SupportFreshUntilEpoch:       2,
-		ActiveSupportStakeSnapshot:   supportWeight,
-		EligibleSupportStakeSnapshot: supportWeight,
-		SupportVersion:               1,
+		OperatorAddress:            provider,
+		ModelId:                    modelID,
+		DeclaredSupport:            true,
+		SupportActive:              true,
+		SuspendReason:              types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE,
+		ActivationKind:             types.ModelSupportActivationVerifierAssignedValid,
+		FirstActivationDuty:        shared.DutyVerifier,
+		FirstSupportTaskId:         hubHashBytes("first-support-task"),
+		FirstSupportProfileVersion: 1,
+		LastRefreshTaskId:          hubHashBytes("first-support-task"),
+		LastRefreshHeight:          1,
+		SupportFreshUntilEpoch:     2,
+		ActiveSupportStakeSnapshot: supportWeight,
+		SupportVersion:             1,
 	}}
+	modelsHash, err := types.CanonicalSupportedModelsHashV1([][]byte{modelID})
+	if err != nil {
+		panic(err)
+	}
 	genesis.DailySupports = []types.DailySupportState{{
-		Epoch:                 0,
-		OperatorAddress:       provider,
-		SupportedProfilesHash: hubHashBytes("profiles"),
-		SignatureDigest:       hubHashBytes("signature"),
-		AcceptedHeight:        1,
+		Epoch:               0,
+		OperatorAddress:     provider,
+		SupportedModelsHash: modelsHash,
+		SignatureDigest:     hubHashBytes("signature"),
+		AcceptedHeight:      1,
 	}}
 	return genesis
 }

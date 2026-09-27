@@ -177,7 +177,7 @@ func TestFrozenTaskLiabilityOwnsCandidateSlotAcrossReplayAndRelease(t *testing.T
 		BondVersionSnapshot:       bond.BondVersion,
 		CapabilityVersionSnapshot: supportVersion,
 		SupportVersionSnapshot:    supportVersion,
-		ModelID:                   modelID, ProfileVersion: profileVersion, Height: 2,
+		ModelID:                   testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), hubAddress(t, 250), modelID), ProfileVersion: profileVersion, Height: 2,
 	}
 	reservation, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, req)
 	require.NoError(t, err)

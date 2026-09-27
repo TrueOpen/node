@@ -17,15 +17,15 @@ import (
 )
 
 type DeclareModelSupportResult struct {
-	Capability types.ProfileCapabilityState
+	Capability types.ModelCapabilityState
 	Support    types.ModelSupportState
 	Status     shared.MutationStatusV1
 }
 
 func (k Keeper) DeclareModelSupport(
 	ctx context.Context,
-	operatorAddress, modelID string,
-	profileVersion uint32,
+	operatorAddress string,
+	modelID []byte,
 	inferenceCapability, verificationCapability bool,
 	height uint64,
 ) (DeclareModelSupportResult, error) {
@@ -33,12 +33,8 @@ func (k Keeper) DeclareModelSupport(
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
-	modelID = strings.TrimSpace(modelID)
-	if err := types.ValidateModelID(modelID); err != nil {
-		return DeclareModelSupportResult{}, err
-	}
-	if profileVersion == 0 || (!inferenceCapability && !verificationCapability) {
-		return DeclareModelSupportResult{}, fmt.Errorf("profile_version and at least one capability are required")
+	if len(modelID) != shared.Hash32KeySize || (!inferenceCapability && !verificationCapability) {
+		return DeclareModelSupportResult{}, fmt.Errorf("model_id and at least one capability are required")
 	}
 	if height == 0 {
 		return DeclareModelSupportResult{}, fmt.Errorf("height must be greater than 0")
@@ -49,16 +45,16 @@ func (k Keeper) DeclareModelSupport(
 		return DeclareModelSupportResult{}, err
 	}
 	currentEpoch := epochForHeight(height, params.Epoch.EpochLengthBlocks)
-	profile, err := k.requireSupportScope(ctx, operatorAddress, modelID, profileVersion, currentEpoch)
+	model, err := k.requireSupportScope(ctx, operatorAddress, modelID, currentEpoch)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
 
-	capability, capabilityExists, err := k.loadProfileCapability(ctx, operatorAddress, modelID, profileVersion)
+	capability, capabilityExists, err := k.loadModelCapability(ctx, operatorAddress, modelID)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
-	oldSupport, supportExists, err := k.loadModelSupport(ctx, operatorAddress, modelID, profileVersion)
+	oldSupport, supportExists, err := k.loadModelSupport(ctx, operatorAddress, modelID)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
@@ -74,21 +70,20 @@ func (k Keeper) DeclareModelSupport(
 	}
 	// The operator cap counts stored support rows, not capability rows. A legacy
 	// orphan capability must not make a new support row look like an update and
-	// bypass max_supported_profiles_per_operator (B-5).
+	// bypass max_supported_models_per_operator.
 	if !supportExists {
-		count, err := k.countOperatorModelSupports(ctx, operatorAddress, uint64(params.Support.MaxSupportedProfilesPerOperator)+1)
+		count, err := k.countOperatorModelSupports(ctx, operatorAddress, uint64(params.Support.MaxSupportedModelsPerOperator)+1)
 		if err != nil {
 			return DeclareModelSupportResult{}, err
 		}
-		if count >= uint64(params.Support.MaxSupportedProfilesPerOperator) {
-			return DeclareModelSupportResult{}, fmt.Errorf("operator support profiles must not exceed %d", params.Support.MaxSupportedProfilesPerOperator)
+		if count >= uint64(params.Support.MaxSupportedModelsPerOperator) {
+			return DeclareModelSupportResult{}, fmt.Errorf("operator support models must not exceed %d", params.Support.MaxSupportedModelsPerOperator)
 		}
 	}
 	if !capabilityExists {
-		capability = types.ProfileCapabilityState{
+		capability = types.ModelCapabilityState{
 			OperatorAddress: operatorAddress,
 			ModelId:         modelID,
-			ProfileVersion:  profileVersion,
 		}
 	}
 	// FirstActivationDuty remains on the retained support row after deactivation
@@ -128,7 +123,7 @@ func (k Keeper) DeclareModelSupport(
 	}
 	if capabilityChanged {
 		if capability.CapabilityVersion == math.MaxUint64 {
-			return DeclareModelSupportResult{}, fmt.Errorf("profile capability version overflow")
+			return DeclareModelSupportResult{}, fmt.Errorf("model capability version overflow")
 		}
 		capability.CapabilityVersion++
 		capability.InferenceCapability = inferenceCapability
@@ -143,8 +138,8 @@ func (k Keeper) DeclareModelSupport(
 		newSupport = types.ModelSupportState{
 			OperatorAddress: operatorAddress,
 			ModelId:         modelID,
-			ProfileVersion:  profileVersion,
 			ActivationKind:  types.ModelSupportActivationNone,
+			SuspendReason:   types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE,
 		}
 	}
 	if newSupport.SupportVersion == math.MaxUint64 {
@@ -157,22 +152,22 @@ func (k Keeper) DeclareModelSupport(
 		newSupport.LastRefreshTaskId = nil
 	}
 	newSupport.SupportVersion++
-	newSupport.EligibleSupportStakeSnapshot = 0
 	newSupport.ActiveSupportStakeSnapshot = 0
-	eligibleWeight, eligible, err := k.deriveSupportWeight(ctx, profile, capability, newSupport, currentEpoch)
+	eligibleWeight, eligible, err := k.deriveSupportWeight(ctx, model, capability, newSupport, currentEpoch)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
 	if eligible {
-		newSupport.EligibleSupportStakeSnapshot = eligibleWeight
 		if newSupport.ActivationKind != types.ModelSupportActivationNone {
 			newSupport.SupportActive = true
 			newSupport.ActiveSupportStakeSnapshot = eligibleWeight
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		} else {
 			newSupport.SupportActive = false
 		}
 	} else {
 		newSupport.SupportActive = false
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 	}
 	if err := newSupport.Validate(); err != nil {
 		return DeclareModelSupportResult{}, err
@@ -234,12 +229,9 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 	if err != nil {
 		return err
 	}
-	modelID := strings.TrimSpace(fact.ModelID)
-	if modelID != fact.ModelID {
-		return fmt.Errorf("task support completion model_id is not canonical")
-	}
-	if err := types.ValidateModelID(modelID); err != nil {
-		return err
+	modelID := fact.ModelID
+	if len(modelID) != shared.Hash32KeySize {
+		return fmt.Errorf("task support completion model_id must be raw Hash32")
 	}
 	liability, err := k.ReadTaskLiabilityValue(
 		ctx, types.NewTaskLiabilityReservationKey(fact.TaskID, fact.Duty, operatorAddress),
@@ -257,13 +249,13 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 		return err
 	}
 	currentEpoch := epochForHeight(fact.Height, params.Epoch.EpochLengthBlocks)
-	profile, err := k.requireSupportScope(ctx, operatorAddress, modelID, fact.ProfileVersion, currentEpoch)
+	model, err := k.requireSupportScope(ctx, operatorAddress, modelID, currentEpoch)
 	if err != nil {
 		// Scope covers "is this operator/model/profile still eligible to support at
 		// all" — an activation condition, not a settlement failure.
 		return fmt.Errorf("%w: %s", errSupportActivationNotApplicable, err.Error())
 	}
-	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, fact.ProfileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errSupportActivationNotApplicable, err.Error())
 	}
@@ -273,7 +265,7 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 	if fact.Duty == shared.DutyVerifier && !capability.VerificationCapability {
 		return fmt.Errorf("%w: verifier duty without verification capability", errSupportActivationNotApplicable)
 	}
-	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID, fact.ProfileVersion)
+	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errSupportActivationNotApplicable, err.Error())
 	}
@@ -329,6 +321,7 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 		newSupport.FirstActivationDuty = fact.Duty
 		newSupport.FirstSupportTaskId = append([]byte(nil), fact.TaskID...)
 		newSupport.FirstSupportOrderValue = fact.OrderValue
+		newSupport.FirstSupportProfileVersion = fact.ProfileVersion
 		if fact.Duty == shared.DutyWorker {
 			newSupport.ActivationKind = types.ModelSupportActivationP30OrderValue
 			if p30Bootstrap {
@@ -343,15 +336,14 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 	}
 	newSupport.SupportActive = false
 	newSupport.ActiveSupportStakeSnapshot = 0
-	newSupport.EligibleSupportStakeSnapshot = 0
-	weight, eligible, err := k.deriveSupportWeight(ctx, profile, capability, newSupport, currentEpoch)
+	weight, eligible, err := k.deriveSupportWeight(ctx, model, capability, newSupport, currentEpoch)
 	if err != nil {
 		return err
 	}
 	if eligible {
 		newSupport.SupportActive = true
 		newSupport.ActiveSupportStakeSnapshot = weight
-		newSupport.EligibleSupportStakeSnapshot = weight
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 	} else {
 		bond, err := k.GetServiceBondState(ctx, operatorAddress)
 		if err != nil {
@@ -368,6 +360,7 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 			// this path. Erroring here would abort the settlement that paid it.
 			return fmt.Errorf("%w: operator is neither eligible nor jailed", errSupportActivationNotApplicable)
 		}
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 	}
 	if err := newSupport.Validate(); err != nil {
 		return err
@@ -380,7 +373,7 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 	}
 	if firstActivation {
 		mustEmitHubEvent(ctx, &types.EventModelSupportActivated{
-			Operator: operatorAddress, ModelId: modelID, ProfileVersion: fact.ProfileVersion,
+			Operator: operatorAddress, ModelId: modelID, FirstSupportProfileVersion: fact.ProfileVersion,
 			ActivationTaskId: append([]byte(nil), fact.TaskID...), ActivationDuty: fact.Duty,
 			SupportVersion: newSupport.SupportVersion, ExpiryEpoch: newSupport.SupportFreshUntilEpoch,
 		})
@@ -415,8 +408,8 @@ func (k Keeper) supportP30Cutoff(
 	return pointer.CutoffEpoch, false, cutoff, nil
 }
 
-func (k Keeper) DeactivateModelSupport(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, reason string, height uint64) (types.ModelSupportState, error) {
-	state, err := k.deactivateModelSupport(ctx, operatorAddress, modelID, profileVersion, reason, height)
+func (k Keeper) DeactivateModelSupport(ctx context.Context, operatorAddress string, modelID []byte, reason string, height uint64) (types.ModelSupportState, error) {
+	state, err := k.deactivateModelSupport(ctx, operatorAddress, modelID, reason, height)
 	if err != nil {
 		return types.ModelSupportState{}, err
 	}
@@ -426,12 +419,12 @@ func (k Keeper) DeactivateModelSupport(ctx context.Context, operatorAddress, mod
 	return state, nil
 }
 
-func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, reason string, height uint64) (types.ModelSupportState, error) {
-	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID, profileVersion)
+func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress string, modelID []byte, reason string, height uint64) (types.ModelSupportState, error) {
+	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return types.ModelSupportState{}, err
 	}
-	if !oldSupport.DeclaredSupport && !oldSupport.SupportActive && oldSupport.ActiveSupportStakeSnapshot == 0 && oldSupport.EligibleSupportStakeSnapshot == 0 {
+	if !oldSupport.DeclaredSupport && !oldSupport.SupportActive && oldSupport.ActiveSupportStakeSnapshot == 0 {
 		return oldSupport, nil
 	}
 	params, err := k.Params.Get(ctx)
@@ -439,7 +432,7 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress, mod
 		return types.ModelSupportState{}, err
 	}
 	currentEpoch := epochForHeight(height, params.Epoch.EpochLengthBlocks)
-	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, profileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return types.ModelSupportState{}, err
 	}
@@ -450,7 +443,7 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress, mod
 	newSupport.SupportVersion++
 	newSupport.SupportActive = false
 	newSupport.ActiveSupportStakeSnapshot = 0
-	newSupport.EligibleSupportStakeSnapshot = 0
+	newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 	// Deactivation ends the operator's standing declaration regardless of the
 	// reason, including SUPPORT_EXPIRED. Keeping declared_support set on an
 	// expired row would let refreshModelSupport (which only requires
@@ -499,19 +492,19 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress, mod
 // active half comes back only once the ladder has actually been walked to 0.
 // Freshness is deliberately preserved too: the expiry sweep still owns it, and a
 // row that lapses while jailed is deactivated in full by that sweep, as before.
-func (k Keeper) suspendModelSupportForJail(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, height uint64) error {
-	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID, profileVersion)
+func (k Keeper) suspendModelSupportForJail(ctx context.Context, operatorAddress string, modelID []byte, height uint64) error {
+	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return err
 	}
-	if !oldSupport.SupportActive && oldSupport.ActiveSupportStakeSnapshot == 0 && oldSupport.EligibleSupportStakeSnapshot == 0 {
+	if !oldSupport.SupportActive && oldSupport.ActiveSupportStakeSnapshot == 0 && oldSupport.SuspendReason == types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL {
 		return nil
 	}
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return err
 	}
-	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, profileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return err
 	}
@@ -522,7 +515,7 @@ func (k Keeper) suspendModelSupportForJail(ctx context.Context, operatorAddress,
 	newSupport.SupportVersion++
 	newSupport.SupportActive = false
 	newSupport.ActiveSupportStakeSnapshot = 0
-	newSupport.EligibleSupportStakeSnapshot = 0
+	newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 	if err := newSupport.Validate(); err != nil {
 		return err
 	}
@@ -553,7 +546,7 @@ func (k Keeper) suspendModelSupportForJail(ctx context.Context, operatorAddress,
 // the same bound the jail-time scan relies on, and it only runs on the rare
 // transition to jail_count == 0.
 func (k Keeper) restoreSupportsAfterJailClear(ctx context.Context, operatorAddress string, height uint64) (bool, error) {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, func(types.ProfileState) bool { return true })
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil || len(supports) == 0 {
 		return false, err
 	}
@@ -564,7 +557,7 @@ func (k Keeper) restoreSupportsAfterJailClear(ctx context.Context, operatorAddre
 	currentEpoch := epochForHeight(height, params.Epoch.EpochLengthBlocks)
 	anyActive := false
 	for _, oldSupport := range supports {
-		newSupport, _, err := k.reweightModelSupport(ctx, oldSupport, currentEpoch, height)
+		newSupport, _, err := k.reweightModelSupport(ctx, oldSupport, currentEpoch, height, types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_BOND_BELOW_MIN)
 		if err != nil {
 			return false, err
 		}
@@ -573,112 +566,17 @@ func (k Keeper) restoreSupportsAfterJailClear(ctx context.Context, operatorAddre
 	return anyActive, nil
 }
 
-// EnqueueSupportDeactivation records exactly one bounded support-deactivation
-// work item for (model_id, profile_version). It replaces the former inline
-// operator fan-out in the MsgSetProfileStatus / MsgSetModelStatus / freeze
-// transactions (P0-3): the operator dimension of
-// ModelSupportByProfileIndex(model_id, profile_version, operator) has no cap
-// whatsoever, while the operator->profiles direction is bounded by
-// max_supported_profiles_per_operator. Doing the scan inside a Tx therefore made
-// block gas a function of an unbounded supporter set.
-//
-// Safety: freezing takes effect immediately and does not depend on this cursor.
-// deriveSupportWeight returns eligible=false as soon as the parent model or the
-// profile leaves REGISTERED/ACTIVE (see the isParentModelOpenForProfile /
-// isProfileOpenForOrders guard in deriveSupportWeight), so no frozen profile can
-// admit, refresh or re-weight a supporter after the status write lands. The
-// per-row work the cursor performs later is purely bookkeeping: it zeroes the
-// ModelSupportState snapshots so the ProfileState aggregates
-// (active_supporter_count / active_support_stake / eligible_support_stake) match
-// the rows again. That convergence is safe to defer across blocks.
-//
-// exact replay: the cursor key is (model_id, profile_version), so resubmitting
-// the same Msg never creates a second cursor and never rewinds an in-flight one.
-func (k Keeper) EnqueueSupportDeactivation(ctx context.Context, modelID string, profileVersion uint32, reason string, height uint64) error {
-	modelID = strings.TrimSpace(modelID)
-	if err := types.ValidateModelID(modelID); err != nil {
-		return err
-	}
-	if profileVersion == 0 {
-		return fmt.Errorf("profile_version is required")
-	}
-	reason = strings.TrimSpace(reason)
-	if reason == "" || reason == types.ModelSupportDeactivateExpired {
-		return fmt.Errorf("support deactivation cursor reason %q is not a governance/freeze reason", reason)
-	}
-	cursorKey := types.NewProfileStateKey(modelID, profileVersion)
-	if _, err := k.SupportDeactivateCursor.Get(ctx, cursorKey); err == nil {
-		return nil
-	} else if !errors.Is(err, collections.ErrNotFound) {
-		return err
-	}
-	return k.SupportDeactivateCursor.Set(ctx, cursorKey, types.SupportDeactivateCursorState{
-		ModelId:        modelID,
-		ProfileVersion: profileVersion,
-		Reason:         reason,
-		EnqueuedHeight: height,
-	})
-}
-
-// EnqueueModelSupportDeactivation fans one model-wide status change out to one
-// cursor per registered profile. The profile dimension is bounded by
-// types.MaxProfilesPerModel, so this enumeration is safe inside a Tx; only the
-// operator dimension underneath each profile is unbounded and therefore async.
-func (k Keeper) EnqueueModelSupportDeactivation(ctx context.Context, modelID, reason string, height uint64) error {
-	modelID = strings.TrimSpace(modelID)
-	if err := types.ValidateModelID(modelID); err != nil {
-		return err
-	}
-	versions, err := k.modelProfileVersions(ctx, modelID)
-	if err != nil {
-		return err
-	}
-	for _, version := range versions {
-		if err := k.EnqueueSupportDeactivation(ctx, modelID, version, reason, height); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// modelProfileVersions collects every registered profile version of one model.
-// The iterator is fully drained and closed before the caller mutates anything, so
-// no write happens under an open iterator. Growth is bounded by
-// types.MaxProfilesPerModel, which RegisterModelProfileState already enforces.
-func (k Keeper) modelProfileVersions(ctx context.Context, modelID string) ([]uint32, error) {
-	iter, err := k.Profile.Iterate(ctx, collections.NewPrefixedPairRange[string, string](modelID))
-	if err != nil {
-		return nil, err
-	}
-	defer iter.Close()
-	versions := make([]uint32, 0, types.MaxProfilesPerModel)
-	for ; iter.Valid(); iter.Next() {
-		profile, err := iter.Value()
-		if err != nil {
-			return nil, err
-		}
-		if profile.ProfileVersion == 0 {
-			return nil, fmt.Errorf("invalid stored profile version 0 for model %s", modelID)
-		}
-		if uint32(len(versions)) >= types.MaxProfilesPerModel {
-			return nil, fmt.Errorf("model %s profiles must not exceed %d", modelID, types.MaxProfilesPerModel)
-		}
-		versions = append(versions, profile.ProfileVersion)
-	}
-	return versions, nil
-}
-
-// nextProfileSupportOperator resumes the operator scan of one profile from
+// nextModelSupportOperator resumes the model-scoped operator scan from
 // lastOperatorAddress (exclusive). An empty lastOperatorAddress starts at the
 // first indexed operator. Returning one key per call keeps the caller in charge
 // of the visited-item and serialized-bytes budgets.
-func (k Keeper) nextProfileSupportOperator(ctx context.Context, modelID string, profileVersion uint32, lastOperatorAddress string) (string, bool, error) {
-	rng := new(collections.Range[types.ModelSupportByProfileIndexKeyTriple]).
-		Prefix(collections.TripleSuperPrefix[string, uint32, string](modelID, profileVersion))
+func (k Keeper) nextModelSupportOperator(ctx context.Context, modelID []byte, lastOperatorAddress string) (string, bool, error) {
+	rng := new(collections.Range[types.ModelSupportByModelIndexKeyPair]).
+		Prefix(collections.PairPrefix[shared.Hash32Key, string](modelID))
 	if lastOperatorAddress != "" {
-		rng = rng.StartExclusive(types.NewModelSupportByProfileIndexKey(modelID, profileVersion, lastOperatorAddress))
+		rng = rng.StartExclusive(types.NewModelSupportByModelIndexKey(modelID, lastOperatorAddress))
 	}
-	iter, err := k.ModelSupportByProfileIndex.Iterate(ctx, rng)
+	iter, err := k.ModelSupportByModelIndex.Iterate(ctx, rng)
 	if err != nil {
 		return "", false, err
 	}
@@ -690,7 +588,7 @@ func (k Keeper) nextProfileSupportOperator(ctx context.Context, modelID string, 
 	if err != nil {
 		return "", false, err
 	}
-	return key.K3(), true, nil
+	return key.K2(), true, nil
 }
 
 // WriteModelSupportIndexes is the single writer for every ModelSupportState side
@@ -708,20 +606,20 @@ func (k Keeper) nextProfileSupportOperator(ctx context.Context, modelID string, 
 //   - Every other row (undeclared or already expired) goes to the prune index so
 //     it has a bounded cleanup path instead of living forever.
 func (k Keeper) WriteModelSupportIndexes(ctx context.Context, state types.ModelSupportState, currentEpoch, retentionEpochs uint64) error {
-	if err := k.ModelSupportByProfileIndex.Set(ctx, types.NewModelSupportByProfileIndexKey(state.ModelId, state.ProfileVersion, state.OperatorAddress)); err != nil {
+	if err := k.ModelSupportByModelIndex.Set(ctx, types.NewModelSupportByModelIndexKey(state.ModelId, state.OperatorAddress)); err != nil {
 		return err
 	}
-	if err := k.ModelSupportByOperatorIndex.Set(ctx, types.NewModelSupportByOperatorIndexKey(state.OperatorAddress, state.ModelId, state.ProfileVersion)); err != nil {
+	if err := k.ModelSupportByOperatorIndex.Set(ctx, types.NewModelSupportByOperatorIndexKey(state.OperatorAddress, state.ModelId)); err != nil {
 		return err
 	}
 	if state.DeclaredSupport && state.SupportFreshUntilEpoch > currentEpoch {
-		return k.ModelSupportExpiryIndex.Set(ctx, types.NewModelSupportExpiryIndexKey(state.SupportFreshUntilEpoch, state.OperatorAddress, state.ModelId, state.ProfileVersion))
+		return k.ModelSupportExpiryIndex.Set(ctx, types.NewModelSupportExpiryIndexKey(state.SupportFreshUntilEpoch, state.OperatorAddress, state.ModelId))
 	}
 	pruneEpoch, err := checkedAdd(currentEpoch, retentionEpochs)
 	if err != nil {
 		return err
 	}
-	return k.ModelSupportPruneIndex.Set(ctx, types.NewModelSupportPruneIndexKey(pruneEpoch, state.OperatorAddress, state.ModelId, state.ProfileVersion))
+	return k.ModelSupportPruneIndex.Set(ctx, types.NewModelSupportPruneIndexKey(pruneEpoch, state.OperatorAddress, state.ModelId))
 }
 
 // errSupportRefreshNotApplicable marks a daily-refresh precondition that one
@@ -749,22 +647,22 @@ func (k Keeper) WriteModelSupportIndexes(ctx context.Context, state types.ModelS
 // validation breaks - still propagate and still abort the batch.
 var errSupportRefreshNotApplicable = errors.New("daily support refresh conditions are not met")
 
-func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, epoch, height uint64) (types.ModelSupportState, bool, error) {
+func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress string, modelID []byte, epoch, height uint64) (types.ModelSupportState, bool, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return types.ModelSupportState{}, false, err
 	}
-	profile, err := k.requireSupportScope(ctx, operatorAddress, modelID, profileVersion, epoch)
+	model, err := k.requireSupportScope(ctx, operatorAddress, modelID, epoch)
 	if err != nil {
 		// Scope covers "is this operator/model/profile still eligible to support at
 		// all", which is a condition rather than a batch failure.
 		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
-	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, profileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
-	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID, profileVersion)
+	oldSupport, err := k.GetModelSupportState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
@@ -788,15 +686,14 @@ func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelI
 	newSupport.SupportFreshUntilEpoch = freshUntil
 	newSupport.LastRefreshHeight = height
 	newSupport.ActiveSupportStakeSnapshot = 0
-	newSupport.EligibleSupportStakeSnapshot = 0
-	weight, eligible, err := k.deriveSupportWeight(ctx, profile, capability, newSupport, epoch)
+	weight, eligible, err := k.deriveSupportWeight(ctx, model, capability, newSupport, epoch)
 	if err != nil {
 		return types.ModelSupportState{}, false, err
 	}
 	if eligible {
 		newSupport.SupportActive = true
 		newSupport.ActiveSupportStakeSnapshot = weight
-		newSupport.EligibleSupportStakeSnapshot = weight
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 	} else {
 		bond, err := k.GetServiceBondState(ctx, operatorAddress)
 		if err != nil {
@@ -804,10 +701,11 @@ func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress, modelI
 		}
 		if bond.Status != types.ServiceBondStatusJailed || bond.JailCount == 0 {
 			return types.ModelSupportState{}, false, fmt.Errorf(
-				"%w: operator is not currently eligible for profile support", errSupportRefreshNotApplicable,
+				"%w: operator is not currently eligible for model support", errSupportRefreshNotApplicable,
 			)
 		}
 		newSupport.SupportActive = false
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 	}
 	if err := newSupport.Validate(); err != nil {
 		return types.ModelSupportState{}, false, err
@@ -825,49 +723,47 @@ func (k Keeper) applyModelSupportMutation(
 	ctx context.Context,
 	oldSupport *types.ModelSupportState,
 	newSupport types.ModelSupportState,
-	capability types.ProfileCapabilityState,
+	capability types.ModelCapabilityState,
 	currentEpoch, height uint64,
 ) error {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return err
 	}
-	profile, err := k.GetProfile(ctx, newSupport.ModelId, newSupport.ProfileVersion)
+	model, err := k.GetModel(ctx, newSupport.ModelId)
 	if err != nil {
 		return err
 	}
 	oldStatus := modelSupportStatus(oldSupport, currentEpoch)
 	if oldSupport != nil {
-		if profile.EligibleSupportStake < oldSupport.EligibleSupportStakeSnapshot || profile.ActiveSupportStake < oldSupport.ActiveSupportStakeSnapshot {
-			return fmt.Errorf("profile support aggregate underflow")
+		if model.ActiveSupportStake < oldSupport.ActiveSupportStakeSnapshot {
+			return fmt.Errorf("model support aggregate underflow")
 		}
-		profile.EligibleSupportStake -= oldSupport.EligibleSupportStakeSnapshot
-		profile.ActiveSupportStake -= oldSupport.ActiveSupportStakeSnapshot
+		model.ActiveSupportStake -= oldSupport.ActiveSupportStakeSnapshot
 		if oldSupport.ActiveSupportStakeSnapshot > 0 {
-			if profile.ActiveSupporterCount == 0 {
-				return fmt.Errorf("profile active supporter count underflow")
+			if model.ActiveSupporterCount == 0 {
+				return fmt.Errorf("model active supporter count underflow")
 			}
-			profile.ActiveSupporterCount--
+			model.ActiveSupporterCount--
 		}
 		if oldSupport.SupportFreshUntilEpoch > 0 {
-			oldExpiry := types.NewModelSupportExpiryIndexKey(oldSupport.SupportFreshUntilEpoch, oldSupport.OperatorAddress, oldSupport.ModelId, oldSupport.ProfileVersion)
+			oldExpiry := types.NewModelSupportExpiryIndexKey(oldSupport.SupportFreshUntilEpoch, oldSupport.OperatorAddress, oldSupport.ModelId)
 			if err := k.ModelSupportExpiryIndex.Remove(ctx, oldExpiry); err != nil && !errors.Is(err, collections.ErrNotFound) {
 				return err
 			}
 		}
 	}
-	if math.MaxUint64-profile.EligibleSupportStake < newSupport.EligibleSupportStakeSnapshot || math.MaxUint64-profile.ActiveSupportStake < newSupport.ActiveSupportStakeSnapshot {
-		return fmt.Errorf("profile support aggregate overflow")
+	if math.MaxUint64-model.ActiveSupportStake < newSupport.ActiveSupportStakeSnapshot {
+		return fmt.Errorf("model support aggregate overflow")
 	}
-	profile.EligibleSupportStake += newSupport.EligibleSupportStakeSnapshot
-	profile.ActiveSupportStake += newSupport.ActiveSupportStakeSnapshot
+	model.ActiveSupportStake += newSupport.ActiveSupportStakeSnapshot
 	if newSupport.ActiveSupportStakeSnapshot > 0 {
-		if profile.ActiveSupporterCount == math.MaxUint32 {
-			return fmt.Errorf("profile active supporter count overflow")
+		if model.ActiveSupporterCount == math.MaxUint32 {
+			return fmt.Errorf("model active supporter count overflow")
 		}
-		profile.ActiveSupporterCount++
+		model.ActiveSupporterCount++
 	}
-	if err := k.deriveProfileAndModelStatus(ctx, &profile, height); err != nil {
+	if err := k.deriveModelStatus(ctx, &model, height); err != nil {
 		return err
 	}
 	if err := capability.Validate(); err != nil {
@@ -876,8 +772,8 @@ func (k Keeper) applyModelSupportMutation(
 	if err := newSupport.Validate(); err != nil {
 		return err
 	}
-	key := types.NewModelSupportKey(newSupport.OperatorAddress, newSupport.ModelId, newSupport.ProfileVersion)
-	if err := k.ProfileCapability.Set(ctx, types.NewProfileCapabilityKey(newSupport.OperatorAddress, newSupport.ModelId, newSupport.ProfileVersion), capability); err != nil {
+	key := types.NewModelSupportKey(newSupport.OperatorAddress, newSupport.ModelId)
+	if err := k.ModelCapability.Set(ctx, types.NewModelCapabilityKey(newSupport.OperatorAddress, newSupport.ModelId), capability); err != nil {
 		return err
 	}
 	if err := k.ModelSupport.Set(ctx, key, newSupport); err != nil {
@@ -888,7 +784,7 @@ func (k Keeper) applyModelSupportMutation(
 	}
 	newStatus := modelSupportStatus(&newSupport, currentEpoch)
 	mustEmitHubEvent(ctx, &types.EventModelSupportUpdated{
-		Operator: newSupport.OperatorAddress, ModelId: newSupport.ModelId, ProfileVersion: newSupport.ProfileVersion,
+		Operator: newSupport.OperatorAddress, ModelId: newSupport.ModelId, SuspendReason: newSupport.SuspendReason,
 		SupportVersion: newSupport.SupportVersion, OldStatus: oldStatus, NewStatus: newStatus,
 		ExpiryEpoch: newSupport.SupportFreshUntilEpoch,
 	})
@@ -899,33 +795,43 @@ func (k Keeper) reweightModelSupport(
 	ctx context.Context,
 	oldSupport types.ModelSupportState,
 	currentEpoch, height uint64,
+	belowMinReason types.ModelSupportSuspendReason,
 ) (types.ModelSupportState, bool, error) {
-	profile, err := k.GetProfile(ctx, oldSupport.ModelId, oldSupport.ProfileVersion)
+	model, err := k.GetModel(ctx, oldSupport.ModelId)
 	if err != nil {
 		return types.ModelSupportState{}, false, err
 	}
-	capability, err := k.GetProfileCapabilityState(ctx, oldSupport.OperatorAddress, oldSupport.ModelId, oldSupport.ProfileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, oldSupport.OperatorAddress, oldSupport.ModelId)
 	if err != nil {
 		return types.ModelSupportState{}, false, err
 	}
 	newSupport := oldSupport
 	newSupport.SupportActive = false
 	newSupport.ActiveSupportStakeSnapshot = 0
-	newSupport.EligibleSupportStakeSnapshot = 0
-	weight, eligible, err := k.deriveSupportWeight(ctx, profile, capability, newSupport, currentEpoch)
+	weight, eligible, err := k.deriveSupportWeight(ctx, model, capability, newSupport, currentEpoch)
 	if err != nil {
 		return types.ModelSupportState{}, false, err
 	}
 	if eligible {
-		newSupport.EligibleSupportStakeSnapshot = weight
 		if newSupport.ActivationKind != types.ModelSupportActivationNone {
 			newSupport.SupportActive = true
 			newSupport.ActiveSupportStakeSnapshot = weight
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
+		}
+	} else if oldSupport.DeclaredSupport && oldSupport.ActivationKind != types.ModelSupportActivationNone {
+		bond, err := k.GetServiceBondState(ctx, oldSupport.OperatorAddress)
+		if err != nil {
+			return types.ModelSupportState{}, false, err
+		}
+		if bond.JailCount != 0 || bond.Status == types.ServiceBondStatusJailed {
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
+		} else {
+			newSupport.SuspendReason = belowMinReason
 		}
 	}
 	if newSupport.SupportActive == oldSupport.SupportActive &&
 		newSupport.ActiveSupportStakeSnapshot == oldSupport.ActiveSupportStakeSnapshot &&
-		newSupport.EligibleSupportStakeSnapshot == oldSupport.EligibleSupportStakeSnapshot {
+		newSupport.SuspendReason == oldSupport.SuspendReason {
 		return oldSupport, false, nil
 	}
 	if newSupport.SupportVersion == math.MaxUint64 {
@@ -947,7 +853,7 @@ func (k Keeper) reconcileSupportsAfterBondChange(
 	activeBond, height uint64,
 	belowMinReason string,
 ) error {
-	supports, err := k.collectDeclaredSupports(ctx, operatorAddress, func(types.ProfileState) bool { return true })
+	supports, err := k.collectDeclaredSupports(ctx, operatorAddress)
 	if err != nil {
 		return err
 	}
@@ -957,19 +863,7 @@ func (k Keeper) reconcileSupportsAfterBondChange(
 	}
 	currentEpoch := epochForHeight(height, params.Epoch.EpochLengthBlocks)
 	for _, support := range supports {
-		profile, err := k.GetProfile(ctx, support.ModelId, support.ProfileVersion)
-		if err != nil {
-			return err
-		}
-		if activeBond < RequiredServiceBondForProfile(profile) {
-			if _, err := k.deactivateModelSupport(
-				ctx, support.OperatorAddress, support.ModelId, support.ProfileVersion, belowMinReason, height,
-			); err != nil {
-				return err
-			}
-			continue
-		}
-		if _, _, err := k.reweightModelSupport(ctx, support, currentEpoch, height); err != nil {
+		if _, _, err := k.reweightModelSupport(ctx, support, currentEpoch, height, types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_BOND_BELOW_MIN); err != nil {
 			return err
 		}
 	}
@@ -989,7 +883,7 @@ func (k Keeper) syncLiveServiceBondStatus(ctx context.Context, operatorAddress s
 		return err
 	}
 	iter, err := k.ModelSupportByOperatorIndex.Iterate(
-		ctx, collections.NewPrefixedTripleRange[string, string, uint32](operatorAddress),
+		ctx, collections.NewPrefixedPairRange[string, shared.Hash32Key](operatorAddress),
 	)
 	if err != nil {
 		return err
@@ -998,15 +892,15 @@ func (k Keeper) syncLiveServiceBondStatus(ctx context.Context, operatorAddress s
 	anyActive := false
 	var visited uint32
 	for ; iter.Valid(); iter.Next() {
-		if visited == params.Support.MaxSupportedProfilesPerOperator {
-			return fmt.Errorf("operator support profiles exceed the configured bound")
+		if visited == params.Support.MaxSupportedModelsPerOperator {
+			return fmt.Errorf("operator support models exceed the configured bound")
 		}
 		visited++
 		key, err := iter.Key()
 		if err != nil {
 			return err
 		}
-		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2(), key.K3()))
+		support, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(key.K1(), key.K2()))
 		if err != nil {
 			return err
 		}
@@ -1033,50 +927,13 @@ func (k Keeper) deriveProfileAndModelStatus(ctx context.Context, profile *types.
 	if profile == nil {
 		return fmt.Errorf("profile is required")
 	}
-	params, err := k.Params.Get(ctx)
-	if err != nil {
-		return err
-	}
-	oldProfileStatus := profile.Status
-	if profile.StatusSource == types.ProfileStatusSourceAutoSupport {
-		active, err := profileSupportThresholdMet(*profile, params.Support)
-		if err != nil {
-			return err
-		}
-		if active {
-			profile.Status = types.ModelStatusActive
-		} else {
-			profile.Status = types.ModelStatusRegistered
-		}
-	}
 	profile.UpdatedHeight = height
 	if err := k.setProfileState(ctx, *profile); err != nil {
 		return err
 	}
-	if oldProfileStatus != profile.Status {
-		mustEmitHubEvent(ctx, &types.EventModelProfileStateChanged{
-			ModelId: profile.ModelId, ProfileVersion: profile.ProfileVersion,
-			OldStatus: oldProfileStatus, NewStatus: profile.Status, Source: profile.StatusSource,
-		})
-	}
-
 	model, err := k.GetModel(ctx, profile.ModelId)
 	if err != nil {
 		return err
-	}
-	if oldProfileStatus != profile.Status {
-		if oldProfileStatus == types.ModelStatusActive && profile.Status != types.ModelStatusActive {
-			if model.ActiveProfileCount == 0 {
-				return fmt.Errorf("model active profile count underflow")
-			}
-			model.ActiveProfileCount--
-		}
-		if oldProfileStatus != types.ModelStatusActive && profile.Status == types.ModelStatusActive {
-			if model.ActiveProfileCount == math.MaxUint32 {
-				return fmt.Errorf("model active profile count overflow")
-			}
-			model.ActiveProfileCount++
-		}
 	}
 	return k.deriveModelStatus(ctx, &model, height)
 }
@@ -1096,8 +953,16 @@ func (k Keeper) deriveModelStatus(ctx context.Context, model *types.ModelState, 
 		return fmt.Errorf("model is required")
 	}
 	oldModelStatus := model.Status
-	if model.StatusSource == types.ModelStatusSourceAutoProfile {
-		if model.ActiveProfileCount > 0 {
+	if model.StatusSource == types.ModelStatusSourceAutoSupport {
+		params, err := k.Params.Get(ctx)
+		if err != nil {
+			return err
+		}
+		active, err := modelSupportThresholdMet(*model, params.Support)
+		if err != nil {
+			return err
+		}
+		if active {
 			model.Status = types.ModelStatusActive
 		} else {
 			model.Status = types.ModelStatusRegistered
@@ -1116,25 +981,20 @@ func (k Keeper) deriveModelStatus(ctx context.Context, model *types.ModelState, 
 	return nil
 }
 
-func profileSupportThresholdMet(profile types.ProfileState, params types.SupportParamsV1) (bool, error) {
-	if profile.ActiveSupporterCount < params.ActiveSupporterMinCount || profile.EligibleSupportStake == 0 {
+func modelSupportThresholdMet(model types.ModelState, params types.SupportParamsV1) (bool, error) {
+	if model.ActiveSupporterCount < params.ActiveSupporterMinCount {
 		return false, nil
 	}
-	leftHi, leftLo := bits.Mul64(profile.ActiveSupportStake, uint64(params.ActiveSupportStakeRatioDenominator))
-	rightHi, rightLo := bits.Mul64(profile.EligibleSupportStake, uint64(params.ActiveSupportStakeRatioNumerator))
-	if leftHi != rightHi {
-		return leftHi > rightHi, nil
+	hi, threshold := bits.Mul64(model.SupportMinStake, uint64(params.ActiveSupportStakeMultiple))
+	if hi != 0 {
+		return false, fmt.Errorf("model active support threshold overflows")
 	}
-	return leftLo >= rightLo, nil
+	return model.ActiveSupportStake >= threshold, nil
 }
 
 // deriveSupportWeight loads the authoritative rows and delegates the complete
 // eligibility/weight predicate to the same pure function used by Genesis.
-func (k Keeper) deriveSupportWeight(ctx context.Context, profile types.ProfileState, capability types.ProfileCapabilityState, support types.ModelSupportState, currentEpoch uint64) (uint64, bool, error) {
-	model, exists, err := k.loadModel(ctx, profile.ModelId)
-	if err != nil || !exists {
-		return 0, false, err
-	}
+func (k Keeper) deriveSupportWeight(ctx context.Context, model types.ModelState, capability types.ModelCapabilityState, support types.ModelSupportState, currentEpoch uint64) (uint64, bool, error) {
 	node, err := k.GetCortexNodeState(ctx, support.OperatorAddress)
 	if err != nil {
 		return 0, false, err
@@ -1148,41 +1008,34 @@ func (k Keeper) deriveSupportWeight(ctx context.Context, profile types.ProfileSt
 		return 0, false, err
 	}
 	return types.SupportVoteWeight(types.SupportEligibilityInputs{
-		Node: node, Bond: bond, Model: model, Profile: profile,
+		Node: node, Bond: bond, Model: model,
 		Capability: capability, Support: support,
 	}, currentEpoch, params.Support)
 }
 
-func (k Keeper) requireSupportScope(ctx context.Context, operatorAddress, modelID string, profileVersion uint32, currentEpoch uint64) (types.ProfileState, error) {
+func (k Keeper) requireSupportScope(ctx context.Context, operatorAddress string, modelID []byte, currentEpoch uint64) (types.ModelState, error) {
 	node, err := k.GetCortexNodeState(ctx, operatorAddress)
 	if err != nil {
-		return types.ProfileState{}, err
+		return types.ModelState{}, err
 	}
 	if node.ServiceKeyStatus != types.ServiceKeyStatus_SERVICE_KEY_STATUS_ACTIVE {
-		return types.ProfileState{}, fmt.Errorf("current Cortex service key is not active")
+		return types.ModelState{}, fmt.Errorf("current Cortex service key is not active")
 	}
 	if tombstoned, err := k.IsTombstoned(ctx, operatorAddress); err != nil {
-		return types.ProfileState{}, err
+		return types.ModelState{}, err
 	} else if tombstoned {
-		return types.ProfileState{}, fmt.Errorf("provider is tombstoned")
+		return types.ModelState{}, fmt.Errorf("provider is tombstoned")
 	}
 	model, exists, err := k.loadModel(ctx, modelID)
 	if err != nil {
-		return types.ProfileState{}, err
+		return types.ModelState{}, err
 	}
 	if !exists || !isParentModelOpenForProfile(model.Status) {
-		return types.ProfileState{}, fmt.Errorf("model is not open for support")
-	}
-	profile, exists, err := k.loadProfile(ctx, modelID, profileVersion)
-	if err != nil {
-		return types.ProfileState{}, err
-	}
-	if !exists || !isProfileOpenForOrders(profile.Status) {
-		return types.ProfileState{}, fmt.Errorf("profile is not open for support")
+		return types.ModelState{}, fmt.Errorf("model is not open for support")
 	}
 	bond, err := k.GetServiceBondState(ctx, operatorAddress)
 	if err != nil {
-		return types.ProfileState{}, err
+		return types.ModelState{}, err
 	}
 	// JAILED remains eligible for declaration and refresh, but both callers pass
 	// through deriveSupportWeight, which keeps support_active and both snapshots
@@ -1194,16 +1047,16 @@ func (k Keeper) requireSupportScope(ctx context.Context, operatorAddress, modelI
 	// the parameter tablekeeps "after a tombstone the corresponding identity is
 	// permanently refused re-entry" as the [hard boundary].
 	if !types.IsCandidateEligibleBondStatus(bond.Status) {
-		return types.ProfileState{}, fmt.Errorf("service bond status %s is not eligible", bond.Status)
+		return types.ModelState{}, fmt.Errorf("service bond status %s is not eligible", bond.Status)
 	}
-	if effectiveCandidateBond(bond, currentEpoch) < RequiredServiceBondForProfile(profile) {
-		return types.ProfileState{}, fmt.Errorf("effective active bond is below profile min_stake")
+	if effectiveCandidateBond(bond, currentEpoch) < model.SupportMinStake {
+		return types.ModelState{}, fmt.Errorf("effective active bond is below model support_min_stake")
 	}
-	return profile, nil
+	return model, nil
 }
 
 func (k Keeper) countOperatorModelSupports(ctx context.Context, operatorAddress string, stopAfter uint64) (uint64, error) {
-	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedTripleRange[string, string, uint32](operatorAddress))
+	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedPairRange[string, shared.Hash32Key](operatorAddress))
 	if err != nil {
 		return 0, err
 	}
@@ -1218,19 +1071,19 @@ func (k Keeper) countOperatorModelSupports(ctx context.Context, operatorAddress 
 	return count, nil
 }
 
-func (k Keeper) GetProfileCapabilityState(ctx context.Context, operatorAddress, modelID string, profileVersion uint32) (types.ProfileCapabilityState, error) {
-	state, exists, err := k.loadProfileCapability(ctx, operatorAddress, modelID, profileVersion)
+func (k Keeper) GetModelCapabilityState(ctx context.Context, operatorAddress string, modelID []byte) (types.ModelCapabilityState, error) {
+	state, exists, err := k.loadModelCapability(ctx, operatorAddress, modelID)
 	if err != nil {
-		return types.ProfileCapabilityState{}, err
+		return types.ModelCapabilityState{}, err
 	}
 	if !exists {
-		return types.ProfileCapabilityState{}, fmt.Errorf("profile capability not found")
+		return types.ModelCapabilityState{}, fmt.Errorf("model capability not found")
 	}
 	return state, nil
 }
 
-func (k Keeper) GetModelSupportState(ctx context.Context, operatorAddress, modelID string, profileVersion uint32) (types.ModelSupportState, error) {
-	state, exists, err := k.loadModelSupport(ctx, operatorAddress, modelID, profileVersion)
+func (k Keeper) GetModelSupportState(ctx context.Context, operatorAddress string, modelID []byte) (types.ModelSupportState, error) {
+	state, exists, err := k.loadModelSupport(ctx, operatorAddress, modelID)
 	if err != nil {
 		return types.ModelSupportState{}, err
 	}
@@ -1240,16 +1093,16 @@ func (k Keeper) GetModelSupportState(ctx context.Context, operatorAddress, model
 	return state, nil
 }
 
-func (k Keeper) loadProfileCapability(ctx context.Context, operatorAddress, modelID string, profileVersion uint32) (types.ProfileCapabilityState, bool, error) {
-	state, err := k.ProfileCapability.Get(ctx, types.NewProfileCapabilityKey(strings.TrimSpace(operatorAddress), strings.TrimSpace(modelID), profileVersion))
+func (k Keeper) loadModelCapability(ctx context.Context, operatorAddress string, modelID []byte) (types.ModelCapabilityState, bool, error) {
+	state, err := k.ModelCapability.Get(ctx, types.NewModelCapabilityKey(strings.TrimSpace(operatorAddress), modelID))
 	if errors.Is(err, collections.ErrNotFound) {
-		return types.ProfileCapabilityState{}, false, nil
+		return types.ModelCapabilityState{}, false, nil
 	}
 	return state, err == nil, err
 }
 
-func (k Keeper) loadModelSupport(ctx context.Context, operatorAddress, modelID string, profileVersion uint32) (types.ModelSupportState, bool, error) {
-	state, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(strings.TrimSpace(operatorAddress), strings.TrimSpace(modelID), profileVersion))
+func (k Keeper) loadModelSupport(ctx context.Context, operatorAddress string, modelID []byte) (types.ModelSupportState, bool, error) {
+	state, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(strings.TrimSpace(operatorAddress), modelID))
 	if errors.Is(err, collections.ErrNotFound) {
 		return types.ModelSupportState{}, false, nil
 	}

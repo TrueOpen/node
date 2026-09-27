@@ -118,7 +118,7 @@ func validateBuilderEvidenceCommonScope(authority builderEvidenceTaskAuthority, 
 	if len(envelope.Scope.TaskHash) != 0 && !bytes.Equal(envelope.Scope.TaskHash, authority.core.AcceptedTaskHash) {
 		return fmt.Errorf("%w: task_hash", errBuilderEvidenceScopeMismatch)
 	}
-	if envelope.Scope.ModelID != nil && *envelope.Scope.ModelID != authority.core.ModelId {
+	if len(envelope.Scope.ModelID) != 0 && !bytes.Equal(envelope.Scope.ModelID, authority.core.ModelId) {
 		return fmt.Errorf("%w: model_id", errBuilderEvidenceScopeMismatch)
 	}
 	return nil
@@ -183,11 +183,11 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 
 func (k Keeper) validateBuilderOrderBroadcast(core types.TaskCoreState, envelope bus.VerifiedEvidenceEnvelope) error {
 	if len(envelope.OrderBytes) == 0 {
-		return fmt.Errorf("ORDER_BROADCAST did not expose exact TaskOrderV2 bytes")
+		return fmt.Errorf("ORDER_BROADCAST did not expose exact TaskOrderV3 bytes")
 	}
-	var order types.TaskOrderV2
+	var order types.TaskOrderV3
 	if err := order.Unmarshal(envelope.OrderBytes); err != nil {
-		return fmt.Errorf("decode ORDER_BROADCAST TaskOrderV2: %w", err)
+		return fmt.Errorf("decode ORDER_BROADCAST TaskOrderV3: %w", err)
 	}
 	digest, err := types.TaskOrderHash(order)
 	if err != nil {
@@ -198,7 +198,7 @@ func (k Keeper) validateBuilderOrderBroadcast(core types.TaskCoreState, envelope
 		return err
 	}
 	if !bytes.Equal(digest[:], core.AcceptedTaskHash) || !bytes.Equal(order.SessionId, core.SessionId) ||
-		order.OrderSequence != core.OrderSequence || order.ModelId != core.ModelId || actor != core.UserAddress {
+		order.OrderSequence != core.OrderSequence || !bytes.Equal(order.ModelId, core.ModelId) || actor != core.UserAddress {
 		return fmt.Errorf("%w: ORDER_BROADCAST TaskOrder authority", errBuilderEvidenceScopeMismatch)
 	}
 	if envelope.Scope.PayloadActor == nil {

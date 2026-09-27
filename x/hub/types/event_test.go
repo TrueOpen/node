@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"reflect"
 	"strings"
 	"testing"
@@ -68,18 +69,18 @@ func TestHubEventDescriptorsAreOwnedAndUnique(t *testing.T) {
 func TestHubEventsRoundTripWithoutStatePayloads(t *testing.T) {
 	events := []proto.Message{
 		&EventModelProfileRegistered{
-			ModelId:               "model-a",
+			ModelId:               bytes.Repeat([]byte{0xa1}, 32),
 			ProfileVersion:        3,
 			ManifestHash:          make([]byte, 32),
 			Proposer:              "trueopen1proposer",
 			RegistrationFeeAmount: AmountFromUint64(50),
 		},
 		&EventModelProfileStateChanged{
-			ModelId:        "model-a",
+			ModelId:        bytes.Repeat([]byte{0xa1}, 32),
 			ProfileVersion: 3,
 			OldStatus:      ModelStatusRegistered,
-			NewStatus:      ModelStatusActive,
-			Source:         ProfileStatusSourceAutoSupport,
+			NewStatus:      ModelStatusFrozen,
+			Source:         ProfileStatusSourceGovernance,
 		},
 	}
 

@@ -50,23 +50,23 @@ func (k Keeper) GetCortexNode(ctx sdk.Context, addr sdk.AccAddress) (types.Corte
 	}, true
 }
 
-func (k Keeper) GetProfileCapability(ctx sdk.Context, provider sdk.AccAddress, modelID string, profileVersion uint32) (types.ProfileCapabilitySnapshot, bool) {
-	if err := types.ValidateModelID(modelID); err != nil {
-		return types.ProfileCapabilitySnapshot{}, false
+func (k Keeper) GetModelCapability(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (types.ModelCapabilitySnapshot, bool) {
+	if len(modelID) != shared.Hash32KeySize {
+		return types.ModelCapabilitySnapshot{}, false
 	}
-	state, err := k.ProfileCapability.Get(ctx, types.NewProfileCapabilityKey(provider.String(), modelID, profileVersion))
-	if err != nil {
-		return types.ProfileCapabilitySnapshot{}, false
+	state, err := k.ModelCapability.Get(ctx, types.NewModelCapabilityKey(provider.String(), modelID))
+	if err != nil || !modelCapabilityKeyMatches(state, provider.String(), modelID) || state.Validate() != nil {
+		return types.ModelCapabilitySnapshot{}, false
 	}
-	return profileCapabilitySnapshot(state), true
+	return modelCapabilitySnapshot(state), true
 }
 
-func (k Keeper) GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID string, profileVersion uint32) (types.ModelSupportSnapshot, bool) {
-	if err := types.ValidateModelID(modelID); err != nil {
+func (k Keeper) GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (types.ModelSupportSnapshot, bool) {
+	if len(modelID) != shared.Hash32KeySize {
 		return types.ModelSupportSnapshot{}, false
 	}
-	state, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(provider.String(), modelID, profileVersion))
-	if err != nil {
+	state, err := k.ModelSupport.Get(ctx, types.NewModelSupportKey(provider.String(), modelID))
+	if err != nil || !modelSupportKeyMatches(state, provider.String(), modelID) || state.Validate() != nil {
 		return types.ModelSupportSnapshot{}, false
 	}
 	snapshot := modelSupportSnapshot(state)
@@ -88,8 +88,8 @@ func (k Keeper) GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelI
 	return snapshot, true
 }
 
-func (k Keeper) GetModelStatus(ctx sdk.Context, modelID string) types.ModelStatus {
-	if err := types.ValidateModelID(modelID); err != nil {
+func (k Keeper) GetModelStatus(ctx sdk.Context, modelID []byte) types.ModelStatus {
+	if len(modelID) != shared.Hash32KeySize {
 		return types.ModelStatusUnspecified
 	}
 	state, err := k.Model.Get(ctx, modelID)
@@ -99,8 +99,8 @@ func (k Keeper) GetModelStatus(ctx sdk.Context, modelID string) types.ModelStatu
 	return state.Status
 }
 
-func (k Keeper) GetProfileState(ctx sdk.Context, modelID string, profileVersion uint32) (types.ProfileStateSnapshot, bool) {
-	if err := types.ValidateModelID(modelID); err != nil {
+func (k Keeper) GetProfileState(ctx sdk.Context, modelID []byte, profileVersion uint32) (types.ProfileStateSnapshot, bool) {
+	if len(modelID) != shared.Hash32KeySize {
 		return types.ProfileStateSnapshot{}, false
 	}
 	state, err := k.Profile.Get(ctx, types.NewProfileStateKey(modelID, profileVersion))
@@ -121,13 +121,12 @@ func (k Keeper) GetProfileState(ctx sdk.Context, modelID string, profileVersion 
 		ModelID: state.ModelId, ProfileVersion: state.ProfileVersion, Status: state.Status,
 		TaskTypes: append([]shared.TaskType(nil), state.TaskTypes...), ResourceTier: state.ResourceTier,
 		MinStake: state.MinStake, ChallengeOpenWindowBlocks: state.ChallengeOpenWindowBlocks,
-		ActiveSupporterCount: state.ActiveSupporterCount, ActiveSupportStake: state.ActiveSupportStake,
 		StatusSource: state.StatusSource, ExecutionSnapshot: execution, ExecutionSnapshotHash: executionHash,
 		PricingProfile: state.PricingProfile, RefPrice: state.RefPrice,
 	}, true
 }
 
-func (k Keeper) IsProfileFrozen(ctx sdk.Context, modelID string, profileVersion uint32) bool {
+func (k Keeper) IsProfileFrozen(ctx sdk.Context, modelID []byte, profileVersion uint32) bool {
 	profile, exists := k.GetProfileState(ctx, modelID, profileVersion)
 	if !exists {
 		return false
@@ -262,9 +261,9 @@ func (k Keeper) GetBeaconForDomain(ctx sdk.Context, domain string, height int64)
 	}, true
 }
 
-func profileCapabilitySnapshot(state types.ProfileCapabilityState) types.ProfileCapabilitySnapshot {
-	return types.ProfileCapabilitySnapshot{
-		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId, ProfileVersion: state.ProfileVersion,
+func modelCapabilitySnapshot(state types.ModelCapabilityState) types.ModelCapabilitySnapshot {
+	return types.ModelCapabilitySnapshot{
+		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId,
 		InferenceCapability: state.InferenceCapability, VerificationCapability: state.VerificationCapability,
 		CapabilityVersion: state.CapabilityVersion,
 	}
@@ -272,12 +271,13 @@ func profileCapabilitySnapshot(state types.ProfileCapabilityState) types.Profile
 
 func modelSupportSnapshot(state types.ModelSupportState) types.ModelSupportSnapshot {
 	return types.ModelSupportSnapshot{
-		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId, ProfileVersion: state.ProfileVersion,
-		DeclaredSupport: state.DeclaredSupport, SupportActive: state.SupportActive, ActivationKind: state.ActivationKind,
+		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId,
+		DeclaredSupport: state.DeclaredSupport, SupportActive: state.SupportActive,
+		SuspendReason: state.SuspendReason, ActivationKind: state.ActivationKind,
 		FirstActivationDuty: state.FirstActivationDuty, FirstSupportTaskID: append([]byte(nil), state.FirstSupportTaskId...),
 		FirstSupportOrderValue: state.FirstSupportOrderValue, P30CutoffEpoch: state.GetP30CutoffEpoch(),
 		P30Bootstrap:           state.GetP30Bootstrap(),
 		SupportFreshUntilEpoch: state.SupportFreshUntilEpoch, ActiveSupportStakeSnapshot: state.ActiveSupportStakeSnapshot,
-		EligibleSupportStakeSnapshot: state.EligibleSupportStakeSnapshot, SupportVersion: state.SupportVersion,
+		SupportVersion: state.SupportVersion,
 	}
 }

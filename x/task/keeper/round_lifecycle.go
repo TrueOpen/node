@@ -161,8 +161,12 @@ func (k Keeper) removeVerifierActiveJobs(ctx context.Context, taskKey types.Task
 		return err
 	}
 	for _, selected := range assignment.SelectedVerifiers {
+		verifier, err := k.sessionAddressToStore("verifier active-job index", selected.OperatorAddress)
+		if err != nil {
+			return err
+		}
 		if err := removeRoleActiveTaskKey(ctx, k.VerifierActiveJobIndex,
-			types.NewVerifierActiveJobKey(selected.OperatorAddress, taskKey)); err != nil {
+			types.NewVerifierActiveJobKey(verifier, taskKey)); err != nil {
 			return err
 		}
 	}

@@ -42,19 +42,19 @@ func (stubHubKeeper) GetNodeTombstone(sdk.Context, sdk.AccAddress) bool { return
 func (stubHubKeeper) GetCortexNode(sdk.Context, sdk.AccAddress) (types.CortexNodeSnapshot, bool) {
 	return types.CortexNodeSnapshot{}, false
 }
-func (stubHubKeeper) GetProfileCapability(sdk.Context, sdk.AccAddress, string, uint32) (types.ProfileCapabilitySnapshot, bool) {
-	return types.ProfileCapabilitySnapshot{}, false
+func (stubHubKeeper) GetModelCapability(sdk.Context, sdk.AccAddress, []byte) (types.ModelCapabilitySnapshot, bool) {
+	return types.ModelCapabilitySnapshot{}, false
 }
-func (stubHubKeeper) GetModelSupport(sdk.Context, sdk.AccAddress, string, uint32) (types.ModelSupportSnapshot, bool) {
+func (stubHubKeeper) GetModelSupport(sdk.Context, sdk.AccAddress, []byte) (types.ModelSupportSnapshot, bool) {
 	return types.ModelSupportSnapshot{}, false
 }
-func (stubHubKeeper) GetModelStatus(sdk.Context, string) types.ModelStatus {
+func (stubHubKeeper) GetModelStatus(sdk.Context, []byte) types.ModelStatus {
 	return types.ModelStatusUnspecified
 }
-func (stubHubKeeper) GetProfileState(sdk.Context, string, uint32) (types.ProfileStateSnapshot, bool) {
+func (stubHubKeeper) GetProfileState(sdk.Context, []byte, uint32) (types.ProfileStateSnapshot, bool) {
 	return types.ProfileStateSnapshot{}, false
 }
-func (stubHubKeeper) IsProfileFrozen(sdk.Context, string, uint32) bool { return false }
+func (stubHubKeeper) IsProfileFrozen(sdk.Context, []byte, uint32) bool { return false }
 func (stubHubKeeper) IsEmergencyFrozen(sdk.Context) bool               { return false }
 func (stubHubKeeper) GetHubParams(sdk.Context) types.HubParamsSnapshot {
 	params := types.DefaultHubParams()

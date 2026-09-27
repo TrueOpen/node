@@ -12,15 +12,13 @@ type JailStatus string
 type ModelStatus = ModelProfileStatus
 
 type ProfileStateSnapshot struct {
-	ModelID                   string
+	ModelID                   []byte
 	ProfileVersion            uint32
 	Status                    ModelProfileStatus
 	TaskTypes                 []shared.TaskType
 	ResourceTier              uint32
 	MinStake                  uint64
 	ChallengeOpenWindowBlocks uint64
-	ActiveSupporterCount      uint32
-	ActiveSupportStake        uint64
 	StatusSource              ProfileStatusSource
 	ExecutionSnapshot         shared.ProfileExecutionSnapshot
 	ExecutionSnapshotHash     []byte
@@ -61,31 +59,29 @@ type CortexNodeSnapshot struct {
 	PendingStageDutyCount     uint32
 }
 
-type ProfileCapabilitySnapshot struct {
+type ModelCapabilitySnapshot struct {
 	OperatorAddress        string
-	ModelID                string
-	ProfileVersion         uint32
+	ModelID                []byte
 	InferenceCapability    bool
 	VerificationCapability bool
 	CapabilityVersion      uint64
 }
 
 type ModelSupportSnapshot struct {
-	OperatorAddress              string
-	ModelID                      string
-	ProfileVersion               uint32
-	DeclaredSupport              bool
-	SupportActive                bool
-	ActivationKind               ModelSupportActivationKind
-	FirstActivationDuty          shared.Duty
-	FirstSupportTaskID           []byte
-	FirstSupportOrderValue       uint64
-	P30CutoffEpoch               uint64
-	P30Bootstrap                 bool
-	SupportFreshUntilEpoch       uint64
-	ActiveSupportStakeSnapshot   uint64
-	EligibleSupportStakeSnapshot uint64
-	SupportVersion               uint64
+	OperatorAddress            string
+	ModelID                    []byte
+	DeclaredSupport            bool
+	SupportActive              bool
+	SuspendReason              ModelSupportSuspendReason
+	ActivationKind             ModelSupportActivationKind
+	FirstActivationDuty        shared.Duty
+	FirstSupportTaskID         []byte
+	FirstSupportOrderValue     uint64
+	P30CutoffEpoch             uint64
+	P30Bootstrap               bool
+	SupportFreshUntilEpoch     uint64
+	ActiveSupportStakeSnapshot uint64
+	SupportVersion             uint64
 }
 
 type ServiceBondSnapshot struct {
@@ -133,7 +129,7 @@ type FrozenFactLiabilityRequest struct {
 	BondVersionSnapshot       uint64
 	CapabilityVersionSnapshot uint64
 	SupportVersionSnapshot    uint64
-	ModelID                   string
+	ModelID                   []byte
 	ProfileVersion            uint32
 	Height                    uint64
 }
@@ -157,7 +153,7 @@ type TaskLiabilityReservationSnapshot struct {
 type TaskSupportCompletionFact struct {
 	TaskID          []byte
 	OperatorAddress string
-	ModelID         string
+	ModelID         []byte
 	ProfileVersion  uint32
 	Duty            shared.Duty
 	RewardBucket    RewardBucket
@@ -226,8 +222,8 @@ type HubKeeper interface {
 	GetNodeJailStatus(ctx sdk.Context, addr sdk.AccAddress, duty string) JailStatus
 	GetNodeTombstone(ctx sdk.Context, addr sdk.AccAddress) bool
 	GetCortexNode(ctx sdk.Context, addr sdk.AccAddress) (CortexNodeSnapshot, bool)
-	GetProfileCapability(ctx sdk.Context, provider sdk.AccAddress, modelID string, profileVersion uint32) (ProfileCapabilitySnapshot, bool)
-	GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID string, profileVersion uint32) (ModelSupportSnapshot, bool)
+	GetModelCapability(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (ModelCapabilitySnapshot, bool)
+	GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (ModelSupportSnapshot, bool)
 
 	GetCandidatePoolSnapshot(ctx sdk.Context, snapshotID []byte) (CandidatePoolSnapshotState, bool)
 	CurrentActiveCandidatePool(ctx context.Context) (CandidatePoolSnapshotState, error)
@@ -238,10 +234,10 @@ type HubKeeper interface {
 	AcquireCandidatePoolTaskRef(ctx context.Context, taskID, snapshotID []byte, height uint64) (bool, error)
 	ReleaseCandidatePoolTaskRef(ctx context.Context, taskID, snapshotID []byte, height uint64) (bool, error)
 
-	GetModelStatus(ctx sdk.Context, modelID string) ModelStatus
-	GetProfileState(ctx sdk.Context, modelID string, profileVersion uint32) (ProfileStateSnapshot, bool)
-	IsProfileFrozen(ctx sdk.Context, modelID string, profileVersion uint32) bool
-	IsFreezeFailureWindowProtected(ctx context.Context, modelID string, profileVersion uint32, finalityHeight uint64) (bool, error)
+	GetModelStatus(ctx sdk.Context, modelID []byte) ModelStatus
+	GetProfileState(ctx sdk.Context, modelID []byte, profileVersion uint32) (ProfileStateSnapshot, bool)
+	IsProfileFrozen(ctx sdk.Context, modelID []byte, profileVersion uint32) bool
+	IsFreezeFailureWindowProtected(ctx context.Context, modelID []byte, profileVersion uint32, finalityHeight uint64) (bool, error)
 	GetHubParams(ctx sdk.Context) HubParamsSnapshot
 	GetEndBlockBudget(ctx context.Context, height uint64) (EndBlockBudgetSnapshot, error)
 	ConsumeEndBlockBudget(ctx context.Context, height, visitedItems, serializedBytes uint64) error

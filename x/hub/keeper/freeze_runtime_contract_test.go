@@ -92,6 +92,8 @@ type freezeRuntimeFixture struct {
 
 const freezeRuntimeChainID = "trueopen-freeze-test"
 
+var freezeTestModelID = testModelID(freezeRuntimeChainID, mustHubIdentity(103).Address, "model-a")
+
 func newFreezeRuntimeFixture(t *testing.T, voteWindow, detailRetention, summaryRetention uint64, totalPower uint64, members map[string]types.ValidatorSnapshotMember) *freezeRuntimeFixture {
 	return newFreezeRuntimeFixtureWithThreshold(t, voteWindow, detailRetention, summaryRetention, 1, totalPower, members)
 }
@@ -127,13 +129,13 @@ func TestFreezeSignalBelowThresholdAdvancesWaterlineWithoutSignalOrEvent(t *test
 	require.Empty(t, response.GetFreezeSignalId())
 	require.Len(t, sdk.UnwrapSDKContext(ctx).EventManager().Events(), before)
 
-	profile, err := f.fixture.keeper.GetProfile(ctx, "model-a", 1)
+	profile, err := f.fixture.keeper.GetProfile(ctx, freezeTestModelID, 1)
 	require.NoError(t, err)
 	require.NotNil(t, profile.XLastFreezeRiskWindowEvaluated)
 	require.Equal(t, uint64(0), profile.GetLastFreezeRiskWindowEvaluated())
-	_, err = f.fixture.keeper.FreezeSignalBuildCursor.Get(ctx, types.NewFreezeSignalBuildCursorKey("model-a", 1))
+	_, err = f.fixture.keeper.FreezeSignalBuildCursor.Get(ctx, types.NewFreezeSignalBuildCursorKey(freezeTestModelID, 1))
 	require.ErrorIs(t, err, collections.ErrNotFound)
-	_, err = f.fixture.keeper.FreezeSignalByWindow.Get(ctx, types.NewFreezeSignalByWindowKey("model-a", 1, 0))
+	_, err = f.fixture.keeper.FreezeSignalByWindow.Get(ctx, types.NewFreezeSignalByWindowKey(freezeTestModelID, 1, 0))
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	iter, err := f.fixture.keeper.FreezeSignalState.Iterate(ctx, nil)
 	require.NoError(t, err)
@@ -149,7 +151,7 @@ func TestNewProfileStartsAtLatestClosedFreezeRiskWindow(t *testing.T) {
 	height := uint64(5_000_000)
 	registerTestModelProfile(t, f, "late-freeze-profile", 1, testServiceBondMinInitial, height)
 
-	profile, err := f.keeper.GetProfile(f.ctx, "late-freeze-profile", 1)
+	profile, err := f.keeper.GetProfile(f.ctx, testModelID(testHubChainID, hubAddress(t, 250), "late-freeze-profile"), 1)
 	require.NoError(t, err)
 	require.NotNil(t, profile.XLastFreezeRiskWindowEvaluated)
 	latestClosed := (height-1)/windowBlocks - 1
@@ -193,7 +195,7 @@ func (f *freezeRuntimeFixture) contextAt(height int64) context.Context {
 func (f *freezeRuntimeFixture) submit(t *testing.T, height int64) *types.MsgSubmitFreezeSignalResponse {
 	t.Helper()
 	response, err := f.msg.SubmitFreezeSignal(f.contextAt(height), &types.MsgSubmitFreezeSignal{
-		ModelId: "model-a", ProfileVersion: 1, SubmitterAddress: f.submitter,
+		ModelId: freezeTestModelID, ProfileVersion: 1, SubmitterAddress: f.submitter,
 	})
 	require.NoError(t, err)
 	return response
@@ -225,7 +227,7 @@ func TestFreezeSignalAcceptsAtQuorumAndPreservesExactReplay(t *testing.T) {
 	_, err = f.msg.EmergencyFreezeVote(f.contextAt(102), &conflict)
 	require.ErrorIs(t, err, types.ErrInvalidFreezeVote)
 
-	profile, err := f.fixture.keeper.GetProfile(f.contextAt(102), "model-a", 1)
+	profile, err := f.fixture.keeper.GetProfile(f.contextAt(102), freezeTestModelID, 1)
 	require.NoError(t, err)
 	require.Equal(t, types.ModelStatusEmergencyFrozen, profile.Status)
 	stored, err := f.fixture.keeper.EmergencyFreezeVoteState.Get(f.contextAt(102), types.NewEmergencyFreezeVoteKey(opened.GetFreezeSignalId(), consensusAddress))
@@ -255,9 +257,9 @@ func TestFreezeSignalRejectThresholdAndUnknownSigner(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_REJECTED, rejected.SignalStatus)
-	profile, err := f.fixture.keeper.GetProfile(f.contextAt(101), "model-a", 1)
+	profile, err := f.fixture.keeper.GetProfile(f.contextAt(101), freezeTestModelID, 1)
 	require.NoError(t, err)
-	require.Equal(t, types.ModelStatusActive, profile.Status)
+	require.Equal(t, types.ModelStatusRegistered, profile.Status)
 }
 
 func TestFreezeSignalExpiryAndTwoPhasePrune(t *testing.T) {
@@ -314,7 +316,7 @@ func TestFreezeBuildCursorSurvivesRestart(t *testing.T) {
 	restarted.keeper = restarted.keeper.WithFreezeRuntimeDependencies(f.feed, f.snapshots)
 	restartedMsg := keeper.NewMsgServerImpl(restarted.keeper, types.MsgServerDependencies{FreezeTaskValidator: f.feed, ValidatorSnapshotProvider: f.snapshots})
 	response, err := restartedMsg.SubmitFreezeSignal(restarted.ctx, &types.MsgSubmitFreezeSignal{
-		ModelId: "model-a", ProfileVersion: 1, SubmitterAddress: f.submitter,
+		ModelId: freezeTestModelID, ProfileVersion: 1, SubmitterAddress: f.submitter,
 	})
 	require.NoError(t, err)
 	require.Equal(t, types.FreezeSignalBuildStatus_FREEZE_SIGNAL_BUILD_STATUS_OPEN, response.BuildStatus)
@@ -335,7 +337,7 @@ func TestFreezeQueriesUseBoundOpaqueTokens(t *testing.T) {
 
 	query := keeper.NewQueryServerImpl(f.fixture.keeper)
 	request := &types.QueryFreezeSignalsRequest{
-		ModelId: "model-a", ProfileVersion: 1, Status: types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_EXPIRED,
+		ModelId: freezeTestModelID, ProfileVersion: 1, Status: types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_EXPIRED,
 		Page: shared.QueryPageRequestV1{Limit: 1},
 	}
 	page1, err := query.FreezeSignals(f.contextAt(205), request)
@@ -402,7 +404,7 @@ func TestEmergencyFreezeVotesUseBoundOpaqueTokens(t *testing.T) {
 	_, err = query.EmergencyFreezeVotes(f.contextAt(202), &wrongSelector)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	_, err = query.FreezeSignals(f.contextAt(202), &types.QueryFreezeSignalsRequest{
-		ModelId: "model-a", ProfileVersion: 1, Status: types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_EXPIRED,
+		ModelId: freezeTestModelID, ProfileVersion: 1, Status: types.FreezeSignalStatus_FREEZE_SIGNAL_STATUS_EXPIRED,
 		Page: shared.QueryPageRequestV1{Limit: 1, PageToken: page1.Page.NextPageToken},
 	})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -434,16 +436,16 @@ func TestFreezeSignalBuildReschedulesWhenHistoricalSnapshotIsUnavailable(t *test
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), visited)
 
-	cursorKey := types.NewFreezeSignalBuildCursorKey("model-a", 1)
-	windowKey := types.NewFreezeSignalByWindowKey("model-a", 1, 0)
+	cursorKey := types.NewFreezeSignalBuildCursorKey(freezeTestModelID, 1)
+	windowKey := types.NewFreezeSignalByWindowKey(freezeTestModelID, 1, 0)
 	_, err = f.fixture.keeper.FreezeSignalBuildCursor.Get(ctx, cursorKey)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	_, err = f.fixture.keeper.FreezeSignalByWindow.Get(ctx, windowKey)
 	require.ErrorIs(t, err, collections.ErrNotFound)
-	hasRetry, err := f.fixture.keeper.FreezeRiskWindowScheduleIndex.Has(ctx, types.NewFreezeRiskWindowScheduleKey(102, "model-a", 1))
+	hasRetry, err := f.fixture.keeper.FreezeRiskWindowScheduleIndex.Has(ctx, types.NewFreezeRiskWindowScheduleKey(102, freezeTestModelID, 1))
 	require.NoError(t, err)
 	require.True(t, hasRetry)
-	profile, err := f.fixture.keeper.GetProfile(ctx, "model-a", 1)
+	profile, err := f.fixture.keeper.GetProfile(ctx, freezeTestModelID, 1)
 	require.NoError(t, err)
 	require.Nil(t, profile.XLastFreezeRiskWindowEvaluated)
 
@@ -461,7 +463,7 @@ func TestFreezeSignalBuildReschedulesWhenHistoricalSnapshotIsUnavailable(t *test
 	require.NoError(t, err)
 	require.Equal(t, types.FreezeSignalWindowPhase_FREEZE_SIGNAL_WINDOW_PHASE_OPEN, binding.Phase)
 	require.Len(t, binding.GetFreezeSignalId(), 32)
-	profile, err = f.fixture.keeper.GetProfile(retryCtx, "model-a", 1)
+	profile, err = f.fixture.keeper.GetProfile(retryCtx, freezeTestModelID, 1)
 	require.NoError(t, err)
 	require.NotNil(t, profile.XLastFreezeRiskWindowEvaluated)
 	require.Equal(t, uint64(0), profile.GetLastFreezeRiskWindowEvaluated())
@@ -476,13 +478,13 @@ func TestFreezeSignalRejectsMalformedTaskFailureWithoutWrites(t *testing.T) {
 	before := len(sdk.UnwrapSDKContext(ctx).EventManager().Events())
 
 	_, err := f.msg.SubmitFreezeSignal(ctx, &types.MsgSubmitFreezeSignal{
-		ModelId: "model-a", ProfileVersion: 1, SubmitterAddress: f.submitter,
+		ModelId: freezeTestModelID, ProfileVersion: 1, SubmitterAddress: f.submitter,
 	})
 	require.ErrorIs(t, err, types.ErrInvariantBroken)
 	require.Len(t, sdk.UnwrapSDKContext(ctx).EventManager().Events(), before)
-	_, err = f.fixture.keeper.FreezeSignalBuildCursor.Get(ctx, types.NewFreezeSignalBuildCursorKey("model-a", 1))
+	_, err = f.fixture.keeper.FreezeSignalBuildCursor.Get(ctx, types.NewFreezeSignalBuildCursorKey(freezeTestModelID, 1))
 	require.ErrorIs(t, err, collections.ErrNotFound)
-	_, err = f.fixture.keeper.FreezeSignalByWindow.Get(ctx, types.NewFreezeSignalByWindowKey("model-a", 1, 0))
+	_, err = f.fixture.keeper.FreezeSignalByWindow.Get(ctx, types.NewFreezeSignalByWindowKey(freezeTestModelID, 1, 0))
 	require.ErrorIs(t, err, collections.ErrNotFound)
 }
 
@@ -556,12 +558,12 @@ func TestEmergencyFreezeVotesRejectPreHash32PageTokens(t *testing.T) {
 	require.Equal(t, "e2be1d98d6619599d0458fc0169bba65a625970128e6aabad802c1711b91956f",
 		hex.EncodeToString(rpcDigest),
 		"TRUEOPEN_QUERY_RPC_V1 over /hub.v1.Query/EmergencyFreezeVotes is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
-	require.Equal(t, "943d7e617f589749a979274af7d1938e9a3f2d9a3a62c8c1eb1f70d0c7f85ef2",
+	require.Equal(t, "5894dba9f4813262668fb946ab6e2dc1655124305c986ceb812f280795a583ff",
 		hex.EncodeToString(selectorDigest),
 		"TRUEOPEN_QUERY_SELECTOR_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
 	// The selector above binds signal_id, so pinning the selector without pinning
 	// the id it commits to would leave half the preimage unanchored.
-	require.Equal(t, "fa5a1586446ee3f55b8e8ebf2f5db570dcb237fa7f74b5d51a7679fbfb60204a",
+	require.Equal(t, "8b7c5c02b2c67c1b6a159207585c73314b16930c944e7c18334d84c2fdf494ca",
 		hex.EncodeToString(signalID),
 		"TRUEOPEN_FREEZE_SIGNAL_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
 	legacyToken, err := shared.EncodePageTokenV1(rpcDigest, selectorDigest, legacyPrimaryKey, uint64(sdkCtx.BlockHeight()))

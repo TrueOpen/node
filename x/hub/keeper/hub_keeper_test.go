@@ -214,7 +214,7 @@ func declareTaskLiabilitySupportForTest(t *testing.T, f *fixture, operatorAddres
 	activateServiceBondForTest(t, f, operatorAddress, 0)
 	registerTestModelProfile(t, f, modelID, profileVersion, minStake, height)
 	result, err := f.keeper.DeclareModelSupport(
-		f.ctx, operatorAddress, modelID, profileVersion, true, true, height,
+		f.ctx, operatorAddress, testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), hubAddress(t, 250), modelID), true, true, height,
 	)
 	require.NoError(t, err)
 	require.Equal(t, result.Capability.CapabilityVersion, result.Support.SupportVersion)

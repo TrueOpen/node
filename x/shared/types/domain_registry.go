@@ -107,11 +107,14 @@ const (
 	DomainGlobalCandidatePoolV1           = "TRUEOPEN_GLOBAL_CANDIDATE_POOL_V1"
 	DomainHubParamsV2                     = "TRUEOPEN_HUB_PARAMS_V2"
 	DomainInferEvidenceCommitmentsV1      = "TRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1"
-	DomainInferReceiptV2                  = "TRUEOPEN_INFER_RECEIPT_V2"
+	DomainInferReceiptV3                  = "TRUEOPEN_INFER_RECEIPT_V3"
 	DomainInputTokenIDsV1                 = "TRUEOPEN_INPUT_TOKEN_IDS_V1"
 	DomainMetricSummaryV1                 = "TRUEOPEN_METRIC_SUMMARY_V1"
 	DomainModelChainProjectionV2          = "TRUEOPEN_MODEL_CHAIN_PROJECTION_V2"
+	DomainModelChainProjectionV3          = "TRUEOPEN_MODEL_CHAIN_PROJECTION_V3"
+	DomainModelIDV1                       = "TRUEOPEN_MODEL_ID_V1"
 	DomainModelRegistrationDigestV2       = "TRUEOPEN_MODEL_REGISTRATION_DIGEST_V2"
+	DomainModelRegistrationDigestV3       = "TRUEOPEN_MODEL_REGISTRATION_DIGEST_V3"
 	DomainMintBondV1                      = "TRUEOPEN_MINT_BOND_V1"
 	DomainOpenVerifyProposalV1            = "TRUEOPEN_OPEN_VERIFY_PROPOSAL_V1"
 	DomainOutputChunkEquivocationV1       = "TRUEOPEN_OUTPUT_CHUNK_EQUIVOCATION_V1"
@@ -127,8 +130,9 @@ const (
 	DomainQuerySelectorV1                 = "TRUEOPEN_QUERY_SELECTOR_V1"
 	DomainReplaceBuilderSetV1             = "TRUEOPEN_REPLACE_BUILDER_SET_V1"
 	DomainResultCommitmentV2              = "TRUEOPEN_RESULT_COMMITMENT_V2"
+	DomainResultCommitmentV3              = "TRUEOPEN_RESULT_COMMITMENT_V3"
 	DomainResultReceiptRefsV1             = "TRUEOPEN_RESULT_RECEIPT_REFS_V1"
-	DomainResultV2                        = "TRUEOPEN_RESULT_V2"
+	DomainResultV3                        = "TRUEOPEN_RESULT_V3"
 	DomainRewardBucketBoundariesV1        = "TRUEOPEN_REWARD_BUCKET_BOUNDARIES_V1"
 	DomainRewardEpochAuditFoldV1          = "TRUEOPEN_REWARD_EPOCH_AUDIT_FOLD_V1"
 	DomainRewardEpochAuditLeafV1          = "TRUEOPEN_REWARD_EPOCH_AUDIT_LEAF_V1"
@@ -152,12 +156,12 @@ const (
 	DomainSettlementPlanV1                = "TRUEOPEN_SETTLEMENT_PLAN_V1"
 	DomainSetBridgeFreezeV1               = "TRUEOPEN_SET_BRIDGE_FREEZE_V1"
 	DomainSetBridgeLimitV1                = "TRUEOPEN_SET_BRIDGE_LIMIT_V1"
-	DomainSupportProfilesV1               = "TRUEOPEN_SUPPORT_PROFILES_V1"
+	DomainSupportModelsV1                 = "TRUEOPEN_SUPPORT_MODELS_V1"
 	DomainTaskBuildersV1                  = "TRUEOPEN_TASK_BUILDERS_V1"
 	DomainTaskBuilderRankV1               = "TRUEOPEN_TASK_BUILDER_RANK_V1"
 	DomainTaskGenerationParamsV1          = "TRUEOPEN_TASK_GENERATION_PARAMS_V1"
 	DomainTaskIDV1                        = "TRUEOPEN_TASK_ID_V1"
-	DomainTaskOrderV2                     = "TRUEOPEN_TASK_ORDER_V2"
+	DomainTaskOrderV3                     = "TRUEOPEN_TASK_ORDER_V3"
 	DomainTaskParamsV1                    = "TRUEOPEN_TASK_PARAMS_V1"
 	DomainTaskRoundSummaryV1              = "TRUEOPEN_TASK_ROUND_SUMMARY_V1"
 	DomainTaskSettlementIDV1              = "TRUEOPEN_TASK_SETTLEMENT_ID_V1"
@@ -184,7 +188,7 @@ const (
 	DomainWinnerDrawV1                    = "TRUEOPEN_WINNER_DRAW_V1"
 	DomainWorkerHandraiseV1               = "TRUEOPEN_WORKER_HANDRAISE_V1"
 	DomainWorkerProposalV1                = "TRUEOPEN_WORKER_PROPOSAL_V1"
-	DomainWorkerValueCommitmentV2         = "TRUEOPEN_WORKER_VALUE_COMMITMENT_V2"
+	DomainWorkerValueCommitmentV3         = "TRUEOPEN_WORKER_VALUE_COMMITMENT_V3"
 )
 
 const (
@@ -261,66 +265,6 @@ func loadDomainRegistryV1() map[string]DomainSpec {
 		}
 	}
 
-	// The pinned Wire metadata retains pre-cutover projections and prose-only
-	// field names. The descriptor, current monorepo contract and golden vectors
-	// are authoritative for the corrections below; DOC-001 tracks the artifact.
-	settlement := registry[DomainSettlementFactsV1]
-	settlement.Fields = []string{
-		"chain_id",
-		"settlement_id",
-		"FieldFrameV1(settlement_facts: task_id, verify_round, settlement_height, settlement_facts_cutoff_height, settlement_duty_builder_operator, consensus_cluster_hash, verdict, failure_class, fault_summary_hash, paid_roles, infer_receipt_ref, result_receipt_refs_hash, challenge_close_height)",
-	}
-	registry[DomainSettlementFactsV1] = settlement
-
-	builderSet := registry[DomainBuilderSetV1]
-	builderSet.Fields = []string{
-		"chain_id", "builder_set_version", "builder_set_id", "effective_height",
-		"active_builder_count", "builder_set_members_hash",
-	}
-	registry[DomainBuilderSetV1] = builderSet
-
-	hubParams := registry[DomainHubParamsV2]
-	hubParams.Fields = []string{"chain_id", "params_version", "params"}
-	registry[DomainHubParamsV2] = hubParams
-
-	selector := registry[DomainQuerySelectorV1]
-	selector.Variants = querySelectorVariantsV1()
-	registry[DomainQuerySelectorV1] = selector
-
-	// The release row names the Msg that triggers this digest, but the actual
-	// byte producer is the typed hash helper. Keep identifier validation bound to
-	// executable code rather than to a generated protobuf type (DOC-001).
-	roundFundingLock := registry[DomainRoundFundingLockV1]
-	roundFundingLock.Producer = "task/types.RoundFundingLockHash"
-	registry[DomainRoundFundingLockV1] = roundFundingLock
-
-	// Several v0.4 rows describe a nested field in prose while the release
-	// vectors and live producers use its canonical identifier. Normalize only
-	// the names; the encoded field order and bytes are unchanged (DOC-001).
-	metricSummary := registry[DomainMetricSummaryV1]
-	metricSummary.Fields = []string{"metric_summary"}
-	registry[DomainMetricSummaryV1] = metricSummary
-
-	result := registry[DomainResultV2]
-	result.Fields[8] = "metric_summary"
-	registry[DomainResultV2] = result
-
-	roundSummary := registry[DomainTaskRoundSummaryV1]
-	roundSummary.Fields = []string{
-		"chain_id", "task_id", "max_closed_round", "open_round_count", "effective_verify_round",
-		"challenge_open_height", "challenge_close_height", "rounds_closed_height",
-		"round1_facts_hash_or_zero32", "round2_facts_hash_or_zero32",
-		"round2_outcome_or_unspecified", "round2_effect_root_or_zero32",
-	}
-	registry[DomainTaskRoundSummaryV1] = roundSummary
-
-	gasReimbursement := registry[DomainGasReimbursementV1]
-	gasReimbursement.Fields = []string{"chain_id", "gas_reimbursement"}
-	registry[DomainGasReimbursementV1] = gasReimbursement
-
-	settlementPlan := registry[DomainSettlementPlanV1]
-	settlementPlan.Fields = []string{"chain_id", "settlement_id", "settlement_plan"}
-	registry[DomainSettlementPlanV1] = settlementPlan
 	return registry
 }
 

@@ -46,19 +46,31 @@ func DefaultHubParams() HubParamsV2 {
 			DeltaMBlocks:      100,
 		},
 		Support: SupportParamsV1{
-			SupportWindowEpochs:                  2,
-			ActiveSupporterMinCount:              2,
-			ActiveSupportStakeRatioNumerator:     2,
-			ActiveSupportStakeRatioDenominator:   3,
-			ActiveSupportStakeCapMultiplier:      3,
-			MaxSupportedProfilesPerOperator:      256,
-			MaxDailySupportConfirmationsPerBatch: 256,
-			MaxDailySupportItemsPerBatch:         256,
-			MaxDailySupportBatchBytes:            1 << 20,
-			DailySupportRetentionEpochs:          30,
-			ModelSupportRowRetentionEpochs:       30,
-			MaxModelSupportPruneItemsPerBlock:    32,
-			MaxSupportExpiryItemsPerBlock:        DefaultMaxSupportExpiryItemsPerBlock,
+			SupportWindowEpochs:                    2,
+			ActiveSupporterMinCount:                2,
+			ActiveSupportStakeMultiple:             2,
+			ActiveSupportStakeCapMultiplier:        3,
+			MaxSupportedModelsPerOperator:          64,
+			MaxDailySupportConfirmationsPerBatch:   256,
+			MaxDailySupportItemsPerBatch:           256,
+			MaxDailySupportBatchBytes:              1 << 20,
+			DailySupportRetentionEpochs:            30,
+			ModelSupportRowRetentionEpochs:         30,
+			MaxModelSupportPruneItemsPerBlock:      32,
+			MaxSupportExpiryItemsPerBlock:          DefaultMaxSupportExpiryItemsPerBlock,
+			MaxModelSupportRecheckItemsPerBlock:    32,
+			MaxModelSupportDeactivateItemsPerBlock: 32,
+		},
+		Model: ModelParamsV1{
+			MaxSupportedToolCallParsers:  128,
+			MaxSupportedReasoningParsers: 128,
+			MaxParserNameBytes:           64,
+			MaxProviderBytes:             32,
+			MaxSourceUriBytes:            2048,
+			MaxRevisionBytes:             128,
+			MaxResolverVersionBytes:      64,
+			MaxRepoIdBytes:               255,
+			MaxRepoTypeBytes:             32,
 		},
 		CandidatePool: CandidatePoolParamsV1{
 			CandidateSlotHardCapacity:                 4096,
@@ -94,6 +106,7 @@ func DefaultHubParams() HubParamsV2 {
 			MinTaskLiability:                       AmountFromUint64(DefaultMinTaskLiability),
 			MaxServiceBondEffectiveItemsPerBlock:   1024,
 			TaskLiabilityOrderCoverageBps:          10_000,
+			MinStakeGracePeriodBlocks:              100,
 		},
 		Builder: BuilderParamsV1{
 			BuilderSetCap:                         DefaultBuilderSetCap,
@@ -107,6 +120,7 @@ func DefaultHubParams() HubParamsV2 {
 			MaxBuilderSetPruneItemsPerBlock:       32,
 			BuilderFaultRetentionBlocks:           DefaultRecordRetentionBlocks,
 			MaxBuilderFaultPruneItemsPerBlock:     DefaultMaxRoleFaultPruneItemsPerBlock,
+			MaxBuilderSetIdBytes:                  128,
 		},
 		Reward: RewardParamsV1{
 			MaxOrderValueHistogramBuckets: 256,
@@ -201,14 +215,17 @@ func (p HubParamsV2) Validate() error {
 		return fmt.Errorf("epoch parameters are invalid")
 	}
 	if p.Support.SupportWindowEpochs == 0 || p.Support.ActiveSupporterMinCount == 0 ||
-		p.Support.ActiveSupportStakeRatioNumerator == 0 || p.Support.ActiveSupportStakeRatioDenominator == 0 ||
-		p.Support.ActiveSupportStakeRatioNumerator > p.Support.ActiveSupportStakeRatioDenominator ||
-		p.Support.ActiveSupportStakeRatioDenominator > 1_000_000 || p.Support.ActiveSupportStakeCapMultiplier == 0 ||
-		p.Support.MaxSupportedProfilesPerOperator == 0 || p.Support.MaxDailySupportConfirmationsPerBatch == 0 ||
+		p.Support.ActiveSupportStakeMultiple == 0 ||
+		p.Support.ActiveSupportStakeCapMultiplier == 0 || p.Support.ActiveSupportStakeCapMultiplier > 16 ||
+		p.Support.MaxSupportedModelsPerOperator == 0 || p.Support.MaxDailySupportConfirmationsPerBatch == 0 ||
 		p.Support.MaxDailySupportItemsPerBatch == 0 || p.Support.MaxDailySupportBatchBytes == 0 ||
 		p.Support.DailySupportRetentionEpochs == 0 || p.Support.ModelSupportRowRetentionEpochs == 0 ||
-		p.Support.MaxModelSupportPruneItemsPerBlock == 0 || p.Support.MaxSupportExpiryItemsPerBlock == 0 {
+		p.Support.MaxModelSupportPruneItemsPerBlock == 0 || p.Support.MaxSupportExpiryItemsPerBlock == 0 ||
+		p.Support.MaxModelSupportRecheckItemsPerBlock == 0 || p.Support.MaxModelSupportDeactivateItemsPerBlock == 0 {
 		return fmt.Errorf("support parameters are invalid")
+	}
+	if err := validateModelParams(p.Model); err != nil {
+		return err
 	}
 	if p.CandidatePool.CandidateSlotHardCapacity == 0 || p.CandidatePool.CandidateBitmapSegmentBytes == 0 ||
 		p.CandidatePool.CandidatePoolBuildLeadBlocks == 0 || p.CandidatePool.MaxCandidatePoolBuildMembersPerBlock == 0 ||
@@ -233,7 +250,8 @@ func (p HubParamsV2) Validate() error {
 		p.Service.MaxUnbondingWithdrawItemsPerTx == 0 || p.Service.MaxUnbondingMaturityItemsPerBlock == 0 ||
 		p.Service.RecordRetentionBlocks < p.Service.ServiceUnbondingPeriodBlocks || p.Service.MaxRoleFaultPruneItemsPerBlock == 0 ||
 		p.Service.ObjectiveForgerySlashBps == 0 || p.Service.ObjectiveForgerySlashBps > 10_000 ||
-		p.Service.MaxServiceBondEffectiveItemsPerBlock == 0 || p.Service.TaskLiabilityOrderCoverageBps != 10_000 {
+		p.Service.MaxServiceBondEffectiveItemsPerBlock == 0 || p.Service.TaskLiabilityOrderCoverageBps != 10_000 ||
+		p.Service.MinStakeGracePeriodBlocks == 0 {
 		return fmt.Errorf("service parameters are invalid")
 	}
 	if p.Builder.BuilderSetCap < p.Builder.BuildersPerTask || p.Builder.BuildersPerTask != 3 ||
@@ -241,7 +259,7 @@ func (p HubParamsV2) Validate() error {
 		p.Builder.OpenVerifyBuilderProposalWindowBlocks == 0 || p.Builder.SettlementBuilderGraceBlocks == 0 ||
 		p.Builder.BuilderSetRetentionEpochs == 0 || p.Builder.BuilderSetHeaderRetentionEpochs == 0 ||
 		p.Builder.MaxBuilderSetPruneItemsPerBlock == 0 || p.Builder.BuilderFaultRetentionBlocks == 0 ||
-		p.Builder.MaxBuilderFaultPruneItemsPerBlock == 0 {
+		p.Builder.MaxBuilderFaultPruneItemsPerBlock == 0 || p.Builder.MaxBuilderSetIdBytes == 0 {
 		return fmt.Errorf("builder parameters are invalid")
 	}
 	if err := validateRewardParams(p.Reward); err != nil {
@@ -288,6 +306,32 @@ func (p HubParamsV2) Validate() error {
 		return err
 	}
 	return validateEndBlockCaps(p)
+}
+
+func validateModelParams(p ModelParamsV1) error {
+	if p.MaxSupportedToolCallParsers == 0 || p.MaxSupportedReasoningParsers == 0 ||
+		p.MaxParserNameBytes == 0 || p.MaxProviderBytes == 0 || p.MaxSourceUriBytes == 0 ||
+		p.MaxRevisionBytes == 0 || p.MaxResolverVersionBytes == 0 || p.MaxRepoIdBytes == 0 ||
+		p.MaxRepoTypeBytes == 0 ||
+		uint64(len(p.SupportedToolCallParsers)) > uint64(p.MaxSupportedToolCallParsers) ||
+		uint64(len(p.SupportedReasoningParsers)) > uint64(p.MaxSupportedReasoningParsers) {
+		return fmt.Errorf("model parameters are invalid")
+	}
+	for _, entries := range [][]shared.ParserRefV1{p.SupportedToolCallParsers, p.SupportedReasoningParsers} {
+		var previous shared.ParserRefV1
+		for index, entry := range entries {
+			if entry.Name == "" || entry.Name != strings.TrimSpace(entry.Name) ||
+				uint64(len(entry.Name)) > uint64(p.MaxParserNameBytes) || entry.Version == 0 {
+				return fmt.Errorf("model parser allowlist entry is invalid")
+			}
+			if index > 0 && (previous.Name > entry.Name ||
+				previous.Name == entry.Name && previous.Version >= entry.Version) {
+				return fmt.Errorf("model parser allowlist must be strictly sorted and unique")
+			}
+			previous = entry
+		}
+	}
+	return nil
 }
 
 func validateRewardParams(p RewardParamsV1) error {
@@ -502,6 +546,14 @@ func hubParamsStrings(values []string) []canonicalHubParamsValue {
 	return result
 }
 
+func hubParamsParserRefs(values []shared.ParserRefV1) []canonicalHubParamsValue {
+	result := make([]canonicalHubParamsValue, len(values))
+	for i, value := range values {
+		result[i] = hubParamsMessage(hubParamsScalar([]byte(value.Name)), hubParamsScalar(shared.Uint32BE(value.Version)))
+	}
+	return result
+}
+
 func (v canonicalHubParamsValue) canonicalField() shared.CanonicalFieldV1 {
 	switch v.kind {
 	case canonicalHubParamsScalar:
@@ -566,12 +618,13 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 		hubParamsMessage(hubParamsScalar(shared.Uint64BE(p.Epoch.EpochLengthBlocks)), hubParamsScalar(shared.Uint64BE(p.Epoch.DeltaWBlocks)), hubParamsScalar(shared.Uint64BE(p.Epoch.DeltaMBlocks))),
 		hubParamsMessage(
 			hubParamsScalar(shared.Uint32BE(p.Support.SupportWindowEpochs)), hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupporterMinCount)),
-			hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupportStakeRatioNumerator)), hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupportStakeRatioDenominator)),
-			hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupportStakeCapMultiplier)), hubParamsScalar(shared.Uint32BE(p.Support.MaxSupportedProfilesPerOperator)),
+			hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupportStakeMultiple)),
+			hubParamsScalar(shared.Uint32BE(p.Support.ActiveSupportStakeCapMultiplier)), hubParamsScalar(shared.Uint32BE(p.Support.MaxSupportedModelsPerOperator)),
 			hubParamsScalar(shared.Uint32BE(p.Support.MaxDailySupportConfirmationsPerBatch)), hubParamsScalar(shared.Uint32BE(p.Support.MaxDailySupportItemsPerBatch)),
 			hubParamsScalar(shared.Uint64BE(p.Support.MaxDailySupportBatchBytes)), hubParamsScalar(shared.Uint32BE(p.Support.DailySupportRetentionEpochs)),
 			hubParamsScalar(shared.Uint32BE(p.Support.ModelSupportRowRetentionEpochs)), hubParamsScalar(shared.Uint32BE(p.Support.MaxModelSupportPruneItemsPerBlock)),
-			hubParamsScalar(shared.Uint32BE(p.Support.MaxSupportExpiryItemsPerBlock)),
+			hubParamsScalar(shared.Uint32BE(p.Support.MaxSupportExpiryItemsPerBlock)), hubParamsScalar(shared.Uint32BE(p.Support.MaxModelSupportRecheckItemsPerBlock)),
+			hubParamsScalar(shared.Uint32BE(p.Support.MaxModelSupportDeactivateItemsPerBlock)),
 		),
 		hubParamsMessage(
 			hubParamsScalar(shared.Uint32BE(p.CandidatePool.CandidateSlotHardCapacity)), hubParamsScalar(shared.Uint32BE(p.CandidatePool.CandidateBitmapSegmentBytes)),
@@ -592,6 +645,7 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.Uint32BE(p.Service.MaxRoleFaultPruneItemsPerBlock)), hubParamsScalar(shared.Uint32BE(p.Service.ObjectiveForgerySlashBps)),
 			hubParamsAmount(p.Service.MinTaskLiability), hubParamsScalar(shared.Uint32BE(p.Service.MaxServiceBondEffectiveItemsPerBlock)),
 			hubParamsScalar(shared.Uint32BE(p.Service.TaskLiabilityOrderCoverageBps)),
+			hubParamsScalar(shared.Uint64BE(p.Service.MinStakeGracePeriodBlocks)),
 		),
 		hubParamsMessage(
 			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetCap)), hubParamsScalar(shared.Uint32BE(p.Builder.BuildersPerTask)),
@@ -600,6 +654,7 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetRetentionEpochs)), hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetHeaderRetentionEpochs)),
 			hubParamsScalar(shared.Uint32BE(p.Builder.MaxBuilderSetPruneItemsPerBlock)), hubParamsScalar(shared.Uint64BE(p.Builder.BuilderFaultRetentionBlocks)),
 			hubParamsScalar(shared.Uint32BE(p.Builder.MaxBuilderFaultPruneItemsPerBlock)),
+			hubParamsScalar(shared.Uint32BE(p.Builder.MaxBuilderSetIdBytes)),
 		),
 		hubParamsMessage(reward...),
 		hubParamsMessage(
@@ -632,6 +687,14 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.Uint32BE(p.Bridge.BridgeUsageRetentionEpochs)), hubParamsScalar(shared.Uint32BE(p.Bridge.MaxBridgeUsagePruneItemsPerBlock)),
 			hubParamsScalar(shared.Uint32BE(p.Bridge.MaxBridgeCutoverInflightMessages)), hubParamsScalar(shared.Uint64BE(p.Bridge.BridgeBootstrapMaxGas)),
 		),
+		hubParamsMessage(
+			hubParamsRepeated(hubParamsParserRefs(p.Model.SupportedToolCallParsers)), hubParamsRepeated(hubParamsParserRefs(p.Model.SupportedReasoningParsers)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxSupportedToolCallParsers)), hubParamsScalar(shared.Uint32BE(p.Model.MaxSupportedReasoningParsers)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxParserNameBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxProviderBytes)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxSourceUriBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxRevisionBytes)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxResolverVersionBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxRepoIdBytes)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxRepoTypeBytes)),
+		),
 	}
 }
 
@@ -653,10 +716,20 @@ func GenesisOnlyHubParamsChanged(current, next HubParamsV2) (GenesisOnlyHubParam
 	case !current.Epoch.Equal(next.Epoch):
 		return GenesisOnlyHubParamsField{Name: "epoch"}, true
 	case current.Support.ActiveSupporterMinCount != next.Support.ActiveSupporterMinCount ||
-		current.Support.ActiveSupportStakeRatioNumerator != next.Support.ActiveSupportStakeRatioNumerator ||
-		current.Support.ActiveSupportStakeRatioDenominator != next.Support.ActiveSupportStakeRatioDenominator ||
-		current.Support.ActiveSupportStakeCapMultiplier != next.Support.ActiveSupportStakeCapMultiplier:
+		current.Support.ActiveSupportStakeMultiple != next.Support.ActiveSupportStakeMultiple ||
+		current.Support.ActiveSupportStakeCapMultiplier != next.Support.ActiveSupportStakeCapMultiplier ||
+		current.Support.MaxSupportedModelsPerOperator != next.Support.MaxSupportedModelsPerOperator:
 		return GenesisOnlyHubParamsField{Name: "support.activation_thresholds", RequiresSupportReindex: true}, true
+	case current.Model.MaxSupportedToolCallParsers != next.Model.MaxSupportedToolCallParsers ||
+		current.Model.MaxSupportedReasoningParsers != next.Model.MaxSupportedReasoningParsers ||
+		current.Model.MaxParserNameBytes != next.Model.MaxParserNameBytes ||
+		current.Model.MaxProviderBytes != next.Model.MaxProviderBytes ||
+		current.Model.MaxSourceUriBytes != next.Model.MaxSourceUriBytes ||
+		current.Model.MaxRevisionBytes != next.Model.MaxRevisionBytes ||
+		current.Model.MaxResolverVersionBytes != next.Model.MaxResolverVersionBytes ||
+		current.Model.MaxRepoIdBytes != next.Model.MaxRepoIdBytes ||
+		current.Model.MaxRepoTypeBytes != next.Model.MaxRepoTypeBytes:
+		return GenesisOnlyHubParamsField{Name: "model.validation_limits"}, true
 	case current.CandidatePool.CandidateSlotHardCapacity != next.CandidatePool.CandidateSlotHardCapacity ||
 		current.CandidatePool.CandidateBitmapSegmentBytes != next.CandidatePool.CandidateBitmapSegmentBytes:
 		return GenesisOnlyHubParamsField{Name: "candidate_pool.layout"}, true

@@ -18,11 +18,11 @@ import (
 const (
 	SignatureSchemeEIP712        = "eip712"
 	TaskOrderEIP712DomainName    = "TrueOpen Task Order"
-	TaskOrderEIP712DomainVersion = "2"
+	TaskOrderEIP712DomainVersion = "3"
 	EthSecp256k1PublicKeyType    = "eth_secp256k1"
 
 	taskOrderEIP712DomainType  = "EIP712Domain(string name,string version,uint256 chainId)"
-	taskOrderEIP712MessageType = "TaskOrder(string chainId,string user,bytes32 sessionId,uint64 orderSequence,string modelId,uint32 profileVersion,string maxFee,string feeDenom,uint64 earliestSubmitHeight,uint64 orderExpireHeight,bytes32 taskHash)"
+	taskOrderEIP712MessageType = "TaskOrder(string chainId,string user,bytes32 sessionId,uint64 orderSequence,bytes32 modelId,uint32 profileVersion,string maxFee,string feeDenom,uint64 earliestSubmitHeight,uint64 orderExpireHeight,bytes32 taskHash)"
 	taskOrderAccountHRP        = "trueopen"
 )
 
@@ -53,11 +53,11 @@ type EIP712RecoveredSigner struct {
 // BuildTaskOrderEIP712Digest implements the exact SignedOrderV2 order domain.
 // taskHash is explicit because the public EIP-712 conformance vector treats it
 // as an opaque bytes32. VerifySignedOrderV2EIP712* additionally recomputes it
-// from the complete TaskOrderV2 before accepting a signature.
+// from the complete TaskOrderV3 before accepting a signature.
 func BuildTaskOrderEIP712Digest(
 	evmChainID uint64,
 	businessDenom string,
-	order TaskOrderV2,
+	order TaskOrderV3,
 	taskHash []byte,
 ) (TaskOrderEIP712Digest, error) {
 	if evmChainID == 0 || evmChainID > uint64(math.MaxInt64) {
@@ -66,7 +66,7 @@ func BuildTaskOrderEIP712Digest(
 	if businessDenom == "" || businessDenom != strings.TrimSpace(businessDenom) || !utf8.ValidString(businessDenom) {
 		return TaskOrderEIP712Digest{}, fmt.Errorf("business_denom must be non-empty canonical UTF-8")
 	}
-	// This is the existing single full TaskOrderV2 schema/canonical validator.
+	// This is the existing single full TaskOrderV3 schema/canonical validator.
 	// Its digest is deliberately not substituted for taskHash here: callers of
 	// this low-level builder may be checking the published opaque EIP-712 vector.
 	if _, err := TaskOrderHash(order); err != nil {
@@ -94,7 +94,7 @@ func BuildTaskOrderEIP712Digest(
 		eip712StringWord(order.UserAddress),
 		order.SessionId,
 		eip712Uint64Word(order.OrderSequence),
-		eip712StringWord(order.ModelId),
+		order.ModelId,
 		eip712Uint32Word(order.ProfileVersion),
 		eip712StringWord(order.MaxFee.AtomicUnits),
 		eip712StringWord(businessDenom),
@@ -188,7 +188,7 @@ func verifySignedOrderV2EIP712(
 		return fmt.Errorf("task order: %w", err)
 	}
 	if len(taskHash) != Hash32Len || !bytes.Equal(recomputedTaskHash[:], taskHash) {
-		return fmt.Errorf("task_hash does not match TaskOrderV2")
+		return fmt.Errorf("task_hash does not match TaskOrderV3")
 	}
 	digest, err := BuildTaskOrderEIP712Digest(evmChainID, businessDenom, signedOrder.Order, taskHash)
 	if err != nil {
@@ -203,7 +203,7 @@ func verifySignedOrderV2EIP712(
 		return err
 	}
 	if !bytes.Equal(recovered.Address, userAddress) {
-		return fmt.Errorf("recovered signer does not match TaskOrderV2 user_address")
+		return fmt.Errorf("recovered signer does not match TaskOrderV3 user_address")
 	}
 	if len(expectedPublicKey) != 0 && !bytes.Equal(recovered.PublicKey, expectedPublicKey) {
 		return fmt.Errorf("recovered signer public key does not match the user account public key")
@@ -216,15 +216,15 @@ func verifySignedOrderV2EIP712(
 
 func canonicalTaskOrderEIP712User(value string) ([]byte, error) {
 	if value == "" || value != strings.TrimSpace(value) {
-		return nil, fmt.Errorf("TaskOrderV2 user_address must be canonical Bech32")
+		return nil, fmt.Errorf("TaskOrderV3 user_address must be canonical Bech32")
 	}
 	hrp, raw, err := bech32.DecodeAndConvert(value)
 	if err != nil || hrp != taskOrderAccountHRP || len(raw) != 20 {
-		return nil, fmt.Errorf("TaskOrderV2 user_address must be a 20-byte %s address", taskOrderAccountHRP)
+		return nil, fmt.Errorf("TaskOrderV3 user_address must be a 20-byte %s address", taskOrderAccountHRP)
 	}
 	reencoded, err := bech32.ConvertAndEncode(taskOrderAccountHRP, raw)
 	if err != nil || reencoded != value {
-		return nil, fmt.Errorf("TaskOrderV2 user_address must be canonical Bech32")
+		return nil, fmt.Errorf("TaskOrderV3 user_address must be canonical Bech32")
 	}
 	return append([]byte(nil), raw...), nil
 }

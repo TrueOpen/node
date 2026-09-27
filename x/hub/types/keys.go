@@ -133,18 +133,17 @@ var (
 	TaskLiabilityByTaskIndexKey            = MustVersionedStorePrefix("task_liability_by_task", CurrentStoreSchemaVersion)
 	ServiceKeyResponsibilityKey            = MustVersionedStorePrefix("service_key_responsibility", CurrentStoreSchemaVersion)
 	ServiceKeyResponsibilityByTaskIndexKey = MustVersionedStorePrefix("service_key_responsibility_by_task", CurrentStoreSchemaVersion)
-	ProfileCapabilityKey                   = MustVersionedStorePrefix("profile_capability", CurrentStoreSchemaVersion)
+	ModelCapabilityKey                     = MustVersionedStorePrefix("model_capability", CurrentStoreSchemaVersion)
 	ModelSupportKey                        = MustVersionedStorePrefix("model_support", CurrentStoreSchemaVersion)
 	ModelSupportExpiryIndexKey             = MustVersionedStorePrefix("model_support_expiry", CurrentStoreSchemaVersion)
 	ModelSupportPruneIndexKey              = MustVersionedStorePrefix("model_support_prune", CurrentStoreSchemaVersion)
-	ModelSupportByProfileIndexKey          = MustVersionedStorePrefix("model_support_by_profile", CurrentStoreSchemaVersion)
+	ModelSupportByModelIndexKey            = MustVersionedStorePrefix("model_support_by_model", CurrentStoreSchemaVersion)
 	ModelSupportByOperatorIndexKey         = MustVersionedStorePrefix("model_support_by_operator", CurrentStoreSchemaVersion)
+	ModelSupportRecheckIndexKey            = MustVersionedStorePrefix("model_support_recheck", CurrentStoreSchemaVersion)
+	ModelSupportRecheckCursorKey           = MustVersionedStorePrefix("model_support_recheck_cursor", CurrentStoreSchemaVersion)
+	ModelSupportDeactivateCursorKey        = MustVersionedStorePrefix("model_support_deactivate_cursor", CurrentStoreSchemaVersion)
 	DailySupportStateKey                   = MustVersionedStorePrefix("daily_support", CurrentStoreSchemaVersion)
 	DailySupportExpiryIndexKey             = MustVersionedStorePrefix("daily_support_expiry", CurrentStoreSchemaVersion)
-	// SupportDeactivateCursorKey backs GenesisState.support_deactivate_cursors
-	// (field 19). One row per profile whose governance/freeze status change still
-	// owes a bounded supporter fan-out; the EndBlock cursor deletes it on DONE.
-	SupportDeactivateCursorKey = MustVersionedStorePrefix("support_deactivate_cursor", CurrentStoreSchemaVersion)
 
 	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
 	//
@@ -274,15 +273,15 @@ func NewBeaconConsumerRefKey(height uint64, kind BeaconConsumerKind, consumerID 
 	return collections.Join3(height, uint32(kind), consumerID)
 }
 
-type FreezeSignalBuildCursorKey = collections.Pair[string, uint32]
+type FreezeSignalBuildCursorKey = collections.Pair[shared.Hash32Key, uint32]
 
-func NewFreezeSignalBuildCursorKey(modelID string, profileVersion uint32) FreezeSignalBuildCursorKey {
+func NewFreezeSignalBuildCursorKey(modelID []byte, profileVersion uint32) FreezeSignalBuildCursorKey {
 	return collections.Join(modelID, profileVersion)
 }
 
-type FreezeSignalByWindowKey = collections.Triple[string, uint32, uint64]
+type FreezeSignalByWindowKey = collections.Triple[shared.Hash32Key, uint32, uint64]
 
-func NewFreezeSignalByWindowKey(modelID string, profileVersion uint32, riskWindowID uint64) FreezeSignalByWindowKey {
+func NewFreezeSignalByWindowKey(modelID []byte, profileVersion uint32, riskWindowID uint64) FreezeSignalByWindowKey {
 	return collections.Join3(modelID, profileVersion, riskWindowID)
 }
 
@@ -291,9 +290,9 @@ func NewFreezeSignalByWindowKey(modelID string, profileVersion uint32, riskWindo
 // length prefix -- so the encoding is byte-identical and existing page tokens for
 // FreezeSignals stay valid. The change buys fail-closed width typing, not bytes.
 type FreezeSignalWindowOrderKey = collections.Pair[uint64, shared.Hash32Key]
-type FreezeSignalByProfileKey = collections.Quad[string, uint32, int32, FreezeSignalWindowOrderKey]
+type FreezeSignalByProfileKey = collections.Quad[shared.Hash32Key, uint32, int32, FreezeSignalWindowOrderKey]
 
-func NewFreezeSignalByProfileKey(modelID string, profileVersion uint32, signalStatus FreezeSignalStatus, riskWindowEndHeight uint64, signalID shared.Hash32Key) FreezeSignalByProfileKey {
+func NewFreezeSignalByProfileKey(modelID []byte, profileVersion uint32, signalStatus FreezeSignalStatus, riskWindowEndHeight uint64, signalID shared.Hash32Key) FreezeSignalByProfileKey {
 	return collections.Join4(modelID, profileVersion, int32(signalStatus), collections.Join(riskWindowEndHeight, append(shared.Hash32Key(nil), signalID...)))
 }
 
@@ -339,9 +338,9 @@ func NewBuilderSetReplacementKey(effectiveHeight, version uint64) BuilderSetRepl
 	return collections.Join(effectiveHeight, version)
 }
 
-type FreezeRiskWindowScheduleKey = collections.Triple[uint64, string, uint32]
+type FreezeRiskWindowScheduleKey = collections.Triple[uint64, shared.Hash32Key, uint32]
 
-func NewFreezeRiskWindowScheduleKey(nextWindowCloseHeight uint64, modelID string, profileVersion uint32) FreezeRiskWindowScheduleKey {
+func NewFreezeRiskWindowScheduleKey(nextWindowCloseHeight uint64, modelID []byte, profileVersion uint32) FreezeRiskWindowScheduleKey {
 	return collections.Join3(nextWindowCloseHeight, modelID, profileVersion)
 }
 
@@ -533,52 +532,52 @@ func NewServiceKeyResponsibilityKey(participantType shared.ParticipantType, oper
 // NewServiceKeyResponsibilityKey.
 type ServiceKeyResponsibilityByTaskSuffix = ServiceKeyResponsibilityKeyTriple
 
-// session_id and task_id stay text here on purpose: ServiceKeyResponsibilityState
-// still declares both as proto `string` (participant_identity.proto:85-86), so a
-// raw key would have to decode them at every read and write -- adding a bridge
-// instead of deleting one. They can follow once those two fields are retyped to
-// bytes, which is a proto change and belongs with the P2 batch, not here.
-// responsibility_id inside the suffix is already `bytes`, so it migrates.
-type ServiceKeyResponsibilityByTaskKeyTriple = collections.Triple[string, string, ServiceKeyResponsibilityByTaskSuffix]
+type ServiceKeyResponsibilityByTaskKeyTriple = collections.Triple[shared.Hash32Key, shared.Hash32Key, ServiceKeyResponsibilityByTaskSuffix]
 
-func NewServiceKeyResponsibilityByTaskKey(sessionID, taskID string, participantType shared.ParticipantType, operatorAddress string, responsibilityID shared.Hash32Key) ServiceKeyResponsibilityByTaskKeyTriple {
+func NewServiceKeyResponsibilityByTaskKey(sessionID, taskID []byte, participantType shared.ParticipantType, operatorAddress string, responsibilityID shared.Hash32Key) ServiceKeyResponsibilityByTaskKeyTriple {
 	return collections.Join3(sessionID, taskID, NewServiceKeyResponsibilityKey(participantType, operatorAddress, responsibilityID))
 }
 
-type ProfileCapabilityKeyTriple = collections.Triple[string, string, uint32]
+type ModelCapabilityKeyPair = collections.Pair[string, shared.Hash32Key]
 
-func NewProfileCapabilityKey(operatorAddress, modelID string, profileVersion uint32) ProfileCapabilityKeyTriple {
-	return collections.Join3(operatorAddress, modelID, profileVersion)
+func NewModelCapabilityKey(operatorAddress string, modelID []byte) ModelCapabilityKeyPair {
+	return collections.Join(operatorAddress, modelID)
 }
 
-type ModelSupportKeyTriple = collections.Triple[string, string, uint32]
+type ModelSupportKeyPair = collections.Pair[string, shared.Hash32Key]
 
-func NewModelSupportKey(operatorAddress, modelID string, profileVersion uint32) ModelSupportKeyTriple {
-	return collections.Join3(operatorAddress, modelID, profileVersion)
+func NewModelSupportKey(operatorAddress string, modelID []byte) ModelSupportKeyPair {
+	return collections.Join(operatorAddress, modelID)
 }
 
-type ModelSupportExpiryIndexKeyPair = collections.Pair[uint64, ModelSupportKeyTriple]
+type ModelSupportExpiryIndexKeyPair = collections.Pair[uint64, ModelSupportKeyPair]
 
-func NewModelSupportExpiryIndexKey(expireEpoch uint64, operatorAddress, modelID string, profileVersion uint32) ModelSupportExpiryIndexKeyPair {
-	return collections.Join(expireEpoch, NewModelSupportKey(operatorAddress, modelID, profileVersion))
+func NewModelSupportExpiryIndexKey(expireEpoch uint64, operatorAddress string, modelID []byte) ModelSupportExpiryIndexKeyPair {
+	return collections.Join(expireEpoch, NewModelSupportKey(operatorAddress, modelID))
 }
 
-type ModelSupportPruneIndexKeyPair = collections.Pair[uint64, ModelSupportKeyTriple]
+type ModelSupportPruneIndexKeyPair = collections.Pair[uint64, ModelSupportKeyPair]
 
-func NewModelSupportPruneIndexKey(pruneEpoch uint64, operatorAddress, modelID string, profileVersion uint32) ModelSupportPruneIndexKeyPair {
-	return collections.Join(pruneEpoch, NewModelSupportKey(operatorAddress, modelID, profileVersion))
+func NewModelSupportPruneIndexKey(pruneEpoch uint64, operatorAddress string, modelID []byte) ModelSupportPruneIndexKeyPair {
+	return collections.Join(pruneEpoch, NewModelSupportKey(operatorAddress, modelID))
 }
 
-type ModelSupportByProfileIndexKeyTriple = collections.Triple[string, uint32, string]
+type ModelSupportByModelIndexKeyPair = collections.Pair[shared.Hash32Key, string]
 
-func NewModelSupportByProfileIndexKey(modelID string, profileVersion uint32, operatorAddress string) ModelSupportByProfileIndexKeyTriple {
-	return collections.Join3(modelID, profileVersion, operatorAddress)
+func NewModelSupportByModelIndexKey(modelID []byte, operatorAddress string) ModelSupportByModelIndexKeyPair {
+	return collections.Join(modelID, operatorAddress)
 }
 
-type ModelSupportByOperatorIndexKeyTriple = collections.Triple[string, string, uint32]
+type ModelSupportByOperatorIndexKeyPair = collections.Pair[string, shared.Hash32Key]
 
-func NewModelSupportByOperatorIndexKey(operatorAddress, modelID string, profileVersion uint32) ModelSupportByOperatorIndexKeyTriple {
-	return collections.Join3(operatorAddress, modelID, profileVersion)
+func NewModelSupportByOperatorIndexKey(operatorAddress string, modelID []byte) ModelSupportByOperatorIndexKeyPair {
+	return collections.Join(operatorAddress, modelID)
+}
+
+type ModelSupportRecheckIndexKeyPair = collections.Pair[uint64, shared.Hash32Key]
+
+func NewModelSupportRecheckIndexKey(effectiveHeight uint64, modelID []byte) ModelSupportRecheckIndexKeyPair {
+	return collections.Join(effectiveHeight, modelID)
 }
 
 type DailySupportKey = collections.Pair[uint64, string]
@@ -682,9 +681,9 @@ func NewRoleFaultKey(faultID shared.Hash32Key) shared.Hash32Key {
 // source_id is a raw Hash32 -- either a role fault_id or a challenge_id. The
 // TrimSpace this used to apply was a text-key defence that a fixed-width codec
 // makes unrepresentable: a 32-byte key cannot carry surrounding whitespace.
-type SlashSummaryKeyTriple = collections.Triple[int32, shared.Hash32Key, uint64]
+type SlashSummaryKeyTriple = collections.Triple[int32, shared.Hash32Key, uint32]
 
-func NewSlashSummaryKey(sourceKind SlashSourceKind, sourceID shared.Hash32Key, effectIndex uint64) SlashSummaryKeyTriple {
+func NewSlashSummaryKey(sourceKind SlashSourceKind, sourceID shared.Hash32Key, effectIndex uint32) SlashSummaryKeyTriple {
 	return collections.Join3(int32(sourceKind), sourceID, effectIndex)
 }
 
@@ -807,11 +806,10 @@ const (
 
 const (
 	ProfileStatusSourceUnspecified = ProfileStatusSource_PROFILE_STATUS_SOURCE_UNSPECIFIED
-	ProfileStatusSourceAutoSupport = ProfileStatusSource_PROFILE_STATUS_SOURCE_AUTO_SUPPORT
 	ProfileStatusSourceGovernance  = ProfileStatusSource_PROFILE_STATUS_SOURCE_GOVERNANCE
 	ProfileStatusSourceEmergency   = ProfileStatusSource_PROFILE_STATUS_SOURCE_EMERGENCY
 	ModelStatusSourceUnspecified   = ModelStatusSource_MODEL_STATUS_SOURCE_UNSPECIFIED
-	ModelStatusSourceAutoProfile   = ModelStatusSource_MODEL_STATUS_SOURCE_AUTO_PROFILE
+	ModelStatusSourceAutoSupport   = ModelStatusSource_MODEL_STATUS_SOURCE_AUTO_SUPPORT
 	ModelStatusSourceGovernance    = ModelStatusSource_MODEL_STATUS_SOURCE_GOVERNANCE
 	ModelStatusSourceEmergency     = ModelStatusSource_MODEL_STATUS_SOURCE_EMERGENCY
 )
@@ -895,10 +893,10 @@ const (
 )
 
 // ProfileStateKeyPair = (model_id, profile_version).
-type ProfileStateKeyPair = collections.Pair[string, string]
+type ProfileStateKeyPair = collections.Pair[shared.Hash32Key, uint32]
 
-func NewProfileStateKey(modelID string, profileVersion uint32) ProfileStateKeyPair {
-	return collections.Join(modelID, strconv.FormatUint(uint64(profileVersion), 10))
+func NewProfileStateKey(modelID []byte, profileVersion uint32) ProfileStateKeyPair {
+	return collections.Join(modelID, profileVersion)
 }
 
 // VRF key rotation state (§9.3a). History is keyed by the epoch a key became

@@ -47,8 +47,8 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 	if err != nil {
 		return nil, status.Error(codes.Internal, "canonical operator address cannot be decoded")
 	}
-	queryHeight, lastTaskKey, rpcDigest, selectorDigest, err := q.decodeStringPairQueryPageToken(
-		ctx, token, shared.QueryRPCTaskRoleActiveTasksV1, operator, index.KeyCodec(),
+	queryHeight, lastTaskKey, rpcDigest, selectorDigest, err := q.decodeAddressPairQueryPageToken(
+		ctx, token, shared.QueryRPCTaskRoleActiveTasksV1, operatorBytes, index.KeyCodec(),
 		// duty is a closed proto enum, so §16.1's "enums use their frozen numeric
 		// values" makes EnumBE its
 		// encoder. The four bytes are the same ones Uint32BE wrote here before, so
@@ -60,12 +60,9 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 		return nil, err
 	}
 
-	// The operator prefix is unchanged (K1 is still an address string), and the
-	// K2 cursor bound keeps its meaning: Hash32KeyCodec's terminal encoding is a
-	// bare 32 bytes, so `prefix||task_id||0x00` still lands strictly after the
-	// cursor row and strictly before the next task_id, exactly as the raw
-	// terminal encoding of the lowercase-hex string did.
-	rng := collections.NewPrefixedPairRange[string, types.Hash32Key](operator)
+	// The operator prefix is raw codec bytes. The terminal Hash32 cursor remains
+	// fixed-width and advances only within this operator prefix.
+	rng := collections.NewPrefixedPairRange[types.AddrKey, types.Hash32Key](operatorBytes)
 	if len(lastTaskKey) != 0 {
 		rng = rng.StartExclusive(lastTaskKey)
 	}
@@ -84,7 +81,7 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if uint32(len(response.Tasks)) >= limit {
-			pageToken, err := encodeRoleActiveTasksPageToken(index, operator, lastReturnedTaskKey, rpcDigest, selectorDigest, queryHeight)
+			pageToken, err := encodeRoleActiveTasksPageToken(index, operatorBytes, lastReturnedTaskKey, rpcDigest, selectorDigest, queryHeight)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -103,7 +100,7 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 			if len(response.Tasks) == 0 {
 				return nil, status.Error(codes.Internal, "single active task row exceeds the response byte cap")
 			}
-			pageToken, err := encodeRoleActiveTasksPageToken(index, operator, lastReturnedTaskKey, rpcDigest, selectorDigest, queryHeight)
+			pageToken, err := encodeRoleActiveTasksPageToken(index, operatorBytes, lastReturnedTaskKey, rpcDigest, selectorDigest, queryHeight)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -122,16 +119,16 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 
 func encodeRoleActiveTasksPageToken(
 	index collections.KeySet[types.RoleActiveTaskKey],
-	operator string,
+	operator types.AddrKey,
 	taskKey types.TaskKey,
 	rpcDigest, selectorDigest []byte,
 	queryHeight uint64,
 ) ([]byte, error) {
-	primaryKey, err := encodeStringPairPrimaryKey(index.KeyCodec(), types.NewWorkerActiveTaskKey(operator, taskKey))
+	primaryKey, err := encodeAddressPairPrimaryKey(index.KeyCodec(), types.NewWorkerActiveTaskKey(operator, taskKey))
 	if err != nil {
 		return nil, err
 	}
-	return encodeStringPairQueryPageToken(rpcDigest, selectorDigest, primaryKey, queryHeight)
+	return encodeAddressPairQueryPageToken(rpcDigest, selectorDigest, primaryKey, queryHeight)
 }
 
 // activeTaskRef projects one active task. A role index row that does not resolve

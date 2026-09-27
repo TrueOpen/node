@@ -27,4 +27,5 @@ message TaskAssignmentStoreState {
   uint64 challenge_open_window_blocks_snapshot = 20;
   uint32 worker_infer_timeout_slash_bps = 21;
   uint32 result_reveal_missing_slash_bps = 22;
+  bytes min_stake_snapshot = 23;
 }

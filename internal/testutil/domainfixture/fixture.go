@@ -49,6 +49,26 @@ type Field struct {
 	Fields            []Field `json:"fields"`
 }
 
+func (f *Field) UnmarshalJSON(encoded []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		return err
+	}
+	if raw, ok := fields["value"]; ok && len(raw) > 0 {
+		var boolean bool
+		if err := json.Unmarshal(raw, &boolean); err == nil {
+			fields["bool"] = raw
+			delete(fields, "value")
+		}
+	}
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	type plain Field
+	return json.Unmarshal(normalized, (*plain)(f))
+}
+
 func Load(t testing.TB, path string) Fixture {
 	t.Helper()
 	raw, err := os.ReadFile(path)

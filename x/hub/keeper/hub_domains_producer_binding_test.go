@@ -65,7 +65,7 @@ func TestHubKeeperDomainFixtureBindsProductionProducers(t *testing.T) {
 
 	bind("freeze_signal_v1", "freezeSignalID", func(vector domainfixture.Vector) ([]byte, error) {
 		return freezeSignalID(
-			vector.String(t, 0, "chain_id"), vector.String(t, 1, "model_id"),
+			vector.String(t, 0, "chain_id"), vector.Bytes(t, 1, "model_id"),
 			uint32(vector.Uint(t, 2, "profile_version")), vector.Uint(t, 3, "risk_window_id"),
 			vector.Uint(t, 4, "risk_window_start_height"), vector.Uint(t, 5, "risk_window_end_height"),
 			uint32(vector.Uint(t, 6, "included_failure_task_ref_count")),

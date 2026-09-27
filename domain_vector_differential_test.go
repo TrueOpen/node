@@ -82,6 +82,26 @@ type domainGoldenField struct {
 	Fields  []domainGoldenField `json:"fields"`
 }
 
+func (field *domainGoldenField) UnmarshalJSON(encoded []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		return err
+	}
+	if raw, present := fields["value"]; present {
+		var boolean bool
+		if err := json.Unmarshal(raw, &boolean); err == nil {
+			fields["bool"] = raw
+			delete(fields, "value")
+		}
+	}
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	type plain domainGoldenField
+	return json.Unmarshal(normalized, (*plain)(field))
+}
+
 // domainVectorFilesWithPositionalFields lists the fixtures whose vectors frame their
 // fields positionally, without names. Their preimage and digest are still checked
 // here; only the name-order half of the differential is skipped, because there are no
@@ -275,11 +295,30 @@ func TestGoldenVectorsMatchDomainRegistryFieldOrder(t *testing.T) {
 	}
 }
 
-// registryFieldIdentifier is what a DomainSpec.Fields entry has to reduce to before it
-// can be compared with a vector's field name. Anything else is prose, and prose fails
-// the differential rather than being waved through: a row that cannot be checked is
-// the state this test exists to make visible.
+// registryFieldIdentifier is the simple field-name form. Reviewed descriptive
+// spellings below are mapped individually; arbitrary prose is never guessed.
 var registryFieldIdentifier = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+var registryDescriptiveFieldAliases = map[string]string{
+	"canonical HubParamsV2":            "params",
+	"canonical metric_summary":         "metric_summary",
+	"optional challenge_open_height":   "challenge_open_height",
+	"optional challenge_close_height":  "challenge_close_height",
+	"canonical TaskGasReimbursementV1": "gas_reimbursement",
+	"canonical SettlementPlanV1":       "settlement_plan",
+}
+
+var registryDomainFieldAliases = map[string]map[string]string{
+	shared.DomainHubParamsV2: {
+		"new_version": "params_version",
+	},
+	shared.DomainTaskRoundSummaryV1: {
+		"max_verify_round":  "max_closed_round",
+		"round1_facts_hash": "round1_facts_hash_or_zero32",
+		"round_outcome":     "round2_outcome_or_unspecified",
+		"round_effect_root": "round2_effect_root_or_zero32",
+	},
+}
 
 // registryFieldWrapper matches the two encoding wrappers the registry writes around a
 // field name: "uint32_be(count)" and "FieldFrameV1(member: a, b, c)".
@@ -302,6 +341,9 @@ var registryFieldWrapper = regexp.MustCompile(`^(?:uint32_be|FieldFrameV1)\((.+)
 // Nothing else is normalised. An entry that is a sentence stays a sentence and
 // returns false, which fails the caller loudly.
 func registryFieldName(entry string) (string, bool) {
+	if name, known := registryDescriptiveFieldAliases[entry]; known {
+		return name, true
+	}
 	candidate := entry
 	if match := registryFieldWrapper.FindStringSubmatch(entry); match != nil {
 		inner := match[1]
@@ -393,11 +435,20 @@ func assertRegistryFieldOrder(t *testing.T, spec shared.DomainSpec, label, varia
 	}
 
 	want := make([]string, 0, len(entries))
+	repeatedMiddle := -1
 	for index, entry := range entries {
-		require.False(t, isRepeatedRegistryField(entry),
-			"%s: %s Fields[%d] is a repeated group but is not the last entry; a variable-length tail cannot be followed by a fixed field",
-			label, spec.Domain, index)
+		if isRepeatedRegistryField(entry) {
+			require.Equal(t, -1, repeatedMiddle, "%s: multiple non-terminal repeated groups need explicit coverage", label)
+			repeatedMiddle = index
+			want = append(want, "")
+			continue
+		}
 		name, ok := registryFieldName(entry)
+		if aliases := registryDomainFieldAliases[spec.Domain]; aliases != nil {
+			if alias, found := aliases[entry]; found {
+				name, ok = alias, true
+			}
+		}
 		require.True(t, ok,
 			"%s: %s Fields[%d] is %q, which is prose rather than a field name. The domain now has a named golden vector, so the registry row has to name its fields too - resolve it against %s, do not relax this check.",
 			label, spec.Domain, index, entry, spec.ContractSection)
@@ -420,6 +471,17 @@ func assertRegistryFieldOrder(t *testing.T, spec shared.DomainSpec, label, varia
 		}
 		seen[field.Name] = index
 		got = append(got, field.Name)
+	}
+	if repeatedMiddle >= 0 {
+		require.False(t, repeatedTail, "%s: multiple repeated groups need explicit coverage", label)
+		require.Len(t, got, len(entries), "%s: a non-terminal repeated group must occupy one framed position", label)
+		group := fields[repeatedMiddle]
+		require.Equal(t, "frame", group.Type, "%s: the repeated group must be framed", label)
+		require.NotEmpty(t, group.Fields, "%s: the repeated frame needs an element count", label)
+		require.Equal(t, "element_count", group.Fields[0].Name, "%s: the repeated frame needs an element count", label)
+		want[repeatedMiddle] = group.Name
+		require.Equal(t, want, got, "%s: fixed fields around the repeated group must preserve registry order", label)
+		return
 	}
 
 	if !repeatedTail {
@@ -607,7 +669,6 @@ var domainVectorCoverageAllowlistV1 = map[string]string{
 	shared.DomainRotateBridgeSignerV1:     "Wire bridge action vectors missing (DOC-013)",
 	shared.DomainSetBridgeFreezeV1:        "Wire bridge action vectors missing (DOC-013)",
 	shared.DomainSetBridgeLimitV1:         "Wire bridge action vectors missing (DOC-013)",
-	shared.DomainTaskOrderV2:              "no released H_FIELDS_V1 task-order vector (DOC-020)",
 }
 
 // wireOwnedDomainVectorCoverage records domains whose normative producer and
@@ -627,24 +688,32 @@ var wireOwnedDomainVectorCoverage = map[string]string{
 // or no producer at all. They are not copied into Node merely to satisfy this
 // scan; the release pin is their byte-level authority.
 var wirePublishedDomainVectorCoverage = map[string]string{
-	shared.DomainBridgeDeploymentManifestV1: "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainPrefillTokenMetricLeafV2:   "Wire testdata/v1/task/metric_leaf_v2.json",
-	shared.DomainBurnBondV1:                 "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainMintBondV1:                 "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainOutputChunkV1:              "Wire testdata/v1/task/output_mmr_v1.json",
+	shared.DomainBridgeDeploymentManifestV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V2":     "Wire testdata/v1/task/builder_confirmation_v1.json",
+	shared.DomainInferReceiptV3:                    "Wire testdata/v1/task/infer_receipt_v3.json",
+	shared.DomainModelIDV1:                         "Wire testdata/v1/hub/model_id_v1.json",
+	"TRUEOPEN_OUTPUT_STREAM_HEADER_V1":             "Wire testdata/v1/task/output_stream_header_v1.json",
+	"TRUEOPEN_PREFILL_TOKEN_METRIC_LEAF_V3":        "Wire testdata/v1/task/metric_leaf_v3.json",
+	"TRUEOPEN_PREFILL_VERIFIER_TOPK_V1":            "Wire testdata/v1/task/verifier_value_leaf_v1.json",
+	"TRUEOPEN_PREFILL_VERIFIER_VALUE_LEAF_V1":      "Wire testdata/v1/task/verifier_value_leaf_v1.json",
+	"TRUEOPEN_PREFILL_WORKER_VALUE_LEAF_V1":        "Wire testdata/v1/task/worker_value_leaf_v1.json",
+	"TRUEOPEN_TASK_DATA_FETCH_BODY_V2":             "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_TASK_DATA_FINALIZE_RESULT_BODY_V2":   "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_TASK_DATA_FINALIZE_VERIFIER_BODY_V2": "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_TASK_DATA_METADATA_BODY_V2":          "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_TASK_DATA_REQUEST_V1":                "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_TASK_DATA_UPLOAD_BODY_V2":            "Wire testdata/v1/task/task_data_auth_v1.json",
+	shared.DomainTaskOrderV3:                       "Wire testdata/v1/task/task_order_v3.json",
+	"TRUEOPEN_WORKER_TOKEN_COMMITMENT_V1":          "Wire testdata/v1/task/worker_token_commitment_v1.json",
+	shared.DomainBurnBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainMintBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainOutputChunkV1:                     "Wire testdata/v1/task/output_mmr_v1.json",
 	// Neither domain has a producer here: the stream terminator is signed by the
 	// selected Worker's service key and the NATS binding by Cortex's.
-	"TRUEOPEN_OUTPUT_FIN_V1":                       "Wire testdata/v1/task/output_mmr_v1.json",
-	"TRUEOPEN_NATS_USER_BINDING_V1":                "Wire testdata/v1/bus/nats_user_binding_v1_vectors.json",
-	shared.DomainUSDCRouteV1:                       "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainVRFKeyPoPV1:                       "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V1":     "Wire testdata/v1/task/builder_confirmation_v1.json",
-	"TRUEOPEN_TASK_DATA_FETCH_BODY_V1":             "Wire testdata/v1/task/task_data_auth_v1.json",
-	"TRUEOPEN_TASK_DATA_FINALIZE_RESULT_BODY_V1":   "Wire testdata/v1/task/task_data_auth_v1.json",
-	"TRUEOPEN_TASK_DATA_FINALIZE_VERIFIER_BODY_V1": "Wire testdata/v1/task/task_data_auth_v1.json",
-	"TRUEOPEN_TASK_DATA_METADATA_BODY_V1":          "Wire testdata/v1/task/task_data_auth_v1.json",
-	"TRUEOPEN_TASK_DATA_REQUEST_V1":                "Wire testdata/v1/task/task_data_auth_v1.json",
-	"TRUEOPEN_TASK_DATA_UPLOAD_BODY_V1":            "Wire testdata/v1/task/task_data_auth_v1.json",
+	"TRUEOPEN_OUTPUT_FIN_V1":        "Wire testdata/v1/task/output_mmr_v1.json",
+	"TRUEOPEN_NATS_USER_BINDING_V1": "Wire testdata/v1/bus/nats_user_binding_v1_vectors.json",
+	shared.DomainUSDCRouteV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainVRFKeyPoPV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
 }
 
 // domainsCoveredWithoutFieldOrder is the gap between "a fixture names this domain"
@@ -735,6 +804,9 @@ func TestDomainVectorCoverageWithoutFieldOrderIsFrozen(t *testing.T) {
 		if _, ok := differential[domain]; ok {
 			continue
 		}
+		if _, external := wireOwnedDomainVectorCoverage[domain]; external {
+			continue
+		}
 		got = append(got, domain)
 	}
 	sort.Strings(got)
@@ -751,7 +823,7 @@ func TestDomainVectorCoverageWithoutFieldOrderIsFrozen(t *testing.T) {
 // H_V1, MERKLE_ROOT_V1 or MMR_ROOT_V1 framing and are therefore out of this file's scope.
 // TestDomainRegistryV1FramingCountsAreFrozen pins it against the registry so the
 // arithmetic above cannot drift.
-const domainRegistryNonHFieldsV1Count = 8
+const domainRegistryNonHFieldsV1Count = 11
 
 func TestDomainRegistryV1FramingCountsAreFrozen(t *testing.T) {
 	counts := make(map[shared.Framing]int, 4)

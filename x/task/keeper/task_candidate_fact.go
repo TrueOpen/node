@@ -17,8 +17,12 @@ func (k Keeper) freezeWorkerCandidateFact(
 	pool hubtypes.CandidatePoolSnapshotState,
 	handraise types.WorkerHandraiseV1,
 	orderValue uint64,
+	taskMinStake uint64,
 	acceptedHeight uint64,
 ) (types.TaskCandidateFactState, error) {
+	if taskMinStake == 0 {
+		return types.TaskCandidateFactState{}, fmt.Errorf("task minimum stake snapshot is unavailable")
+	}
 	if handraise.SchemaVersion != types.WorkerHandraiseSchemaVersionV1 || handraise.Duty != shared.Duty_DUTY_WORKER {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker handraise schema or duty is invalid")
 	}
@@ -49,17 +53,18 @@ func (k Keeper) freezeWorkerCandidateFact(
 		node.ServiceAuthorizationNonce != handraise.ServiceAuthorizationNonce {
 		return types.TaskCandidateFactState{}, fmt.Errorf("current service binding mismatch")
 	}
+	modelStatus := k.hubKeeper.GetModelStatus(sdk.UnwrapSDKContext(ctx), handraise.ModelId)
 	profile, ok := k.hubKeeper.GetProfileState(sdk.UnwrapSDKContext(ctx), handraise.ModelId, handraise.ProfileVersion)
 	if !ok || (profile.Status != hubtypes.ModelStatusRegistered && profile.Status != hubtypes.ModelStatusActive) ||
-		!isParentModelOpenForProfile(k.hubKeeper.GetModelStatus(sdk.UnwrapSDKContext(ctx), handraise.ModelId)) ||
+		!isParentModelOpenForProfile(modelStatus) ||
 		k.hubKeeper.IsProfileFrozen(sdk.UnwrapSDKContext(ctx), handraise.ModelId, handraise.ProfileVersion) {
 		return types.TaskCandidateFactState{}, fmt.Errorf("profile is not available")
 	}
-	capability, ok := k.hubKeeper.GetProfileCapability(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes), handraise.ModelId, handraise.ProfileVersion)
+	capability, ok := k.hubKeeper.GetModelCapability(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes), handraise.ModelId)
 	if !ok || !capability.InferenceCapability || capability.CapabilityVersion == 0 {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker inference capability is unavailable")
 	}
-	support, ok := k.hubKeeper.GetModelSupport(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes), handraise.ModelId, handraise.ProfileVersion)
+	support, ok := k.hubKeeper.GetModelSupport(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes), handraise.ModelId)
 	if !ok || !support.DeclaredSupport || support.SupportVersion == 0 {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker profile support is unavailable")
 	}
@@ -68,10 +73,10 @@ func (k Keeper) freezeWorkerCandidateFact(
 		bond.PendingUnbonding >= bond.EffectiveActiveBond {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker bond is unavailable")
 	}
-	if profile.Status == hubtypes.ModelStatusActive && !support.SupportActive && bond.Status != hubtypes.ServiceBondStatusJailed {
-		return types.TaskCandidateFactState{}, fmt.Errorf("active worker profile requires active support unless the operator is jailed")
+	if !candidateModelSupportAllowed(modelStatus, support, bond) {
+		return types.TaskCandidateFactState{}, fmt.Errorf("worker model support is not eligible for the current model status")
 	}
-	if bond.RequiredTaskLiability == 0 || bond.EffectiveActiveBond < profile.MinStake || bond.AvailableBond < bond.RequiredTaskLiability {
+	if bond.RequiredTaskLiability == 0 || bond.EffectiveActiveBond < taskMinStake || bond.AvailableBond < bond.RequiredTaskLiability {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker bond cannot cover stake and liability")
 	}
 	scoring, err := k.hubKeeper.GetRoleScoringSnapshot(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes), hubtypes.ServiceBondRoleWorker)
@@ -82,7 +87,7 @@ func (k Keeper) freezeWorkerCandidateFact(
 	if jailFactor == 0 || k.hubKeeper.GetNodeTombstone(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes)) {
 		return types.TaskCandidateFactState{}, fmt.Errorf("worker is hard-invalidated")
 	}
-	weight, err := workerCandidateWeightPpm(bond.EffectiveActiveBond, profile.MinStake, types.PerformanceScoreDefaultPpm, jailFactor)
+	weight, err := workerCandidateWeightPpm(bond.EffectiveActiveBond, taskMinStake, types.PerformanceScoreDefaultPpm, jailFactor)
 	if err != nil {
 		return types.TaskCandidateFactState{}, err
 	}
@@ -98,7 +103,7 @@ func (k Keeper) freezeWorkerCandidateFact(
 		TaskId:        append([]byte(nil), handraise.TaskId...), Stage: types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK,
 		Slot: member.Slot, SlotVersion: member.SlotVersion, OperatorAddress: operator, Duty: shared.Duty_DUTY_WORKER,
 		ActiveBondSnapshot: shared.NewAmount(bond.EffectiveActiveBond), AvailableBondSnapshot: shared.NewAmount(bond.AvailableBond),
-		RequiredTaskLiabilitySnapshot: shared.NewAmount(bond.RequiredTaskLiability), MinStakeSnapshot: shared.NewAmount(profile.MinStake),
+		RequiredTaskLiabilitySnapshot: shared.NewAmount(bond.RequiredTaskLiability), MinStakeSnapshot: shared.NewAmount(taskMinStake),
 		PerformanceScoreSnapshotPpm: types.PerformanceScoreDefaultPpm, PerformanceMethodVersion: types.PerformanceMethodRawQ16V1,
 		CandidateJailFactorSnapshotPpm: jailFactor, BondVersionSnapshot: bond.BondVersion,
 		CapabilityVersionSnapshot: capability.CapabilityVersion, SupportVersionSnapshot: support.SupportVersion,

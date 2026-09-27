@@ -101,9 +101,11 @@ func (app *App) EnsureGenesisValidatorVrfKeyCoverage(ctx context.Context) error 
 
 func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) error {
 	type expectedResponsibility struct {
-		worker, sessionID, taskID string
-		id                        []byte
-		createdHeight             uint64
+		worker        string
+		sessionID     []byte
+		taskID        []byte
+		id            []byte
+		createdHeight uint64
 	}
 	expected := make(map[string]expectedResponsibility)
 	evidenceReceipts, err := app.TaskKeeper.WorkerEvidenceReceipt.Iterate(ctx, nil)
@@ -168,7 +170,8 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 			return err
 		}
 		expected[hex.EncodeToString(id)] = expectedResponsibility{
-			worker: receipt.WinnerWorker, sessionID: sessionID, taskID: taskID,
+			worker:    receipt.WinnerWorker,
+			sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
 			id: id, createdHeight: receipt.ReceiptHeight,
 		}
 	}
@@ -196,7 +199,7 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 		id := hex.EncodeToString(state.ResponsibilityId)
 		want, ok := expected[id]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX || state.OperatorAddress != want.worker ||
-			!bytes.Equal(state.ResponsibilityId, want.id) || state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			!bytes.Equal(state.ResponsibilityId, want.id) || !bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.CreatedHeight != want.createdHeight || state.ServiceAuthorizationNonce == 0 ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX) || entry.Key.K2() != state.OperatorAddress ||
 			!bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -298,8 +301,8 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 	type expectedResponsibility struct {
 		operator string
 		id       []byte
-		session  string
-		task     string
+		session  []byte
+		task     []byte
 		height   uint64
 	}
 	expected := make(map[string]expectedResponsibility)
@@ -351,8 +354,9 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 				return fmt.Errorf("round 2 verifier responsibility id is duplicated")
 			}
 			expected[key] = expectedResponsibility{
-				operator: selected.OperatorAddress, id: id, session: sessionID,
-				task: taskID, height: assignment.OpenVerifyHeight,
+				operator: selected.OperatorAddress, id: id,
+				session: append([]byte(nil), core.SessionId...), task: append([]byte(nil), core.TaskId...),
+				height: assignment.OpenVerifyHeight,
 			}
 		}
 	}
@@ -381,7 +385,7 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 		want, ok := expected[key]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX ||
 			state.OperatorAddress != want.operator || !bytes.Equal(state.ResponsibilityId, want.id) ||
-			state.SessionId != want.session || state.TaskId != want.task || state.CreatedHeight != want.height ||
+			!bytes.Equal(state.SessionId, want.session) || !bytes.Equal(state.TaskId, want.task) || state.CreatedHeight != want.height ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
 			rows.Close()
@@ -401,8 +405,8 @@ func (app *App) ensureChallengeVerifierResponsibilities(ctx context.Context) err
 type expectedBusObjectiveEvidenceResponsibility struct {
 	operatorAddress  string
 	responsibilityID []byte
-	sessionID        string
-	taskID           string
+	sessionID        []byte
+	taskID           []byte
 	nonce            uint64
 	createdHeight    uint64
 }
@@ -494,7 +498,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 			}
 			expected[id] = expectedBusObjectiveEvidenceResponsibility{
 				operatorAddress: builder, responsibilityID: responsibilityID,
-				sessionID: hex.EncodeToString(core.SessionId), taskID: taskHex,
+				sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
 				nonce: binding.AuthorizationNonce, createdHeight: selection.CreatedHeight,
 			}
 		}
@@ -526,7 +530,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 		want, ok := expected[id]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_BUILDER ||
 			state.OperatorAddress != want.operatorAddress || !bytes.Equal(state.ResponsibilityId, want.responsibilityID) ||
-			state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			!bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.ServiceAuthorizationNonce != want.nonce || state.CreatedHeight != want.createdHeight ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -583,8 +587,8 @@ type expectedBuilderDutyResponsibility struct {
 	operatorAddress  string
 	responsibilityID []byte
 	kind             hubtypes.ServiceKeyResponsibilityKind
-	sessionID        string
-	taskID           string
+	sessionID        []byte
+	taskID           []byte
 	createdHeight    uint64
 }
 
@@ -675,7 +679,8 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 			}
 			expected[key] = expectedBuilderDutyResponsibility{
 				operatorAddress: builder, responsibilityID: responsibilityID, kind: kind,
-				sessionID: sessionID, taskID: taskID, createdHeight: createdHeight,
+				sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
+				createdHeight: createdHeight,
 			}
 		}
 	}
@@ -706,7 +711,7 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 		want, ok := expected[key]
 		if !ok || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_BUILDER ||
 			state.OperatorAddress != want.operatorAddress || !bytes.Equal(state.ResponsibilityId, want.responsibilityID) ||
-			state.ResponsibilityKind != want.kind || state.SessionId != want.sessionID || state.TaskId != want.taskID ||
+			state.ResponsibilityKind != want.kind || !bytes.Equal(state.SessionId, want.sessionID) || !bytes.Equal(state.TaskId, want.taskID) ||
 			state.CreatedHeight != want.createdHeight ||
 			entry.Key.K1() != int32(shared.ParticipantType_PARTICIPANT_TYPE_BUILDER) ||
 			entry.Key.K2() != state.OperatorAddress || !bytes.Equal(entry.Key.K3(), state.ResponsibilityId) {
@@ -1077,7 +1082,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 		version := entry.Value
 		key := parameterBucketReferenceKey{kind: version.BucketKind, key: version.BucketKey, version: version.Version}
 		if entry.Key.K1() != int32(version.BucketKind) || entry.Key.K2() != version.BucketKey || entry.Key.K3() != version.Version ||
-			version.TaskRefCount != bucketRefCounts[key] {
+			uint64(version.TaskRefCount) != bucketRefCounts[key] {
 			versionRows.Close()
 			return fmt.Errorf("Hub parameter bucket %s/%s/%d task_ref_count=%d, Task refs=%d",
 				version.BucketKind.String(), version.BucketKey, version.Version, version.TaskRefCount, bucketRefCounts[key])

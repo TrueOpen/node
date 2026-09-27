@@ -66,8 +66,8 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	)
 	stored, err := f.keeper.ReadServiceKeyResponsibilityValue(f.ctx, primaryKey)
 	require.NoError(t, err)
-	require.Equal(t, hex.EncodeToString(locator.SessionId), stored.SessionId)
-	require.Equal(t, hex.EncodeToString(locator.TaskId), stored.TaskId)
+	require.Equal(t, locator.SessionId, stored.SessionId)
+	require.Equal(t, locator.TaskId, stored.TaskId)
 	require.Equal(t, uint64(200), stored.CreatedHeight)
 	require.Equal(t, locator.ServiceAuthorizationNonce, stored.ServiceAuthorizationNonce)
 	indexKey := types.NewServiceKeyResponsibilityByTaskKey(
@@ -101,7 +101,7 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	require.ErrorContains(t, f.keeper.ReleaseServiceKeyResponsibility(
 		f.ctx, shared.ParticipantTypeBuilder, locator.BuilderOperator, hex.EncodeToString(acquired.ResponsibilityId),
 	), "typed release")
-	require.NoError(t, f.keeper.ReleaseServiceKeyResponsibilities(f.ctx, stored.SessionId, stored.TaskId))
+	require.NoError(t, f.keeper.ReleaseServiceKeyResponsibilities(f.ctx, hex.EncodeToString(stored.SessionId), hex.EncodeToString(stored.TaskId)))
 	has, err = f.keeper.ServiceKeyResponsibility.Has(f.ctx, primaryKey)
 	require.NoError(t, err)
 	require.True(t, has)
@@ -257,7 +257,7 @@ func TestBusObjectiveEvidenceResponsibilityGenesisConsistency(t *testing.T) {
 	restarted := initFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
 	indexKey := types.NewServiceKeyResponsibilityByTaskKey(
-		hex.EncodeToString(locator.SessionId), hex.EncodeToString(locator.TaskId),
+		locator.SessionId, locator.TaskId,
 		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, identity.Address, receipt.ResponsibilityId,
 	)
 	has, err := restarted.keeper.ServiceKeyResponsibilityByTaskIndex.Has(restarted.ctx, indexKey)

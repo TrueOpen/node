@@ -76,7 +76,7 @@ func (q queryServer) Builders(ctx context.Context, req *types.QueryBuildersReque
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
-	scope, err := q.newRegistryPageScope(ctx, buildersRPC, req.Page, q.k.Builder.KeyCodec(), q.canonicalBuilderKey)
+	scope, err := newRegistryPageScope(q, ctx, buildersRPC, req.Page, q.k.Builder.KeyCodec(), q.canonicalBuilderKey)
 	if err != nil {
 		return nil, err
 	}

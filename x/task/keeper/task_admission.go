@@ -73,7 +73,7 @@ func (k Keeper) admitSignedWorkerOrder(
 		core, err := k.TaskCore.Get(ctx, taskKey)
 		if err != nil || !bytes.Equal(core.TaskId, scope.ref.TaskId) || !bytes.Equal(core.AcceptedTaskHash, scope.ref.TaskHash) ||
 			!bytes.Equal(core.SessionId, order.SessionId) || core.OrderSequence != order.OrderSequence || core.UserAddress != order.UserAddress ||
-			core.ModelId != order.ModelId || core.ProfileVersion != order.ProfileVersion || core.TaskType != order.TaskType ||
+			!bytes.Equal(core.ModelId, order.ModelId) || core.ProfileVersion != order.ProfileVersion || core.TaskType != order.TaskType ||
 			!bytes.Equal(core.AcceptedInputHash, order.InputHash) {
 			return fmt.Errorf("signed_order conflicts with the accepted Task")
 		}
@@ -226,6 +226,7 @@ func (k Keeper) admitSignedWorkerOrder(
 	assignment := types.TaskAssignmentState{
 		TaskId: scope.ref.TaskId, AssignmentRandomnessHeight: windowClose,
 		CandidatePoolSnapshotId: append([]byte(nil), pool.SnapshotId...), CandidatePoolHash: append([]byte(nil), pool.PoolHash...),
+		MinStakeSnapshot:             shared.NewAmount(profile.MinStake),
 		ProfileExecutionSnapshotHash: append([]byte(nil), profile.ExecutionSnapshotHash...),
 		JudgmentFunctionVersion:      profile.ExecutionSnapshot.VerificationProfile.JudgmentFunctionVersion,
 		EvidenceSchemaHash:           append([]byte(nil), profile.ExecutionSnapshot.VerificationProfile.EvidenceSchemaHash...),

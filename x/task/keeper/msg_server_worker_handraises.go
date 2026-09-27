@@ -70,7 +70,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 			scope = handraise
 			continue
 		}
-		if handraise.ModelId != scope.ModelId || handraise.ProfileVersion != scope.ProfileVersion ||
+		if !bytes.Equal(handraise.ModelId, scope.ModelId) || handraise.ProfileVersion != scope.ProfileVersion ||
 			!bytes.Equal(handraise.Member.CandidatePoolSnapshotId, scope.Member.CandidatePoolSnapshotId) {
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker handraises do not share one frozen task scope")
 		}
@@ -104,7 +104,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		assignment.CandidatePoolRefReleased {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "worker proposal assignment scope is unavailable")
 	}
-	if scope.ModelId != core.ModelId || scope.ProfileVersion != core.ProfileVersion ||
+	if !bytes.Equal(scope.ModelId, core.ModelId) || scope.ProfileVersion != core.ProfileVersion ||
 		!bytes.Equal(scope.Member.CandidatePoolSnapshotId, assignment.CandidatePoolSnapshotId) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker proposal does not match the frozen task scope")
 	}
@@ -173,6 +173,10 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err != nil || orderValue == 0 {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "frozen order_value is unavailable")
 	}
+	minStake, err := shared.ParseAmount(assignment.MinStakeSnapshot)
+	if err != nil || minStake == 0 {
+		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "frozen minimum stake is unavailable")
+	}
 
 	proposalDigest, err := workerProposalDigest(
 		cacheCtx.ChainID(), core.TaskId, core.AcceptedTaskHash,
@@ -191,7 +195,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))
 	existingSlots := make([]uint32, 0, len(msg.Handraises))
 	for index, handraise := range msg.Handraises {
-		fact, err := m.k.freezeWorkerCandidateFact(cache, pool, handraise, orderValue, currentHeight)
+		fact, err := m.k.freezeWorkerCandidateFact(cache, pool, handraise, orderValue, minStake, currentHeight)
 		if err != nil {
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 		}
@@ -430,7 +434,7 @@ func (k Keeper) findAcceptedWorkerProposalReplay(
 func validateWorkerHandraiseEnvelope(chainID string, taskID, taskHash []byte, handraise *types.WorkerHandraiseV1) error {
 	if handraise == nil || handraise.SchemaVersion != types.WorkerHandraiseSchemaVersionV1 ||
 		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !bytes.Equal(handraise.TaskHash, taskHash) ||
-		handraise.ModelId == "" || handraise.ProfileVersion == 0 ||
+		len(handraise.ModelId) != types.Hash32Len || handraise.ProfileVersion == 0 ||
 		len(handraise.Member.CandidatePoolSnapshotId) != types.Hash32Len || handraise.Member.SlotVersion == 0 ||
 		handraise.Duty != shared.Duty_DUTY_WORKER || handraise.ExpiryHeight == 0 ||
 		len(handraise.ServiceSignature) != 64 {

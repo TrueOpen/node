@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"bytes"
+	"sort"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,46 +18,48 @@ const (
 	batchTestEpoch  = uint64(0)
 )
 
-// declaredSupportForTest brings one operator to "declared support, never
-// activated" for a profile: the state MsgDeclareModelSupport alone produces.
-func declaredSupportForTest(t *testing.T, f *fixture, operator, modelID string, profileVersion uint32) {
+// declaredSupportForTest creates model-level support without task activation.
+func declaredSupportForTest(t *testing.T, f *fixture, operator, modelLabel string, profileVersion uint32) []byte {
 	t.Helper()
-	registerTestModelProfile(t, f, modelID, profileVersion, testServiceBondMinInitial, batchTestHeight)
+	registerTestModelProfile(t, f, modelLabel, profileVersion, testServiceBondMinInitial, batchTestHeight)
+	modelID := testModelID(testHubChainID, hubAddress(t, 250), modelLabel)
 	result, err := f.keeper.DeclareModelSupport(
-		f.ctx, operator, modelID, profileVersion, true, true, batchTestHeight,
+		f.ctx, operator, modelID, true, true, batchTestHeight,
 	)
 	require.NoError(t, err)
 	require.False(t, result.Support.SupportActive)
 	require.Equal(t, types.ModelSupportActivationNone, result.Support.ActivationKind)
+	return modelID
 }
 
 // activateSupportForTest pins the activation facts a completed task would have
 // written. RecordTaskSupportCompletion needs a RELEASED task liability, which is
 // out of scope here; only activation_kind matters to the daily refresh, so the
 // fixture writes the minimal VERIFIER-assigned activation the state validator
-// accepts. The stake snapshots and profile aggregates are left exactly as
+// accepts. The stake snapshots and model aggregates are left exactly as
 // DeclareModelSupport wrote them, so applyModelSupportMutation still balances.
-func activateSupportForTest(t *testing.T, f *fixture, operator, modelID string, profileVersion uint32, marker string) {
+func activateSupportForTest(t *testing.T, f *fixture, operator string, modelID []byte, profileVersion uint32, marker string) {
 	t.Helper()
-	support, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID, profileVersion)
+	support, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
 	require.NoError(t, err)
 	support.ActivationKind = types.ModelSupportActivationVerifierAssignedValid
 	support.FirstActivationDuty = shared.DutyVerifier
 	support.FirstSupportTaskId = hubHashBytes("support-activation-" + marker)
+	support.FirstSupportProfileVersion = profileVersion
 	require.NoError(t, support.Validate())
 	require.NoError(t, f.keeper.ModelSupport.Set(
-		f.ctx, types.NewModelSupportKey(operator, modelID, profileVersion), support,
+		f.ctx, types.NewModelSupportKey(operator, modelID), support,
 	))
 }
 
 // supportConfirmationForTest builds one service-key-signed confirmation over the
-// given profiles, exactly as a Cortex node would before handing it to a relayer.
+// given models, exactly as a Cortex node would before handing it to a relayer.
 func supportConfirmationForTest(
 	t *testing.T,
 	f *fixture,
 	operator string,
 	identity hubTestIdentity,
-	profiles []types.ProfileKeyV1,
+	models [][]byte,
 ) types.ModelSupportConfirmationV1 {
 	t.Helper()
 	operatorBytes, err := sdk.AccAddressFromBech32(operator)
@@ -65,11 +69,11 @@ func supportConfirmationForTest(
 	expiryHeight := batchTestHeight + 100
 	signingBytes, err := types.CanonicalDailySupportConfirmationSigningBytesV1(
 		sdk.UnwrapSDKContext(f.ctx).ChainID(), operatorBytes, batchTestEpoch,
-		node.ServiceAuthorizationNonce, expiryHeight, profiles,
+		node.ServiceAuthorizationNonce, expiryHeight, models,
 	)
 	require.NoError(t, err)
 	return types.ModelSupportConfirmationV1{
-		OperatorAddress: operator, SupportedProfiles: profiles,
+		OperatorAddress: operator, SupportedModels: models,
 		ServiceAuthorizationNonce: node.ServiceAuthorizationNonce,
 		ExpiryHeight:              expiryHeight,
 		ServiceSignature:          hubSign(t, identity, signingBytes),
@@ -99,14 +103,14 @@ func registerSupportOperatorForTest(t *testing.T, f *fixture, operator string, i
 	activateServiceBondForTest(t, f, operator, batchTestEpoch)
 }
 
-// TestBatchConfirmModelSupportSkipsUnactivatedProfile pins the per-item skip.
+// TestBatchConfirmModelSupportSkipsUnactivatedModel pins the per-item skip.
 //
 // refreshModelSupport refuses a declaration that never earned an activation, and
 // that refusal used to abort processModelSupportBatch outright. An operator
-// listing one activated and one merely declared profile therefore had its whole
+// listing one activated and one merely declared model therefore had its whole
 // confirmation rejected, even though the activated half was refreshable. The
 // unactivated item must now be skipped and the rest of the list applied.
-func TestBatchConfirmModelSupportSkipsUnactivatedProfile(t *testing.T) {
+func TestBatchConfirmModelSupportSkipsUnactivatedModel(t *testing.T) {
 	f := initBatchFixture(t)
 	operator := hubAddress(t, 0x11)
 	identity := hubIdentity(t, 0x31)
@@ -114,19 +118,15 @@ func TestBatchConfirmModelSupportSkipsUnactivatedProfile(t *testing.T) {
 
 	const activatedModel = "model-activated"
 	const declaredModel = "model-declared-only"
-	declaredSupportForTest(t, f, operator, activatedModel, 1)
-	declaredSupportForTest(t, f, operator, declaredModel, 1)
-	activateSupportForTest(t, f, operator, activatedModel, 1, "single-operator")
+	activatedID := declaredSupportForTest(t, f, operator, activatedModel, 1)
+	declaredID := declaredSupportForTest(t, f, operator, declaredModel, 1)
+	activateSupportForTest(t, f, operator, activatedID, 1, "single-operator")
 
-	// Sorted and unique by (model_id, profile_version), as the batch validator
-	// requires: "model-activated" < "model-declared-only".
-	profiles := []types.ProfileKeyV1{
-		{ModelId: activatedModel, ProfileVersion: 1},
-		{ModelId: declaredModel, ProfileVersion: 1},
-	}
-	confirmation := supportConfirmationForTest(t, f, operator, identity, profiles)
+	models := [][]byte{activatedID, declaredID}
+	sort.Slice(models, func(i, j int) bool { return bytes.Compare(models[i], models[j]) < 0 })
+	confirmation := supportConfirmationForTest(t, f, operator, identity, models)
 
-	before, err := f.keeper.GetModelSupportState(f.ctx, operator, declaredModel, 1)
+	before, err := f.keeper.GetModelSupportState(f.ctx, operator, declaredID)
 	require.NoError(t, err)
 
 	response, err := keeper.NewMsgServerImpl(f.keeper).BatchConfirmModelSupport(
@@ -138,18 +138,18 @@ func TestBatchConfirmModelSupportSkipsUnactivatedProfile(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), response.AcceptedConfirmations)
-	require.Equal(t, uint32(1), response.RefreshedProfileCount, "only the activated profile refreshes")
+	require.Equal(t, uint32(1), response.RefreshedModelCount, "only the activated model refreshes")
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, response.Status)
 
-	activated, err := f.keeper.GetModelSupportState(f.ctx, operator, activatedModel, 1)
+	activated, err := f.keeper.GetModelSupportState(f.ctx, operator, activatedID)
 	require.NoError(t, err)
-	require.True(t, activated.SupportActive, "the activated profile is refreshed into active support")
+	require.True(t, activated.SupportActive, "the activated model is refreshed into active support")
 	require.Equal(t, batchTestHeight, activated.LastRefreshHeight)
 
 	// A skipped item writes nothing at all: same row, byte for byte.
-	after, err := f.keeper.GetModelSupportState(f.ctx, operator, declaredModel, 1)
+	after, err := f.keeper.GetModelSupportState(f.ctx, operator, declaredID)
 	require.NoError(t, err)
-	require.Equal(t, before, after, "the skipped profile row is untouched")
+	require.Equal(t, before, after, "the skipped model row is untouched")
 }
 
 // TestBatchConfirmModelSupportIsolatesOperators pins the blast radius.
@@ -169,19 +169,19 @@ func TestBatchConfirmModelSupportIsolatesOperators(t *testing.T) {
 	registerSupportOperatorForTest(t, f, healthyOperator, healthyIdentity)
 
 	const sharedModel = "model-shared"
-	declaredSupportForTest(t, f, staleOperator, sharedModel, 1)
-	// The healthy operator supports the same profile, so only its activation state
+	modelID := declaredSupportForTest(t, f, staleOperator, sharedModel, 1)
+	// The healthy operator supports the same model, so only its activation state
 	// differs from the stale one.
 	_, err := f.keeper.DeclareModelSupport(
-		f.ctx, healthyOperator, sharedModel, 1, true, true, batchTestHeight,
+		f.ctx, healthyOperator, modelID, true, true, batchTestHeight,
 	)
 	require.NoError(t, err)
-	activateSupportForTest(t, f, healthyOperator, sharedModel, 1, "two-operators")
+	activateSupportForTest(t, f, healthyOperator, modelID, 1, "two-operators")
 
-	profiles := []types.ProfileKeyV1{{ModelId: sharedModel, ProfileVersion: 1}}
+	models := [][]byte{modelID}
 	confirmations := []types.ModelSupportConfirmationV1{
-		supportConfirmationForTest(t, f, staleOperator, staleIdentity, profiles),
-		supportConfirmationForTest(t, f, healthyOperator, healthyIdentity, profiles),
+		supportConfirmationForTest(t, f, staleOperator, staleIdentity, models),
+		supportConfirmationForTest(t, f, healthyOperator, healthyIdentity, models),
 	}
 
 	response, err := keeper.NewMsgServerImpl(f.keeper).BatchConfirmModelSupport(
@@ -193,9 +193,9 @@ func TestBatchConfirmModelSupportIsolatesOperators(t *testing.T) {
 	)
 	require.NoError(t, err, "a stale item must not reject the batch")
 	require.Equal(t, uint32(2), response.AcceptedConfirmations)
-	require.Equal(t, uint32(1), response.RefreshedProfileCount)
+	require.Equal(t, uint32(1), response.RefreshedModelCount)
 
-	healthy, err := f.keeper.GetModelSupportState(f.ctx, healthyOperator, sharedModel, 1)
+	healthy, err := f.keeper.GetModelSupportState(f.ctx, healthyOperator, modelID)
 	require.NoError(t, err)
 	require.True(t, healthy.SupportActive, "the healthy operator's refresh still applies")
 
@@ -217,14 +217,14 @@ func TestBatchConfirmModelSupportRejectsUnsignedConfirmation(t *testing.T) {
 	registerSupportOperatorForTest(t, f, operator, identity)
 
 	const modelID = "model-activated"
-	declaredSupportForTest(t, f, operator, modelID, 1)
-	activateSupportForTest(t, f, operator, modelID, 1, "bad-signature")
+	modelHash := declaredSupportForTest(t, f, operator, modelID, 1)
+	activateSupportForTest(t, f, operator, modelHash, 1, "bad-signature")
 
-	profiles := []types.ProfileKeyV1{{ModelId: modelID, ProfileVersion: 1}}
-	confirmation := supportConfirmationForTest(t, f, operator, identity, profiles)
+	models := [][]byte{modelHash}
+	confirmation := supportConfirmationForTest(t, f, operator, identity, models)
 	// Signed by a key that is not this operator's current service key.
 	confirmation.ServiceSignature = supportConfirmationForTest(
-		t, f, operator, hubIdentity(t, 0x41), profiles,
+		t, f, operator, hubIdentity(t, 0x41), models,
 	).ServiceSignature
 
 	_, err := keeper.NewMsgServerImpl(f.keeper).BatchConfirmModelSupport(

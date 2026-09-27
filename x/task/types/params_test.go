@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "de432ac26d032a7cd1dd98607e9c4ffdedece45514f97d896e6937f0f0314f81"
+const taskParamsGoldenHashV1 = "4d5994070de40c27bb49fe51d8502093e673f7e5e8fe53625a8bc7588d65b9f7"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "1a2d2ea7b4bcccf7d1157c3a22c5e5f5f88589344badf7452aef351df4b95b79",
+	require.Equal(t, "32cb1bb5c82be3571be96f77094d984e1dbb0cf1daed351fe1e56d1e18905d80",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
 	mutated := base
@@ -214,7 +214,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 	require.NoError(t, err)
 	seen := map[string]string{hex.EncodeToString(unmutated): "<unmutated>"}
 	mutations := taskParamsFieldMutations(t)
-	require.Len(t, mutations, 84)
+	require.Len(t, mutations, 88)
 	for path, mutated := range mutations {
 		digest := taskParamsHashUncheckedForTest(t, taskParamsGoldenChainID, 1, mutated)
 		hash := hex.EncodeToString(digest)
@@ -223,7 +223,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 		}
 		seen[hash] = path
 	}
-	require.Len(t, seen, 85)
+	require.Len(t, seen, 89)
 }
 
 func taskParamsHashUncheckedForTest(t *testing.T, chainID string, version uint64, params TaskParamsV1) []byte {
@@ -318,6 +318,10 @@ func flatEvidenceFieldsForTest(p TaskParamsV1) [][]byte {
 		shared.Uint64BE(p.Evidence.MaxOutputMmrLeaves),
 		shared.Uint32BE(p.Evidence.MinOutputStreamFrameBytes),
 		shared.Uint64BE(p.Evidence.MaxWorkerEvidenceBytesV1),
+		shared.Uint64BE(p.Evidence.EncryptionActivationHeight),
+		shared.Uint64BE(p.Evidence.VerifierValueEvidenceWindowBlocks),
+		shared.Uint32BE(p.Evidence.MaxVerifierValueEvidencePositions),
+		shared.Uint64BE(p.Evidence.MaxVerifierValueEvidenceBytes),
 	)
 	return fields
 }

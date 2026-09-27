@@ -25,16 +25,17 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// InferReceiptV2 is the worker-signed inference receipt carried by
+// InferReceiptV3 is the worker-signed inference receipt carried by
 // MsgSubmitInferReceipt. Field numbers, types and order are frozen by
-// the API contract; the same order is the length-framed preimage of
+// the wire API; the same order is the length-framed preimage of
 //
 //	infer_receipt_hash = infer_receipt_signing_digest =
-//	  H_FIELDS_V1("TRUEOPEN_INFER_RECEIPT_V2", schema_version, chain_id, task_id,
+//	  H_FIELDS_V1("TRUEOPEN_INFER_RECEIPT_V3", schema_version, chain_id, task_id,
 //	    task_hash, worker_operator_address, service_authorization_nonce,
 //	    generation_params_digest, output_hash, output_size_bytes,
 //	    evidence_commitments_hash, expiry_height, generated_token_count,
-//	    output_leaf_count)
+//	    output_leaf_count, output_key_commitment, worker_token_key_commitment,
+//	    worker_value_key_commitment, ciphertext_output_root)
 //
 // Note that service_signature (field 12) is excluded and that
 // evidence_commitments_hash is NOT a wire field: it is derived by the Keeper from
@@ -44,15 +45,15 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // evidence_availability_endpoint_hash are not part of this wire; the work-unit
 // landing point is the SETTLEMENT_BILL leaf in task/v1/settlement.proto.
 //
-// schema_version is exactly 2. InferReceiptV1 and its old domain have no decoder
+// schema_version is exactly 3. Earlier receipt domains have no decoder
 // or alias in this fresh contract.
 //
 // The locked Profile carries a typed EvidenceSchemaV1 descriptor and its
 // evidence_schema_hash. The Keeper requires this list to match the descriptor
 // exactly; callers cannot supply an empty set, subset, superset, or unknown kind.
-// InferReceiptV2 defines the InferReceiptV2 wire type.
-type InferReceiptV2 struct {
-	// Always 2 in the fresh Phase 0 contract.
+// InferReceiptV3 defines the InferReceiptV3 wire type.
+type InferReceiptV3 struct {
+	// Always 3 in the fresh Phase 0 contract.
 	SchemaVersion               uint32                 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	ChainId                     string                 `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	TaskId                      []byte                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -69,20 +70,25 @@ type InferReceiptV2 struct {
 	// the threshold result cluster independently derives the same value.
 	GeneratedTokenCount uint64 `protobuf:"varint,13,opt,name=generated_token_count,json=generatedTokenCount,proto3" json:"generated_token_count,omitempty"`
 	OutputLeafCount     uint64 `protobuf:"varint,14,opt,name=output_leaf_count,json=outputLeafCount,proto3" json:"output_leaf_count,omitempty"`
+	// Reserved encryption commitments: all-zero Hash32 in plaintext Phase 0.
+	OutputKeyCommitment      []byte `protobuf:"bytes,15,opt,name=output_key_commitment,json=outputKeyCommitment,proto3" json:"output_key_commitment,omitempty"`
+	WorkerTokenKeyCommitment []byte `protobuf:"bytes,16,opt,name=worker_token_key_commitment,json=workerTokenKeyCommitment,proto3" json:"worker_token_key_commitment,omitempty"`
+	WorkerValueKeyCommitment []byte `protobuf:"bytes,17,opt,name=worker_value_key_commitment,json=workerValueKeyCommitment,proto3" json:"worker_value_key_commitment,omitempty"`
+	CiphertextOutputRoot     []byte `protobuf:"bytes,18,opt,name=ciphertext_output_root,json=ciphertextOutputRoot,proto3" json:"ciphertext_output_root,omitempty"`
 }
 
-func (m *InferReceiptV2) Reset()         { *m = InferReceiptV2{} }
-func (m *InferReceiptV2) String() string { return proto.CompactTextString(m) }
-func (*InferReceiptV2) ProtoMessage()    {}
-func (*InferReceiptV2) Descriptor() ([]byte, []int) {
+func (m *InferReceiptV3) Reset()         { *m = InferReceiptV3{} }
+func (m *InferReceiptV3) String() string { return proto.CompactTextString(m) }
+func (*InferReceiptV3) ProtoMessage()    {}
+func (*InferReceiptV3) Descriptor() ([]byte, []int) {
 	return fileDescriptor_22a55886eb8059a8, []int{0}
 }
-func (m *InferReceiptV2) XXX_Unmarshal(b []byte) error {
+func (m *InferReceiptV3) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *InferReceiptV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *InferReceiptV3) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_InferReceiptV2.Marshal(b, m, deterministic)
+		return xxx_messageInfo_InferReceiptV3.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -92,114 +98,142 @@ func (m *InferReceiptV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *InferReceiptV2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InferReceiptV2.Merge(m, src)
+func (m *InferReceiptV3) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InferReceiptV3.Merge(m, src)
 }
-func (m *InferReceiptV2) XXX_Size() int {
+func (m *InferReceiptV3) XXX_Size() int {
 	return m.Size()
 }
-func (m *InferReceiptV2) XXX_DiscardUnknown() {
-	xxx_messageInfo_InferReceiptV2.DiscardUnknown(m)
+func (m *InferReceiptV3) XXX_DiscardUnknown() {
+	xxx_messageInfo_InferReceiptV3.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_InferReceiptV2 proto.InternalMessageInfo
+var xxx_messageInfo_InferReceiptV3 proto.InternalMessageInfo
 
-func (m *InferReceiptV2) GetSchemaVersion() uint32 {
+func (m *InferReceiptV3) GetSchemaVersion() uint32 {
 	if m != nil {
 		return m.SchemaVersion
 	}
 	return 0
 }
 
-func (m *InferReceiptV2) GetChainId() string {
+func (m *InferReceiptV3) GetChainId() string {
 	if m != nil {
 		return m.ChainId
 	}
 	return ""
 }
 
-func (m *InferReceiptV2) GetTaskId() []byte {
+func (m *InferReceiptV3) GetTaskId() []byte {
 	if m != nil {
 		return m.TaskId
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetTaskHash() []byte {
+func (m *InferReceiptV3) GetTaskHash() []byte {
 	if m != nil {
 		return m.TaskHash
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetWorkerOperatorAddress() string {
+func (m *InferReceiptV3) GetWorkerOperatorAddress() string {
 	if m != nil {
 		return m.WorkerOperatorAddress
 	}
 	return ""
 }
 
-func (m *InferReceiptV2) GetServiceAuthorizationNonce() uint64 {
+func (m *InferReceiptV3) GetServiceAuthorizationNonce() uint64 {
 	if m != nil {
 		return m.ServiceAuthorizationNonce
 	}
 	return 0
 }
 
-func (m *InferReceiptV2) GetGenerationParamsDigest() []byte {
+func (m *InferReceiptV3) GetGenerationParamsDigest() []byte {
 	if m != nil {
 		return m.GenerationParamsDigest
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetOutputHash() []byte {
+func (m *InferReceiptV3) GetOutputHash() []byte {
 	if m != nil {
 		return m.OutputHash
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetOutputSizeBytes() uint64 {
+func (m *InferReceiptV3) GetOutputSizeBytes() uint64 {
 	if m != nil {
 		return m.OutputSizeBytes
 	}
 	return 0
 }
 
-func (m *InferReceiptV2) GetRequiredEvidenceCommitments() []EvidenceCommitmentV1 {
+func (m *InferReceiptV3) GetRequiredEvidenceCommitments() []EvidenceCommitmentV1 {
 	if m != nil {
 		return m.RequiredEvidenceCommitments
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetExpiryHeight() uint64 {
+func (m *InferReceiptV3) GetExpiryHeight() uint64 {
 	if m != nil {
 		return m.ExpiryHeight
 	}
 	return 0
 }
 
-func (m *InferReceiptV2) GetServiceSignature() []byte {
+func (m *InferReceiptV3) GetServiceSignature() []byte {
 	if m != nil {
 		return m.ServiceSignature
 	}
 	return nil
 }
 
-func (m *InferReceiptV2) GetGeneratedTokenCount() uint64 {
+func (m *InferReceiptV3) GetGeneratedTokenCount() uint64 {
 	if m != nil {
 		return m.GeneratedTokenCount
 	}
 	return 0
 }
 
-func (m *InferReceiptV2) GetOutputLeafCount() uint64 {
+func (m *InferReceiptV3) GetOutputLeafCount() uint64 {
 	if m != nil {
 		return m.OutputLeafCount
 	}
 	return 0
+}
+
+func (m *InferReceiptV3) GetOutputKeyCommitment() []byte {
+	if m != nil {
+		return m.OutputKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptV3) GetWorkerTokenKeyCommitment() []byte {
+	if m != nil {
+		return m.WorkerTokenKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptV3) GetWorkerValueKeyCommitment() []byte {
+	if m != nil {
+		return m.WorkerValueKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptV3) GetCiphertextOutputRoot() []byte {
+	if m != nil {
+		return m.CiphertextOutputRoot
+	}
+	return nil
 }
 
 // InferReceiptState is the authoritative accepted receipt row keyed by task_id.
@@ -225,10 +259,14 @@ type InferReceiptState struct {
 	// The 64-byte signature was verified before initial live acceptance and is not retained.
 	// This digest is not authorization state and never enters a signing/business digest;
 	// replay compares it only to identify the same previously accepted signature.
-	SignatureDigest []byte `protobuf:"bytes,12,opt,name=signature_digest,json=signatureDigest,proto3" json:"signature_digest,omitempty"`
-	ExpiryHeight    uint64 `protobuf:"varint,13,opt,name=expiry_height,json=expiryHeight,proto3" json:"expiry_height,omitempty"`
-	ReceiptHeight   uint64 `protobuf:"varint,14,opt,name=receipt_height,json=receiptHeight,proto3" json:"receipt_height,omitempty"`
-	OutputLeafCount uint64 `protobuf:"varint,15,opt,name=output_leaf_count,json=outputLeafCount,proto3" json:"output_leaf_count,omitempty"`
+	SignatureDigest          []byte `protobuf:"bytes,12,opt,name=signature_digest,json=signatureDigest,proto3" json:"signature_digest,omitempty"`
+	ExpiryHeight             uint64 `protobuf:"varint,13,opt,name=expiry_height,json=expiryHeight,proto3" json:"expiry_height,omitempty"`
+	ReceiptHeight            uint64 `protobuf:"varint,14,opt,name=receipt_height,json=receiptHeight,proto3" json:"receipt_height,omitempty"`
+	OutputLeafCount          uint64 `protobuf:"varint,15,opt,name=output_leaf_count,json=outputLeafCount,proto3" json:"output_leaf_count,omitempty"`
+	OutputKeyCommitment      []byte `protobuf:"bytes,16,opt,name=output_key_commitment,json=outputKeyCommitment,proto3" json:"output_key_commitment,omitempty"`
+	WorkerTokenKeyCommitment []byte `protobuf:"bytes,17,opt,name=worker_token_key_commitment,json=workerTokenKeyCommitment,proto3" json:"worker_token_key_commitment,omitempty"`
+	WorkerValueKeyCommitment []byte `protobuf:"bytes,18,opt,name=worker_value_key_commitment,json=workerValueKeyCommitment,proto3" json:"worker_value_key_commitment,omitempty"`
+	CiphertextOutputRoot     []byte `protobuf:"bytes,19,opt,name=ciphertext_output_root,json=ciphertextOutputRoot,proto3" json:"ciphertext_output_root,omitempty"`
 }
 
 func (m *InferReceiptState) Reset()         { *m = InferReceiptState{} }
@@ -369,67 +407,102 @@ func (m *InferReceiptState) GetOutputLeafCount() uint64 {
 	return 0
 }
 
+func (m *InferReceiptState) GetOutputKeyCommitment() []byte {
+	if m != nil {
+		return m.OutputKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptState) GetWorkerTokenKeyCommitment() []byte {
+	if m != nil {
+		return m.WorkerTokenKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptState) GetWorkerValueKeyCommitment() []byte {
+	if m != nil {
+		return m.WorkerValueKeyCommitment
+	}
+	return nil
+}
+
+func (m *InferReceiptState) GetCiphertextOutputRoot() []byte {
+	if m != nil {
+		return m.CiphertextOutputRoot
+	}
+	return nil
+}
+
 func init() {
-	proto.RegisterType((*InferReceiptV2)(nil), "task.v1.InferReceiptV2")
+	proto.RegisterType((*InferReceiptV3)(nil), "task.v1.InferReceiptV3")
 	proto.RegisterType((*InferReceiptState)(nil), "task.v1.InferReceiptState")
 }
 
 func init() { proto.RegisterFile("task/v1/infer_receipt.proto", fileDescriptor_22a55886eb8059a8) }
 
 var fileDescriptor_22a55886eb8059a8 = []byte{
-	// 781 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xdd, 0x6e, 0xe3, 0x44,
-	0x14, 0x8e, 0x77, 0xd3, 0xa4, 0x99, 0xfc, 0xb4, 0x35, 0xfb, 0xe3, 0x6c, 0x49, 0x08, 0x8b, 0x22,
-	0x45, 0x48, 0xc4, 0x4a, 0xb8, 0x43, 0x62, 0x61, 0xb3, 0xac, 0xb4, 0x95, 0x10, 0xbb, 0x72, 0x56,
-	0x45, 0xe2, 0x66, 0x34, 0xb5, 0x4f, 0xed, 0x51, 0xc9, 0x8c, 0x99, 0x19, 0x67, 0xb7, 0x7d, 0x0a,
-	0x1e, 0x86, 0x37, 0xe0, 0xa6, 0x97, 0x15, 0x57, 0x88, 0x0b, 0x84, 0xda, 0x47, 0xe0, 0x05, 0x90,
-	0x67, 0x26, 0xc1, 0x55, 0xdc, 0xa2, 0x4a, 0xdc, 0xc5, 0xdf, 0xf7, 0x9d, 0xf1, 0x39, 0xf3, 0x7d,
-	0x27, 0x46, 0xfb, 0x8a, 0xc8, 0x13, 0x7f, 0x39, 0xf1, 0x29, 0x3b, 0x06, 0x81, 0x05, 0x84, 0x40,
-	0x53, 0x35, 0x4e, 0x05, 0x57, 0xdc, 0xad, 0xe7, 0xe4, 0x78, 0x39, 0x79, 0xd2, 0x0d, 0xb9, 0x5c,
-	0x70, 0x89, 0x35, 0xec, 0x9b, 0x07, 0xa3, 0x79, 0xf2, 0x20, 0xe6, 0x31, 0x37, 0x78, 0xfe, 0xcb,
-	0xa2, 0x3d, 0x99, 0x10, 0x01, 0x51, 0x7e, 0xb0, 0x00, 0xa9, 0x30, 0xb0, 0x90, 0x47, 0x94, 0xc5,
-	0x96, 0x7e, 0xb4, 0x7a, 0x2b, 0x2c, 0x69, 0x04, 0x2c, 0x04, 0x83, 0x3f, 0xfd, 0x63, 0x0b, 0x75,
-	0x0e, 0xf2, 0x46, 0x02, 0xd3, 0xc7, 0xe1, 0xd4, 0x1d, 0xa2, 0x8e, 0x0c, 0x13, 0x58, 0x10, 0xbc,
-	0x04, 0x21, 0x29, 0x67, 0x9e, 0x33, 0x70, 0x46, 0xed, 0xa0, 0x6d, 0xd0, 0x43, 0x03, 0xba, 0x5d,
-	0xb4, 0x1d, 0x26, 0x84, 0x32, 0x4c, 0x23, 0xef, 0xde, 0xc0, 0x19, 0x35, 0x82, 0xba, 0x7e, 0x3e,
-	0x88, 0xdc, 0x1e, 0xd2, 0x73, 0xe4, 0xcc, 0xfd, 0x81, 0x33, 0x6a, 0xcd, 0xaa, 0xe7, 0x7f, 0x7b,
-	0xf7, 0x82, 0x5a, 0x0e, 0x1e, 0x44, 0xee, 0xc7, 0xa8, 0xa1, 0xe9, 0x84, 0xc8, 0xc4, 0xab, 0x16,
-	0x04, 0xdb, 0x39, 0xfc, 0x8a, 0xc8, 0xc4, 0x7d, 0x83, 0x1e, 0xbf, 0xe3, 0xe2, 0x04, 0x04, 0xe6,
-	0x29, 0x08, 0xa2, 0xb8, 0xc0, 0x24, 0x8a, 0x04, 0x48, 0xe9, 0x6d, 0xe5, 0xef, 0x9a, 0x79, 0xbf,
-	0xfd, 0xf2, 0xd9, 0x03, 0x7b, 0x2d, 0xcf, 0x0d, 0x33, 0x57, 0x82, 0xb2, 0x38, 0x78, 0x68, 0x0a,
-	0x5f, 0xdb, 0x3a, 0x4b, 0xba, 0xcf, 0xd0, 0xbe, 0x04, 0xb1, 0xa4, 0x21, 0x60, 0x92, 0xa9, 0x84,
-	0x0b, 0x7a, 0x46, 0x14, 0xe5, 0x0c, 0x33, 0xce, 0x42, 0xf0, 0x6a, 0x03, 0x67, 0x54, 0x0d, 0xba,
-	0x56, 0xf2, 0xbc, 0xa8, 0xf8, 0x2e, 0x17, 0xb8, 0xcf, 0x90, 0x17, 0x03, 0xcb, 0xcf, 0xcc, 0x8b,
-	0x52, 0x22, 0xc8, 0x42, 0xe2, 0x88, 0xc6, 0x20, 0x95, 0x57, 0x2f, 0xcc, 0xf0, 0xe8, 0x5f, 0xd5,
-	0x1b, 0x2d, 0xfa, 0x46, 0x6b, 0xdc, 0x21, 0x6a, 0xf2, 0x4c, 0xa5, 0x99, 0x32, 0x63, 0x6f, 0x17,
-	0x4a, 0x90, 0x21, 0xf4, 0xe0, 0x9f, 0xa2, 0x3d, 0x2b, 0x93, 0xf4, 0x0c, 0xf0, 0xd1, 0xa9, 0x02,
-	0xe9, 0x35, 0x74, 0x73, 0x3b, 0x86, 0x98, 0xd3, 0x33, 0x98, 0xe5, 0xb0, 0x1b, 0xa3, 0x9e, 0x80,
-	0x9f, 0x32, 0x2a, 0x20, 0xc2, 0x2b, 0x5b, 0x71, 0xc8, 0x17, 0x0b, 0xaa, 0x16, 0xc0, 0x94, 0xf4,
-	0xd0, 0xe0, 0xfe, 0xa8, 0x39, 0xed, 0x8d, 0x6d, 0xa8, 0xc6, 0x2f, 0xad, 0xe8, 0xc5, 0x5a, 0x73,
-	0x38, 0x99, 0x55, 0xcf, 0xff, 0xfc, 0xa8, 0x12, 0xec, 0xaf, 0x4e, 0xda, 0xd4, 0x48, 0xf7, 0x13,
-	0xd4, 0x86, 0xf7, 0x29, 0x15, 0xa7, 0x38, 0x01, 0x1a, 0x27, 0xca, 0x6b, 0xea, 0x86, 0x5a, 0x06,
-	0x7c, 0xa5, 0x31, 0x77, 0x82, 0xf6, 0x56, 0x17, 0x2c, 0x69, 0xcc, 0x88, 0xca, 0x04, 0x78, 0xad,
-	0xf5, 0x98, 0x4e, 0xb0, 0x6b, 0xe9, 0xf9, 0x8a, 0x75, 0xa7, 0xe8, 0xa1, 0xbd, 0x2d, 0x88, 0xb0,
-	0xe2, 0x27, 0xc0, 0x70, 0xc8, 0x33, 0xa6, 0xbc, 0xb6, 0x3e, 0xff, 0x83, 0x35, 0xf9, 0x36, 0xe7,
-	0x5e, 0xe4, 0x54, 0xe1, 0x82, 0x7e, 0x04, 0x72, 0x6c, 0xf5, 0x9d, 0xe2, 0x05, 0x7d, 0x0b, 0xe4,
-	0x58, 0x6b, 0x9f, 0xfe, 0x5a, 0x43, 0x7b, 0xc5, 0x70, 0xcf, 0x15, 0x51, 0x50, 0x4c, 0xa7, 0x53,
-	0x92, 0xce, 0x2f, 0x51, 0xfb, 0x1d, 0x65, 0x0c, 0x04, 0x36, 0x41, 0x32, 0xe1, 0xbe, 0x25, 0x70,
-	0x2d, 0x23, 0xff, 0x5e, 0xab, 0xdd, 0x29, 0x72, 0xaf, 0x2d, 0xb6, 0xb1, 0xbb, 0xb8, 0x06, 0xbb,
-	0xb4, 0xd0, 0x92, 0x36, 0xfd, 0xb6, 0x6c, 0x55, 0xef, 0x9e, 0xad, 0xad, 0xbb, 0x64, 0xab, 0x56,
-	0x9e, 0xad, 0x1b, 0xad, 0xa9, 0xdf, 0x6c, 0xcd, 0xd7, 0xa8, 0x5b, 0x16, 0xc3, 0xcd, 0xc0, 0x3f,
-	0x86, 0xcd, 0x90, 0xe9, 0x0e, 0xff, 0x33, 0xd1, 0x8d, 0xff, 0x29, 0xd1, 0x5f, 0x94, 0xb6, 0x6a,
-	0x47, 0x44, 0xfa, 0xef, 0xae, 0xa4, 0x49, 0x33, 0xe6, 0x4b, 0xf4, 0xe1, 0x75, 0x87, 0xf3, 0xb8,
-	0x53, 0x16, 0xaf, 0x1c, 0x6b, 0x16, 0x26, 0xed, 0x16, 0xbd, 0x9e, 0x1b, 0x9d, 0x35, 0xcd, 0x47,
-	0xbb, 0xeb, 0x3d, 0x59, 0x95, 0xb6, 0x0a, 0xa5, 0x3b, 0x6b, 0xd6, 0x16, 0x6c, 0x6c, 0x61, 0xbb,
-	0x64, 0x0b, 0x87, 0xa8, 0xb3, 0x0e, 0x9e, 0x51, 0x99, 0xdd, 0x68, 0x5b, 0xd4, 0xca, 0x4a, 0xb7,
-	0x68, 0xa7, 0x74, 0x8b, 0x66, 0x5f, 0x9d, 0x5f, 0xf6, 0x9d, 0x8b, 0xcb, 0xbe, 0xf3, 0xd7, 0x65,
-	0xdf, 0xf9, 0xf9, 0xaa, 0x5f, 0xb9, 0xb8, 0xea, 0x57, 0x7e, 0xbf, 0xea, 0x57, 0x7e, 0x18, 0xc6,
-	0x54, 0x25, 0xd9, 0xd1, 0x38, 0xe4, 0x0b, 0xff, 0xad, 0xc8, 0xe0, 0x75, 0x0a, 0xcc, 0x67, 0x3c,
-	0x02, 0xff, 0xbd, 0xaf, 0xbf, 0x37, 0xea, 0x34, 0x05, 0x79, 0x54, 0xd3, 0x9f, 0x9a, 0xcf, 0xff,
-	0x09, 0x00, 0x00, 0xff, 0xff, 0x5c, 0x1c, 0x01, 0x17, 0xfa, 0x06, 0x00, 0x00,
+	// 882 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdd, 0x4e, 0x1b, 0x47,
+	0x14, 0x66, 0x13, 0x07, 0xc3, 0x60, 0x83, 0x3d, 0xfc, 0x64, 0x1d, 0x8a, 0xeb, 0xa6, 0x42, 0xb2,
+	0x2a, 0xd5, 0x16, 0xe4, 0xa6, 0x8a, 0xd4, 0xb4, 0x31, 0x8d, 0x14, 0xd4, 0xaa, 0x44, 0xeb, 0x88,
+	0x4a, 0xbd, 0x19, 0x2d, 0xbb, 0x87, 0xdd, 0x11, 0xf1, 0xcc, 0x76, 0x66, 0xd6, 0xc1, 0x3c, 0x45,
+	0x1f, 0xa6, 0x6f, 0xd0, 0x1b, 0x2e, 0xa3, 0x5e, 0x55, 0xbd, 0xa8, 0x2a, 0x78, 0x84, 0xbe, 0x40,
+	0xb4, 0x33, 0x63, 0x33, 0xc4, 0x26, 0x11, 0x4a, 0xee, 0xec, 0xf3, 0x7d, 0xe7, 0xf8, 0x9c, 0x33,
+	0xe7, 0xfb, 0x64, 0xb4, 0xa9, 0x42, 0x79, 0xd2, 0x1d, 0xee, 0x74, 0x29, 0x3b, 0x06, 0x41, 0x04,
+	0x44, 0x40, 0x33, 0xd5, 0xc9, 0x04, 0x57, 0x1c, 0x97, 0x0b, 0xb0, 0x33, 0xdc, 0x79, 0xd0, 0x88,
+	0xb8, 0x1c, 0x70, 0x49, 0x74, 0xb8, 0x6b, 0xbe, 0x18, 0xce, 0x83, 0xb5, 0x84, 0x27, 0xdc, 0xc4,
+	0x8b, 0x4f, 0x36, 0xba, 0x25, 0xd3, 0x50, 0x40, 0x5c, 0x14, 0x16, 0x20, 0x15, 0x01, 0x16, 0xf1,
+	0x98, 0xb2, 0xc4, 0xc2, 0x1b, 0xe3, 0x5f, 0x85, 0x21, 0x8d, 0x81, 0x45, 0x60, 0xe2, 0x0f, 0xff,
+	0x29, 0xa3, 0xe5, 0xfd, 0xa2, 0x91, 0xc0, 0xf4, 0x71, 0xf8, 0x08, 0x6f, 0xa3, 0x65, 0x19, 0xa5,
+	0x30, 0x08, 0xc9, 0x10, 0x84, 0xa4, 0x9c, 0xf9, 0x5e, 0xcb, 0x6b, 0x57, 0x83, 0xaa, 0x89, 0x1e,
+	0x9a, 0x20, 0x6e, 0xa0, 0x85, 0x28, 0x0d, 0x29, 0x23, 0x34, 0xf6, 0xef, 0xb4, 0xbc, 0xf6, 0x62,
+	0x50, 0xd6, 0xdf, 0xf7, 0x63, 0xbc, 0x85, 0xf4, 0x1c, 0x05, 0x72, 0xb7, 0xe5, 0xb5, 0x2b, 0xbd,
+	0xd2, 0xf9, 0xff, 0xfe, 0x9d, 0x60, 0xbe, 0x08, 0xee, 0xc7, 0xf8, 0x0b, 0xb4, 0xa8, 0xe1, 0x34,
+	0x94, 0xa9, 0x5f, 0x72, 0x08, 0x0b, 0x45, 0xf8, 0x79, 0x28, 0x53, 0xfc, 0x02, 0xdd, 0x7f, 0xcd,
+	0xc5, 0x09, 0x08, 0xc2, 0x33, 0x10, 0xa1, 0xe2, 0x82, 0x84, 0x71, 0x2c, 0x40, 0x4a, 0xff, 0x5e,
+	0xf1, 0x5b, 0x3d, 0xff, 0xaf, 0x3f, 0xbe, 0x5e, 0xb3, 0x6b, 0x79, 0x6a, 0x90, 0xbe, 0x12, 0x94,
+	0x25, 0xc1, 0xba, 0x49, 0x3c, 0xb0, 0x79, 0x16, 0xc4, 0x4f, 0xd0, 0xa6, 0x04, 0x31, 0xa4, 0x11,
+	0x90, 0x30, 0x57, 0x29, 0x17, 0xf4, 0x2c, 0x54, 0x94, 0x33, 0xc2, 0x38, 0x8b, 0xc0, 0x9f, 0x6f,
+	0x79, 0xed, 0x52, 0xd0, 0xb0, 0x94, 0xa7, 0x2e, 0xe3, 0xe7, 0x82, 0x80, 0x9f, 0x20, 0x3f, 0x01,
+	0x56, 0xd4, 0x2c, 0x92, 0xb2, 0x50, 0x84, 0x03, 0x49, 0x62, 0x9a, 0x80, 0x54, 0x7e, 0xd9, 0x99,
+	0x61, 0xe3, 0x8a, 0xf5, 0x42, 0x93, 0x7e, 0xd0, 0x1c, 0xbc, 0x8d, 0x96, 0x78, 0xae, 0xb2, 0x5c,
+	0x99, 0xb1, 0x17, 0x9c, 0x14, 0x64, 0x00, 0x3d, 0xf8, 0x57, 0xa8, 0x6e, 0x69, 0x92, 0x9e, 0x01,
+	0x39, 0x1a, 0x29, 0x90, 0xfe, 0xa2, 0x6e, 0x6e, 0xc5, 0x00, 0x7d, 0x7a, 0x06, 0xbd, 0x22, 0x8c,
+	0x13, 0xb4, 0x25, 0xe0, 0xb7, 0x9c, 0x0a, 0x88, 0xc9, 0xf8, 0x59, 0x49, 0xc4, 0x07, 0x03, 0xaa,
+	0x06, 0xc0, 0x94, 0xf4, 0x51, 0xeb, 0x6e, 0x7b, 0x69, 0x77, 0xab, 0x63, 0x8f, 0xaa, 0xf3, 0xcc,
+	0x92, 0xf6, 0x26, 0x9c, 0xc3, 0x9d, 0x5e, 0xe9, 0xfc, 0xdf, 0xcf, 0xe7, 0x82, 0xcd, 0x71, 0xa5,
+	0x69, 0x8e, 0xc4, 0x5f, 0xa2, 0x2a, 0x9c, 0x66, 0x54, 0x8c, 0x48, 0x0a, 0x34, 0x49, 0x95, 0xbf,
+	0xa4, 0x1b, 0xaa, 0x98, 0xe0, 0x73, 0x1d, 0xc3, 0x3b, 0xa8, 0x3e, 0x5e, 0xb0, 0xa4, 0x09, 0x0b,
+	0x55, 0x2e, 0xc0, 0xaf, 0x4c, 0xc6, 0xf4, 0x82, 0x9a, 0x85, 0xfb, 0x63, 0x14, 0xef, 0xa2, 0x75,
+	0xbb, 0x2d, 0x88, 0x89, 0xe2, 0x27, 0xc0, 0x48, 0xc4, 0x73, 0xa6, 0xfc, 0xaa, 0xae, 0xbf, 0x3a,
+	0x01, 0x5f, 0x16, 0xd8, 0x5e, 0x01, 0x39, 0x0b, 0x7a, 0x05, 0xe1, 0xb1, 0xe5, 0x2f, 0xbb, 0x0b,
+	0xfa, 0x09, 0xc2, 0x63, 0xc3, 0xfd, 0x06, 0xad, 0x5b, 0xee, 0x09, 0x8c, 0x9c, 0xcd, 0xf8, 0x2b,
+	0xce, 0xf6, 0x57, 0x0d, 0xe5, 0x47, 0x18, 0x5d, 0x8d, 0x8c, 0xf7, 0xd0, 0xa6, 0xbd, 0x3f, 0xd3,
+	0xd6, 0x3b, 0xf9, 0x35, 0x27, 0xdf, 0x37, 0x44, 0xdd, 0xe2, 0x4d, 0x45, 0x86, 0xe1, 0xab, 0x1c,
+	0xde, 0x2d, 0x52, 0x9f, 0x2e, 0x72, 0x58, 0xf0, 0xae, 0x17, 0x79, 0x8c, 0x36, 0x22, 0x9a, 0xa5,
+	0x20, 0x14, 0x9c, 0x2a, 0x62, 0xc7, 0x11, 0x9c, 0x2b, 0x1f, 0x3b, 0xf9, 0x6b, 0x57, 0x9c, 0x03,
+	0x4d, 0x09, 0x38, 0x57, 0x0f, 0xff, 0x5c, 0x40, 0x75, 0x57, 0xdc, 0x7d, 0x15, 0x2a, 0x70, 0xd5,
+	0xe9, 0xcd, 0x50, 0xe7, 0xb7, 0xa8, 0xfa, 0x9a, 0x32, 0x06, 0x82, 0x98, 0x9e, 0x8c, 0xb8, 0xdf,
+	0x23, 0xb8, 0x8a, 0xa1, 0xff, 0xa2, 0xd9, 0x78, 0x17, 0xe1, 0x6b, 0xc6, 0x66, 0xce, 0xdd, 0xb5,
+	0x81, 0x1a, 0x75, 0x5a, 0xd2, 0x47, 0xff, 0x3e, 0x6d, 0x95, 0x6e, 0xaf, 0xad, 0x7b, 0xb7, 0xd1,
+	0xd6, 0xfc, 0x6c, 0x6d, 0xdd, 0x78, 0x9a, 0xe5, 0x9b, 0x4f, 0xf3, 0x7b, 0xd4, 0x98, 0x25, 0xc3,
+	0x69, 0xc1, 0xdf, 0x87, 0x69, 0x91, 0xe9, 0x0e, 0x3f, 0xa8, 0xe8, 0xc5, 0x4f, 0xa4, 0xe8, 0xc7,
+	0x33, 0x5b, 0xb5, 0x23, 0x22, 0x6d, 0xf7, 0x33, 0x9a, 0x34, 0x63, 0x3e, 0x43, 0x9f, 0x5d, 0x7f,
+	0xe1, 0x42, 0xee, 0x94, 0x25, 0xe3, 0x17, 0x5b, 0x72, 0x26, 0x6d, 0xb8, 0x6f, 0xdd, 0x37, 0x3c,
+	0xfb, 0x68, 0x5d, 0x54, 0x9b, 0xf8, 0xc4, 0x38, 0xb5, 0xe2, 0xa4, 0xae, 0x4c, 0x50, 0x9b, 0x30,
+	0xe5, 0x42, 0xd5, 0x19, 0x2e, 0xb4, 0x8d, 0x96, 0x27, 0x87, 0x67, 0x58, 0xc6, 0x1b, 0xaa, 0x36,
+	0x6a, 0x69, 0x33, 0x5d, 0x64, 0xe5, 0x96, 0x2e, 0x52, 0xfb, 0x48, 0x17, 0xa9, 0x7f, 0x0a, 0x17,
+	0xc1, 0x1f, 0xe9, 0x22, 0xab, 0x1f, 0x72, 0x91, 0xde, 0x77, 0xe7, 0x17, 0x4d, 0xef, 0xcd, 0x45,
+	0xd3, 0xfb, 0xef, 0xa2, 0xe9, 0xfd, 0x7e, 0xd9, 0x9c, 0x7b, 0x73, 0xd9, 0x9c, 0xfb, 0xfb, 0xb2,
+	0x39, 0xf7, 0xeb, 0x76, 0x42, 0x55, 0x9a, 0x1f, 0x75, 0x22, 0x3e, 0xe8, 0xbe, 0x14, 0x39, 0x1c,
+	0x64, 0xc0, 0xba, 0x8c, 0xc7, 0xd0, 0x3d, 0xed, 0xea, 0xff, 0x1b, 0x6a, 0x94, 0x81, 0x3c, 0x9a,
+	0xd7, 0x7f, 0x35, 0x1e, 0xbd, 0x0d, 0x00, 0x00, 0xff, 0xff, 0xde, 0xeb, 0x6f, 0xd5, 0xfa, 0x08,
+	0x00, 0x00,
 }
 
-func (m *InferReceiptV2) Marshal() (dAtA []byte, err error) {
+func (m *InferReceiptV3) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -439,16 +512,50 @@ func (m *InferReceiptV2) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *InferReceiptV2) MarshalTo(dAtA []byte) (int, error) {
+func (m *InferReceiptV3) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *InferReceiptV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *InferReceiptV3) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if len(m.CiphertextOutputRoot) > 0 {
+		i -= len(m.CiphertextOutputRoot)
+		copy(dAtA[i:], m.CiphertextOutputRoot)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.CiphertextOutputRoot)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
+	if len(m.WorkerValueKeyCommitment) > 0 {
+		i -= len(m.WorkerValueKeyCommitment)
+		copy(dAtA[i:], m.WorkerValueKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.WorkerValueKeyCommitment)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x8a
+	}
+	if len(m.WorkerTokenKeyCommitment) > 0 {
+		i -= len(m.WorkerTokenKeyCommitment)
+		copy(dAtA[i:], m.WorkerTokenKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.WorkerTokenKeyCommitment)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x82
+	}
+	if len(m.OutputKeyCommitment) > 0 {
+		i -= len(m.OutputKeyCommitment)
+		copy(dAtA[i:], m.OutputKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.OutputKeyCommitment)))
+		i--
+		dAtA[i] = 0x7a
+	}
 	if m.OutputLeafCount != 0 {
 		i = encodeVarintInferReceipt(dAtA, i, uint64(m.OutputLeafCount))
 		i--
@@ -565,6 +672,42 @@ func (m *InferReceiptState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.CiphertextOutputRoot) > 0 {
+		i -= len(m.CiphertextOutputRoot)
+		copy(dAtA[i:], m.CiphertextOutputRoot)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.CiphertextOutputRoot)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x9a
+	}
+	if len(m.WorkerValueKeyCommitment) > 0 {
+		i -= len(m.WorkerValueKeyCommitment)
+		copy(dAtA[i:], m.WorkerValueKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.WorkerValueKeyCommitment)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
+	if len(m.WorkerTokenKeyCommitment) > 0 {
+		i -= len(m.WorkerTokenKeyCommitment)
+		copy(dAtA[i:], m.WorkerTokenKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.WorkerTokenKeyCommitment)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x8a
+	}
+	if len(m.OutputKeyCommitment) > 0 {
+		i -= len(m.OutputKeyCommitment)
+		copy(dAtA[i:], m.OutputKeyCommitment)
+		i = encodeVarintInferReceipt(dAtA, i, uint64(len(m.OutputKeyCommitment)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x82
+	}
 	if m.OutputLeafCount != 0 {
 		i = encodeVarintInferReceipt(dAtA, i, uint64(m.OutputLeafCount))
 		i--
@@ -679,7 +822,7 @@ func encodeVarintInferReceipt(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *InferReceiptV2) Size() (n int) {
+func (m *InferReceiptV3) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -736,6 +879,22 @@ func (m *InferReceiptV2) Size() (n int) {
 	}
 	if m.OutputLeafCount != 0 {
 		n += 1 + sovInferReceipt(uint64(m.OutputLeafCount))
+	}
+	l = len(m.OutputKeyCommitment)
+	if l > 0 {
+		n += 1 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.WorkerTokenKeyCommitment)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.WorkerValueKeyCommitment)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.CiphertextOutputRoot)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
 	}
 	return n
 }
@@ -802,6 +961,22 @@ func (m *InferReceiptState) Size() (n int) {
 	if m.OutputLeafCount != 0 {
 		n += 1 + sovInferReceipt(uint64(m.OutputLeafCount))
 	}
+	l = len(m.OutputKeyCommitment)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.WorkerTokenKeyCommitment)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.WorkerValueKeyCommitment)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
+	l = len(m.CiphertextOutputRoot)
+	if l > 0 {
+		n += 2 + l + sovInferReceipt(uint64(l))
+	}
 	return n
 }
 
@@ -811,7 +986,7 @@ func sovInferReceipt(x uint64) (n int) {
 func sozInferReceipt(x uint64) (n int) {
 	return sovInferReceipt(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *InferReceiptV2) Unmarshal(dAtA []byte) error {
+func (m *InferReceiptV3) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -834,10 +1009,10 @@ func (m *InferReceiptV2) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: InferReceiptV2: wiretype end group for non-group")
+			return fmt.Errorf("proto: InferReceiptV3: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: InferReceiptV2: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: InferReceiptV3: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1222,6 +1397,142 @@ func (m *InferReceiptV2) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OutputKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OutputKeyCommitment = append(m.OutputKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.OutputKeyCommitment == nil {
+				m.OutputKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 16:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerTokenKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerTokenKeyCommitment = append(m.WorkerTokenKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.WorkerTokenKeyCommitment == nil {
+				m.WorkerTokenKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 17:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerValueKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerValueKeyCommitment = append(m.WorkerValueKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.WorkerValueKeyCommitment == nil {
+				m.WorkerValueKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 18:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CiphertextOutputRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CiphertextOutputRoot = append(m.CiphertextOutputRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.CiphertextOutputRoot == nil {
+				m.CiphertextOutputRoot = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipInferReceipt(dAtA[iNdEx:])
@@ -1690,6 +2001,142 @@ func (m *InferReceiptState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 16:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OutputKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OutputKeyCommitment = append(m.OutputKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.OutputKeyCommitment == nil {
+				m.OutputKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 17:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerTokenKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerTokenKeyCommitment = append(m.WorkerTokenKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.WorkerTokenKeyCommitment == nil {
+				m.WorkerTokenKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 18:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WorkerValueKeyCommitment", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.WorkerValueKeyCommitment = append(m.WorkerValueKeyCommitment[:0], dAtA[iNdEx:postIndex]...)
+			if m.WorkerValueKeyCommitment == nil {
+				m.WorkerValueKeyCommitment = []byte{}
+			}
+			iNdEx = postIndex
+		case 19:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CiphertextOutputRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowInferReceipt
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthInferReceipt
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CiphertextOutputRoot = append(m.CiphertextOutputRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.CiphertextOutputRoot == nil {
+				m.CiphertextOutputRoot = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipInferReceipt(dAtA[iNdEx:])

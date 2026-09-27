@@ -13,6 +13,13 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
+func TestGenesisRejectsTaskAssignmentWithoutMinimumStakeSnapshot(t *testing.T) {
+	f := initFixture(t)
+	genesis := taskGenesisV1(t, genesisChainID(f))
+	genesis.TaskAssignments[0].MinStakeSnapshot = shared.NewAmount(0)
+	require.ErrorContains(t, genesis.Validate(), "min_stake_snapshot must be positive")
+}
+
 func TestGenesisV03RoundTripRebuildsDerivedIndexes(t *testing.T) {
 	source := initFixture(t)
 	input := taskGenesisV1(t, genesisChainID(source))
@@ -45,7 +52,7 @@ func TestGenesisV03RoundTripRebuildsDerivedIndexes(t *testing.T) {
 	selection := input.TaskBuilderSelections[0]
 	ownerBytes, err := sdk.AccAddressFromBech32(input.SessionNonces[0].UserAddress)
 	require.NoError(t, err)
-	nonceStore, err := source.keeper.SessionNonce.Get(source.ctx, input.SessionNonces[0].UserAddress)
+	nonceStore, err := source.keeper.SessionNonce.Get(source.ctx, types.AddrKey(ownerBytes))
 	require.NoError(t, err)
 	require.Equal(t, []byte(ownerBytes), nonceStore.UserAddress)
 	streamStore, err := source.keeper.Stream.Get(source.ctx, types.NewSessionKey(input.Streams[0].SessionId))
@@ -106,11 +113,11 @@ func TestGenesisV03RoundTripRebuildsDerivedIndexes(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, has)
 	has, err = source.keeper.WorkerActiveTaskIndex.Has(source.ctx,
-		types.NewWorkerActiveTaskKey(input.TaskAssignments[0].WinnerWorker, taskKey))
+		types.NewWorkerActiveTaskKey(winnerAddress, taskKey))
 	require.NoError(t, err)
 	require.True(t, has)
 	has, err = source.keeper.SessionByOwnerIndex.Has(source.ctx,
-		types.NewSessionByOwnerKey(input.Streams[0].OwnerUserAddress, input.Streams[0].SessionId))
+		types.NewSessionByOwnerKey(ownerBytes, input.Streams[0].SessionId))
 	require.NoError(t, err)
 	require.True(t, has)
 

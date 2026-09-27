@@ -69,7 +69,7 @@ type ApplyServiceSlashRequest struct {
 	SummaryID   []byte
 	SourceKind  types.SlashSourceKind
 	SourceID    []byte
-	EffectIndex uint64
+	EffectIndex uint32
 	Destination types.SlashDestination
 }
 
@@ -79,7 +79,7 @@ type applyServiceSlashMetadata struct {
 	SummaryID   []byte
 	SourceKind  types.SlashSourceKind
 	SourceID    []byte
-	EffectIndex uint64
+	EffectIndex uint32
 	Destination types.SlashDestination
 }
 

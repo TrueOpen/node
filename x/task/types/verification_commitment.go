@@ -9,7 +9,7 @@ import (
 const verifierResultPayloadVersionV1 = "VERIFIER_RESULT_REVEAL_V1"
 
 // VerifierResultPayloadInput contains the authoritative inputs to the opaque
-// canonical verifier payload. Caller-supplied ResultReceiptV2 fields and
+// canonical verifier payload. Caller-supplied ResultReceiptV3 fields and
 // Keeper-derived task/assignment facts are deliberately combined only here.
 type VerifierResultPayloadInput struct {
 	ChainID                           string
@@ -135,7 +135,7 @@ func MetricSummaryHash(summary MetricSummaryV1) ([32]byte, error) {
 
 // ResultReceiptSigningDigest derives the frozen TRUEOPEN_RESULT_V2 signing
 // digest. service_signature is deliberately excluded.
-func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
+func ResultReceiptSigningDigest(receipt ResultReceiptV3) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", receipt.ChainId)
 	if err != nil {
 		return [32]byte{}, err
@@ -172,7 +172,7 @@ func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
 	if err != nil {
 		return [32]byte{}, err
 	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainResultV2)).Raw(
+	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainResultV3)).Raw(
 		shared.Uint32BE(receipt.SchemaVersion),
 		chainID,
 		taskID,
@@ -187,6 +187,9 @@ func ResultReceiptSigningDigest(receipt ResultReceiptV2) ([32]byte, error) {
 		shared.Uint64BE(receipt.VerifierEvidenceManifestSizeBytes),
 		salt,
 		shared.Uint64BE(receipt.ExpiryHeight),
+		receipt.VerifierValueRoot,
+		shared.Uint32BE(receipt.MetricLeafCount),
+		receipt.VerifierEvidenceKeyCommitment,
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err
@@ -218,14 +221,14 @@ func DeriveCommitKey(chainID string, taskID []byte, verifyRound uint32, verifier
 	)
 }
 
-// ResultCommitmentHash derives the V2 commitment opened by ResultReceiptV2.
+// ResultCommitmentHash derives the V3 commitment opened by ResultReceiptV3.
 func ResultCommitmentHash(
 	chainID string,
 	taskID []byte,
 	taskHash []byte,
 	verifyRound uint32,
 	verifierOperatorAddress string,
-	resultPayloadHash []byte,
+	verifierValueRoot []byte,
 	salt []byte,
 ) ([32]byte, error) {
 	chain, err := canonicalUTF8Field("chain_id", chainID)
@@ -244,7 +247,7 @@ func ResultCommitmentHash(
 	if err != nil {
 		return [32]byte{}, err
 	}
-	payloadHash, err := canonicalHash32("result_payload_hash", resultPayloadHash)
+	valueRoot, err := canonicalHash32("verifier_value_root", verifierValueRoot)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -253,13 +256,13 @@ func ResultCommitmentHash(
 		return [32]byte{}, err
 	}
 	return canonicalTaskDigestV1(
-		shared.DomainResultCommitmentV2,
+		shared.DomainResultCommitmentV3,
 		chain,
 		task,
 		taskDigest,
 		shared.Uint32BE(verifyRound),
 		verifier,
-		payloadHash,
+		valueRoot,
 		canonicalSalt,
 	)
 }

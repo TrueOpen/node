@@ -121,7 +121,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 				hubtypes.ServiceKeyResponsibilityState{
 					ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
 					OperatorAddress: builder, ResponsibilityId: responsibilityID, ResponsibilityKind: kind,
-					SessionId: hex.EncodeToString(sessionID), TaskId: taskHex, CreatedHeight: height,
+					SessionId: append([]byte(nil), sessionID...), TaskId: append([]byte(nil), taskID...), CreatedHeight: height,
 				},
 			))
 			written = append(written, responsibilityID)
@@ -203,7 +203,7 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
 		OperatorAddress: builder, ResponsibilityId: responsibilityID,
 		ResponsibilityKind: hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE,
-		SessionId:          hex.EncodeToString(sessionID), TaskId: hex.EncodeToString(taskID),
+		SessionId:          append([]byte(nil), sessionID...), TaskId: append([]byte(nil), taskID...),
 		CreatedHeight: selection.CreatedHeight, ServiceAuthorizationNonce: builderState.ServiceAuthorizationNonce,
 	}
 	primaryKey := hubtypes.NewServiceKeyResponsibilityKey(

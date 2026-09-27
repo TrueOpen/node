@@ -376,7 +376,7 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	// the data-structure contract lists jail and tombstone together, both as a path
 	// that invalidates support and as a mutation that must go through the single
 	// applyModelSupportMutation entry point: the support aggregates and the
-	// ModelSupportByProfileIndex / ModelSupportExpiryIndex rows have to be updated
+	// ModelSupportByModelIndex / ModelSupportExpiryIndex rows have to be updated
 	// in the same transaction, with the already-counted support debited exactly
 	// once. Doing this only on the tombstone branch left jail_count > 0 rows whose
 	// SupportVoteWeight is no longer eligible while support_active and both stake

@@ -97,12 +97,15 @@ func (q *queryServer) EpochTaskSummary(ctx context.Context, req *types.QueryEpoc
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
 	}
+	if req.Epoch == 0 {
+		return nil, status.Error(codes.InvalidArgument, "epoch must be positive")
+	}
 	receipt, err := q.k.EpochTaskSummaryReceipt.Get(ctx, req.Epoch)
 	if err == nil {
 		if receipt.Epoch != req.Epoch || len(receipt.ReceiptHash) != types.Hash32Len {
 			return nil, status.Error(codes.Internal, "epoch task summary receipt is non-canonical")
 		}
-		return &types.QueryEpochTaskSummaryResponse{Value: &types.QueryEpochTaskSummaryResponse_Receipt{Receipt: &receipt}}, nil
+		return &types.QueryEpochTaskSummaryResponse{Receipt: receipt}, nil
 	}
 	if !errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -112,7 +115,7 @@ func (q *queryServer) EpochTaskSummary(ctx context.Context, req *types.QueryEpoc
 		if cursor.Epoch != req.Epoch || len(cursor.RunningRoot) != types.Hash32Len {
 			return nil, status.Error(codes.Internal, "epoch task summary cursor is non-canonical")
 		}
-		return &types.QueryEpochTaskSummaryResponse{Value: &types.QueryEpochTaskSummaryResponse_Running{Running: &cursor}}, nil
+		return nil, status.Error(codes.FailedPrecondition, "epoch task summary is still running")
 	}
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "epoch task summary not found")
@@ -464,6 +467,7 @@ func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmen
 		AssignmentStatus:             core.AssignmentStatus,
 		WorkerInferTimeoutSlashBps:   assignment.WorkerInferTimeoutSlashBps,
 		ResultRevealMissingSlashBps:  assignment.ResultRevealMissingSlashBps,
+		MinStakeSnapshot:             assignment.MinStakeSnapshot,
 	}
 	if assignment.WinnerWorker != "" {
 		view.XWinnerWorker = &types.TaskAssignmentViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}

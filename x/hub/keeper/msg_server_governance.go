@@ -20,8 +20,8 @@ func (m msgServer) SubmitFreezeSignal(ctx context.Context, req *types.MsgSubmitF
 	if _, _, err := m.k.requireCanonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
 		return nil, err
 	}
-	if req.ProfileVersion == 0 || types.ValidateModelID(req.ModelId) != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidModel, "canonical model_id and positive profile_version are required")
+	if req.ProfileVersion == 0 || len(req.ModelId) != shared.Hash32KeySize {
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, "raw model_id and positive profile_version are required")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	if sdkCtx.BlockHeight() <= 0 {
@@ -171,7 +171,7 @@ func (m msgServer) EmergencyFreezeVote(ctx context.Context, req *types.MsgEmerge
 	}, nil
 }
 
-func (k Keeper) setProfileEmergencyFrozen(ctx context.Context, modelID string, profileVersion uint32, height uint64) error {
+func (k Keeper) setProfileEmergencyFrozen(ctx context.Context, modelID []byte, profileVersion uint32, height uint64) error {
 	key := types.NewProfileStateKey(modelID, profileVersion)
 	profile, err := k.Profile.Get(ctx, key)
 	if err != nil {
@@ -201,17 +201,11 @@ func (k Keeper) setProfileEmergencyFrozen(ctx context.Context, modelID string, p
 	if !isValidProfileStatusTransition(profile.Status, types.ModelStatusEmergencyFrozen) {
 		return nil
 	}
-	if err := k.deactivateProfileSupports(ctx, modelID, profileVersion, types.ModelSupportDeactivateFrozen, height); err != nil {
-		return err
-	}
 	oldStatus := profile.Status
 	profile.Status = types.ModelStatusEmergencyFrozen
 	profile.StatusSource = types.ProfileStatusSourceEmergency
 	profile.UpdatedHeight = height
 	if err := k.setProfileState(ctx, profile); err != nil {
-		return err
-	}
-	if err := k.applyActiveProfileCountDelta(ctx, modelID, oldStatus, profile.Status, height); err != nil {
 		return err
 	}
 	mustEmitHubEvent(ctx, &types.EventModelProfileStateChanged{

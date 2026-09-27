@@ -82,7 +82,7 @@ func (k Keeper) applyRoundEconomicEffectInCache(
 				TaskID: append([]byte(nil), req.TaskID...), Requested: parsed.requested, Height: req.Height,
 				SummaryID:  append([]byte(nil), req.RoundID...),
 				SourceKind: types.SlashSourceKind_SLASH_SOURCE_KIND_CHALLENGE_EFFECT,
-				SourceID:   append([]byte(nil), req.RoundID...), EffectIndex: uint64(req.Effect.EffectIndex),
+				SourceID:   append([]byte(nil), req.RoundID...), EffectIndex: req.Effect.EffectIndex,
 				Destination: types.SlashDestination_SLASH_DESTINATION_CHALLENGE_EFFECT_POOL,
 			})
 			if err != nil {

@@ -18,7 +18,7 @@ import (
 const candidatePoolSegmentOverheadMaxBytes = uint64(128)
 
 // endblockFixedRowMaxBytes bounds every fixed-shape row a Hub EndBlock processor
-// decodes or writes back (ModelSupportState, SupportDeactivateCursorState,
+// decodes or writes back (ModelSupportState, ModelSupportRecheckCursorState,
 // UnbondingState, UnbondingReceiptState, DailySupportState, MarkGateState,
 // FreezeSignalState and EarningsPendingState,
 // ProfileState, ModelState, CandidatePoolCurrentState, CandidatePoolDirtyState
@@ -273,12 +273,17 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 		return err
 	}
 	if err := run(params.Support.MaxSupportExpiryItemsPerBlock, func(visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
-		return k.ProcessSupportDeactivations(ctx, height, visitedLimit, bytesLimit)
+		return k.ProcessExpiredModelSupports(ctx, epoch, height, visitedLimit, bytesLimit)
 	}); err != nil {
 		return err
 	}
-	if err := run(params.Support.MaxSupportExpiryItemsPerBlock, func(visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
-		return k.ProcessExpiredModelSupports(ctx, epoch, height, visitedLimit, bytesLimit)
+	if err := run(params.Support.MaxModelSupportDeactivateItemsPerBlock, func(visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
+		return k.ProcessModelSupportDeactivations(ctx, height, visitedLimit, bytesLimit)
+	}); err != nil {
+		return err
+	}
+	if err := run(params.Support.MaxModelSupportRecheckItemsPerBlock, func(visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
+		return k.ProcessModelSupportRechecks(ctx, height, visitedLimit, bytesLimit)
 	}); err != nil {
 		return err
 	}
@@ -350,129 +355,6 @@ func saturatingMul(a, b uint64) uint64 {
 	return shared.SaturatingMulUint64(a, b)
 }
 
-// ProcessSupportDeactivations drains the bounded support-deactivation cursors
-// written by EnqueueSupportDeactivation (P0-3). Both dimensions are bounded:
-// profiles per model by types.MaxProfilesPerModel at enqueue time, operators per
-// profile by this cursor at drain time.
-//
-// Every visited ModelSupportByProfileIndex row costs one visited item, including
-// rows whose primary is already gone and rows that are already inactive, so a
-// stale or poison row can never be rescanned for free on every block
-// (the node context document). Completing a cursor costs one visited item as well, so
-// a flood of empty cursors is bounded too. A cursor is removed the moment its
-// operator scan is exhausted; no permanent per-profile audit row is left behind.
-func (k Keeper) ProcessSupportDeactivations(ctx context.Context, currentHeight, visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
-	budget := newEndblockBudget(visitedLimit, bytesLimit)
-	for !budget.exhausted() {
-		cursorKey, cursor, found, err := k.firstSupportDeactivateCursor(ctx)
-		if err != nil {
-			visited, consumed := budget.result()
-			return visited, consumed, err
-		}
-		if !found {
-			break
-		}
-		done, err := k.advanceSupportDeactivateCursor(ctx, cursorKey, cursor, currentHeight, budget)
-		if err != nil {
-			visited, consumed := budget.result()
-			return visited, consumed, err
-		}
-		if !done {
-			break
-		}
-	}
-	visited, consumed := budget.result()
-	return visited, consumed, nil
-}
-
-func (k Keeper) firstSupportDeactivateCursor(ctx context.Context) (types.ProfileStateKeyPair, types.SupportDeactivateCursorState, bool, error) {
-	var (
-		emptyKey   types.ProfileStateKeyPair
-		emptyState types.SupportDeactivateCursorState
-	)
-	iter, err := k.SupportDeactivateCursor.Iterate(ctx, nil)
-	if err != nil {
-		return emptyKey, emptyState, false, err
-	}
-	defer iter.Close()
-	if !iter.Valid() {
-		return emptyKey, emptyState, false, nil
-	}
-	entry, err := iter.KeyValue()
-	if err != nil {
-		return emptyKey, emptyState, false, err
-	}
-	return entry.Key, entry.Value, true, nil
-}
-
-// advanceSupportDeactivateCursor resumes one profile's operator scan from
-// last_operator_address (exclusive) and returns whether the cursor finished.
-// Progress is persisted whenever the budget runs out mid-profile, so the next
-// block continues instead of rescanning from the first operator.
-func (k Keeper) advanceSupportDeactivateCursor(
-	ctx context.Context,
-	cursorKey types.ProfileStateKeyPair,
-	cursor types.SupportDeactivateCursorState,
-	currentHeight uint64,
-	budget *endblockBudget,
-) (bool, error) {
-	if cursor.ModelId == "" || cursor.ProfileVersion == 0 || cursor.Reason == "" {
-		return false, errorsmod.Wrap(types.ErrInvariantBroken, "support deactivate cursor is missing its model/profile/reason scope")
-	}
-	model, modelErr := k.Model.Get(ctx, cursor.ModelId)
-	profile, profileErr := k.Profile.Get(ctx, cursorKey)
-	if modelErr != nil || profileErr != nil {
-		return false, errorsmod.Wrap(types.ErrInvariantBroken, "support deactivate cursor references missing model/profile")
-	}
-	if cursor.Reason == types.ModelSupportDeactivateFrozen &&
-		types.IsModelProfileStatusOpen(model.Status) && types.IsModelProfileStatusOpen(profile.Status) {
-		// Governance may unfreeze while a bounded fan-out is in flight. Once
-		// both live gates are open again, the old freeze intent no longer owns
-		// the remaining declarations and the cursor must retire immediately.
-		budget.charge(cursor.Size())
-		return true, k.SupportDeactivateCursor.Remove(ctx, cursorKey)
-	}
-	advanced := false
-	for !budget.exhausted() {
-		operator, found, err := k.nextProfileSupportOperator(ctx, cursor.ModelId, cursor.ProfileVersion, cursor.LastOperatorAddress)
-		if err != nil {
-			return false, err
-		}
-		if !found {
-			// Closing the cursor is the visited item that pays for having read it.
-			budget.charge(cursor.Size())
-			return true, k.SupportDeactivateCursor.Remove(ctx, cursorKey)
-		}
-		state, exists, err := k.loadModelSupport(ctx, operator, cursor.ModelId, cursor.ProfileVersion)
-		if err != nil {
-			return false, err
-		}
-		rowBytes := 0
-		if exists {
-			rowBytes = state.Size()
-			if state.DeclaredSupport || state.SupportActive || state.ActiveSupportStakeSnapshot != 0 || state.EligibleSupportStakeSnapshot != 0 {
-				updated, err := k.DeactivateModelSupport(ctx, operator, cursor.ModelId, cursor.ProfileVersion, cursor.Reason, currentHeight)
-				if err != nil {
-					return false, err
-				}
-				rowBytes = max(rowBytes, updated.Size())
-			}
-		}
-		budget.charge(rowBytes)
-		visitedCount, err := checkedAdd(cursor.VisitedCount, 1)
-		if err != nil {
-			return false, err
-		}
-		cursor.VisitedCount = visitedCount
-		cursor.LastOperatorAddress = operator
-		advanced = true
-	}
-	if advanced {
-		return false, k.SupportDeactivateCursor.Set(ctx, cursorKey, cursor)
-	}
-	return false, nil
-}
-
 func (k Keeper) ProcessExpiredModelSupports(ctx context.Context, currentEpoch, currentHeight, visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
 	budget := newEndblockBudget(visitedLimit, bytesLimit)
 	keys, err := dueKeys(ctx, k.ModelSupportExpiryIndex, currentEpoch, visitedLimit)
@@ -487,7 +369,7 @@ func (k Keeper) ProcessExpiredModelSupports(ctx context.Context, currentEpoch, c
 		cacheCtx, write := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
 		expiresEpoch, suffix := key.K1(), key.K2()
-		operator, modelID, version := suffix.K1(), suffix.K2(), suffix.K3()
+		operator, modelID := suffix.K1(), suffix.K2()
 		state, err := k.ModelSupport.Get(cache, suffix)
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
@@ -514,7 +396,7 @@ func (k Keeper) ProcessExpiredModelSupports(ctx context.Context, currentEpoch, c
 			budget.charge(rowBytes)
 			continue
 		}
-		updated, err := k.DeactivateModelSupport(cache, operator, modelID, version, types.ModelSupportDeactivateExpired, currentHeight)
+		updated, err := k.DeactivateModelSupport(cache, operator, modelID, types.ModelSupportDeactivateExpired, currentHeight)
 		if err != nil {
 			visited, consumed := budget.result()
 			return visited, consumed, err
@@ -608,26 +490,26 @@ func (k Keeper) ProcessModelSupportPrunes(ctx context.Context, currentEpoch, vis
 			// and the row is left alone; a later deactivation schedules a fresh
 			// prune key. Treating this as a broken invariant would halt the chain
 			// on a reachable, legal sequence.
-			if !state.SupportActive && state.ActiveSupportStakeSnapshot == 0 && state.EligibleSupportStakeSnapshot == 0 && state.SupportFreshUntilEpoch <= currentEpoch {
+			if !state.DeclaredSupport && !state.SupportActive && state.ActiveSupportStakeSnapshot == 0 && state.SupportFreshUntilEpoch <= currentEpoch {
 				if err := k.ModelSupport.Remove(cache, supportKey); err != nil {
 					visited, consumed := budget.result()
 					return visited, consumed, err
 				}
 				if state.SupportFreshUntilEpoch != 0 {
-					if err := k.ModelSupportExpiryIndex.Remove(cache, types.NewModelSupportExpiryIndexKey(state.SupportFreshUntilEpoch, state.OperatorAddress, state.ModelId, state.ProfileVersion)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+					if err := k.ModelSupportExpiryIndex.Remove(cache, types.NewModelSupportExpiryIndexKey(state.SupportFreshUntilEpoch, state.OperatorAddress, state.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 						visited, consumed := budget.result()
 						return visited, consumed, err
 					}
 				}
-				if err := k.ProfileCapability.Remove(cache, types.NewProfileCapabilityKey(state.OperatorAddress, state.ModelId, state.ProfileVersion)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+				if err := k.ModelCapability.Remove(cache, types.NewModelCapabilityKey(state.OperatorAddress, state.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 					visited, consumed := budget.result()
 					return visited, consumed, err
 				}
-				if err := k.ModelSupportByProfileIndex.Remove(cache, types.NewModelSupportByProfileIndexKey(state.ModelId, state.ProfileVersion, state.OperatorAddress)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+				if err := k.ModelSupportByModelIndex.Remove(cache, types.NewModelSupportByModelIndexKey(state.ModelId, state.OperatorAddress)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 					visited, consumed := budget.result()
 					return visited, consumed, err
 				}
-				if err := k.ModelSupportByOperatorIndex.Remove(cache, types.NewModelSupportByOperatorIndexKey(state.OperatorAddress, state.ModelId, state.ProfileVersion)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+				if err := k.ModelSupportByOperatorIndex.Remove(cache, types.NewModelSupportByOperatorIndexKey(state.OperatorAddress, state.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 					visited, consumed := budget.result()
 					return visited, consumed, err
 				}
@@ -635,16 +517,16 @@ func (k Keeper) ProcessModelSupportPrunes(ctx context.Context, currentEpoch, vis
 		} else {
 			// If an older cleanup removed the primary first, all same-identity
 			// projections are orphans and can deterministically self-heal here.
-			operator, modelID, version := supportKey.K1(), supportKey.K2(), supportKey.K3()
-			if err := k.ProfileCapability.Remove(cache, types.NewProfileCapabilityKey(operator, modelID, version)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			operator, modelID := supportKey.K1(), supportKey.K2()
+			if err := k.ModelCapability.Remove(cache, types.NewModelCapabilityKey(operator, modelID)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 				visited, consumed := budget.result()
 				return visited, consumed, err
 			}
-			if err := k.ModelSupportByProfileIndex.Remove(cache, types.NewModelSupportByProfileIndexKey(modelID, version, operator)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			if err := k.ModelSupportByModelIndex.Remove(cache, types.NewModelSupportByModelIndexKey(modelID, operator)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 				visited, consumed := budget.result()
 				return visited, consumed, err
 			}
-			if err := k.ModelSupportByOperatorIndex.Remove(cache, types.NewModelSupportByOperatorIndexKey(operator, modelID, version)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			if err := k.ModelSupportByOperatorIndex.Remove(cache, types.NewModelSupportByOperatorIndexKey(operator, modelID)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 				visited, consumed := budget.result()
 				return visited, consumed, err
 			}

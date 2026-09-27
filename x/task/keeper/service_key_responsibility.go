@@ -50,6 +50,14 @@ func (k Keeper) reserveServiceKeyResponsibility(
 	sessionID, taskID string,
 	height uint64,
 ) error {
+	sessionBytes, err := decodeResponsibilityHash32("session_id", sessionID)
+	if err != nil {
+		return err
+	}
+	taskBytes, err := decodeResponsibilityHash32("task_id", taskID)
+	if err != nil {
+		return err
+	}
 	// service_authorization_nonce is left unset on purpose. The Hub owns the
 	// participant's current binding and stamps the acquiring generation itself; a
 	// value read here would be a second, racier copy of state this module does not
@@ -59,10 +67,18 @@ func (k Keeper) reserveServiceKeyResponsibility(
 		OperatorAddress:    strings.TrimSpace(operatorAddress),
 		ResponsibilityId:   responsibilityID,
 		ResponsibilityKind: kind,
-		SessionId:          sessionID,
-		TaskId:             taskID,
+		SessionId:          sessionBytes,
+		TaskId:             taskBytes,
 		CreatedHeight:      height,
 	})
+}
+
+func decodeResponsibilityHash32(field, value string) ([]byte, error) {
+	decoded, err := hex.DecodeString(value)
+	if err != nil || len(decoded) != types.Hash32Len || hex.EncodeToString(decoded) != value {
+		return nil, fmt.Errorf("%s must be canonical lowercase Hash32", field)
+	}
+	return decoded, nil
 }
 
 func (k Keeper) releaseTaskOnlineResponsibilities(ctx context.Context, sessionID, taskID string, height uint64) error {

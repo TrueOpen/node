@@ -185,7 +185,7 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 	if err := m.k.setStreamState(ctx, stream); err != nil {
 		return nil, err
 	}
-	if err := m.k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(owner, sessionKey)); err != nil {
+	if err := m.k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(ownerBytes, sessionKey)); err != nil {
 		return nil, err
 	}
 	nonceState.UserAddress = owner

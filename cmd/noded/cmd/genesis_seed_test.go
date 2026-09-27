@@ -122,8 +122,8 @@ func TestApplyGenesisSeedBuildsRunnableStateAndIsIdempotent(t *testing.T) {
 			Descriptor: newGenesisSeedTestDescriptor(
 				"SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS", "https://cortex.example/"+identity.address, "trueopen-object-gateway-v1",
 			),
-			SupportedProfiles: []genesisSeedProfileSupport{{
-				ModelID: "local-inference-model", ProfileVersion: 1, Active: true,
+			SupportedModels: []genesisSeedModelSupport{{
+				ModelRef: "trueopen/golden-model", FirstSupportProfileVersion: 1, Active: true,
 			}},
 		})
 	}
@@ -294,7 +294,8 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 		}, builder.Descriptor.Endpoints)
 	}
 	model := seed.Models[0]
-	require.Equal(t, "hf-ad410b3157d13dbfb8263e92914cfe5a75868ce68fd722d2f73c75ff8cc7378b", model.Profile.ModelID)
+	require.Equal(t, "HUGGINGFACE", model.Profile.Source.Provider)
+	require.Equal(t, "trueopen/golden-model", model.Profile.Source.RepoId)
 	require.Equal(t, uint32(1), model.Profile.ProfileVersion)
 	require.Equal(t, []string{"TEXT_GENERATION", "CHAT"}, model.Profile.TaskTypes)
 	require.Equal(t, "uusdc", model.Profile.MinStake.Denom)
@@ -308,7 +309,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 		operators[cortex.OperatorAddress] = struct{}{}
 		serviceAddresses[cortex.ServiceAddress] = struct{}{}
 		require.Nil(t, cortex.Descriptor)
-		require.Equal(t, []genesisSeedProfileSupport{{ModelID: model.Profile.ModelID, ProfileVersion: 1, Active: true}}, cortex.SupportedProfiles)
+		require.Equal(t, []genesisSeedModelSupport{{ModelRef: model.Profile.Source.RepoId, FirstSupportProfileVersion: 1, Active: true}}, cortex.SupportedModels)
 	}
 	require.Len(t, operators, 4)
 	require.Len(t, serviceAddresses, 4)
@@ -513,18 +514,18 @@ func TestLocalnetGenesisSeedAppliesRunnableModelSupportState(t *testing.T) {
 	for _, node := range hub.CortexNodes {
 		require.Zero(t, node.CurrentDescriptorVersion)
 	}
-	require.Len(t, hub.ProfileCapabilities, 4)
+	require.Len(t, hub.ModelCapabilities, 4)
 	require.Len(t, hub.ModelSupports, 4)
 	require.Len(t, hub.DailySupports, 4)
 	require.Len(t, hub.Models, 1)
 	require.Len(t, hub.Profiles, 1)
 	require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
-	require.Equal(t, hubtypes.ModelStatusActive, hub.Profiles[0].Status)
+	require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
 	require.Equal(t, []shared.TaskType{
 		shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		shared.TaskType_TASK_TYPE_CHAT,
 	}, hub.Profiles[0].TaskTypes)
-	require.Equal(t, uint32(4), hub.Profiles[0].ActiveSupporterCount)
+	require.Equal(t, uint32(4), hub.Models[0].ActiveSupporterCount)
 	for _, support := range hub.ModelSupports {
 		require.True(t, support.DeclaredSupport)
 		require.True(t, support.SupportActive)
@@ -572,7 +573,12 @@ func newGenesisSeedTestModel(proposer string) genesisSeedModel {
 			ChallengeOpenWindow: hubtypes.ProfileChallengeOpenWindowMinBlocks,
 			GenerationType:      "SAMPLED", ManifestHash: nonZeroHash,
 			MinStake: genesisSeedCoin{Amount: genesisSeedTestServiceBondMinInitial, Denom: hubtypes.DefaultBusinessDenom},
-			ModelID:  "local-inference-model", PricingProfile: genesisSeedPricingProfile{
+			Source: shared.SourceRefV1{
+				Provider: "HUGGINGFACE", RepoId: "trueopen/golden-model", RepoType: "model",
+				ResolverVersion: "HF_RESOLVER_V1", Revision: "0123456789abcdef0123456789abcdef01234567",
+				SourceUri: "hf://trueopen/golden-model@0123456789abcdef0123456789abcdef01234567",
+			},
+			PricingProfile: genesisSeedPricingProfile{
 				InitialOutputPrice: 1_000, MinOrderValue: 1_000, VerifyRatioBps: 1_000,
 			},
 			ProfileVersion: 1, RegistrationFee: genesisSeedCoin{Amount: 1_000_000, Denom: hubtypes.DefaultBusinessDenom},
@@ -582,9 +588,10 @@ func newGenesisSeedTestModel(proposer string) genesisSeedModel {
 				CanonicalEncodingVersion: "CANONICAL_OUTPUT_TEXT_V1",
 				EvidenceSchema: genesisSeedEvidenceSchema{
 					SchemaVersion: 1,
-					RequiredInferEvidence: []genesisSeedEvidenceRequirement{{
-						EvidenceKind: "WORKER_VALUE_OPENING", CommitmentSchemaVersion: 2, MaxEncodedSizeBytes: 1 << 30,
-					}},
+					RequiredInferEvidence: []genesisSeedEvidenceRequirement{
+						{EvidenceKind: "WORKER_VALUE_OPENING", CommitmentSchemaVersion: 3, MaxEncodedSizeBytes: 1 << 30},
+						{EvidenceKind: "WORKER_TOKEN_OPENING", CommitmentSchemaVersion: 1, MaxEncodedSizeBytes: 1 << 26},
+					},
 				},
 				JudgmentFunctionVersion: "PREFILL_GENERATED_TOKEN_METRICS_V1", MetricAggregateProofVersion: "PREFILL_METRIC_AGGREGATE_PROOF_V1",
 				Metrics:             genesisSeedMetricSpec{CompareLogprobDiff: true, ComparedTopK: 20, NumericScale: "FP_1E6"},
@@ -731,14 +738,14 @@ func assertGenesisSeedState(
 	require.Equal(t, uint64(77), hub.Models[0].CreatedHeight)
 	require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
 	require.Len(t, hub.Profiles, 1)
-	require.Equal(t, hubtypes.ModelStatusActive, hub.Profiles[0].Status)
+	require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
 	require.Equal(t, hubtypes.ModelRegistrationFeeMinMicroUSDC, hub.Models[0].RegistrationFeePaid)
 	// TreasuryState is (balance, treasury_version) now;
 	// total_collected and the per-epoch treasury ledger both left the wire
 	// with TreasuryEpochState. The genesis seed credits the registration fee
 	// into balance, so that is what this pins.
 	require.Equal(t, shared.NewAmount(hubtypes.ModelRegistrationFeeMinMicroUSDC), hub.Treasury.Balance)
-	require.Len(t, hub.ProfileCapabilities, 3)
+	require.Len(t, hub.ModelCapabilities, 3)
 	require.Len(t, hub.ModelSupports, 3)
 	require.Len(t, hub.DailySupports, 3)
 	// The standalone ServiceKeyBinding collection is gone: the current online key

@@ -235,7 +235,7 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 	stageKey := types.NewTaskStageKey(taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY)
 	core, err := f.keeper.TaskCore.Get(f.ctx, taskKey)
 	require.NoError(t, err)
-	core.ModelId = "model-a"
+	core.ModelId = bytes.Repeat([]byte{0x6d}, types.Hash32Len)
 	core.ProfileVersion = 1
 	core.OrderValue = shared.NewAmount(10)
 	core.AcceptedTaskHash = bytes.Repeat([]byte{0x51}, types.Hash32Len)
@@ -243,7 +243,7 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 	winner := sdk.AccAddress(bytes.Repeat([]byte{0x61}, 20)).String()
 	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 		TaskId: window.TaskId, CandidatePoolSnapshotId: window.CandidatePoolSnapshotId,
-		CandidatePoolHash: window.CandidatePoolHash, WinnerWorker: winner,
+		CandidatePoolHash: window.CandidatePoolHash, WinnerWorker: winner, MinStakeSnapshot: shared.NewAmount(20),
 	}))
 	require.NoError(t, f.keeper.VerifyOpenDeadlineIndex.Set(f.ctx,
 		types.NewDeadlineIndexKey(window.AssignmentDeadlineHeight, taskKey)))
@@ -270,6 +270,24 @@ func verifierSelectionReadyFixture(t *testing.T) verifierSelectionReady {
 		}
 	}
 	return ready
+}
+
+func TestVerifierLiabilityPreflightRejectsMinimumStakeSnapshotMismatch(t *testing.T) {
+	ready := verifierSelectionReadyFixture(t)
+	f := ready.f
+	f.keeper.hubKeeper = verifierAdmissionHubStub{
+		membersBySlot: ready.membersBySlot, bindingsBySlot: ready.bindingsBySlot,
+	}
+	core, err := f.keeper.TaskCore.Get(f.ctx, ready.taskKey)
+	require.NoError(t, err)
+	assignment, err := f.keeper.ReadTaskAssignment(f.ctx, ready.taskKey)
+	require.NoError(t, err)
+	fact, err := f.keeper.ReadTaskCandidateFact(f.ctx, types.NewTaskCandidateFactKey(
+		ready.taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY, 1))
+	require.NoError(t, err)
+	assignment.MinStakeSnapshot = shared.NewAmount(21)
+	_, err = f.keeper.preflightVerifierTaskLiability(f.ctx, core, assignment, ready.window, fact, 30)
+	require.ErrorIs(t, err, types.ErrInvariantBroken)
 }
 
 func TestVerifierSelectionRollsBackTaskWritesWhenLiabilityReservationFails(t *testing.T) {

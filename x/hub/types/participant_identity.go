@@ -255,14 +255,14 @@ func (s ServiceKeyResponsibilityState) Validate() error {
 	if err := validateRequiredHash32("service key responsibility responsibility_id", s.ResponsibilityId); err != nil {
 		return err
 	}
-	for name, value := range map[string]string{
-		"operator_address": s.OperatorAddress,
-		"session_id":       s.SessionId,
-		"task_id":          s.TaskId,
-	} {
-		if _, err := requireCanonicalNonEmpty("service key responsibility "+name, value); err != nil {
-			return err
-		}
+	if _, err := requireCanonicalNonEmpty("service key responsibility operator_address", s.OperatorAddress); err != nil {
+		return err
+	}
+	if err := validateRequiredHash32("service key responsibility session_id", s.SessionId); err != nil {
+		return err
+	}
+	if err := validateRequiredHash32("service key responsibility task_id", s.TaskId); err != nil {
+		return err
 	}
 	if s.CreatedHeight == 0 {
 		return fmt.Errorf("service key responsibility created_height must be greater than 0")

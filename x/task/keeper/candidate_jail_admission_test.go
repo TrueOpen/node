@@ -43,9 +43,18 @@ func (s jailAdmissionHubStub) GetRoleScoringSnapshot(sdk.Context, sdk.AccAddress
 	}, nil
 }
 
-func (jailAdmissionHubStub) GetProfileCapability(_ sdk.Context, address sdk.AccAddress, modelID string, profileVersion uint32) (hubtypes.ProfileCapabilitySnapshot, bool) {
-	return hubtypes.ProfileCapabilitySnapshot{
-		OperatorAddress: address.String(), ModelID: modelID, ProfileVersion: profileVersion,
+func (s jailAdmissionHubStub) GetModelSupport(ctx sdk.Context, address sdk.AccAddress, modelID []byte) (hubtypes.ModelSupportSnapshot, bool) {
+	support, ok := s.verifierAdmissionHubStub.GetModelSupport(ctx, address, modelID)
+	if s.bondStatus == hubtypes.ServiceBondStatusJailed {
+		support.SupportActive = false
+		support.SuspendReason = hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
+	}
+	return support, ok
+}
+
+func (jailAdmissionHubStub) GetModelCapability(_ sdk.Context, address sdk.AccAddress, modelID []byte) (hubtypes.ModelCapabilitySnapshot, bool) {
+	return hubtypes.ModelCapabilitySnapshot{
+		OperatorAddress: address.String(), ModelID: append([]byte(nil), modelID...),
 		InferenceCapability: true, VerificationCapability: true, CapabilityVersion: 1,
 	}, true
 }
@@ -95,7 +104,7 @@ func TestWorkerCandidateAdmissionUsesJailLadderNotBondStatus(t *testing.T) {
 				SchemaVersion: types.WorkerHandraiseSchemaVersionV1, ChainId: sdkCtx.ChainID(),
 				TaskId:   bytes.Repeat([]byte{0x31}, types.Hash32Len),
 				TaskHash: bytes.Repeat([]byte{0x32}, types.Hash32Len),
-				ModelId:  "model-a", ProfileVersion: 1,
+				ModelId:  bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1,
 				Member: types.CandidateMemberRefV1{
 					CandidatePoolSnapshotId: poolID, Slot: 3, SlotVersion: 1, OperatorAddress: operator,
 				},
@@ -103,7 +112,7 @@ func TestWorkerCandidateAdmissionUsesJailLadderNotBondStatus(t *testing.T) {
 				ServiceSignature: bytes.Repeat([]byte{0x81}, 64),
 			}
 
-			fact, err := f.keeper.freezeWorkerCandidateFact(ctx, pool, handraise, 100, 10)
+			fact, err := f.keeper.freezeWorkerCandidateFact(ctx, pool, handraise, 100, 1_000_000, 10)
 			if tc.wantError {
 				require.Error(t, err)
 				return
@@ -115,10 +124,66 @@ func TestWorkerCandidateAdmissionUsesJailLadderNotBondStatus(t *testing.T) {
 	}
 }
 
+func TestWorkerCandidateUsesTaskMinimumStakeSnapshot(t *testing.T) {
+	operator := sdk.AccAddress(bytes.Repeat([]byte{0x61}, 20)).String()
+	poolID := bytes.Repeat([]byte{0x53}, types.Hash32Len)
+	bindingHash := bytes.Repeat([]byte{0x55}, types.Hash32Len)
+	for _, tc := range []struct {
+		name        string
+		taskMinimum uint64
+		liveMinimum uint64
+		wantPass    bool
+	}{
+		{name: "task threshold remains sufficient", taskMinimum: 1_000_000, liveMinimum: 4_000_000, wantPass: true},
+		{name: "task threshold remains binding", taskMinimum: 4_000_000, liveMinimum: 1_000_000},
+		{name: "missing task threshold is rejected", liveMinimum: 1_000_000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := initInternalFixture(t)
+			sdkCtx := sdk.UnwrapSDKContext(f.ctx).WithChainID("trueopen-window-test").WithBlockHeight(10)
+			ctx := sdk.WrapSDKContext(sdkCtx)
+			f.keeper.hubKeeper = jailAdmissionHubStub{
+				verifierAdmissionHubStub: verifierAdmissionHubStub{
+					profileMinStake: tc.liveMinimum,
+					member: hubtypes.CandidatePoolMemberState{
+						Slot: 3, SlotVersion: 1, OperatorAddress: operator, BindingHash: bindingHash,
+					},
+					binding: hubtypes.CandidateSlotBindingState{
+						Slot: 3, SlotVersion: 1, OperatorAddress: operator, BindingHash: bindingHash,
+					},
+				},
+				bondStatus: hubtypes.ServiceBondStatusActive,
+			}
+			pool := hubtypes.CandidatePoolSnapshotState{SnapshotId: poolID, SlotCapacity: 8}
+			handraise := types.WorkerHandraiseV1{
+				SchemaVersion: types.WorkerHandraiseSchemaVersionV1, ChainId: sdkCtx.ChainID(),
+				TaskId: bytes.Repeat([]byte{0x31}, types.Hash32Len), TaskHash: bytes.Repeat([]byte{0x32}, types.Hash32Len),
+				ModelId: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1,
+				Member: types.CandidateMemberRefV1{
+					CandidatePoolSnapshotId: poolID, Slot: 3, SlotVersion: 1, OperatorAddress: operator,
+				},
+				Duty: shared.Duty_DUTY_WORKER, ServiceAuthorizationNonce: 1, ExpiryHeight: 40,
+				ServiceSignature: bytes.Repeat([]byte{0x81}, 64),
+			}
+			fact, err := f.keeper.freezeWorkerCandidateFact(ctx, pool, handraise, 100, tc.taskMinimum, 10)
+			if !tc.wantPass {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, shared.NewAmount(tc.taskMinimum), fact.MinStakeSnapshot)
+			weight, err := workerCandidateWeightPpm(3_000_000, tc.taskMinimum, types.PerformanceScoreDefaultPpm, 1_000_000)
+			require.NoError(t, err)
+			require.Equal(t, weight, fact.CandidateWeight)
+		})
+	}
+}
+
 func TestVerifierCandidateAdmissionUsesJailLadderNotBondStatus(t *testing.T) {
 	operatorBytes := bytes.Repeat([]byte{0x61}, 20)
 	operator := sdk.AccAddress(operatorBytes).String()
-	core := types.TaskCoreState{ModelId: "model-a", ProfileVersion: 1, OrderValue: shared.NewAmount(1)}
+	core := types.TaskCoreState{ModelId: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1, OrderValue: shared.NewAmount(1)}
+	assignment := types.TaskAssignmentState{MinStakeSnapshot: shared.NewAmount(1_000_000)}
 
 	for _, tc := range jailLadderCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -128,13 +193,48 @@ func TestVerifierCandidateAdmissionUsesJailLadderNotBondStatus(t *testing.T) {
 			f.keeper.hubKeeper = stub
 
 			facts, err := f.keeper.loadVerifierEligibilityFacts(
-				ctx, core, operatorBytes, operator, stub.GetHubParams(sdk.UnwrapSDKContext(ctx)))
+				ctx, core, assignment, operatorBytes, operator, stub.GetHubParams(sdk.UnwrapSDKContext(ctx)))
 			if tc.wantError {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.wantJailFactor, facts.JailFactor)
+		})
+	}
+}
+
+func TestVerifierEligibilityUsesTaskMinimumStakeSnapshot(t *testing.T) {
+	operatorBytes := bytes.Repeat([]byte{0x61}, 20)
+	operator := sdk.AccAddress(operatorBytes).String()
+	core := types.TaskCoreState{ModelId: bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1, OrderValue: shared.NewAmount(1)}
+	for _, tc := range []struct {
+		name        string
+		taskMinimum uint64
+		liveMinimum uint64
+		wantPass    bool
+	}{
+		{name: "task threshold remains sufficient", taskMinimum: 1_000_000, liveMinimum: 4_000_000, wantPass: true},
+		{name: "task threshold remains binding", taskMinimum: 4_000_000, liveMinimum: 1_000_000},
+		{name: "missing task threshold is rejected", liveMinimum: 1_000_000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := initInternalFixture(t)
+			ctx := sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(10))
+			stub := jailAdmissionHubStub{
+				verifierAdmissionHubStub: verifierAdmissionHubStub{profileMinStake: tc.liveMinimum},
+				bondStatus:               hubtypes.ServiceBondStatusActive,
+			}
+			f.keeper.hubKeeper = stub
+			assignment := types.TaskAssignmentState{MinStakeSnapshot: shared.NewAmount(tc.taskMinimum)}
+			facts, err := f.keeper.loadVerifierEligibilityFacts(
+				ctx, core, assignment, operatorBytes, operator, stub.GetHubParams(sdk.UnwrapSDKContext(ctx)))
+			if !tc.wantPass {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.taskMinimum, facts.MinStake)
 		})
 	}
 }

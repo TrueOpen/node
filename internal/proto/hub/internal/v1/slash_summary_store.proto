@@ -8,7 +8,7 @@ message SlashSummaryStoreState {
   bytes slash_summary_id = 1;
   int32 source_kind = 2;
   bytes source_id = 3;
-  uint64 effect_index = 4;
+  uint32 effect_index = 4;
   bytes operator_address = 5;
   int32 duty = 6;
   optional bytes task_id = 7;

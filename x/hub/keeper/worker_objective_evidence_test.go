@@ -23,14 +23,14 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 	responsibilityID, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainServiceKeyResponsibilityIDV1)).Raw(
 		shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX)),
 		shared.EnumBE(uint32(types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE)),
-		[]byte(sessionHex), []byte(taskHex), []byte(taskHex), []byte(identity.Address),
+		sessionID, request.TaskID, request.TaskID, sdk.MustAccAddressFromBech32(identity.Address),
 	).Sum()
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.ReserveServiceKeyResponsibility(f.ctx, types.ServiceKeyResponsibilityState{
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, OperatorAddress: identity.Address,
 		ResponsibilityId:   responsibilityID,
 		ResponsibilityKind: types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE,
-		SessionId:          sessionHex, TaskId: taskHex, CreatedHeight: 2,
+		SessionId:          sessionID, TaskId: request.TaskID, CreatedHeight: 2,
 	}))
 	require.NoError(t, f.keeper.ReleaseTaskLiabilities(f.ctx, sessionHex, taskHex, 3))
 
@@ -78,17 +78,16 @@ func TestWorkerObjectiveEvidenceCanSlashBeforeTaskFinality(t *testing.T) {
 	_, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, request)
 	require.NoError(t, err)
 	sessionID := hubHashBytes("active-worker-evidence-session")
-	sessionHex, taskHex := hex.EncodeToString(sessionID), hex.EncodeToString(request.TaskID)
 	responsibilityID, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainServiceKeyResponsibilityIDV1)).Raw(
 		shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX)),
 		shared.EnumBE(uint32(types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE)),
-		[]byte(sessionHex), []byte(taskHex), []byte(taskHex), []byte(identity.Address),
+		sessionID, request.TaskID, request.TaskID, sdk.MustAccAddressFromBech32(identity.Address),
 	).Sum()
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.ReserveServiceKeyResponsibility(f.ctx, types.ServiceKeyResponsibilityState{
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, OperatorAddress: identity.Address,
 		ResponsibilityId: responsibilityID, ResponsibilityKind: types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE,
-		SessionId: sessionHex, TaskId: taskHex, CreatedHeight: 2,
+		SessionId: sessionID, TaskId: request.TaskID, CreatedHeight: 2,
 	}))
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(3))
 	fault, err := f.keeper.ApplyWorkerObjectiveEvidence(f.ctx, shared.WorkerObjectiveEvidenceFactV1{

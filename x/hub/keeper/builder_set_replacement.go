@@ -47,6 +47,13 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 	if err := k.requireAcceptedBuilderSetAction(execution, action.ProposalId); err != nil {
 		return BuilderSetReplacementResult{}, err
 	}
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return BuilderSetReplacementResult{}, err
+	}
+	if uint64(len(action.NextBuilderSetId)) > uint64(params.Builder.MaxBuilderSetIdBytes) {
+		return BuilderSetReplacementResult{}, fmt.Errorf("next_builder_set_id exceeds the configured byte cap")
+	}
 	digest, err := types.ReplaceBuilderSetActionDigest(sdkCtx.ChainID(), action)
 	if err != nil {
 		return BuilderSetReplacementResult{}, err
@@ -79,10 +86,6 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 		return BuilderSetReplacementResult{}, err
 	}
 
-	params, err := k.Params.Get(ctx)
-	if err != nil {
-		return BuilderSetReplacementResult{}, err
-	}
 	memberBytes, err := types.ReplaceBuilderSetMemberBytes(action.Members)
 	if err != nil {
 		return BuilderSetReplacementResult{}, err

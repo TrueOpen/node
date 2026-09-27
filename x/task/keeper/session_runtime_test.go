@@ -234,7 +234,9 @@ func TestSessionLifecycleClosesAndSchedulesHistoryPrune(t *testing.T) {
 		Status:           types.SessionStatus_SESSION_STATUS_ACTIVE,
 	}
 	require.NoError(t, f.keeper.setStreamState(f.ctx, stream))
-	ownerKey := types.NewSessionByOwnerKey(stream.OwnerUserAddress, sessionKey)
+	ownerBytes, err := f.keeper.sessionAddressToStore("session owner index", stream.OwnerUserAddress)
+	require.NoError(t, err)
+	ownerKey := types.NewSessionByOwnerKey(ownerBytes, sessionKey)
 	require.NoError(t, f.keeper.SessionByOwnerIndex.Set(f.ctx, ownerKey))
 
 	idleHeight := uint64(1) + params.Session.SessionIdleTtlBlocks

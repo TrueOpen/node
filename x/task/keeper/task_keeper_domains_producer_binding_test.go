@@ -481,7 +481,7 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 			FailureClass:   types.TaskFailureClass(source.Uint(t, 4, "failure_class")),
 			Verdict:        types.TaskVerdict_TASK_VERDICT_PASS,
 			FinalityStatus: shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
-			ModelId:        source.String(t, 6, "model_id"), ProfileVersion: uint32(source.Uint(t, 7, "profile_version")),
+			ModelId:        source.Bytes(t, 6, "model_id"), ProfileVersion: uint32(source.Uint(t, 7, "profile_version")),
 		})
 		require.NoError(t, err)
 		require.True(t, source.BoolValue(t, 5, "support_candidate"))
@@ -507,10 +507,10 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 			histogram = append(histogram, field.Uint(t, v.Name+".histogram"))
 		}
 		candidateFields := taskKeeperRepeated(t, v, 10, "support_candidates")
-		candidates := make([]string, 0, len(candidateFields))
+		candidates := make([][]byte, 0, len(candidateFields))
 		for index, field := range candidateFields {
 			require.Equal(t, fmt.Sprintf("candidate_%d", index), field.Name)
-			candidates = append(candidates, field.String(t, v.Name+".support_candidates"))
+			candidates = append(candidates, field.Bytes(t, v.Name+".support_candidates"))
 		}
 		epoch := v.Uint(t, 1, "epoch")
 		taskCount := v.Uint(t, 6, "task_count")
@@ -520,7 +520,8 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 			Summary: shared.EpochTaskSummary{Epoch: epoch, TaskCount: taskCount,
 				ValidTaskCount: v.Uint(t, 7, "valid_task_count"), Histogram: histogram, SupportCandidates: candidates},
 			SourceCount: taskCount, SupportCandidateSeenCount: v.Uint(t, 9, "support_candidate_seen_count"),
-			RetainedSupportCandidateCount: uint32(len(candidates)), SourceRoot: v.Bytes(t, 11, "source_root"),
+			RetainedSupportCandidateCount: uint32(len(candidates)), SourceRoot: v.Bytes(t, 12, "source_root"),
+			SupportCandidatesTruncated: v.BoolValue(t, 11, "support_candidates_truncated"),
 		})
 		require.NoError(t, err)
 		domainfixture.RequireDigest(t, v, got)

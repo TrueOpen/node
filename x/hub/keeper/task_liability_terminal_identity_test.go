@@ -27,9 +27,9 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	survivorKey := types.NewTaskLiabilityReservationKey(survivor.TaskID, shared.DutyVerifier, identity.Address)
 	require.NoError(t, f.keeper.DailySupport.Set(f.ctx, types.NewDailySupportKey(0, identity.Address), types.DailySupportState{
 		Epoch: 0, OperatorAddress: identity.Address,
-		SupportedProfilesHash: hubHashBytes("terminal-daily-support-profiles"),
-		SignatureDigest:       hubHashBytes("terminal-daily-support-signature"),
-		AcceptedHeight:        1,
+		SupportedModelsHash: hubHashBytes("terminal-daily-support-models"),
+		SignatureDigest:     hubHashBytes("terminal-daily-support-signature"),
+		AcceptedHeight:      1,
 	}))
 
 	// The liability that has to outlive the identity.

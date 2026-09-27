@@ -47,7 +47,7 @@ func stageVerifyOpenFailureReadyTask(t *testing.T, f *internalFixture, taskKey t
 	core.UserAddress = sdk.AccAddress(bytes.Repeat([]byte{0xc1}, 20)).String()
 	core.OrderSequence = 1
 	core.AcceptedTaskHash = bytes.Repeat([]byte{0xc2}, types.Hash32Len)
-	core.ModelId = "model-a"
+	core.ModelId = bytes.Repeat([]byte{0x6d}, types.Hash32Len)
 	core.ProfileVersion = 1
 	core.OrderValue = shared.NewAmount(800)
 	core.EvidenceRetentionBlocksSnapshot = types.DefaultMaxEvidenceRetentionBlocks

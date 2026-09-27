@@ -41,7 +41,7 @@ func TestRewriteHash32RESTPathsFromDescriptorBindings(t *testing.T) {
 		"/TrueOpen/hub/v1/fault/" + hexID:                                 "/TrueOpen/hub/v1/fault/" + encoded,
 		"/TrueOpen/hub/v1/candidate_pool/snapshot/" + hexID + "/members":  "/TrueOpen/hub/v1/candidate_pool/snapshot/" + encoded + "/members",
 		"/TrueOpen/hub/v1/emergency_freeze_votes/" + hexID:                "/TrueOpen/hub/v1/emergency_freeze_votes/" + encoded,
-		"/TrueOpen/hub/v1/model/" + hexID:                                 "/TrueOpen/hub/v1/model/" + hexID,
+		"/TrueOpen/hub/v1/model/" + hexID:                                 "/TrueOpen/hub/v1/model/" + encoded,
 		"/cosmos/base/tendermint/v1beta1/blocks/" + hexID:                 "/cosmos/base/tendermint/v1beta1/blocks/" + hexID,
 	}
 	for input, want := range tests {

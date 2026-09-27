@@ -617,7 +617,7 @@ func (k Keeper) validateGenesisHubRefs(ctx context.Context, genesis types.Genesi
 		if err != nil {
 			return fmt.Errorf("missing Hub parameter bucket version: %w", err)
 		}
-		if bucket.TaskRefCount != group.count {
+		if uint64(bucket.TaskRefCount) != group.count {
 			return fmt.Errorf("Hub parameter bucket task_ref_count=%d, imported Task refs=%d", bucket.TaskRefCount, group.count)
 		}
 	}
@@ -652,7 +652,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 		sessionID, _ := genesisHashKey("stream session_id", stream.SessionId)
 		switch stream.Status {
 		case types.SessionStatus_SESSION_STATUS_ACTIVE, types.SessionStatus_SESSION_STATUS_IDLE:
-			if err := k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(stream.OwnerUserAddress, sessionID)); err != nil {
+			owner, err := k.sessionAddressToStore("session owner index", stream.OwnerUserAddress)
+			if err != nil {
+				return err
+			}
+			if err := k.SessionByOwnerIndex.Set(ctx, types.NewSessionByOwnerKey(owner, sessionID)); err != nil {
 				return err
 			}
 			if err := k.refreshSessionLifecycleIndex(ctx, stream); err != nil {
@@ -709,7 +713,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 			}
 		}
 		if core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_PENDING && assignment.WinnerWorker != "" {
-			if err := k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(assignment.WinnerWorker, taskID)); err != nil {
+			worker, err := k.sessionAddressToStore("worker active-task index", assignment.WinnerWorker)
+			if err != nil {
+				return err
+			}
+			if err := k.WorkerActiveTaskIndex.Set(ctx, types.NewWorkerActiveTaskKey(worker, taskID)); err != nil {
 				return err
 			}
 		}
@@ -787,7 +795,11 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 		}
 		if core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_PENDING {
 			for _, selected := range assignment.SelectedVerifiers {
-				if err := k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(selected.OperatorAddress, taskID)); err != nil {
+				verifier, err := k.sessionAddressToStore("verifier active-job index", selected.OperatorAddress)
+				if err != nil {
+					return err
+				}
+				if err := k.VerifierActiveJobIndex.Set(ctx, types.NewVerifierActiveJobKey(verifier, taskID)); err != nil {
 					return err
 				}
 			}

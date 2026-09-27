@@ -29,7 +29,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // QueryTaskParamsRequest is request type for Query/Params.
 //
 // The parameter query belongs to the params domain. It
-// is kept unchanged so query.proto keeps resolving; api_contract §16.2 requires a
+// is kept unchanged so query.proto keeps resolving; the wire API requires a
 // single `QueryParams` returning `1=hub_params:HubParamsV1,2=task_params:TaskParamsV1`.
 // QueryTaskParamsRequest defines the QueryTaskParamsRequest wire type.
 type QueryTaskParamsRequest struct {
@@ -126,7 +126,7 @@ func (m *QueryTaskParamsResponse) GetMeta() TaskParamsMetaState {
 	return TaskParamsMetaState{}
 }
 
-// QuerySessionRequest selects one session by ID (§16.2).
+// QuerySessionRequest selects one session by ID.
 type QuerySessionRequest struct {
 	SessionId []byte `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
@@ -173,7 +173,7 @@ func (m *QuerySessionRequest) GetSessionId() []byte {
 
 // QuerySessionResponse returns the authoritative StreamState for an
 // active/idle/closed retained row; after compaction the RPC returns NotFound and
-// callers must query the terminal summary instead (§16.2).
+// callers must query the terminal summary instead.
 // QuerySessionResponse defines the QuerySessionResponse wire type.
 type QuerySessionResponse struct {
 	Session StreamState `protobuf:"bytes,1,opt,name=session,proto3" json:"session"`
@@ -219,7 +219,7 @@ func (m *QuerySessionResponse) GetSession() StreamState {
 	return StreamState{}
 }
 
-// QuerySessionsByOwnerRequest lists the owner's active sessions (§16.2).
+// QuerySessionsByOwnerRequest lists the owner's active sessions.
 type QuerySessionsByOwnerRequest struct {
 	UserAddress string                   `protobuf:"bytes,1,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`
 	Page        types.QueryPageRequestV1 `protobuf:"bytes,2,opt,name=page,proto3" json:"page"`
@@ -273,7 +273,7 @@ func (m *QuerySessionsByOwnerRequest) GetPage() types.QueryPageRequestV1 {
 }
 
 // QuerySessionsByOwnerResponse walks only the active owner index, ascending by
-// raw session_id bytes; closed history is never listed permanently (§16.2).
+// raw session_id bytes; closed history is never listed permanently.
 // QuerySessionsByOwnerResponse defines the QuerySessionsByOwnerResponse wire type.
 type QuerySessionsByOwnerResponse struct {
 	Sessions []StreamState             `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions"`
@@ -327,7 +327,7 @@ func (m *QuerySessionsByOwnerResponse) GetPage() types.QueryPageResponseV1 {
 	return types.QueryPageResponseV1{}
 }
 
-// QuerySessionTerminalSummaryRequest selects one collapsed session (§16.2).
+// QuerySessionTerminalSummaryRequest selects one collapsed session.
 type QuerySessionTerminalSummaryRequest struct {
 	SessionId []byte `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
@@ -373,7 +373,7 @@ func (m *QuerySessionTerminalSummaryRequest) GetSessionId() []byte {
 }
 
 // QuerySessionTerminalSummaryResponse returns the single terminal summary;
-// NotFound after its retention expires (§16.2).
+// NotFound after its retention expires.
 // QuerySessionTerminalSummaryResponse defines the QuerySessionTerminalSummaryResponse wire type.
 type QuerySessionTerminalSummaryResponse struct {
 	Summary SessionTerminalSummaryState `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary"`
@@ -419,7 +419,7 @@ func (m *QuerySessionTerminalSummaryResponse) GetSummary() SessionTerminalSummar
 	return SessionTerminalSummaryState{}
 }
 
-// QuerySessionNonceRequest selects one user's session counter (§16.2).
+// QuerySessionNonceRequest selects one user's session counter.
 type QuerySessionNonceRequest struct {
 	UserAddress string `protobuf:"bytes,1,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`
 }
@@ -465,7 +465,7 @@ func (m *QuerySessionNonceRequest) GetUserAddress() string {
 }
 
 // QuerySessionNonceResponse returns 0 for an account with no session yet; an
-// invalid address is InvalidArgument, never empty state (§16.2).
+// invalid address is InvalidArgument, never empty state.
 // QuerySessionNonceResponse defines the QuerySessionNonceResponse wire type.
 type QuerySessionNonceResponse struct {
 	NextSessionNonce uint64 `protobuf:"varint,1,opt,name=next_session_nonce,json=nextSessionNonce,proto3" json:"next_session_nonce,omitempty"`
@@ -511,7 +511,7 @@ func (m *QuerySessionNonceResponse) GetNextSessionNonce() uint64 {
 	return 0
 }
 
-// QueryOrderSequenceRequest selects one order sequence row (§16.2).
+// QueryOrderSequenceRequest selects one order sequence row.
 type QueryOrderSequenceRequest struct {
 	SessionId     []byte `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	OrderSequence uint64 `protobuf:"varint,2,opt,name=order_sequence,json=orderSequence,proto3" json:"order_sequence,omitempty"`
@@ -566,7 +566,7 @@ func (m *QueryOrderSequenceRequest) GetOrderSequence() uint64 {
 
 // QueryOrderSequenceResponse returns the row only inside the detail retention
 // window; NotFound once it has been folded into sequence_root, which defines no
-// member proof (§16.2).
+// member proof.
 // QueryOrderSequenceResponse defines the QueryOrderSequenceResponse wire type.
 type QueryOrderSequenceResponse struct {
 	Sequence OrderSequenceState `protobuf:"bytes,1,opt,name=sequence,proto3" json:"sequence"`

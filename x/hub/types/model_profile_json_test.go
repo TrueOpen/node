@@ -86,7 +86,7 @@ func marshalModelProfileProjectionJSON(t *testing.T, profile shared.ModelProfile
 		"min_stake": map[string]any{
 			"amount": json.Number(profile.MinStake.Amount.String()), "denom": profile.MinStake.Denom,
 		},
-		"model_id": profile.ModelId, "previous_profile_version": profile.PreviousProfileVersion,
+		"model_id": testHashHex(profile.ModelId), "previous_profile_version": profile.PreviousProfileVersion,
 		"pricing_profile": map[string]any{
 			"initial_output_price": profile.PricingProfile.InitialOutputPrice,
 			"min_order_value":      profile.PricingProfile.MinOrderValue,
@@ -98,6 +98,13 @@ func marshalModelProfileProjectionJSON(t *testing.T, profile shared.ModelProfile
 		},
 		"required_top_k": profile.RequiredTopK, "resource_tier": profile.ResourceTier,
 		"runtime_class": profile.RuntimeClass, "schema_hash": testHashHex(profile.SchemaHash), "task_types": taskTypes,
+		"source": map[string]any{
+			"provider": profile.Source.Provider, "repo_id": profile.Source.RepoId,
+			"source_uri": profile.Source.SourceUri, "revision": profile.Source.Revision,
+			"resolver_version": profile.Source.ResolverVersion, "repo_type": profile.Source.RepoType,
+		},
+		"tool_call_parser": parserRefProjection(profile.ToolCallParser),
+		"reasoning_parser": parserRefProjection(profile.ReasoningParser),
 		"timeout_bootstrap_profile": map[string]any{
 			"bootstrap_valid_until_epoch":     profile.TimeoutBootstrapProfile.BootstrapValidUntilEpoch,
 			"commit_timeout_bootstrap_blocks": profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks,

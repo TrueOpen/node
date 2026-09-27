@@ -283,6 +283,10 @@ func (k Keeper) reserveWinnerTaskLiability(
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "frozen minimum stake is invalid")
 	}
+	acceptedMinStake, err := shared.ParseAmount(computation.Assignment.MinStakeSnapshot)
+	if err != nil || acceptedMinStake == 0 || minStake != acceptedMinStake {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "worker minimum stake fact does not match the task snapshot")
+	}
 	orderValue, err := shared.ParseAmount(computation.Core.OrderValue)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "task order value is invalid")

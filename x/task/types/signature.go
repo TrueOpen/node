@@ -12,11 +12,11 @@ import (
 // These aliases keep the public Task types surface tied to the shared registry.
 // Digest producers below use the shared constants directly.
 const (
-	DomainInferReceiptV2      = shared.DomainInferReceiptV2
+	DomainInferReceiptV3      = shared.DomainInferReceiptV3
 	DomainWorkerHandraiseV1   = shared.DomainWorkerHandraiseV1
 	DomainVerifierHandraiseV1 = shared.DomainVerifierHandraiseV1
 	DomainCommitV1            = shared.DomainCommitV1
-	DomainResultV2            = shared.DomainResultV2
+	DomainResultV3            = shared.DomainResultV3
 )
 
 // SelectedTaskBuildersHash derives the ordered Task Builder membership
@@ -60,13 +60,13 @@ func SelectedTaskBuildersHash(chainID string, taskID []byte, builderSetID string
 // from the wire. Both are deleted outright with no alias: an alias would let a
 // caller keep producing a digest the frozen wire can never accept.
 
-// InferReceiptV2 is the only stage wire with schema_version 2. Handraises and
+// InferReceiptV3 is the only stage wire with schema_version 2. Handraises and
 // VerifyCommit remain at 1, while ResultReceipt remains at 2. Digest derivation
 // stays total; handlers enforce the exact version before admitting a message.
 const (
-	InferReceiptSchemaVersionV2      uint32 = 2
+	InferReceiptSchemaVersionV3      uint32 = 3
 	VerifyCommitSchemaVersionV1      uint32 = 1
-	ResultReceiptSchemaVersionV2     uint32 = 2
+	ResultReceiptSchemaVersionV3     uint32 = 3
 	WorkerHandraiseSchemaVersionV1   uint32 = 1
 	VerifierHandraiseSchemaVersionV1 uint32 = 1
 )
@@ -88,7 +88,7 @@ const (
 // the Keeper-derived EvidenceCommitmentsHash, so the signature still covers the whole
 // typed list. worker_operator_address is framed as address codec bytes, not Bech32
 // text (Ruling 24).
-func InferReceiptSigningDigest(receipt InferReceiptV2) ([32]byte, error) {
+func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", receipt.ChainId)
 	if err != nil {
 		return [32]byte{}, err
@@ -118,7 +118,7 @@ func InferReceiptSigningDigest(receipt InferReceiptV2) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 	return canonicalTaskDigestV1(
-		shared.DomainInferReceiptV2,
+		shared.DomainInferReceiptV3,
 		shared.Uint32BE(receipt.SchemaVersion),
 		chainID,
 		taskID,
@@ -132,6 +132,10 @@ func InferReceiptSigningDigest(receipt InferReceiptV2) ([32]byte, error) {
 		shared.Uint64BE(receipt.ExpiryHeight),
 		shared.Uint64BE(receipt.GeneratedTokenCount),
 		shared.Uint64BE(receipt.OutputLeafCount),
+		receipt.OutputKeyCommitment,
+		receipt.WorkerTokenKeyCommitment,
+		receipt.WorkerValueKeyCommitment,
+		receipt.CiphertextOutputRoot,
 	)
 }
 
@@ -179,10 +183,10 @@ func VerifyCommitSigningDigest(commit VerifyCommitV1) ([32]byte, error) {
 
 // WorkerHandraiseSigningDigest is
 // H_FIELDS_V1("TRUEOPEN_WORKER_HANDRAISE_V1", canonical WorkerHandraiseV1 excluding
-// service_signature) with the ten fields in the §4.1 lines 531-541 order:
+// service_signature) with the eleven registered fields:
 //
 //	schema_version, chain_id, task_id, task_hash, model_id, profile_version,
-//	member, duty, service_authorization_nonce, expiry_height
+//	member, duty, service_authorization_nonce, expiry_height, recipient_pubkey
 //
 // member is a required nested CandidateMemberRefV1 and is therefore framed
 // recursively per §1.2, and duty is framed as uint32_be per the §1.2 enum rule.
@@ -201,7 +205,7 @@ func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error)
 	if err != nil {
 		return [32]byte{}, err
 	}
-	modelID, err := canonicalUTF8Field("model_id", handraise.ModelId)
+	modelID, err := canonicalHash32("model_id", handraise.ModelId)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -224,6 +228,7 @@ func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error)
 		shared.EnumBE(duty),
 		shared.Uint64BE(handraise.ServiceAuthorizationNonce),
 		shared.Uint64BE(handraise.ExpiryHeight),
+		handraise.RecipientPubkey,
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err
@@ -233,11 +238,11 @@ func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error)
 
 // VerifierHandraiseSigningDigest is
 // H_FIELDS_V1("TRUEOPEN_VERIFIER_HANDRAISE_V1", canonical VerifierHandraiseV1 excluding
-// service_signature) with the twelve fields in the §4.1 lines 543-556 order:
+// service_signature) with the thirteen registered fields:
 //
 //	schema_version, chain_id, task_id, verify_round, infer_receipt_hash, output_hash,
 //	model_id, profile_version, member, duty, service_authorization_nonce,
-//	expiry_height
+//	expiry_height, recipient_pubkey
 //
 // Same framing rules as WorkerHandraiseSigningDigest; §4.1 pins duty = VERIFIER for
 // this wire.
@@ -258,7 +263,7 @@ func VerifierHandraiseSigningDigest(handraise VerifierHandraiseV1) ([32]byte, er
 	if err != nil {
 		return [32]byte{}, err
 	}
-	modelID, err := canonicalUTF8Field("model_id", handraise.ModelId)
+	modelID, err := canonicalHash32("model_id", handraise.ModelId)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -283,6 +288,7 @@ func VerifierHandraiseSigningDigest(handraise VerifierHandraiseV1) ([32]byte, er
 		shared.EnumBE(duty),
 		shared.Uint64BE(handraise.ServiceAuthorizationNonce),
 		shared.Uint64BE(handraise.ExpiryHeight),
+		handraise.RecipientPubkey,
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err

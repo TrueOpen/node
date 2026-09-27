@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
@@ -341,20 +340,18 @@ func (k Keeper) GetBuilderEvidenceProofKey(ctx context.Context, operatorAddress 
 	return binding, nil
 }
 
-func workerOutputEvidenceResponsibilityID(sessionIDHex, taskIDHex, operatorAddress string) ([]byte, error) {
-	if _, err := decodePayloadHash32("session_id", sessionIDHex); err != nil {
-		return nil, err
+func workerOutputEvidenceResponsibilityID(sessionID, taskID []byte, operatorAddress string) ([]byte, error) {
+	if len(sessionID) != shared.Hash32KeySize || len(taskID) != shared.Hash32KeySize {
+		return nil, fmt.Errorf("worker evidence responsibility IDs must be raw Hash32")
 	}
-	if _, err := decodePayloadHash32("task_id", taskIDHex); err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(operatorAddress) == "" || strings.TrimSpace(operatorAddress) != operatorAddress {
+	operatorBytes, err := sdk.AccAddressFromBech32(operatorAddress)
+	if err != nil || operatorBytes.String() != operatorAddress {
 		return nil, fmt.Errorf("worker operator address is not canonical")
 	}
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainServiceKeyResponsibilityIDV1)).Raw(
 		shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX)),
 		shared.EnumBE(uint32(types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE)),
-		[]byte(sessionIDHex), []byte(taskIDHex), []byte(taskIDHex), []byte(operatorAddress),
+		sessionID, taskID, taskID, operatorBytes,
 	).Sum()
 }
 
@@ -369,7 +366,15 @@ func (k Keeper) GetWorkerEvidenceProofKey(
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, err
 	}
-	responsibilityID, err := workerOutputEvidenceResponsibilityID(sessionIDHex, taskIDHex, operatorAddress)
+	sessionID, err := decodePayloadHash32("session_id", sessionIDHex)
+	if err != nil {
+		return types.CurrentServiceKeySnapshot{}, err
+	}
+	taskID, err := decodePayloadHash32("task_id", taskIDHex)
+	if err != nil {
+		return types.CurrentServiceKeySnapshot{}, err
+	}
+	responsibilityID, err := workerOutputEvidenceResponsibilityID(sessionID, taskID, operatorAddress)
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, err
 	}
@@ -381,7 +386,7 @@ func (k Keeper) GetWorkerEvidenceProofKey(
 	}
 	if err := state.Validate(); err != nil || state.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX ||
 		state.OperatorAddress != operatorAddress || state.ResponsibilityKind != types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE ||
-		state.SessionId != sessionIDHex || state.TaskId != taskIDHex || !bytes.Equal(state.ResponsibilityId, responsibilityID) {
+		!bytes.Equal(state.SessionId, sessionID) || !bytes.Equal(state.TaskId, taskID) || !bytes.Equal(state.ResponsibilityId, responsibilityID) {
 		return types.CurrentServiceKeySnapshot{}, errorsmod.Wrap(types.ErrInvariantBroken, "worker output evidence responsibility is invalid")
 	}
 	identity, err := k.loadParticipantIdentity(ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress)
@@ -466,12 +471,11 @@ func validateResponsibilityID(responsibilityID []byte) error {
 const busObjectiveEvidenceResponsibilitySchemaVersion = uint32(1)
 
 type preparedBusObjectiveEvidenceResponsibility struct {
-	operator   string
-	taskID     []byte
-	sessionHex string
-	taskHex    string
-	nonce      uint64
-	id         []byte
+	operator  string
+	sessionID []byte
+	taskID    []byte
+	nonce     uint64
+	id        []byte
 }
 
 func (k Keeper) prepareBusObjectiveEvidenceResponsibility(
@@ -513,12 +517,11 @@ func (k Keeper) prepareBusObjectiveEvidenceResponsibility(
 		return preparedBusObjectiveEvidenceResponsibility{}, err
 	}
 	return preparedBusObjectiveEvidenceResponsibility{
-		operator:   operator,
-		taskID:     append([]byte(nil), locator.TaskId...),
-		sessionHex: hex.EncodeToString(locator.SessionId),
-		taskHex:    hex.EncodeToString(locator.TaskId),
-		nonce:      locator.ServiceAuthorizationNonce,
-		id:         append([]byte(nil), responsibilityID...),
+		operator:  operator,
+		sessionID: append([]byte(nil), locator.SessionId...),
+		taskID:    append([]byte(nil), locator.TaskId...),
+		nonce:     locator.ServiceAuthorizationNonce,
+		id:        append([]byte(nil), responsibilityID...),
 	}, nil
 }
 
@@ -563,8 +566,8 @@ func busObjectiveEvidenceResponsibilityMatches(
 		state.OperatorAddress == prepared.operator &&
 		bytes.Equal(state.ResponsibilityId, prepared.id) &&
 		state.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE &&
-		state.SessionId == prepared.sessionHex &&
-		state.TaskId == prepared.taskHex &&
+		bytes.Equal(state.SessionId, prepared.sessionID) &&
+		bytes.Equal(state.TaskId, prepared.taskID) &&
 		state.ServiceAuthorizationNonce == prepared.nonce
 }
 
@@ -665,8 +668,8 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 		OperatorAddress:           prepared.operator,
 		ResponsibilityId:          append([]byte(nil), prepared.id...),
 		ResponsibilityKind:        types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE,
-		SessionId:                 prepared.sessionHex,
-		TaskId:                    prepared.taskHex,
+		SessionId:                 prepared.sessionID,
+		TaskId:                    prepared.taskID,
 		CreatedHeight:             height,
 		ServiceAuthorizationNonce: prepared.nonce,
 	}
@@ -950,8 +953,8 @@ func serviceKeyResponsibilitiesEqual(a, b types.ServiceKeyResponsibilityState) b
 		a.OperatorAddress == b.OperatorAddress &&
 		bytes.Equal(a.ResponsibilityId, b.ResponsibilityId) &&
 		a.ResponsibilityKind == b.ResponsibilityKind &&
-		a.SessionId == b.SessionId &&
-		a.TaskId == b.TaskId &&
+		bytes.Equal(a.SessionId, b.SessionId) &&
+		bytes.Equal(a.TaskId, b.TaskId) &&
 		a.CreatedHeight == b.CreatedHeight &&
 		// The nonce is what separates an exact acquire replay from the same
 		// responsibility id presented under a different service-key generation. It is
@@ -962,12 +965,17 @@ func serviceKeyResponsibilitiesEqual(a, b types.ServiceKeyResponsibilityState) b
 }
 
 func (k Keeper) ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID, taskID string) error {
-	if sessionID == "" || sessionID != strings.TrimSpace(sessionID) || taskID == "" || taskID != strings.TrimSpace(taskID) {
-		return fmt.Errorf("session_id and task_id must be canonical")
+	sessionBytes, err := decodePayloadHash32("session_id", sessionID)
+	if err != nil {
+		return err
+	}
+	taskBytes, err := decodePayloadHash32("task_id", taskID)
+	if err != nil {
+		return err
 	}
 	iter, err := k.ServiceKeyResponsibilityByTaskIndex.Iterate(
 		ctx,
-		collections.NewSuperPrefixedTripleRange[string, string, types.ServiceKeyResponsibilityByTaskSuffix](sessionID, taskID),
+		collections.NewSuperPrefixedTripleRange[shared.Hash32Key, shared.Hash32Key, types.ServiceKeyResponsibilityByTaskSuffix](sessionBytes, taskBytes),
 	)
 	if err != nil {
 		return err
@@ -1001,7 +1009,7 @@ func (k Keeper) ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID
 		}
 		// collections.Triple stores pointers, so the parts have to be compared
 		// individually; == would compare addresses and never match.
-		if responsibility.SessionId != sessionID || responsibility.TaskId != taskID ||
+		if !bytes.Equal(responsibility.SessionId, sessionBytes) || !bytes.Equal(responsibility.TaskId, taskBytes) ||
 			expectedPrimary.K1() != primaryKey.K1() ||
 			expectedPrimary.K2() != primaryKey.K2() ||
 			!bytes.Equal(expectedPrimary.K3(), primaryKey.K3()) {

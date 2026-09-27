@@ -45,7 +45,11 @@ func (k Keeper) ProjectSessionNonceStore(stored internaltypes.SessionNonceStoreS
 }
 
 func (k Keeper) ReadSessionNonce(ctx context.Context, user string) (types.SessionNonceState, error) {
-	stored, err := k.SessionNonce.Get(ctx, user)
+	key, err := k.sessionAddressToStore("session nonce key", user)
+	if err != nil {
+		return types.SessionNonceState{}, err
+	}
+	stored, err := k.SessionNonce.Get(ctx, key)
 	if err != nil {
 		return types.SessionNonceState{}, err
 	}
@@ -53,21 +57,25 @@ func (k Keeper) ReadSessionNonce(ctx context.Context, user string) (types.Sessio
 	if err != nil {
 		return types.SessionNonceState{}, err
 	}
-	if state.UserAddress != user {
+	if !bytes.Equal(stored.UserAddress, key) || state.UserAddress != user {
 		return types.SessionNonceState{}, fmt.Errorf("session nonce key/address mismatch")
 	}
 	return state, nil
 }
 
 func (k Keeper) WriteSessionNonce(ctx context.Context, user string, state types.SessionNonceState) error {
+	key, err := k.sessionAddressToStore("session nonce key", user)
+	if err != nil {
+		return err
+	}
 	stored, err := k.sessionNonceToStore(state)
 	if err != nil {
 		return err
 	}
-	if state.UserAddress != user {
+	if !bytes.Equal(stored.UserAddress, key) || state.UserAddress != user {
 		return fmt.Errorf("session nonce key/address mismatch")
 	}
-	return k.SessionNonce.Set(ctx, user, stored)
+	return k.SessionNonce.Set(ctx, key, stored)
 }
 
 func (k Keeper) exportSessionNonces(ctx context.Context) ([]types.SessionNonceState, error) {
@@ -86,7 +94,7 @@ func (k Keeper) exportSessionNonces(ctx context.Context) ([]types.SessionNonceSt
 		if err != nil {
 			return nil, err
 		}
-		if entry.Key != state.UserAddress {
+		if !bytes.Equal(entry.Key, entry.Value.UserAddress) {
 			return nil, fmt.Errorf("session nonce key/address mismatch")
 		}
 		states = append(states, state)
@@ -95,7 +103,11 @@ func (k Keeper) exportSessionNonces(ctx context.Context) ([]types.SessionNonceSt
 }
 
 func setUniqueSessionNonce(ctx context.Context, k Keeper, state types.SessionNonceState) error {
-	has, err := k.SessionNonce.Has(ctx, state.UserAddress)
+	key, err := k.sessionAddressToStore("session nonce key", state.UserAddress)
+	if err != nil {
+		return err
+	}
+	has, err := k.SessionNonce.Has(ctx, key)
 	if err != nil {
 		return err
 	}

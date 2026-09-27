@@ -58,7 +58,7 @@ func TestRoleFaultConsumerGateRequiresFinalityAndExactEvidence(t *testing.T) {
 
 func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {
 	f := initInternalFixture(t)
-	modelID := "model-freeze"
+	modelID := bytes32(0x6d)
 	const profileVersion = uint32(3)
 	rows := []struct {
 		taskID   []byte
@@ -110,7 +110,7 @@ func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {
 	require.Equal(t, rows[1].taskID, second.Failures[0].TaskID)
 }
 
-func hubFreezeRequest(modelID string, profileVersion uint32, start, end uint64, last []byte, limit uint32) hubtypes.FreezeSignalFailureScanRequest {
+func hubFreezeRequest(modelID []byte, profileVersion uint32, start, end uint64, last []byte, limit uint32) hubtypes.FreezeSignalFailureScanRequest {
 	return hubtypes.FreezeSignalFailureScanRequest{
 		ModelID: modelID, ProfileVersion: profileVersion,
 		RiskWindowStartHeight: start, RiskWindowEndHeight: end,
@@ -164,7 +164,7 @@ func TestTaskTerminalSummaryHashCommitsEveryField(t *testing.T) {
 		FailureClass:     types.TaskFailureClass_TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER,
 		SettlementStatus: types.SettlementStatus_SETTLEMENT_STATUS_FINALIZED,
 		FinalityStatus:   shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
-		ModelId:          "model-a", ProfileVersion: 1,
+		ModelId:          bytes32(0x6d), ProfileVersion: 1,
 		TaskType:                shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		CandidatePoolSnapshotId: hash, CandidatePoolHash: hash,
 		AssignmentCandidateSetHash: hash, CandidatePoolRefReleased: true,

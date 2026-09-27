@@ -409,6 +409,10 @@
           "format": "int64",
           "type": "integer"
         },
+        "max_builder_set_id_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
         "max_builder_set_prune_items_per_block": {
           "format": "int64",
           "type": "integer"
@@ -514,7 +518,7 @@
       "type": "object"
     },
     "hub.v1.CandidatePoolMemberViewV1": {
-      "description": "CandidatePoolMemberViewV1 is the Query-only verifiable join of one member row\nand its immutable binding (§16.5). The snapshot scope comes from the request.\nCandidatePoolMemberViewV1 defines the CandidatePoolMemberViewV1 wire type.",
+      "description": "CandidatePoolMemberViewV1 is the Query-only verifiable join of one member row\nand its immutable binding. The snapshot scope comes from the request.\nCandidatePoolMemberViewV1 defines the CandidatePoolMemberViewV1 wire type.",
       "properties": {
         "binding_hash": {
           "format": "trueopen-hash32",
@@ -538,7 +542,7 @@
       "type": "object"
     },
     "hub.v1.CandidatePoolParamsV1": {
-      "description": "CandidatePoolParamsV1 groups global candidate pool parameters (§18.0).",
+      "description": "CandidatePoolParamsV1 groups global candidate pool parameters.",
       "properties": {
         "candidate_bitmap_segment_bytes": {
           "format": "int64",
@@ -596,7 +600,7 @@
       "type": "string"
     },
     "hub.v1.CandidatePoolSnapshotViewV1": {
-      "description": "CandidatePoolSnapshotViewV1 is the Query-only snapshot projection frozen by\napi_contract §16.5. It hides source_revision and refcounts and never lands in the\nStore. status = PRUNED does not mean an empty pool.\nCandidatePoolSnapshotViewV1 defines the CandidatePoolSnapshotViewV1 wire type.",
+      "description": "CandidatePoolSnapshotViewV1 is the Query-only snapshot projection frozen by\nthe wire API. It hides source_revision and refcounts and never lands in the\nStore. status = PRUNED does not mean an empty pool.\nCandidatePoolSnapshotViewV1 defines the CandidatePoolSnapshotViewV1 wire type.",
       "properties": {
         "active_bitmap_hash": {
           "format": "trueopen-hash32",
@@ -661,7 +665,7 @@
       "type": "object"
     },
     "hub.v1.CortexNodeState": {
-      "description": "CortexNodeState is the single stable Cortex identity row (§6.4). Fields 10-12\nare the three online-responsibility counters that the API contract /\n§10.0c1 require MsgRotateServiceKey to see at zero; they replace the previous\nstring-keyed TASK_LIABILITY_* responsibility rows.\nCortexNodeState defines the CortexNodeState wire type.",
+      "description": "CortexNodeState is the single stable Cortex identity row. Fields 10-12\nare the three online-responsibility counters that the wire API /\nthis contract require MsgRotateServiceKey to see at zero; they replace the previous\nstring-keyed TASK_LIABILITY_* responsibility rows.\nCortexNodeState defines the CortexNodeState wire type.",
       "properties": {
         "active_task_liability_count": {
           "format": "int64",
@@ -713,7 +717,7 @@
       "type": "object"
     },
     "hub.v1.CurrentServiceKeyViewV1": {
-      "description": "CurrentServiceKeyViewV1 is the current key binding projection of §16.5.",
+      "description": "CurrentServiceKeyViewV1 is the current key binding projection of this contract.",
       "properties": {
         "builder_service_key_status": {
           "$ref": "#/definitions/hub.v1.ServiceKeyStatus"
@@ -747,7 +751,7 @@
       "type": "object"
     },
     "hub.v1.DailySupportState": {
-      "description": "DailySupportState is one operator/epoch support heartbeat row (data-structure contract 6.1).",
+      "description": "DailySupportState is one operator/epoch support heartbeat row (wire storage model 6.1).",
       "properties": {
         "accepted_height": {
           "format": "uint64",
@@ -768,7 +772,7 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
-        "supported_profiles_hash": {
+        "supported_models_hash": {
           "format": "trueopen-hash32",
           "maxLength": 64,
           "minLength": 64,
@@ -818,7 +822,7 @@
       "type": "string"
     },
     "hub.v1.EmergencyFreezeVoteState": {
-      "description": "EmergencyFreezeVoteState is one validator ballot\n(the data-structure contract, key\n(freeze_signal_id, validator_consensus_address)).\n\nvalidator_consensus_address is ConsensusAddressBytes resolved by the Keeper\nfrom the Tx signer through the staking keeper; it is never a caller field and\nnever an account address. voting_power_snapshot is read from the frozen\nvalidator snapshot. No signature digest is stored, because the Cosmos Tx\nsigner already authorizes the ballot and §10.0a removed the same-account\ndetached signature.\nEmergencyFreezeVoteState defines the EmergencyFreezeVoteState wire type.",
+      "description": "EmergencyFreezeVoteState is one validator ballot\n(the wire storage model, key\n(freeze_signal_id, validator_consensus_address)).\n\nvalidator_consensus_address is ConsensusAddressBytes resolved by the Keeper\nfrom the Tx signer through the staking keeper; it is never a caller field and\nnever an account address. voting_power_snapshot is read from the frozen\nvalidator snapshot. No signature digest is stored, because the Cosmos Tx\nsigner already authorizes the ballot and this contract removed the same-account\ndetached signature.\nEmergencyFreezeVoteState defines the EmergencyFreezeVoteState wire type.",
       "properties": {
         "accepted_height": {
           "format": "uint64",
@@ -847,7 +851,7 @@
       "type": "object"
     },
     "hub.v1.EpochParamsV1": {
-      "description": "EpochParamsV1 groups epoch length and boundary parameters (§18.0).",
+      "description": "EpochParamsV1 groups epoch length and boundary parameters.",
       "properties": {
         "delta_m_blocks": {
           "format": "uint64",
@@ -866,18 +870,20 @@
     },
     "hub.v1.FaultKind": {
       "default": "FAULT_KIND_UNSPECIFIED",
-      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.",
+      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.\n - FAULT_KIND_VERIFIER_VALUE_MISMATCH: Reserved for the later verifier value-evidence admission upgrade.\n - FAULT_KIND_WORKER_VALUES_INVALID: Reserved for objectively invalid Worker value evidence after activation.",
       "enum": [
         "FAULT_KIND_UNSPECIFIED",
         "FAULT_KIND_TIMEOUT",
         "FAULT_KIND_INVALID_RESULT",
         "FAULT_KIND_EQUIVOCATION",
-        "FAULT_KIND_BUILDER_OBJECTIVE_FAULT"
+        "FAULT_KIND_BUILDER_OBJECTIVE_FAULT",
+        "FAULT_KIND_VERIFIER_VALUE_MISMATCH",
+        "FAULT_KIND_WORKER_VALUES_INVALID"
       ],
       "type": "string"
     },
     "hub.v1.FreezeFailureClassCountsV1": {
-      "description": "FreezeFailureClassCountsV1 is the per-class breakdown of the failures a freeze\nsignal aggregated.\n\nCONTRACT-GAP: the data-structure contract writes\n`included_failure_class_counts = METRIC_THRESHOLD_BREACH / OBJECTIVE_FAULT /\nSCHEMA_FAULT / WORKER_EVIDENCE_FAULT` without giving a wire shape. The four\nlisted classes are exactly the freeze-eligible TaskFailureClass values, so\nthey are encoded as four fixed counters instead of an unbounded repeated\nlist; INSUFFICIENT_VERIFIER is deliberately absent because §6.1 and §10.12\nkeep it out of the freeze root and count it separately as\nexcluded_insufficient_verifier_count.\nFreezeFailureClassCountsV1 defines the FreezeFailureClassCountsV1 wire type.",
+      "description": "FreezeFailureClassCountsV1 is the per-class breakdown of the failures a freeze\nsignal aggregated.\n\nThe four fixed counters correspond to the freeze-eligible failure classes:\nMETRIC_THRESHOLD_BREACH, OBJECTIVE_FAULT, SCHEMA_FAULT, and\nWORKER_EVIDENCE_FAULT. They are fixed counters, not an unbounded list.\nINSUFFICIENT_VERIFIER is excluded from the freeze root and counted separately\nin excluded_insufficient_verifier_count.\nFreezeFailureClassCountsV1 defines the FreezeFailureClassCountsV1 wire type.",
       "properties": {
         "metric_threshold_breach": {
           "format": "int64",
@@ -899,7 +905,7 @@
       "type": "object"
     },
     "hub.v1.FreezeParamsV1": {
-      "description": "FreezeParamsV1 groups emergency freeze window and quorum parameters (§18.0).",
+      "description": "FreezeParamsV1 groups emergency freeze window and quorum parameters.",
       "properties": {
         "freeze_failure_index_retention_blocks": {
           "format": "uint64",
@@ -989,6 +995,10 @@
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -1038,7 +1048,7 @@
     },
     "hub.v1.FreezeSignalStatus": {
       "default": "FREEZE_SIGNAL_STATUS_UNSPECIFIED",
-      "description": "FreezeSignalStatus is the freeze signal lifecycle. Values are frozen by\nthe API contract.\nFreezeSignalStatus defines the FreezeSignalStatus wire type.\n\n - FREEZE_SIGNAL_STATUS_UNSPECIFIED: Never written; rejects zero-value signal rows.\nFREEZE_SIGNAL_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_BUILDING: Only the build cursor exists; no vote object yet.\nFREEZE_SIGNAL_STATUS_BUILDING identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_OPEN: Voting is open until vote_deadline_height.\nFREEZE_SIGNAL_STATUS_OPEN identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_ACCEPTED: ACCEPT voting power reached two thirds and the profile was frozen.\nFREEZE_SIGNAL_STATUS_ACCEPTED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_REJECTED: REJECT voting power made two thirds ACCEPT unreachable.\nFREEZE_SIGNAL_STATUS_REJECTED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_EXPIRED: The deadline runner closed a still-OPEN signal.\nFREEZE_SIGNAL_STATUS_EXPIRED identifies the corresponding protocol value.",
+      "description": "FreezeSignalStatus is the freeze signal lifecycle. Values are frozen by\nthe wire API.\nFreezeSignalStatus defines the FreezeSignalStatus wire type.\n\n - FREEZE_SIGNAL_STATUS_UNSPECIFIED: Never written; rejects zero-value signal rows.\nFREEZE_SIGNAL_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_BUILDING: Only the build cursor exists; no vote object yet.\nFREEZE_SIGNAL_STATUS_BUILDING identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_OPEN: Voting is open until vote_deadline_height.\nFREEZE_SIGNAL_STATUS_OPEN identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_ACCEPTED: ACCEPT voting power reached two thirds and the profile was frozen.\nFREEZE_SIGNAL_STATUS_ACCEPTED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_REJECTED: REJECT voting power made two thirds ACCEPT unreachable.\nFREEZE_SIGNAL_STATUS_REJECTED identifies the corresponding protocol value.\n - FREEZE_SIGNAL_STATUS_EXPIRED: The deadline runner closed a still-OPEN signal.\nFREEZE_SIGNAL_STATUS_EXPIRED identifies the corresponding protocol value.",
       "enum": [
         "FREEZE_SIGNAL_STATUS_UNSPECIFIED",
         "FREEZE_SIGNAL_STATUS_BUILDING",
@@ -1050,7 +1060,7 @@
       "type": "string"
     },
     "hub.v1.HubParamsMetaState": {
-      "description": "HubParamsMetaState is the authoritative Hub params version pointer. It is a\nsingleton written atomically with HubParamsV2 so MsgUpdateHubParams can reject\na stale expected_version and so QueryParams can return the frozen\nparams_hash without recomputing it.\n\nparams_hash is the §18.0 digest\nH_FIELDS_V1(\"TRUEOPEN_HUB_PARAMS_V2\", chain_id, new_version, canonical HubParamsV2).\n\nCONTRACT-GAP: the data-structure contract registers no State row for the params\nversion/hash even though the API contract code 110 both\nrequire a persisted current version and hash. The shape below is the minimal\nrow that satisfies those two requirements and nothing more.\nHubParamsMetaState defines the HubParamsMetaState wire type.",
+      "description": "HubParamsMetaState is the authoritative Hub params version pointer. It is a\nsingleton written atomically with HubParamsV2 so MsgUpdateHubParams can reject\na stale expected_version and so QueryParams can return the frozen\nparams_hash without recomputing it.\n\nparams_hash is the digest\nH_FIELDS_V1(\"TRUEOPEN_HUB_PARAMS_V2\", chain_id, new_version, canonical HubParamsV2).\n\nThis minimal row persists the current version and hash for governance replay\nchecks, QueryParams, and event code 110.\nHubParamsMetaState defines the HubParamsMetaState wire type.",
       "properties": {
         "params_hash": {
           "format": "trueopen-hash32",
@@ -1094,6 +1104,9 @@
         "freeze": {
           "$ref": "#/definitions/hub.v1.FreezeParamsV1"
         },
+        "model": {
+          "$ref": "#/definitions/hub.v1.ModelParamsV1"
+        },
         "phase0": {
           "$ref": "#/definitions/hub.v1.Phase0ParamsV1"
         },
@@ -1122,6 +1135,88 @@
       },
       "type": "object"
     },
+    "hub.v1.ModelCapabilityState": {
+      "description": "ModelCapabilityState is one operator/model declared capability row.",
+      "properties": {
+        "capability_version": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "inference_capability": {
+          "type": "boolean"
+        },
+        "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "verification_capability": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "hub.v1.ModelParamsV1": {
+      "description": "ModelParamsV1 governs parser allowlists and registration string bounds.\nUpdating a parser list only affects future registrations, not stored profiles.",
+      "properties": {
+        "max_parser_name_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_provider_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_repo_id_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_repo_type_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_resolver_version_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_revision_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_source_uri_bytes": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_supported_reasoning_parsers": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_supported_tool_call_parsers": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "supported_reasoning_parsers": {
+          "items": {
+            "$ref": "#/definitions/shared.v1.ParserRefV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "supported_tool_call_parsers": {
+          "items": {
+            "$ref": "#/definitions/shared.v1.ParserRefV1",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.ModelProfileStatus": {
       "default": "MODEL_PROFILE_STATUS_UNSPECIFIED",
       "description": "ModelProfileStatus is the shared model and profile lifecycle status; numbers are frozen by the upstream model registry projection referenced from 9.6b.\n\n - MODEL_PROFILE_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nMODEL_PROFILE_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - MODEL_PROFILE_STATUS_REGISTERED: Registered but not yet usable for new tasks.\nMODEL_PROFILE_STATUS_REGISTERED identifies the corresponding protocol value.\n - MODEL_PROFILE_STATUS_ACTIVE: Usable for new tasks.\nMODEL_PROFILE_STATUS_ACTIVE identifies the corresponding protocol value.\n - MODEL_PROFILE_STATUS_FROZEN: Governance frozen; unfreezing returns to REGISTERED.\nMODEL_PROFILE_STATUS_FROZEN identifies the corresponding protocol value.\n - MODEL_PROFILE_STATUS_EMERGENCY_FROZEN: Frozen by the validator emergency freeze quorum.\nMODEL_PROFILE_STATUS_EMERGENCY_FROZEN identifies the corresponding protocol value.\n - MODEL_PROFILE_STATUS_DELISTED: Terminal; never returns to a usable status.\nMODEL_PROFILE_STATUS_DELISTED identifies the corresponding protocol value.",
@@ -1136,9 +1231,13 @@
       "type": "string"
     },
     "hub.v1.ModelState": {
-      "description": "ModelState is one registered model primary row (data-structure contract 6.3).",
+      "description": "ModelState is one registered model primary row (wire storage model 6.3).",
       "properties": {
-        "active_profile_count": {
+        "active_support_stake": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "active_supporter_count": {
           "format": "int64",
           "type": "integer"
         },
@@ -1147,17 +1246,36 @@
           "type": "string"
         },
         "latest_profile_version": {
+          "description": "active_profile_count (4) counted profiles in ACTIVE status. ACTIVE is now\nderived from ModelSupportState alone (active_support_stake,\nactive_supporter_count below), so no producer sets a per-profile count.",
           "format": "int64",
           "type": "integer"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "pending_effective_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "pending_support_min_stake": {
+          "format": "uint64",
           "type": "string"
         },
         "proposer_address": {
           "type": "string"
         },
+        "provider": {
+          "type": "string"
+        },
         "registration_fee_paid": {
           "format": "uint64",
+          "type": "string"
+        },
+        "repo_id": {
           "type": "string"
         },
         "status": {
@@ -1165,6 +1283,10 @@
         },
         "status_source": {
           "$ref": "#/definitions/hub.v1.ModelStatusSource"
+        },
+        "support_min_stake": {
+          "format": "uint64",
+          "type": "string"
         },
         "updated_height": {
           "format": "uint64",
@@ -1175,10 +1297,10 @@
     },
     "hub.v1.ModelStatusSource": {
       "default": "MODEL_STATUS_SOURCE_UNSPECIFIED",
-      "description": "ModelStatusSource attributes one model status transition to its trigger.\n\n - MODEL_STATUS_SOURCE_UNSPECIFIED: Never written.\nMODEL_STATUS_SOURCE_UNSPECIFIED identifies the corresponding protocol value.\n - MODEL_STATUS_SOURCE_AUTO_PROFILE: Derived from the aggregate profile status.\nMODEL_STATUS_SOURCE_AUTO_PROFILE identifies the corresponding protocol value.\n - MODEL_STATUS_SOURCE_GOVERNANCE: Applied by a governance transition.\nMODEL_STATUS_SOURCE_GOVERNANCE identifies the corresponding protocol value.\n - MODEL_STATUS_SOURCE_EMERGENCY: Applied by the emergency freeze path.\nMODEL_STATUS_SOURCE_EMERGENCY identifies the corresponding protocol value.",
+      "description": "ModelStatusSource attributes one model status transition to its trigger.\n\n - MODEL_STATUS_SOURCE_UNSPECIFIED: Never written.\nMODEL_STATUS_SOURCE_UNSPECIFIED identifies the corresponding protocol value.\n - MODEL_STATUS_SOURCE_AUTO_SUPPORT: Derived from the model-wide support aggregate.\n - MODEL_STATUS_SOURCE_GOVERNANCE: Applied by a governance transition.\nMODEL_STATUS_SOURCE_GOVERNANCE identifies the corresponding protocol value.\n - MODEL_STATUS_SOURCE_EMERGENCY: Applied by the emergency freeze path.\nMODEL_STATUS_SOURCE_EMERGENCY identifies the corresponding protocol value.",
       "enum": [
         "MODEL_STATUS_SOURCE_UNSPECIFIED",
-        "MODEL_STATUS_SOURCE_AUTO_PROFILE",
+        "MODEL_STATUS_SOURCE_AUTO_SUPPORT",
         "MODEL_STATUS_SOURCE_GOVERNANCE",
         "MODEL_STATUS_SOURCE_EMERGENCY"
       ],
@@ -1196,7 +1318,7 @@
       "type": "string"
     },
     "hub.v1.ModelSupportState": {
-      "description": "ModelSupportState is the single roleless operator/profile support row (6.1); it carries no duty selector.",
+      "description": "ModelSupportState is the single operator/model support row.",
       "properties": {
         "activation_kind": {
           "$ref": "#/definitions/hub.v1.ModelSupportActivationKind"
@@ -1208,16 +1330,16 @@
         "declared_support": {
           "type": "boolean"
         },
-        "eligible_support_stake_snapshot": {
-          "format": "uint64",
-          "type": "string"
-        },
         "first_activation_duty": {
           "$ref": "#/definitions/shared.v1.Duty"
         },
         "first_support_order_value": {
           "format": "uint64",
           "type": "string"
+        },
+        "first_support_profile_version": {
+          "format": "int64",
+          "type": "integer"
         },
         "first_support_task_id": {
           "format": "trueopen-hash32",
@@ -1238,6 +1360,10 @@
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "operator_address": {
@@ -1250,10 +1376,6 @@
           "format": "uint64",
           "type": "string"
         },
-        "profile_version": {
-          "format": "int64",
-          "type": "integer"
-        },
         "support_active": {
           "type": "boolean"
         },
@@ -1264,12 +1386,27 @@
         "support_version": {
           "format": "uint64",
           "type": "string"
+        },
+        "suspend_reason": {
+          "$ref": "#/definitions/hub.v1.ModelSupportSuspendReason"
         }
       },
       "type": "object"
     },
+    "hub.v1.ModelSupportSuspendReason": {
+      "default": "MODEL_SUPPORT_SUSPEND_REASON_UNSPECIFIED",
+      "description": "ModelSupportSuspendReason distinguishes a suspended declaration from one\nthat has not yet been activated by a task.\n\n - MODEL_SUPPORT_SUSPEND_REASON_UNSPECIFIED: Never written.\n - MODEL_SUPPORT_SUSPEND_REASON_NONE: The declaration is not suspended.\n - MODEL_SUPPORT_SUSPEND_REASON_JAIL: The operator is jailed.\n - MODEL_SUPPORT_SUSPEND_REASON_BOND_BELOW_MIN: The effective bond is below the active model threshold.\n - MODEL_SUPPORT_SUSPEND_REASON_MIN_STAKE_RAISED: A raised model threshold became effective before the bond caught up.",
+      "enum": [
+        "MODEL_SUPPORT_SUSPEND_REASON_UNSPECIFIED",
+        "MODEL_SUPPORT_SUSPEND_REASON_NONE",
+        "MODEL_SUPPORT_SUSPEND_REASON_JAIL",
+        "MODEL_SUPPORT_SUSPEND_REASON_BOND_BELOW_MIN",
+        "MODEL_SUPPORT_SUSPEND_REASON_MIN_STAKE_RAISED"
+      ],
+      "type": "string"
+    },
     "hub.v1.ParameterBucketParamsV1": {
-      "description": "ParameterBucketParamsV1 groups versioned bucket caps and retention (§18.0).",
+      "description": "ParameterBucketParamsV1 groups versioned bucket caps and retention.",
       "properties": {
         "max_parameter_bucket_entries": {
           "format": "int64",
@@ -1406,43 +1543,9 @@
       },
       "type": "object"
     },
-    "hub.v1.ProfileCapabilityState": {
-      "description": "ProfileCapabilityState is one operator/profile declared capability row (6.1).",
-      "properties": {
-        "capability_version": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "inference_capability": {
-          "type": "boolean"
-        },
-        "model_id": {
-          "type": "string"
-        },
-        "operator_address": {
-          "type": "string"
-        },
-        "profile_version": {
-          "format": "int64",
-          "type": "integer"
-        },
-        "verification_capability": {
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
     "hub.v1.ProfileState": {
-      "description": "ProfileState is one registered model profile primary row plus its roleless support aggregate (6.3).",
+      "description": "ProfileState is one registered model profile primary row.",
       "properties": {
-        "active_support_stake": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "active_supporter_count": {
-          "format": "int64",
-          "type": "integer"
-        },
         "batch_verification": {
           "$ref": "#/definitions/shared.v1.BatchVerification"
         },
@@ -1451,10 +1554,6 @@
           "type": "string"
         },
         "created_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "eligible_support_stake": {
           "format": "uint64",
           "type": "string"
         },
@@ -1477,6 +1576,10 @@
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "previous_profile_version": {
@@ -1492,6 +1595,9 @@
         },
         "proposer_address": {
           "type": "string"
+        },
+        "reasoning_parser": {
+          "$ref": "#/definitions/shared.v1.ParserRefV1"
         },
         "ref_price": {
           "format": "uint64",
@@ -1526,6 +1632,9 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "source": {
+          "$ref": "#/definitions/shared.v1.ProfileSourceRefV1"
+        },
         "status": {
           "$ref": "#/definitions/hub.v1.ModelProfileStatus"
         },
@@ -1548,6 +1657,9 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "tool_call_parser": {
+          "$ref": "#/definitions/shared.v1.ParserRefV1"
+        },
         "updated_height": {
           "format": "uint64",
           "type": "string"
@@ -1563,10 +1675,9 @@
     },
     "hub.v1.ProfileStatusSource": {
       "default": "PROFILE_STATUS_SOURCE_UNSPECIFIED",
-      "description": "ProfileStatusSource attributes one profile status transition to its trigger.\n\n - PROFILE_STATUS_SOURCE_UNSPECIFIED: Never written.\nPROFILE_STATUS_SOURCE_UNSPECIFIED identifies the corresponding protocol value.\n - PROFILE_STATUS_SOURCE_AUTO_SUPPORT: Derived from the roleless support aggregate.\nPROFILE_STATUS_SOURCE_AUTO_SUPPORT identifies the corresponding protocol value.\n - PROFILE_STATUS_SOURCE_GOVERNANCE: Applied by a governance transition.\nPROFILE_STATUS_SOURCE_GOVERNANCE identifies the corresponding protocol value.\n - PROFILE_STATUS_SOURCE_EMERGENCY: Applied by the emergency freeze path.\nPROFILE_STATUS_SOURCE_EMERGENCY identifies the corresponding protocol value.",
+      "description": "ProfileStatusSource attributes one profile status transition to its trigger.\n\n - PROFILE_STATUS_SOURCE_UNSPECIFIED: Never written.\nPROFILE_STATUS_SOURCE_UNSPECIFIED identifies the corresponding protocol value.\n - PROFILE_STATUS_SOURCE_GOVERNANCE: Applied by a governance transition.\nPROFILE_STATUS_SOURCE_GOVERNANCE identifies the corresponding protocol value.\n - PROFILE_STATUS_SOURCE_EMERGENCY: Applied by the emergency freeze path.\nPROFILE_STATUS_SOURCE_EMERGENCY identifies the corresponding protocol value.",
       "enum": [
         "PROFILE_STATUS_SOURCE_UNSPECIFIED",
-        "PROFILE_STATUS_SOURCE_AUTO_SUPPORT",
         "PROFILE_STATUS_SOURCE_GOVERNANCE",
         "PROFILE_STATUS_SOURCE_EMERGENCY"
       ],
@@ -1625,7 +1736,7 @@
       "type": "object"
     },
     "hub.v1.QueryCandidatePoolMemberResponse": {
-      "description": "QueryCandidatePoolMemberResponse returns the verifiable member/binding join.\nA pruned body is FailedPrecondition; only an unknown snapshot or member is\nNotFound.\n\nCONTRACT-GAP: api_contract §3.6 describes this response as \"member +\nmembership_binding\" while §16.3 registers exactly `1=member` and §16.5 freezes\nCandidatePoolMemberViewV1 at four fields with no membership_binding. The\n§16.3/§16.5 shape is implemented.\nQueryCandidatePoolMemberResponse defines the QueryCandidatePoolMemberResponse wire type.",
+      "description": "QueryCandidatePoolMemberResponse returns the verifiable member/binding join.\nA pruned body is FailedPrecondition; only an unknown snapshot or member is\nNotFound.\n\nThe response carries one CandidatePoolMemberViewV1. Its membership binding\nis represented by the view's frozen fields, not by a duplicate message.\nQueryCandidatePoolMemberResponse defines the QueryCandidatePoolMemberResponse wire type.",
       "properties": {
         "member": {
           "$ref": "#/definitions/hub.v1.CandidatePoolMemberViewV1"
@@ -1729,7 +1840,7 @@
       "type": "object"
     },
     "hub.v1.QueryEventParamsV1": {
-      "description": "QueryEventParamsV1 groups Query pagination and event payload caps (§18.0).",
+      "description": "QueryEventParamsV1 groups Query pagination and event payload caps.",
       "properties": {
         "max_endblock_visited_items_total": {
           "format": "int64",
@@ -1805,6 +1916,15 @@
       },
       "type": "object"
     },
+    "hub.v1.QueryModelCapabilityResponse": {
+      "description": "QueryModelCapabilityResponse returns the capability row.",
+      "properties": {
+        "capability": {
+          "$ref": "#/definitions/hub.v1.ModelCapabilityState"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.QueryModelResponse": {
       "description": "QueryModelResponse is response type for Query/Model.",
       "properties": {
@@ -1835,15 +1955,6 @@
         },
         "page": {
           "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
-        }
-      },
-      "type": "object"
-    },
-    "hub.v1.QueryProfileCapabilityResponse": {
-      "description": "QueryProfileCapabilityResponse returns the capability row.",
-      "properties": {
-        "capability": {
-          "$ref": "#/definitions/hub.v1.ProfileCapabilityState"
         }
       },
       "type": "object"
@@ -2145,7 +2256,7 @@
       "type": "object"
     },
     "hub.v1.RewardParamsV1": {
-      "description": "RewardParamsV1 groups reward competition and accrual parameters (§18.0).",
+      "description": "RewardParamsV1 groups reward competition and accrual parameters.",
       "properties": {
         "max_order_value_histogram_buckets": {
           "format": "int64",
@@ -2247,7 +2358,7 @@
       "type": "string"
     },
     "hub.v1.ServiceBondState": {
-      "description": "ServiceBondState is the single operator-global service bond row, including the operator-global jail counters (data-structure contract 6.4).",
+      "description": "ServiceBondState is the single operator-global service bond row, including the operator-global jail counters (wire storage model 6.4).",
       "properties": {
         "active_bond": {
           "format": "uint64",
@@ -2300,7 +2411,7 @@
     },
     "hub.v1.ServiceBondStatus": {
       "default": "SERVICE_BOND_STATUS_UNSPECIFIED",
-      "description": "ServiceBondStatus is the operator-global service bond lifecycle (data-structure contract 6.4).\n\n - SERVICE_BOND_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSERVICE_BOND_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_REGISTERED: Bond row created but not yet effective.\nSERVICE_BOND_STATUS_REGISTERED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_ACTIVE: Bond is effective and may back duties.\nSERVICE_BOND_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_JAILED: Operator is jailed; no new duty is assigned.\nSERVICE_BOND_STATUS_JAILED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_UNBONDING: Operator is unbonding to zero.\nSERVICE_BOND_STATUS_UNBONDING identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_EXITED: Bond reached zero with no outstanding liability.\nSERVICE_BOND_STATUS_EXITED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_TOMBSTONED: Permanently excluded.\nSERVICE_BOND_STATUS_TOMBSTONED identifies the corresponding protocol value.",
+      "description": "ServiceBondStatus is the operator-global service bond lifecycle (wire storage model 6.4).\n\n - SERVICE_BOND_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSERVICE_BOND_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_REGISTERED: Bond row created but not yet effective.\nSERVICE_BOND_STATUS_REGISTERED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_ACTIVE: Bond is effective and may back duties.\nSERVICE_BOND_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_JAILED: Operator is jailed; no new duty is assigned.\nSERVICE_BOND_STATUS_JAILED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_UNBONDING: Operator is unbonding to zero.\nSERVICE_BOND_STATUS_UNBONDING identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_EXITED: Bond reached zero with no outstanding liability.\nSERVICE_BOND_STATUS_EXITED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_TOMBSTONED: Permanently excluded.\nSERVICE_BOND_STATUS_TOMBSTONED identifies the corresponding protocol value.",
       "enum": [
         "SERVICE_BOND_STATUS_UNSPECIFIED",
         "SERVICE_BOND_STATUS_REGISTERED",
@@ -2394,7 +2505,7 @@
       "type": "string"
     },
     "hub.v1.ServiceLifecycleViewV1": {
-      "description": "ServiceLifecycleViewV1 joins the identity and bond authorities (§16.5).",
+      "description": "ServiceLifecycleViewV1 joins the identity and bond authorities.",
       "properties": {
         "bond": {
           "$ref": "#/definitions/hub.v1.ServiceBondState"
@@ -2406,7 +2517,7 @@
       "type": "object"
     },
     "hub.v1.ServiceParamsV1": {
-      "description": "ServiceParamsV1 groups service bond, unbonding and jail parameters (§18.0).",
+      "description": "ServiceParamsV1 groups service bond, unbonding and jail parameters.",
       "properties": {
         "jail_clear_normal_action_count": {
           "format": "int64",
@@ -2455,6 +2566,11 @@
         "max_unbonding_withdraw_items_per_tx": {
           "format": "int64",
           "type": "integer"
+        },
+        "min_stake_grace_period_blocks": {
+          "description": "Positive block delay for newly scheduled min_stake increases. Updating it\nnever changes a pending_effective_height already stored on a model.",
+          "format": "uint64",
+          "type": "string"
         },
         "min_task_liability": {
           "$ref": "#/definitions/shared.v1.Amount"
@@ -2541,8 +2657,8 @@
           "$ref": "#/definitions/shared.v1.Duty"
         },
         "effect_index": {
-          "format": "uint64",
-          "type": "string"
+          "format": "int64",
+          "type": "integer"
         },
         "operator_address": {
           "type": "string"
@@ -2592,17 +2708,13 @@
       "type": "object"
     },
     "hub.v1.SupportParamsV1": {
-      "description": "SupportParamsV1 groups model support and heartbeat parameters (§18.0).",
+      "description": "SupportParamsV1 groups model support and heartbeat parameters.",
       "properties": {
         "active_support_stake_cap_multiplier": {
           "format": "int64",
           "type": "integer"
         },
-        "active_support_stake_ratio_denominator": {
-          "format": "int64",
-          "type": "integer"
-        },
-        "active_support_stake_ratio_numerator": {
+        "active_support_stake_multiple": {
           "format": "int64",
           "type": "integer"
         },
@@ -2626,7 +2738,16 @@
           "format": "int64",
           "type": "integer"
         },
+        "max_model_support_deactivate_items_per_block": {
+          "description": "max_model_support_deactivate_items_per_block bounds per-block visited\ncount for the ModelSupportDeactivateCursorState sweep that runs after a\nmodel transitions to FROZEN or DELISTED, deactivating its\nModelSupportState rows. Independent budget from field 13; the two\ncursors never run for the same model_id at the same time.",
+          "format": "int64",
+          "type": "integer"
+        },
         "max_model_support_prune_items_per_block": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_model_support_recheck_items_per_block": {
           "format": "int64",
           "type": "integer"
         },
@@ -2634,7 +2755,7 @@
           "format": "int64",
           "type": "integer"
         },
-        "max_supported_profiles_per_operator": {
+        "max_supported_models_per_operator": {
           "format": "int64",
           "type": "integer"
         },
@@ -2677,7 +2798,7 @@
       "type": "object"
     },
     "hub.v1.TreasuryParamsV1": {
-      "description": "TreasuryParamsV1 groups treasury split and retention parameters (§18.0).",
+      "description": "TreasuryParamsV1 groups treasury split and retention parameters.",
       "properties": {
         "governance_action_replay_window_blocks": {
           "format": "uint64",
@@ -2706,7 +2827,7 @@
       "type": "object"
     },
     "hub.v1.TreasuryState": {
-      "description": "TreasuryState is the protocol treasury balance and its monotonic version.\n\nV1 has no maintenance-rate controller and no automatic infrastructure\nreward: the API contract restricts Treasury outflow to x/gov approved\ntyped TreasurySpend items, and unspent budget simply stays here. The\nblock-end invariant of §5.3 requires this balance to equal the treasury\nmodule account balance.\nTreasuryState defines the TreasuryState wire type.",
+      "description": "TreasuryState is the protocol treasury balance and its monotonic version.\n\nV1 has no maintenance-rate controller and no automatic infrastructure\nreward: the wire API restricts Treasury outflow to x/gov approved\ntyped TreasurySpend items, and unspent budget simply stays here. The\nblock-end invariant of this contract requires this balance to equal the treasury\nmodule account balance.\nTreasuryState defines the TreasuryState wire type.",
       "properties": {
         "balance": {
           "$ref": "#/definitions/shared.v1.Amount"
@@ -2755,7 +2876,7 @@
     },
     "hub.v1.UnbondingStatus": {
       "default": "UNBONDING_STATUS_UNSPECIFIED",
-      "description": "UnbondingStatus is the lifecycle of one service unbonding row. The numeric\nvalues are frozen, which is the sole authority for\nclosed enum values; §16.3 QueryServiceUnbondings filters on this exact set.\nUnbondingStatus defines the UnbondingStatus wire type.\n\n - UNBONDING_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nUNBONDING_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - UNBONDING_STATUS_OPEN: Created by MsgBeginServiceUnstake and still before mature_height.\nUNBONDING_STATUS_OPEN identifies the corresponding protocol value.\n - UNBONDING_STATUS_MATURE: mature_height reached; withdrawable via MsgWithdrawServiceUnbonded.\nUNBONDING_STATUS_MATURE identifies the corresponding protocol value.\n - UNBONDING_STATUS_WITHDRAWN: Fully withdrawn to the operator; row is replaced by UnbondingReceiptState.\nUNBONDING_STATUS_WITHDRAWN identifies the corresponding protocol value.\n - UNBONDING_STATUS_SLASHED: Fully consumed by ApplyServiceSlash; row is replaced by a receipt.\nUNBONDING_STATUS_SLASHED identifies the corresponding protocol value.",
+      "description": "UnbondingStatus is the lifecycle of one service unbonding row. The numeric\nvalues are frozen, which is the sole authority for\nclosed enum values; this contract QueryServiceUnbondings filters on this exact set.\nUnbondingStatus defines the UnbondingStatus wire type.\n\n - UNBONDING_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nUNBONDING_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - UNBONDING_STATUS_OPEN: Created by MsgBeginServiceUnstake and still before mature_height.\nUNBONDING_STATUS_OPEN identifies the corresponding protocol value.\n - UNBONDING_STATUS_MATURE: mature_height reached; withdrawable via MsgWithdrawServiceUnbonded.\nUNBONDING_STATUS_MATURE identifies the corresponding protocol value.\n - UNBONDING_STATUS_WITHDRAWN: Fully withdrawn to the operator; row is replaced by UnbondingReceiptState.\nUNBONDING_STATUS_WITHDRAWN identifies the corresponding protocol value.\n - UNBONDING_STATUS_SLASHED: Fully consumed by ApplyServiceSlash; row is replaced by a receipt.\nUNBONDING_STATUS_SLASHED identifies the corresponding protocol value.",
       "enum": [
         "UNBONDING_STATUS_UNSPECIFIED",
         "UNBONDING_STATUS_OPEN",
@@ -2855,7 +2976,12 @@
           "type": "array"
         },
         "support_candidates": {
+          "description": "Raw Hash32 model identifiers in strictly ascending byte order.\nEvery model appears at most once; composite model/profile strings are invalid.",
           "items": {
+            "format": "trueopen-hash32",
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
             "type": "string"
           },
           "type": "array"
@@ -2873,12 +2999,13 @@
     },
     "shared.v1.EvidenceKind": {
       "default": "EVIDENCE_KIND_UNSPECIFIED",
-      "description": "EvidenceKind is the single cross-module numeric authority for evidence\nopening semantics. Engine-local artifacts such as trace files and checkpoints\nare not evidence kinds.\nEvidenceKind defines the EvidenceKind wire type.\n\n - EVIDENCE_KIND_UNSPECIFIED: Never written; rejects an unset requirement or commitment.\nEVIDENCE_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_VALUE_OPENING: Selected Worker four-artifact opening folded by WorkerValueCommitmentV2.\nEVIDENCE_KIND_WORKER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_VERIFIER_VALUE_OPENING: Selected Verifier value and metric opening.\nEVIDENCE_KIND_VERIFIER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING: Settlement duty Builder opening against task_evidence_root.\nEVIDENCE_KIND_SETTLEMENT_ROOT_OPENING identifies the corresponding protocol value.",
+      "description": "EvidenceKind is the single cross-module numeric authority for evidence\nopening semantics. Engine-local artifacts such as trace files and checkpoints\nare not evidence kinds.\nEvidenceKind defines the EvidenceKind wire type.\n\n - EVIDENCE_KIND_UNSPECIFIED: Never written; rejects an unset requirement or commitment.\nEVIDENCE_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_VALUE_OPENING: Selected Worker B-level value-tree opening.\nEVIDENCE_KIND_WORKER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_VERIFIER_VALUE_OPENING: Selected Verifier value and metric opening.\nEVIDENCE_KIND_VERIFIER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING: Settlement duty Builder opening against task_evidence_root.\nEVIDENCE_KIND_SETTLEMENT_ROOT_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_TOKEN_OPENING: Selected Worker A-level input and generated token-ID opening.",
       "enum": [
         "EVIDENCE_KIND_UNSPECIFIED",
         "EVIDENCE_KIND_WORKER_VALUE_OPENING",
         "EVIDENCE_KIND_VERIFIER_VALUE_OPENING",
-        "EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING"
+        "EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING",
+        "EVIDENCE_KIND_WORKER_TOKEN_OPENING"
       ],
       "type": "string"
     },
@@ -2972,6 +3099,19 @@
       ],
       "type": "string"
     },
+    "shared.v1.ParserRefV1": {
+      "description": "ParserRefV1 selects one governance-approved parser specification.\nThe zero value is the sole representation of an absent parser.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "shared.v1.ParticipantType": {
       "default": "PARTICIPANT_TYPE_UNSPECIFIED",
       "description": "ParticipantType selects the Hub identity domain a service key or descriptor belongs to (9.6b).\n\n - PARTICIPANT_TYPE_UNSPECIFIED: Never written; rejects zero-value rows and selectors.\nPARTICIPANT_TYPE_UNSPECIFIED identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_CORTEX: Cortex node identity domain.\nPARTICIPANT_TYPE_CORTEX identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_BUILDER: Builder identity domain.\nPARTICIPANT_TYPE_BUILDER identifies the corresponding protocol value.",
@@ -3000,8 +3140,26 @@
       },
       "type": "object"
     },
+    "shared.v1.ProfileSourceRefV1": {
+      "description": "ProfileSourceRefV1 retains the version-local source fields on a profile.",
+      "properties": {
+        "repo_type": {
+          "type": "string"
+        },
+        "resolver_version": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "source_uri": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "shared.v1.QueryPageRequestV1": {
-      "description": "QueryPageRequestV1 is the only pagination request wire (§16.1). V1 allows\nkeyset pagination only: there is no offset and no count_total. limit = 0 uses\nmax_query_page_limit; a non-zero value above that cap is InvalidArgument and\nmust not be silently clamped. page_token is the optional canonical PageTokenV1\nencoding bounded by max_query_page_token_bytes.\nQueryPageRequestV1 defines the QueryPageRequestV1 wire type.",
+      "description": "QueryPageRequestV1 is the only pagination request wire. V1 allows\nkeyset pagination only: there is no offset and no count_total. limit = 0 uses\nmax_query_page_limit; a non-zero value above that cap is InvalidArgument and\nmust not be silently clamped. page_token is the optional canonical PageTokenV1\nencoding bounded by max_query_page_token_bytes.\nQueryPageRequestV1 defines the QueryPageRequestV1 wire type.",
       "properties": {
         "limit": {
           "description": "limit is 0 for max_query_page_limit, otherwise \u003c= that cap.",
@@ -3017,7 +3175,7 @@
       "type": "object"
     },
     "shared.v1.QueryPageResponseV1": {
-      "description": "QueryPageResponseV1 returns the next keyset token; it is empty when no next\nitem exists (§16.1). A non-empty token is only returned when the server has\nactually seen a next item.\nQueryPageResponseV1 defines the QueryPageResponseV1 wire type.",
+      "description": "QueryPageResponseV1 returns the next keyset token; it is empty when no next\nitem exists. A non-empty token is only returned when the server has\nactually seen a next item.\nQueryPageResponseV1 defines the QueryPageResponseV1 wire type.",
       "properties": {
         "next_page_token": {
           "description": "next_page_token is empty when the walk is complete. Same opaque PageTokenV1\nblob as page_token, so REST projects it as ProtoJSON Base64.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
@@ -3042,7 +3200,7 @@
     },
     "shared.v1.StoredBodyStatus": {
       "default": "STORED_BODY_STATUS_UNSPECIFIED",
-      "description": "StoredBodyStatus tells whether the bounded member body of a committed\ncollection row is still resident or has been pruned while its count and hash\nstay auditable. The API contract registers the two values (and §9.6b\nlists §16.5 as the numeric authority for them).\n\nCONTRACT-GAP: §16.5 calls this a Query-only projection enum that never lands in\nStore, yet the data-structure contract gives both BuilderSetState and\nTaskBuilderSelectionState a stored `body_status = ACTIVE / PRUNED` field with\nexactly these two values. Declaring a second Store-only enum would break the\n§9.6b rule of one numeric definition per closed enum, so the single definition\nlives here and is shared by the Store rows and the §16.5 views. It is declared\nin shared/v1 because both x/hub and x/task store and project it,\nand the module-split closure rule makes a declaration referenced by two domains\nshared. The contract must either drop the \"Query-only\" wording or register a\nStore twin.\nStoredBodyStatus defines the StoredBodyStatus wire type.\n\n - STORED_BODY_STATUS_UNSPECIFIED: Never written; rejects zero-value rows and views.\nSTORED_BODY_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - STORED_BODY_STATUS_ACTIVE: Bounded member body is resident.\nSTORED_BODY_STATUS_ACTIVE identifies the corresponding protocol value.\n - STORED_BODY_STATUS_PRUNED: Member body deleted; count and hash retained.\nSTORED_BODY_STATUS_PRUNED identifies the corresponding protocol value.",
+      "description": "StoredBodyStatus tells whether the bounded member body of a committed\ncollection row is still resident or has been pruned while its count and hash\nstay auditable. One shared enum serves both stored Hub/Task rows and their\nquery views; no second Store-only numeric definition is allowed.\nStoredBodyStatus defines the StoredBodyStatus wire type.\n\n - STORED_BODY_STATUS_UNSPECIFIED: Never written; rejects zero-value rows and views.\nSTORED_BODY_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - STORED_BODY_STATUS_ACTIVE: Bounded member body is resident.\nSTORED_BODY_STATUS_ACTIVE identifies the corresponding protocol value.\n - STORED_BODY_STATUS_PRUNED: Member body deleted; count and hash retained.\nSTORED_BODY_STATUS_PRUNED identifies the corresponding protocol value.",
       "enum": [
         "STORED_BODY_STATUS_UNSPECIFIED",
         "STORED_BODY_STATUS_ACTIVE",
@@ -3232,13 +3390,17 @@
       "type": "object"
     },
     "task.v1.ActiveTaskRefV1": {
-      "description": "ActiveTaskRefV1 is the compact active-duty Task reference of §16.5.",
+      "description": "ActiveTaskRefV1 is the compact active-duty Task reference of this contract.",
       "properties": {
         "created_height": {
           "format": "uint64",
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -3264,7 +3426,7 @@
     },
     "task.v1.AssignmentFailureReason": {
       "default": "ASSIGNMENT_FAILURE_REASON_UNSPECIFIED",
-      "description": "AssignmentFailureReason is the single closed reason for a failed Worker\nassignment, frozen by §9.6b.\nAssignmentFailureReason defines the AssignmentFailureReason wire type.\n\n - ASSIGNMENT_FAILURE_REASON_UNSPECIFIED: No failure recorded.\nASSIGNMENT_FAILURE_REASON_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET: Frozen union bitmap held no usable candidate.\nASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE: Required future beacon never became available.\nASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE: Drawn winner could no longer reserve task liability.\nASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED: Order expired before assignment completed.\nASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED identifies the corresponding protocol value.",
+      "description": "AssignmentFailureReason is the single closed reason for a failed Worker\nassignment, frozen by this contract.\nAssignmentFailureReason defines the AssignmentFailureReason wire type.\n\n - ASSIGNMENT_FAILURE_REASON_UNSPECIFIED: No failure recorded.\nASSIGNMENT_FAILURE_REASON_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET: Frozen union bitmap held no usable candidate.\nASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE: Required future beacon never became available.\nASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE: Drawn winner could no longer reserve task liability.\nASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED: Order expired before assignment completed.\nASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED identifies the corresponding protocol value.",
       "enum": [
         "ASSIGNMENT_FAILURE_REASON_UNSPECIFIED",
         "ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET",
@@ -3275,7 +3437,7 @@
       "type": "string"
     },
     "task.v1.AssignmentRandomnessViewV1": {
-      "description": "AssignmentRandomnessViewV1 joins TaskAssignmentState with the BeaconState of\nits exact randomness height (§16.5). A scope or hash mismatch is Internal and\nthe Beacon must not be pruned while a consumer exists. Field 5 is present for\nproposer-VRF and absent for a dev placeholder. Fields 6-8 are present together\nor absent together.\nAssignmentRandomnessViewV1 defines the AssignmentRandomnessViewV1 wire type.",
+      "description": "AssignmentRandomnessViewV1 joins TaskAssignmentState with the BeaconState of\nits exact randomness height. A scope or hash mismatch is Internal and\nthe Beacon must not be pruned while a consumer exists. Field 5 is present for\nproposer-VRF and absent for a dev placeholder. Fields 6-8 are present together\nor absent together.\nAssignmentRandomnessViewV1 defines the AssignmentRandomnessViewV1 wire type.",
       "properties": {
         "assignment_candidate_set_hash": {
           "format": "trueopen-hash32",
@@ -3328,7 +3490,7 @@
     },
     "task.v1.AssignmentStatus": {
       "default": "ASSIGNMENT_STATUS_UNSPECIFIED",
-      "description": "AssignmentStatus is the Worker assignment sub-state. Values are frozen by\n§9.6b. It is stored only on TaskCoreState; TaskAssignmentState must not keep a\ncopy.\nAssignmentStatus defines the AssignmentStatus wire type.\n\n - ASSIGNMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nASSIGNMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_NONE: No assignment activity yet.\nASSIGNMENT_STATUS_NONE identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_RANDOMNESS_PENDING: Legal set frozen, waiting for the future beacon.\nASSIGNMENT_STATUS_RANDOMNESS_PENDING identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_ASSIGNED: Winner finalized and liability reserved.\nASSIGNMENT_STATUS_WORKER_ASSIGNED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_ASSIGN_TIMEOUT: Assignment could not be completed.\nASSIGNMENT_STATUS_ASSIGN_TIMEOUT identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_TIMEOUT: Winner missed the inference deadline.\nASSIGNMENT_STATUS_WORKER_TIMEOUT identifies the corresponding protocol value.",
+      "description": "AssignmentStatus is the Worker assignment sub-state. Values are frozen by\nthis contract. It is stored only on TaskCoreState; TaskAssignmentState must not keep a\ncopy.\nAssignmentStatus defines the AssignmentStatus wire type.\n\n - ASSIGNMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nASSIGNMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_NONE: No assignment activity yet.\nASSIGNMENT_STATUS_NONE identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_RANDOMNESS_PENDING: Legal set frozen, waiting for the future beacon.\nASSIGNMENT_STATUS_RANDOMNESS_PENDING identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_ASSIGNED: Winner finalized and liability reserved.\nASSIGNMENT_STATUS_WORKER_ASSIGNED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_ASSIGN_TIMEOUT: Assignment could not be completed.\nASSIGNMENT_STATUS_ASSIGN_TIMEOUT identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_TIMEOUT: Winner missed the inference deadline.\nASSIGNMENT_STATUS_WORKER_TIMEOUT identifies the corresponding protocol value.",
       "enum": [
         "ASSIGNMENT_STATUS_UNSPECIFIED",
         "ASSIGNMENT_STATUS_NONE",
@@ -3414,7 +3576,7 @@
     },
     "task.v1.BuilderDataUnavailableAggregateStatusV1": {
       "default": "BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED",
-      "description": "BuilderDataUnavailableAggregateStatusV1 is the lifecycle of one\n(task, round, builder) data-unavailable aggregate.\n\nCONTRACT-GAP: the data-structure contract names the three states\n(COLLECTING / CONFIRMED / PRUNED) but the API contract does not\nregister this enum, so the numbers below follow the declaration order of that\nsection and must be re-confirmed when §9.6b is extended.\nBuilderDataUnavailableAggregateStatusV1 defines the BuilderDataUnavailableAggregateStatusV1 wire type.\n\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING: Reports are still being collected; threshold not reached.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED: Threshold reached at threshold_reached_height; aggregate_hash written once.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_PRUNED: Digest vector deleted by task cleanup; counts and aggregate_hash retained.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_PRUNED identifies the corresponding protocol value.",
+      "description": "BuilderDataUnavailableAggregateStatusV1 is the lifecycle of one\n(task, round, builder) data-unavailable aggregate.\n\nThe three nonzero states are frozen in collection lifecycle order:\nCOLLECTING, CONFIRMED, and PRUNED.\nBuilderDataUnavailableAggregateStatusV1 defines the BuilderDataUnavailableAggregateStatusV1 wire type.\n\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING: Reports are still being collected; threshold not reached.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED: Threshold reached at threshold_reached_height; aggregate_hash written once.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED identifies the corresponding protocol value.\n - BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_PRUNED: Digest vector deleted by task cleanup; counts and aggregate_hash retained.\nBUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_PRUNED identifies the corresponding protocol value.",
       "enum": [
         "BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_UNSPECIFIED",
         "BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING",
@@ -3424,7 +3586,7 @@
       "type": "string"
     },
     "task.v1.BuilderDataUnavailableSlotV1": {
-      "description": "BuilderDataUnavailableSlotV1 is one selected-verifier slot of the\ndata-unavailable aggregate. It exists so a slot that filed no valid report can\nsay so with field presence instead of with a zero-length Hash32.\n\nThe two contracts used to disagree about how to spell an empty slot:\nthe data-structure contract fixed the vector length to\nselected_verifier_count and let an empty element mean \"this verifier has not\nreported\", while the API contract reject a zero-length\nelement inside a repeated Hash32. It is resolved in favour of\n§1.1a: Store and Query projection both carry per-slot presence, so the schema\nnow says what the preimage always said.\n\nThe aggregate_hash preimage does not move. It already framed this vector as\nrepeated(optional report_digest) with a 0x00 presence byte for an empty slot,\nwhich is also how TRUEOPEN_DATA_UNAVAILABLE_AGGREGATE_V1 is registered; only the\nproto declaration was expressing that presence as an empty bytes element.\nBuilderDataUnavailableSlotV1 defines the BuilderDataUnavailableSlotV1 wire type.",
+      "description": "BuilderDataUnavailableSlotV1 is one selected-verifier slot of the\ndata-unavailable aggregate. It exists so a slot that filed no valid report can\nsay so with field presence instead of with a zero-length Hash32.\n\nThe two contracts used to disagree about how to spell an empty slot:\nthe wire storage model fixed the vector length to\nselected_verifier_count and let an empty element mean \"this verifier has not\nreported\", while the wire API reject a zero-length\nelement inside a repeated Hash32. It is resolved in favour of\nthis contract: Store and Query projection both carry per-slot presence, so the schema\nnow says what the preimage always said.\n\nThe aggregate_hash preimage does not move. It already framed this vector as\nrepeated(optional report_digest) with a 0x00 presence byte for an empty slot,\nwhich is also how TRUEOPEN_DATA_UNAVAILABLE_AGGREGATE_V1 is registered; only the\nproto declaration was expressing that presence as an empty bytes element.\nBuilderDataUnavailableSlotV1 defines the BuilderDataUnavailableSlotV1 wire type.",
       "properties": {
         "report_digest": {
           "description": "Absent when this slot filed no valid report by the commit deadline. Never\npresent-but-empty: an empty Hash32 has no REST spelling and is not a value.",
@@ -3589,6 +3751,14 @@
         "verifier_operator_address": {
           "type": "string"
         },
+        "verifier_value_root": {
+          "description": "Filled when the accepted result opens the V3 commit; absent beforehand.",
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
         "verify_round": {
           "format": "int64",
           "type": "integer"
@@ -3599,7 +3769,7 @@
     },
     "task.v1.CommitStatusV1": {
       "default": "COMMIT_STATUS_V1_UNSPECIFIED",
-      "description": "CommitStatusV1 is the lifecycle of one accepted verifier commit row.\n\nCONTRACT-GAP: the data-structure contract declares CommitState.status =\nACCEPTED as the only value, and the API contract does not register this\nenum. The single non-zero value below is exactly what the frozen schema names.\nCommitStatusV1 defines the CommitStatusV1 wire type.\n\n - COMMIT_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nCOMMIT_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - COMMIT_STATUS_V1_ACCEPTED: First accepted commit for this commit_key; duplicates are a noop.\nCOMMIT_STATUS_V1_ACCEPTED identifies the corresponding protocol value.",
+      "description": "CommitStatusV1 is the lifecycle of one accepted verifier commit row.\n\nACCEPTED is the only nonzero CommitState status in this schema.\nCommitStatusV1 defines the CommitStatusV1 wire type.\n\n - COMMIT_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nCOMMIT_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - COMMIT_STATUS_V1_ACCEPTED: First accepted commit for this commit_key; duplicates are a noop.\nCOMMIT_STATUS_V1_ACCEPTED identifies the corresponding protocol value.",
       "enum": [
         "COMMIT_STATUS_V1_UNSPECIFIED",
         "COMMIT_STATUS_V1_ACCEPTED"
@@ -3648,7 +3818,7 @@
     },
     "task.v1.DeadlineKindV1": {
       "default": "DEADLINE_KIND_V1_UNSPECIFIED",
-      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe API contract is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and §5.11 event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_ASSIGNMENT: Assignment randomness expiry; kind_priority 90.\nDEADLINE_KIND_V1_WORKER_ASSIGNMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.",
+      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_ASSIGNMENT: Assignment randomness expiry; kind_priority 90.\nDEADLINE_KIND_V1_WORKER_ASSIGNMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.",
       "enum": [
         "DEADLINE_KIND_V1_UNSPECIFIED",
         "DEADLINE_KIND_V1_TASK_FINALITY",
@@ -3665,75 +3835,6 @@
         "DEADLINE_KIND_V1_EVIDENCE_CLEANUP"
       ],
       "type": "string"
-    },
-    "task.v1.EpochTaskSummaryCursorState": {
-      "description": "EpochTaskSummaryCursorState is the bounded, restart-safe fold over finalized\ntask summaries whose settlement height belongs to one epoch.\nEpochTaskSummaryCursorState defines the EpochTaskSummaryCursorState wire type.",
-      "properties": {
-        "due_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "end_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "epoch": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "histogram": {
-          "items": {
-            "format": "uint64",
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "last_settlement_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "last_task_id": {
-          "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "running_root": {
-          "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "start_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "support_candidate_seen_count": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "support_candidates": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "task_count": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "valid_task_count": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "visited_count": {
-          "format": "uint64",
-          "type": "string"
-        }
-      },
-      "type": "object"
     },
     "task.v1.EpochTaskSummaryReceiptState": {
       "description": "EpochTaskSummaryReceiptState prevents replay from dispatching an epoch twice\nand retains the bounded payload plus its complete source commitment.\nEpochTaskSummaryReceiptState defines the EpochTaskSummaryReceiptState wire type.",
@@ -3784,14 +3885,19 @@
           "$ref": "#/definitions/shared.v1.EpochTaskSummary"
         },
         "support_candidate_seen_count": {
+          "description": "Number of valid-task candidate occurrences, including duplicates.",
           "format": "uint64",
           "type": "string"
+        },
+        "support_candidates_truncated": {
+          "description": "Commits whether either configured bound skipped a distinct model.",
+          "type": "boolean"
         }
       },
       "type": "object"
     },
     "task.v1.EvidenceCommitmentV1": {
-      "description": "EvidenceCommitmentV1 is one worker-authored evidence commitment carried by\nInferReceiptV2. The list is sorted by evidence_kind\nascending with unique kinds and must exactly equal the kind set required by\nthe locked profile.\n\nThe list's commitment - evidence_commitments_hash, domain\nTRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1 (§1.4) - has exactly one ordered preimage in\nthis repository, defined in task/v1/infer_receipt.proto next to the\nTRUEOPEN_INFER_RECEIPT_V2 formula that consumes it. It covers the per-element frame\nlayout of the three fields below, the leading uint32_be(count) and the empty-list\ncase. §1.4 rule 1 forbids a second copy, so this file only points at it.\nEvidenceCommitmentV1 defines the EvidenceCommitmentV1 wire type.",
+      "description": "EvidenceCommitmentV1 is one worker-authored evidence commitment carried by\nInferReceiptV3. The list is sorted by evidence_kind\nascending with unique kinds and must exactly equal the kind set required by\nthe locked profile.\n\nThe list's commitment - evidence_commitments_hash, domain\nTRUEOPEN_INFER_EVIDENCE_COMMITMENTS_V1 - has exactly one ordered preimage in\nthis repository, defined in task/v1/infer_receipt.proto next to the\nTRUEOPEN_INFER_RECEIPT_V3 formula that consumes it. It covers the per-element frame\nlayout of the three fields below, the leading uint32_be(count) and the empty-list\ncase. The contract forbids a second copy, so this file only points at it.\nEvidenceCommitmentV1 defines the EvidenceCommitmentV1 wire type.",
       "properties": {
         "encoded_size_bytes": {
           "format": "uint64",
@@ -3813,6 +3919,11 @@
     "task.v1.EvidenceLimitParamsV1": {
       "description": "EvidenceLimitParamsV1 bounds evidence payloads and supported version catalogs.",
       "properties": {
+        "encryption_activation_height": {
+          "description": "Zero keeps encryption inactive in fresh Phase 0.",
+          "format": "uint64",
+          "type": "string"
+        },
         "evidence_schema_version_supported": {
           "items": {
             "type": "string"
@@ -3849,6 +3960,14 @@
           "format": "int64",
           "type": "integer"
         },
+        "max_verifier_value_evidence_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_verifier_value_evidence_positions": {
+          "format": "int64",
+          "type": "integer"
+        },
         "max_worker_evidence_bytes_v1": {
           "format": "uint64",
           "type": "string"
@@ -3856,6 +3975,11 @@
         "min_output_stream_frame_bytes": {
           "format": "int64",
           "type": "integer"
+        },
+        "verifier_value_evidence_window_blocks": {
+          "description": "Reserved for the later verifier value-evidence admission upgrade.",
+          "format": "uint64",
+          "type": "string"
         }
       },
       "type": "object"
@@ -3908,6 +4032,13 @@
     "task.v1.InferReceiptState": {
       "description": "InferReceiptState is the authoritative accepted receipt row keyed by task_id.\nField numbers follow the frozen field order of\nthat section. required_evidence_commitments is deleted once every challenge\nand evidence consumer has finished; evidence_commitments_hash and\nevidence_commitment_count stay for audit, so a shorter list than\nevidence_commitment_count means the body was pruned.\nInferReceiptState defines the InferReceiptState wire type.",
       "properties": {
+        "ciphertext_output_root": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
         "evidence_commitment_count": {
           "format": "int64",
           "type": "integer"
@@ -3955,6 +4086,13 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "output_key_commitment": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
         "output_leaf_count": {
           "format": "uint64",
           "type": "string"
@@ -3990,6 +4128,20 @@
           "type": "string"
         },
         "winner_worker": {
+          "type": "string"
+        },
+        "worker_token_key_commitment": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "worker_value_key_commitment": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -4042,7 +4194,7 @@
       "type": "object"
     },
     "task.v1.OrderSequenceState": {
-      "description": "OrderSequenceState records how one order sequence was used (§6.2, key =\n(session_id, order_sequence)). StreamState.next_expected_sequence stays the\nonly authority for the next acceptable sequence.\nOrderSequenceState defines the OrderSequenceState wire type.",
+      "description": "OrderSequenceState records how one order sequence was used (this contract, key =\n(session_id, order_sequence)). StreamState.next_expected_sequence stays the\nonly authority for the next acceptable sequence.\nOrderSequenceState defines the OrderSequenceState wire type.",
       "properties": {
         "cancelled_height": {
           "format": "uint64",
@@ -4078,7 +4230,7 @@
     },
     "task.v1.OrderSequenceStatus": {
       "default": "ORDER_SEQUENCE_STATUS_UNSPECIFIED",
-      "description": "OrderSequenceStatus is the per-sequence audit status of §6.2.\n\nCONTRACT-GAP: §6.2 names the five values and their order; §9.6b does not\nregister the enum, so the numbers are derived from that listing order.\nOrderSequenceStatus defines the OrderSequenceStatus wire type.\n\n - ORDER_SEQUENCE_STATUS_UNSPECIFIED: Never written; an absent row is the unused state.\nORDER_SEQUENCE_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_UNUSED: Reserved sequence that no task has consumed yet.\nORDER_SEQUENCE_STATUS_UNUSED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CONSUMED: Consumed by an accepted first Worker proposal.\nORDER_SEQUENCE_STATUS_CONSUMED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CANCELLED: Skipped by MsgCancelOrder; no funds moved.\nORDER_SEQUENCE_STATUS_CANCELLED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_REFUNDED: Task failed and the reserved budget was refunded.\nORDER_SEQUENCE_STATUS_REFUNDED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_SETTLED: Task reached a settled terminal state.\nORDER_SEQUENCE_STATUS_SETTLED identifies the corresponding protocol value.",
+      "description": "OrderSequenceStatus is the per-sequence audit status of this contract.\n\nThe five nonzero values are frozen in sequence lifecycle order.\nOrderSequenceStatus defines the OrderSequenceStatus wire type.\n\n - ORDER_SEQUENCE_STATUS_UNSPECIFIED: Never written; an absent row is the unused state.\nORDER_SEQUENCE_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_UNUSED: Reserved sequence that no task has consumed yet.\nORDER_SEQUENCE_STATUS_UNUSED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CONSUMED: Consumed by an accepted first Worker proposal.\nORDER_SEQUENCE_STATUS_CONSUMED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CANCELLED: Skipped by MsgCancelOrder; no funds moved.\nORDER_SEQUENCE_STATUS_CANCELLED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_REFUNDED: Task failed and the reserved budget was refunded.\nORDER_SEQUENCE_STATUS_REFUNDED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_SETTLED: Task reached a settled terminal state.\nORDER_SEQUENCE_STATUS_SETTLED identifies the corresponding protocol value.",
       "enum": [
         "ORDER_SEQUENCE_STATUS_UNSPECIFIED",
         "ORDER_SEQUENCE_STATUS_UNUSED",
@@ -4086,6 +4238,16 @@
         "ORDER_SEQUENCE_STATUS_CANCELLED",
         "ORDER_SEQUENCE_STATUS_REFUNDED",
         "ORDER_SEQUENCE_STATUS_SETTLED"
+      ],
+      "type": "string"
+    },
+    "task.v1.PayloadModeV1": {
+      "default": "PAYLOAD_MODE_V1_UNSPECIFIED",
+      "description": "PayloadModeV1 reserves encrypted payload selection for a later activation.\nPayloadModeV1 is part of the TaskOrderV3 hash, and an order carries exactly\none value, so the value identifies the payload's encryption scheme without a\nseparate version field. A later scheme takes a new value; no existing value\nis ever redefined to mean a different scheme. Messages other than\nTaskOrderV3 - infer receipt, result receipt, handraises, the stream header,\nand any future key package - do not carry payload_mode; they follow the\ntask's accepted_payload_mode.\n\n - PAYLOAD_MODE_V1_UNSPECIFIED: An unset mode is invalid in an accepted order.\n - PAYLOAD_MODE_V1_PLAINTEXT: Phase 0 accepts only plaintext payloads.\n - PAYLOAD_MODE_V1_ENCRYPTED: Encryption scheme V1: the fixed HPKE suite and domains of the\ncorresponding contract, activated separately. Its suite and domains are\nfixed once and never change meaning.",
+      "enum": [
+        "PAYLOAD_MODE_V1_UNSPECIFIED",
+        "PAYLOAD_MODE_V1_PLAINTEXT",
+        "PAYLOAD_MODE_V1_ENCRYPTED"
       ],
       "type": "string"
     },
@@ -4124,13 +4286,10 @@
       "type": "object"
     },
     "task.v1.QueryEpochTaskSummaryResponse": {
-      "description": "QueryEpochTaskSummaryResponse returns either in-progress fold state or the\nimmutable dispatch receipt.\nQueryEpochTaskSummaryResponse defines the QueryEpochTaskSummaryResponse wire type.",
+      "description": "QueryEpochTaskSummaryResponse returns the immutable dispatch receipt.\nQueryEpochTaskSummaryResponse defines the QueryEpochTaskSummaryResponse wire type.",
       "properties": {
         "receipt": {
           "$ref": "#/definitions/task.v1.EpochTaskSummaryReceiptState"
-        },
-        "running": {
-          "$ref": "#/definitions/task.v1.EpochTaskSummaryCursorState"
         }
       },
       "type": "object"
@@ -4154,7 +4313,7 @@
       "type": "object"
     },
     "task.v1.QueryOrderSequenceResponse": {
-      "description": "QueryOrderSequenceResponse returns the row only inside the detail retention\nwindow; NotFound once it has been folded into sequence_root, which defines no\nmember proof (§16.2).\nQueryOrderSequenceResponse defines the QueryOrderSequenceResponse wire type.",
+      "description": "QueryOrderSequenceResponse returns the row only inside the detail retention\nwindow; NotFound once it has been folded into sequence_root, which defines no\nmember proof.\nQueryOrderSequenceResponse defines the QueryOrderSequenceResponse wire type.",
       "properties": {
         "sequence": {
           "$ref": "#/definitions/task.v1.OrderSequenceState"
@@ -4188,7 +4347,7 @@
       "type": "object"
     },
     "task.v1.QuerySessionNonceResponse": {
-      "description": "QuerySessionNonceResponse returns 0 for an account with no session yet; an\ninvalid address is InvalidArgument, never empty state (§16.2).\nQuerySessionNonceResponse defines the QuerySessionNonceResponse wire type.",
+      "description": "QuerySessionNonceResponse returns 0 for an account with no session yet; an\ninvalid address is InvalidArgument, never empty state.\nQuerySessionNonceResponse defines the QuerySessionNonceResponse wire type.",
       "properties": {
         "next_session_nonce": {
           "format": "uint64",
@@ -4198,7 +4357,7 @@
       "type": "object"
     },
     "task.v1.QuerySessionResponse": {
-      "description": "QuerySessionResponse returns the authoritative StreamState for an\nactive/idle/closed retained row; after compaction the RPC returns NotFound and\ncallers must query the terminal summary instead (§16.2).\nQuerySessionResponse defines the QuerySessionResponse wire type.",
+      "description": "QuerySessionResponse returns the authoritative StreamState for an\nactive/idle/closed retained row; after compaction the RPC returns NotFound and\ncallers must query the terminal summary instead.\nQuerySessionResponse defines the QuerySessionResponse wire type.",
       "properties": {
         "session": {
           "$ref": "#/definitions/task.v1.StreamState"
@@ -4207,7 +4366,7 @@
       "type": "object"
     },
     "task.v1.QuerySessionTerminalSummaryResponse": {
-      "description": "QuerySessionTerminalSummaryResponse returns the single terminal summary;\nNotFound after its retention expires (§16.2).\nQuerySessionTerminalSummaryResponse defines the QuerySessionTerminalSummaryResponse wire type.",
+      "description": "QuerySessionTerminalSummaryResponse returns the single terminal summary;\nNotFound after its retention expires.\nQuerySessionTerminalSummaryResponse defines the QuerySessionTerminalSummaryResponse wire type.",
       "properties": {
         "summary": {
           "$ref": "#/definitions/task.v1.SessionTerminalSummaryState"
@@ -4216,7 +4375,7 @@
       "type": "object"
     },
     "task.v1.QuerySessionsByOwnerResponse": {
-      "description": "QuerySessionsByOwnerResponse walks only the active owner index, ascending by\nraw session_id bytes; closed history is never listed permanently (§16.2).\nQuerySessionsByOwnerResponse defines the QuerySessionsByOwnerResponse wire type.",
+      "description": "QuerySessionsByOwnerResponse walks only the active owner index, ascending by\nraw session_id bytes; closed history is never listed permanently.\nQuerySessionsByOwnerResponse defines the QuerySessionsByOwnerResponse wire type.",
       "properties": {
         "page": {
           "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
@@ -4271,7 +4430,7 @@
       "type": "object"
     },
     "task.v1.QueryTaskBuildersResponse": {
-      "description": "QueryTaskBuildersResponse returns the frozen Builder selection projected in\ncommitment order (§16.2). It is the read path that makes the per-Task Builder\nidentity reachable at all; see TaskBuilderSelectionViewV1 for the bitmap-order\ncontract the two Builder bitmaps depend on.\n\nPruning and compaction semantics, exactly as frozen by §16.2 and\nthe data-structure contract:\n  - body_status = ACTIVE: selected_task_builders has exactly\n    selected_task_builder_count == builders_per_task members in frozen order.\n  - body_status = PRUNED: the cleanup runner's ACTIVE_INDEXES_AND_LIABILITIES\n    phase (§6.6 step 7), after finality and the evidence-retention window,\n    released every BUS_OBJECTIVE_EVIDENCE responsibility and cleared the member\n    body. selected_task_builders MUST be empty while count/hash and the other\n    public header fields remain auditable. The RPC is NOT NotFound in this\n    window, and an empty member array with body_status = ACTIVE is Internal.\n  - After the TASK_COMPACTION phase (§6.6 step 8) the whole\n    TaskBuilderSelectionState row is deleted together with the rest of the Task\n    detail, so the RPC returns NotFound and the long-lived commitment must be\n    read from TaskTerminalSummaryState.selected_task_builders_hash instead. The\n    PRUNED body therefore only exists between step 7 and step 8; a compacted\n    Task must never be answered with a fabricated header.\n  - An unknown task_id is NotFound; a non-canonical task_id is InvalidArgument;\n    a header whose retained selected_task_builders_hash does not recompute from\n    a still-resident body is Internal.\nQueryTaskBuildersResponse defines the QueryTaskBuildersResponse wire type.",
+      "description": "QueryTaskBuildersResponse returns the frozen Builder selection projected in\ncommitment order. It is the read path that makes the per-Task Builder\nidentity reachable at all; see TaskBuilderSelectionViewV1 for the bitmap-order\ncontract the two Builder bitmaps depend on.\n\nPruning and compaction semantics, exactly as frozen by this contract and\nthe wire storage model:\n  - body_status = ACTIVE: selected_task_builders has exactly\n    selected_task_builder_count == builders_per_task members in frozen order.\n  - body_status = PRUNED: the cleanup runner's ACTIVE_INDEXES_AND_LIABILITIES\n    phase (this contract step 7), after finality and the evidence-retention window,\n    released every BUS_OBJECTIVE_EVIDENCE responsibility and cleared the member\n    body. selected_task_builders MUST be empty while count/hash and the other\n    public header fields remain auditable. The RPC is NOT NotFound in this\n    window, and an empty member array with body_status = ACTIVE is Internal.\n  - After the TASK_COMPACTION phase (this contract step 8) the whole\n    TaskBuilderSelectionState row is deleted together with the rest of the Task\n    detail, so the RPC returns NotFound and the long-lived commitment must be\n    read from TaskTerminalSummaryState.selected_task_builders_hash instead. The\n    PRUNED body therefore only exists between step 7 and step 8; a compacted\n    Task must never be answered with a fabricated header.\n  - An unknown task_id is NotFound; a non-canonical task_id is InvalidArgument;\n    a header whose retained selected_task_builders_hash does not recompute from\n    a still-resident body is Internal.\nQueryTaskBuildersResponse defines the QueryTaskBuildersResponse wire type.",
       "properties": {
         "selection": {
           "$ref": "#/definitions/task.v1.TaskBuilderSelectionViewV1"
@@ -4370,6 +4529,30 @@
       },
       "type": "object"
     },
+    "task.v1.QueryVerifierValueEvidenceResponse": {
+      "description": "QueryVerifierValueEvidenceResponse is reserved for an activated receipt.",
+      "properties": {
+        "accepted_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "evidence_digest": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "fault_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.QueryVerifyCommitResponse": {
       "description": "QueryVerifyCommitResponse returns the authoritative commit row. Once the detail is\ndeleted the RPC returns NotFound; a commit is never fabricated from settlement\naggregates.\nQueryVerifyCommitResponse defines the QueryVerifyCommitResponse wire type.",
       "properties": {
@@ -4390,7 +4573,7 @@
     },
     "task.v1.ReceiptStatus": {
       "default": "RECEIPT_STATUS_UNSPECIFIED",
-      "description": "ReceiptStatus is the inference receipt sub-state, frozen by §9.6b.\n\n - RECEIPT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nRECEIPT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - RECEIPT_STATUS_NONE: No receipt activity yet.\nRECEIPT_STATUS_NONE identifies the corresponding protocol value.\n - RECEIPT_STATUS_RECEIPT_ACCEPTED: Worker receipt accepted.\nRECEIPT_STATUS_RECEIPT_ACCEPTED identifies the corresponding protocol value.\n - RECEIPT_STATUS_RECEIPT_TIMEOUT: Receipt deadline passed with no accepted receipt.\nRECEIPT_STATUS_RECEIPT_TIMEOUT identifies the corresponding protocol value.",
+      "description": "ReceiptStatus is the inference receipt sub-state, frozen by this contract.\n\n - RECEIPT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nRECEIPT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - RECEIPT_STATUS_NONE: No receipt activity yet.\nRECEIPT_STATUS_NONE identifies the corresponding protocol value.\n - RECEIPT_STATUS_RECEIPT_ACCEPTED: Worker receipt accepted.\nRECEIPT_STATUS_RECEIPT_ACCEPTED identifies the corresponding protocol value.\n - RECEIPT_STATUS_RECEIPT_TIMEOUT: Receipt deadline passed with no accepted receipt.\nRECEIPT_STATUS_RECEIPT_TIMEOUT identifies the corresponding protocol value.",
       "enum": [
         "RECEIPT_STATUS_UNSPECIFIED",
         "RECEIPT_STATUS_NONE",
@@ -4400,7 +4583,7 @@
       "type": "string"
     },
     "task.v1.ResultReceiptState": {
-      "description": "ResultReceiptState is the first accepted verifier result credential keyed by\ncommit_key. It retains enough authoritative scope\nand commitments to reconstruct result_payload_hash and verify the accepted\nTRUEOPEN_RESULT_COMMITMENT_V2 without storing a full-result body on chain.\nResultReceiptState defines the ResultReceiptState wire type.",
+      "description": "ResultReceiptState is the first accepted verifier result credential keyed by\ncommit_key. It retains enough authoritative scope\nand commitments to reconstruct result_payload_hash and verify the accepted\nTRUEOPEN_RESULT_COMMITMENT_V3 without storing a full-result body on chain.\nResultReceiptState defines the ResultReceiptState wire type.",
       "properties": {
         "accepted_height": {
           "format": "uint64",
@@ -4419,6 +4602,10 @@
           "minLength": 64,
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
+        },
+        "metric_leaf_count": {
+          "format": "int64",
+          "type": "integer"
         },
         "metric_root": {
           "format": "trueopen-hash32",
@@ -4484,11 +4671,25 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "verifier_evidence_key_commitment": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
         "verifier_evidence_manifest_size_bytes": {
           "format": "uint64",
           "type": "string"
         },
         "verifier_operator_address": {
+          "type": "string"
+        },
+        "verifier_value_root": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -4563,7 +4764,7 @@
     },
     "task.v1.SessionStatus": {
       "default": "SESSION_STATUS_UNSPECIFIED",
-      "description": "SessionStatus is the StreamState lifecycle of data_structure_contract §6.2.\n\nCONTRACT-GAP: §6.2 names ACTIVE / IDLE / CLOSED and their order, but\nthe API contract (the sole closed-enum registry) does not register the\nenum, so the numbers are derived from that listing order with the mandatory\nUNSPECIFIED=0.\nSessionStatus defines the SessionStatus wire type.\n\n - SESSION_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSESSION_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SESSION_STATUS_ACTIVE: Accepting new order sequences.\nSESSION_STATUS_ACTIVE identifies the corresponding protocol value.\n - SESSION_STATUS_IDLE: Idle TTL reached with open_pending_count == 0; reactivation allowed.\nSESSION_STATUS_IDLE identifies the corresponding protocol value.\n - SESSION_STATUS_CLOSED: Close TTL reached; owner index and lifecycle index are deleted.\nSESSION_STATUS_CLOSED identifies the corresponding protocol value.",
+      "description": "SessionStatus is the StreamState lifecycle of the public storage contract.\n\nNumeric values are frozen here with UNSPECIFIED=0, followed by ACTIVE,\nIDLE, and CLOSED in lifecycle order.\nSessionStatus defines the SessionStatus wire type.\n\n - SESSION_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSESSION_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SESSION_STATUS_ACTIVE: Accepting new order sequences.\nSESSION_STATUS_ACTIVE identifies the corresponding protocol value.\n - SESSION_STATUS_IDLE: Idle TTL reached with open_pending_count == 0; reactivation allowed.\nSESSION_STATUS_IDLE identifies the corresponding protocol value.\n - SESSION_STATUS_CLOSED: Close TTL reached; owner index and lifecycle index are deleted.\nSESSION_STATUS_CLOSED identifies the corresponding protocol value.",
       "enum": [
         "SESSION_STATUS_UNSPECIFIED",
         "SESSION_STATUS_ACTIVE",
@@ -4573,7 +4774,7 @@
       "type": "string"
     },
     "task.v1.SessionTerminalSummaryState": {
-      "description": "SessionTerminalSummaryState replaces StreamState and the order rows once the\nsession is closed and every task reached a terminal compaction (§6.2, key =\nsession_id). It is deleted when its retention prune index fires.\nSessionTerminalSummaryState defines the SessionTerminalSummaryState wire type.",
+      "description": "SessionTerminalSummaryState replaces StreamState and the order rows once the\nsession is closed and every task reached a terminal compaction (this contract, key =\nsession_id). It is deleted when its retention prune index fires.\nSessionTerminalSummaryState defines the SessionTerminalSummaryState wire type.",
       "properties": {
         "cancelled_count": {
           "format": "int64",
@@ -4882,7 +5083,7 @@
     },
     "task.v1.SettlementStatus": {
       "default": "SETTLEMENT_STATUS_UNSPECIFIED",
-      "description": "SettlementStatus is the settlement sub-state, frozen by §9.6b.\n\n - SETTLEMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSETTLEMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_NONE: No settlement activity yet.\nSETTLEMENT_STATUS_NONE identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_FINALIZED: One settlement plan was applied and committed.\nSETTLEMENT_STATUS_FINALIZED identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_REFUNDED: The terminal plan paid no role and refunded the remaining budget.\nSETTLEMENT_STATUS_REFUNDED identifies the corresponding protocol value.",
+      "description": "SettlementStatus is the settlement sub-state, frozen by this contract.\n\n - SETTLEMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSETTLEMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_NONE: No settlement activity yet.\nSETTLEMENT_STATUS_NONE identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_FINALIZED: One settlement plan was applied and committed.\nSETTLEMENT_STATUS_FINALIZED identifies the corresponding protocol value.\n - SETTLEMENT_STATUS_REFUNDED: The terminal plan paid no role and refunded the remaining budget.\nSETTLEMENT_STATUS_REFUNDED identifies the corresponding protocol value.",
       "enum": [
         "SETTLEMENT_STATUS_UNSPECIFIED",
         "SETTLEMENT_STATUS_NONE",
@@ -4892,7 +5093,7 @@
       "type": "string"
     },
     "task.v1.StreamState": {
-      "description": "StreamState is one session: sequence counter, owner and in-flight count only\n(§6.2, key = session_id). Model A: a session never holds a balance; the\nabandoned SessionEscrowState double ledger is deleted, and funds live in the\nuser account and the escrow module account with TaskBudgetState as the only\nper-task ledger.\nStreamState defines the StreamState wire type.",
+      "description": "StreamState is one session: sequence counter, owner and in-flight count only\n(key = session_id). Model A: a session never holds a balance; the\nabandoned SessionEscrowState double ledger is deleted, and funds live in the\nuser account and the escrow module account with TaskBudgetState as the only\nper-task ledger.\nStreamState defines the StreamState wire type.",
       "properties": {
         "last_active_height": {
           "format": "uint64",
@@ -4923,7 +5124,7 @@
       "type": "object"
     },
     "task.v1.TaskActiveBundleV1": {
-      "description": "TaskActiveBundleV1 is the composite view of one not-yet-compacted Task\n(§16.5). core is required; assignment appears once the Task entered assignment\nand verifier_assignment once Open Verify finalized.\nTaskActiveBundleV1 defines the TaskActiveBundleV1 wire type.",
+      "description": "TaskActiveBundleV1 is the composite view of one not-yet-compacted Task\n. core is required; assignment appears once the Task entered assignment\nand verifier_assignment once Open Verify finalized.\nTaskActiveBundleV1 defines the TaskActiveBundleV1 wire type.",
       "properties": {
         "assignment": {
           "$ref": "#/definitions/task.v1.TaskAssignmentViewV1"
@@ -4944,7 +5145,7 @@
       "type": "object"
     },
     "task.v1.TaskAssignmentViewV1": {
-      "description": "TaskAssignmentViewV1 projects one TaskAssignmentState and hides the internal\ncandidate_pool_ref_released field (§16.5). Fields 1-17 and 19-20 come from\nthat single State; field 18 assignment_status is joined from TaskCoreState because\nTaskCoreState is the only primary of the six sub-states and TaskAssignmentState\nkeeps no copy - the same value stored twice is Internal. The three winner\noptional fields (4, 10, 11) must be present together or absent together, so a\npending assignment never reports a default winner.\nTaskAssignmentViewV1 defines the TaskAssignmentViewV1 wire type.",
+      "description": "TaskAssignmentViewV1 projects one TaskAssignmentState and hides the internal\ncandidate_pool_ref_released field. Fields 1-17 and 19-20 come from\nthat single State; field 18 assignment_status is joined from TaskCoreState because\nTaskCoreState is the only primary of the six sub-states and TaskAssignmentState\nkeeps no copy - the same value stored twice is Internal. The three winner\noptional fields (4, 10, 11) must be present together or absent together, so a\npending assignment never reports a default winner.\nTaskAssignmentViewV1 defines the TaskAssignmentViewV1 wire type.",
       "properties": {
         "assign_accept_height": {
           "format": "uint64",
@@ -5009,6 +5210,10 @@
         "metric_aggregate_proof_version": {
           "type": "string"
         },
+        "min_stake_snapshot": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Joined from the immutable TaskAssignmentState admission snapshot."
+        },
         "profile_execution_snapshot_hash": {
           "format": "trueopen-hash32",
           "maxLength": 64,
@@ -5049,7 +5254,7 @@
       "type": "object"
     },
     "task.v1.TaskBudgetState": {
-      "description": "TaskBudgetState is the only authoritative per-task fund ledger (§6.6, key =\ntask_id). Every payout, refund, maintenance and gas reimbursement must be\ndeducted or released here. reserved_amount is the only outstanding balance;\nrefund is derived inside a complete settlement plan, so no refund sub-account\nand no maintenance cap derived from the max_fee residual exist.\nTaskBudgetState defines the TaskBudgetState wire type.",
+      "description": "TaskBudgetState is the only authoritative per-task fund ledger (this contract, key =\ntask_id). Every payout, refund, maintenance and gas reimbursement must be\ndeducted or released here. reserved_amount is the only outstanding balance;\nrefund is derived inside a complete settlement plan, so no refund sub-account\nand no maintenance cap derived from the max_fee residual exist.\nTaskBudgetState defines the TaskBudgetState wire type.",
       "properties": {
         "budget_status": {
           "$ref": "#/definitions/task.v1.TaskBudgetStatus"
@@ -5121,7 +5326,7 @@
     },
     "task.v1.TaskBudgetStatus": {
       "default": "TASK_BUDGET_STATUS_UNSPECIFIED",
-      "description": "TaskBudgetStatus is the TaskBudgetState lifecycle of §6.2.\n\nCONTRACT-GAP: §6.2 names RESERVED / FINALIZED; §9.6b does not register the\nenum, so the numbers are derived from that listing order.\nTaskBudgetStatus defines the TaskBudgetStatus wire type.\n\n - TASK_BUDGET_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_BUDGET_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_BUDGET_STATUS_RESERVED: reserved_amount is still held in the escrow module account.\nTASK_BUDGET_STATUS_RESERVED identifies the corresponding protocol value.\n - TASK_BUDGET_STATUS_FINALIZED: Terminal; no further deduction or release is allowed.\nTASK_BUDGET_STATUS_FINALIZED identifies the corresponding protocol value.",
+      "description": "TaskBudgetStatus is the TaskBudgetState lifecycle of this contract.\n\nRESERVED and FINALIZED are the only nonzero budget states.\nTaskBudgetStatus defines the TaskBudgetStatus wire type.\n\n - TASK_BUDGET_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_BUDGET_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_BUDGET_STATUS_RESERVED: reserved_amount is still held in the escrow module account.\nTASK_BUDGET_STATUS_RESERVED identifies the corresponding protocol value.\n - TASK_BUDGET_STATUS_FINALIZED: Terminal; no further deduction or release is allowed.\nTASK_BUDGET_STATUS_FINALIZED identifies the corresponding protocol value.",
       "enum": [
         "TASK_BUDGET_STATUS_UNSPECIFIED",
         "TASK_BUDGET_STATUS_RESERVED",
@@ -5130,7 +5335,7 @@
       "type": "string"
     },
     "task.v1.TaskBuilderSelectionViewV1": {
-      "description": "TaskBuilderSelectionViewV1 projects one TaskBuilderSelectionState and hides the\ninternal builder_set_ref_released and builder_fault_slash_bps_snapshot fields\n(§16.5). Fields 1-9 are the frozen public prefix of the\nthe data-structure contract State field order.\n\nThis view is the ONLY read path for the per-Task Builder identity. The Worker\nfetches INPUT from and uploads OUTPUT to exactly these Builders, the\nthree-Builder fan-out and the 2-of-3 data-ready confirmation address exactly\nthis list, and the API contract derives the stable SETTLE duty Builder\nfrom the same frozen order and rank. No other surface carries it: the abandoned\nAssignmentState.builder_operator_address is deleted, TaskCoreState and\nTaskAssignmentState hold no Builder field, and EventWorkerAssignmentFinalized\n(event code 11, §5.11) does not emit one.\n\nBITMAP ORDER: the index of a Builder inside selected_task_builders IS the bit\nindex of both frozen Builder bitmaps, so a consumer must align them against\nthis list and never against its own sort:\n  - MsgReportDataUnavailable.unavailable_task_builder_bitmap and\n    DataUnavailableReportState.unavailable_task_builder_bitmap (§10.5)\n  - TaskStageHandraiseUnionState.data_ready_attesting_builder_bitmap (§10.4)\nBit i addresses selected_task_builders[i]; byte_index = i / 8 and\nbit_mask = 1 \u003c\u003c (i % 8).\n\nCONTRACT-GAP: §10.4 and §10.5 state only that the two Builder bitmaps use \"the\nfrozen TaskBuilderSelectionState order\" and that trailing/out-of-range bits are\nrejected; neither restates the byte/bit layout, and §3.1 registers a bit order\n(`bit_mask = 1 \u003c\u003c (bit_in_segment % 8)`, little-bit order in each byte) only for\nthe segmented CandidatePool bitmap. The unsegmented Builder bitmap therefore\nreuses that same §3.1 little-bit order, because §3.1 is the only bitmap codec\nregistered anywhere in the contract and a second bit order would silently fork\nTRUEOPEN_DATA_UNAVAILABLE_BITMAP_V1 across languages. The contract must either\nwiden §3.1 to all bitmaps or restate the layout in §10.4/§10.5.\nTaskBuilderSelectionViewV1 defines the TaskBuilderSelectionViewV1 wire type.",
+      "description": "TaskBuilderSelectionViewV1 projects one TaskBuilderSelectionState and hides the\ninternal builder_set_ref_released and builder_fault_slash_bps_snapshot fields\n. Fields 1-9 are the frozen public prefix of the\nthe wire storage model State field order.\n\nThis view is the ONLY read path for the per-Task Builder identity. The Worker\nfetches INPUT from and uploads OUTPUT to exactly these Builders, the\nthree-Builder fan-out and the 2-of-3 data-ready confirmation address exactly\nthis list, and the wire API derives the stable SETTLE duty Builder\nfrom the same frozen order and rank. No other surface carries it: the abandoned\nAssignmentState.builder_operator_address is deleted, TaskCoreState and\nTaskAssignmentState hold no Builder field, and EventWorkerAssignmentFinalized\n(event code 11, this contract) does not emit one.\n\nBITMAP ORDER: the index of a Builder inside selected_task_builders IS the bit\nindex of both frozen Builder bitmaps, so a consumer must align them against\nthis list and never against its own sort:\n  - MsgReportDataUnavailable.unavailable_task_builder_bitmap and\n    DataUnavailableReportState.unavailable_task_builder_bitmap\n  - TaskStageHandraiseUnionState.data_ready_attesting_builder_bitmap\nBit i addresses selected_task_builders[i]; byte_index = i / 8 and\nbit_mask = 1 \u003c\u003c (i % 8).\n\nBoth Builder bitmaps use the frozen TaskBuilderSelectionState order and\nlittle-bit order within each byte. Trailing or out-of-range bits are rejected;\nthe same layout enters TRUEOPEN_DATA_UNAVAILABLE_BITMAP_V1.\nTaskBuilderSelectionViewV1 defines the TaskBuilderSelectionViewV1 wire type.",
       "properties": {
         "body_status": {
           "$ref": "#/definitions/shared.v1.StoredBodyStatus"
@@ -5237,7 +5442,7 @@
       "type": "string"
     },
     "task.v1.TaskCleanupProgressViewV1": {
-      "description": "TaskCleanupProgressViewV1 reads exactly one of the active Task, the cleanup\ncursor or the terminal summary (§16.5). A cursor and a terminal summary\nexisting at once is Internal; the counts are zero unless status is RUNNING.\nTaskCleanupProgressViewV1 defines the TaskCleanupProgressViewV1 wire type.",
+      "description": "TaskCleanupProgressViewV1 reads exactly one of the active Task, the cleanup\ncursor or the terminal summary. A cursor and a terminal summary\nexisting at once is Internal; the counts are zero unless status is RUNNING.\nTaskCleanupProgressViewV1 defines the TaskCleanupProgressViewV1 wire type.",
       "properties": {
         "deleted_count": {
           "format": "uint64",
@@ -5265,7 +5470,7 @@
     },
     "task.v1.TaskCleanupStatus": {
       "default": "TASK_CLEANUP_STATUS_UNSPECIFIED",
-      "description": "TaskCleanupStatus is the Query-only tri-state of the Task cleanup projection\n(§16.5). It never lands in the Store and never enters a Msg or Event.\nTaskCleanupStatus defines the TaskCleanupStatus wire type.\n\n - TASK_CLEANUP_STATUS_UNSPECIFIED: Never returned.\nTASK_CLEANUP_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_NOT_SCHEDULED: Active Task with no cleanup cursor.\nTASK_CLEANUP_STATUS_NOT_SCHEDULED identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_RUNNING: A bounded cleanup cursor exists.\nTASK_CLEANUP_STATUS_RUNNING identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_COMPACTED: A terminal summary exists.\nTASK_CLEANUP_STATUS_COMPACTED identifies the corresponding protocol value.",
+      "description": "TaskCleanupStatus is the Query-only tri-state of the Task cleanup projection\n. It never lands in the Store and never enters a Msg or Event.\nTaskCleanupStatus defines the TaskCleanupStatus wire type.\n\n - TASK_CLEANUP_STATUS_UNSPECIFIED: Never returned.\nTASK_CLEANUP_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_NOT_SCHEDULED: Active Task with no cleanup cursor.\nTASK_CLEANUP_STATUS_NOT_SCHEDULED identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_RUNNING: A bounded cleanup cursor exists.\nTASK_CLEANUP_STATUS_RUNNING identifies the corresponding protocol value.\n - TASK_CLEANUP_STATUS_COMPACTED: A terminal summary exists.\nTASK_CLEANUP_STATUS_COMPACTED identifies the corresponding protocol value.",
       "enum": [
         "TASK_CLEANUP_STATUS_UNSPECIFIED",
         "TASK_CLEANUP_STATUS_NOT_SCHEDULED",
@@ -5275,7 +5480,7 @@
       "type": "string"
     },
     "task.v1.TaskCoreState": {
-      "description": "TaskCoreState is the only primary of the six task sub-states (data_structure_contract\n§6.6, key = task_id). Stage tables store stage-local facts only and must not\ncopy these sub-states. The abandoned TaskStatus projection and the\nSessionEscrow double ledger are deleted.\nTaskCoreState defines the TaskCoreState wire type.",
+      "description": "TaskCoreState is the only primary of the six task sub-states (public storage contract\nthis contract, key = task_id). Stage tables store stage-local facts only and must not\ncopy these sub-states. The abandoned TaskStatus projection and the\nSessionEscrow double ledger are deleted.\nTaskCoreState defines the TaskCoreState wire type.",
       "properties": {
         "accepted_input_hash": {
           "format": "trueopen-hash32",
@@ -5290,6 +5495,9 @@
           "minLength": 64,
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
+        },
+        "accepted_payload_mode": {
+          "$ref": "#/definitions/task.v1.PayloadModeV1"
         },
         "accepted_task_hash": {
           "format": "trueopen-hash32",
@@ -5318,6 +5526,10 @@
           "$ref": "#/definitions/shared.v1.TaskFinalityStatusV1"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "objective_forgery_slash_bps_snapshot": {
@@ -5365,7 +5577,7 @@
         },
         "task_type": {
           "$ref": "#/definitions/shared.v1.TaskType",
-          "description": "order_value is the immutable keeper-derived worker_max + verify_max from\nthe accepted TaskOrderV2. It is not TaskBudgetState.original_reserved_amount,\nwhich is max_fee."
+          "description": "order_value is the immutable keeper-derived worker_max + verify_max from\nthe accepted TaskOrderV3. It is not TaskBudgetState.original_reserved_amount,\nwhich is max_fee."
         },
         "updated_height": {
           "format": "uint64",
@@ -5467,6 +5679,10 @@
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -5669,7 +5885,7 @@
     },
     "task.v1.TaskPhase": {
       "default": "TASK_PHASE_UNSPECIFIED",
-      "description": "TaskPhase is the aggregate task phase. Numeric values are frozen by\nthe API contract; ascending order is the mandatory forward order, so\ntransition checks are monotonic with no rollback and no skipping.\nTaskPhase defines the TaskPhase wire type.\n\n - TASK_PHASE_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_PHASE_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNMENT_PENDING: First Worker proposal accepted; candidate union still open.\nTASK_PHASE_WORKER_ASSIGNMENT_PENDING identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNED: Winner Worker finalized from the frozen legal set.\nTASK_PHASE_WORKER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_RECEIPT_COMMITTED: Infer receipt accepted.\nTASK_PHASE_RECEIPT_COMMITTED identifies the corresponding protocol value.\n - TASK_PHASE_VERIFIER_ASSIGNED: Verifier set selected for the current round.\nTASK_PHASE_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_COMMITTING: Verify commit collection.\nTASK_PHASE_COMMITTING identifies the corresponding protocol value.\n - TASK_PHASE_REVEALING: Verify reveal collection.\nTASK_PHASE_REVEALING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLING: Settlement in progress.\nTASK_PHASE_SETTLING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLED: Settled terminal phase.\nTASK_PHASE_SETTLED identifies the corresponding protocol value.\n - TASK_PHASE_FAILED: Failed terminal phase.\nTASK_PHASE_FAILED identifies the corresponding protocol value.",
+      "description": "TaskPhase is the aggregate task phase. Numeric values are frozen by\nthe wire API; ascending order is the mandatory forward order, so\ntransition checks are monotonic with no rollback and no skipping.\nTaskPhase defines the TaskPhase wire type.\n\n - TASK_PHASE_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_PHASE_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNMENT_PENDING: First Worker proposal accepted; candidate union still open.\nTASK_PHASE_WORKER_ASSIGNMENT_PENDING identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNED: Winner Worker finalized from the frozen legal set.\nTASK_PHASE_WORKER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_RECEIPT_COMMITTED: Infer receipt accepted.\nTASK_PHASE_RECEIPT_COMMITTED identifies the corresponding protocol value.\n - TASK_PHASE_VERIFIER_ASSIGNED: Verifier set selected for the current round.\nTASK_PHASE_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_COMMITTING: Verify commit collection.\nTASK_PHASE_COMMITTING identifies the corresponding protocol value.\n - TASK_PHASE_REVEALING: Verify reveal collection.\nTASK_PHASE_REVEALING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLING: Settlement in progress.\nTASK_PHASE_SETTLING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLED: Settled terminal phase.\nTASK_PHASE_SETTLED identifies the corresponding protocol value.\n - TASK_PHASE_FAILED: Failed terminal phase.\nTASK_PHASE_FAILED identifies the corresponding protocol value.",
       "enum": [
         "TASK_PHASE_UNSPECIFIED",
         "TASK_PHASE_WORKER_ASSIGNMENT_PENDING",
@@ -5795,6 +6011,10 @@
           "maxLength": 64,
           "minLength": 64,
           "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "verifier_value_evidence_close_height": {
+          "format": "uint64",
           "type": "string"
         }
       },
@@ -5933,7 +6153,7 @@
       "type": "object"
     },
     "task.v1.TaskStageViewV1": {
-      "description": "TaskStageViewV1 projects TaskCoreState plus the earliest unprocessed deadline\nof the current stage (§16.5). The two deadline fields are present together or\nabsent together; a missing required sub-state is Internal.\nTaskStageViewV1 defines the TaskStageViewV1 wire type.",
+      "description": "TaskStageViewV1 projects TaskCoreState plus the earliest unprocessed deadline\nof the current stage. The two deadline fields are present together or\nabsent together; a missing required sub-state is Internal.\nTaskStageViewV1 defines the TaskStageViewV1 wire type.",
       "properties": {
         "assignment_status": {
           "$ref": "#/definitions/task.v1.AssignmentStatus"
@@ -6063,6 +6283,10 @@
           "type": "string"
         },
         "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
         "order_sequence": {
@@ -6242,7 +6466,7 @@
       "type": "string"
     },
     "task.v1.TaskViewV1": {
-      "description": "TaskViewV1 is the single QueryTask response body (§16.5).\n\nTaskViewV1 defines the TaskViewV1 wire type.",
+      "description": "TaskViewV1 is the single QueryTask response body.\n\nTaskViewV1 defines the TaskViewV1 wire type.",
       "properties": {
         "active": {
           "$ref": "#/definitions/task.v1.TaskActiveBundleV1",
@@ -6418,7 +6642,7 @@
     },
     "task.v1.VerificationStatus": {
       "default": "VERIFICATION_STATUS_UNSPECIFIED",
-      "description": "VerificationStatus is the verification sub-state, frozen by §9.6b.\n\n - VERIFICATION_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nVERIFICATION_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_NONE: No verification activity yet.\nVERIFICATION_STATUS_NONE identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN: Verifier handraise collection open.\nVERIFICATION_STATUS_VERIFY_COLLECTION_OPEN identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_ASSIGNED: Verifier set selected.\nVERIFICATION_STATUS_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_COMMITTING: Commit collection.\nVERIFICATION_STATUS_COMMITTING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_REVEALING: Reveal collection.\nVERIFICATION_STATUS_REVEALING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_NO_CONSENSUS: Not enough consistent results.\nVERIFICATION_STATUS_NO_CONSENSUS identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFY_FAILED: Verification concluded as failed.\nVERIFICATION_STATUS_VERIFY_FAILED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFICATION_PASSED: Verification concluded as passed.\nVERIFICATION_STATUS_VERIFICATION_PASSED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING: Eligibility source frozen, window beacon pending.\nVERIFICATION_STATUS_VERIFIER_WINDOW_PENDING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING: Legal set frozen, selection beacon pending.\nVERIFICATION_STATUS_VERIFIER_SELECTION_PENDING identifies the corresponding protocol value.",
+      "description": "VerificationStatus is the verification sub-state, frozen by this contract.\n\n - VERIFICATION_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nVERIFICATION_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_NONE: No verification activity yet.\nVERIFICATION_STATUS_NONE identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN: Verifier handraise collection open.\nVERIFICATION_STATUS_VERIFY_COLLECTION_OPEN identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_ASSIGNED: Verifier set selected.\nVERIFICATION_STATUS_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_COMMITTING: Commit collection.\nVERIFICATION_STATUS_COMMITTING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_REVEALING: Reveal collection.\nVERIFICATION_STATUS_REVEALING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_NO_CONSENSUS: Not enough consistent results.\nVERIFICATION_STATUS_NO_CONSENSUS identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFY_FAILED: Verification concluded as failed.\nVERIFICATION_STATUS_VERIFY_FAILED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFICATION_PASSED: Verification concluded as passed.\nVERIFICATION_STATUS_VERIFICATION_PASSED identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING: Eligibility source frozen, window beacon pending.\nVERIFICATION_STATUS_VERIFIER_WINDOW_PENDING identifies the corresponding protocol value.\n - VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING: Legal set frozen, selection beacon pending.\nVERIFICATION_STATUS_VERIFIER_SELECTION_PENDING identifies the corresponding protocol value.",
       "enum": [
         "VERIFICATION_STATUS_UNSPECIFIED",
         "VERIFICATION_STATUS_NONE",
@@ -6666,7 +6890,7 @@
     },
     "task.v1.VerifierCandidateWindowStatusV1": {
       "default": "VERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED",
-      "description": "VerifierCandidateWindowStatusV1 is the lifecycle of one task-round verifier\ncandidate window. Frozen values: the API contract.\nVerifierCandidateWindowStatusV1 defines the VerifierCandidateWindowStatusV1 wire type.\n\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN: Eligibility bitmap frozen at InferReceipt accepted height; beacon A pending.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY: Window materialized from beacon A; member rows equal window_size.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_PRUNED: Eligibility segments and member bodies deleted by task cleanup.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_PRUNED identifies the corresponding protocol value.",
+      "description": "VerifierCandidateWindowStatusV1 is the lifecycle of one task-round verifier\ncandidate window. Frozen values: the wire API.\nVerifierCandidateWindowStatusV1 defines the VerifierCandidateWindowStatusV1 wire type.\n\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED: Never written; rejects zero-value rows.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN: Eligibility bitmap frozen at InferReceipt accepted height; beacon A pending.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY: Window materialized from beacon A; member rows equal window_size.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY identifies the corresponding protocol value.\n - VERIFIER_CANDIDATE_WINDOW_STATUS_V1_PRUNED: Eligibility segments and member bodies deleted by task cleanup.\nVERIFIER_CANDIDATE_WINDOW_STATUS_V1_PRUNED identifies the corresponding protocol value.",
       "enum": [
         "VERIFIER_CANDIDATE_WINDOW_STATUS_V1_UNSPECIFIED",
         "VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN",
@@ -6992,7 +7216,7 @@
             }
           }
         },
-        "summary": "Builders pages the whole builder registry. It is the only way to enumerate\nbuilders: Query/Builder needs an address the caller already knows, so\nwithout this RPC a fresh client cannot discover one. V1 takes no status\nselector because BuilderState has no status index (api_contract §16.3).\nBuilders executes the Builders operation.",
+        "summary": "Builders pages the whole builder registry. It is the only way to enumerate\nbuilders: Query/Builder needs an address the caller already knows, so\nwithout this RPC a fresh client cannot discover one. V1 takes no status\nselector because BuilderState has no status index (the wire API).\nBuilders executes the Builders operation.",
         "tags": [
           "Query"
         ]
@@ -7015,7 +7239,7 @@
             }
           }
         },
-        "summary": "CurrentCandidatePool returns the single global pool the current pointer\nresolves to (api_contract §16.3, empty request). Per-profile pools no longer\nexist, so the old model_id/profile_version/duty path variables are gone.\nCurrentCandidatePool executes the CurrentCandidatePool operation.",
+        "summary": "CurrentCandidatePool returns the single global pool the current pointer\nresolves to (the wire API, empty request). Per-profile pools no longer\nexist, so the old model_id/profile_version/duty path variables are gone.\nCurrentCandidatePool executes the CurrentCandidatePool operation.",
         "tags": [
           "Query"
         ]
@@ -7463,8 +7687,12 @@
         "operationId": "Query_FreezeSignals",
         "parameters": [
           {
+            "format": "trueopen-hash32",
             "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
             "name": "model_id",
+            "pattern": "^[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7531,8 +7759,12 @@
         "operationId": "Query_Model",
         "parameters": [
           {
+            "format": "trueopen-hash32",
             "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
             "name": "model_id",
+            "pattern": "^[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7557,7 +7789,48 @@
         ]
       }
     },
-    "/TrueOpen/hub/v1/model_support/{operator_address}/{model_id}/{profile_version}": {
+    "/TrueOpen/hub/v1/model_capability/{operator_address}/{model_id}": {
+      "get": {
+        "operationId": "Query_ModelCapability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
+            "name": "model_id",
+            "pattern": "^[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/hub.v1.QueryModelCapabilityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "ModelCapability returns one operator/model capability row.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/hub/v1/model_support/{operator_address}/{model_id}": {
       "get": {
         "operationId": "Query_ModelSupport",
         "parameters": [
@@ -7568,17 +7841,14 @@
             "type": "string"
           },
           {
+            "format": "trueopen-hash32",
             "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
             "name": "model_id",
+            "pattern": "^[0-9a-f]{64}$",
             "required": true,
             "type": "string"
-          },
-          {
-            "format": "int64",
-            "in": "path",
-            "name": "profile_version",
-            "required": true,
-            "type": "integer"
           }
         ],
         "responses": {
@@ -7595,7 +7865,7 @@
             }
           }
         },
-        "summary": "ModelSupport returns one P30 support row.",
+        "summary": "ModelSupport returns one operator/model support row.",
         "tags": [
           "Query"
         ]
@@ -7636,7 +7906,7 @@
             }
           }
         },
-        "summary": "Models pages the whole model registry. It is the only way to enumerate\nmodels: Query/Model needs a model_id the caller already knows, so without\nthis RPC a fresh client cannot discover one. V1 takes no status selector\nbecause ModelState has no status index (api_contract §16.3).\nModels executes the Models operation.",
+        "summary": "Models pages the whole model registry. It is the only way to enumerate\nmodels: Query/Model needs a model_id the caller already knows, so without\nthis RPC a fresh client cannot discover one. V1 takes no status selector\nbecause ModelState has no status index (the wire API).\nModels executes the Models operation.",
         "tags": [
           "Query"
         ]
@@ -7670,8 +7940,12 @@
         "operationId": "Query_Profile",
         "parameters": [
           {
+            "format": "trueopen-hash32",
             "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
             "name": "model_id",
+            "pattern": "^[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7698,50 +7972,6 @@
           }
         },
         "summary": "Profile returns one model profile.",
-        "tags": [
-          "Query"
-        ]
-      }
-    },
-    "/TrueOpen/hub/v1/profile_capability/{operator_address}/{model_id}/{profile_version}": {
-      "get": {
-        "operationId": "Query_ProfileCapability",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_address",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "in": "path",
-            "name": "model_id",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "format": "int64",
-            "in": "path",
-            "name": "profile_version",
-            "required": true,
-            "type": "integer"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/hub.v1.QueryProfileCapabilityResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/google.rpc.Status"
-            }
-          }
-        },
-        "summary": "ProfileCapability returns one operator/profile capability row.",
         "tags": [
           "Query"
         ]
@@ -8037,7 +8267,7 @@
             }
           }
         },
-        "summary": "TimeoutBucket returns an exact or effective timeout bucket. The RPC moved\nhere from task.v1.Query with the governance writer (§2.4).\nTimeoutBucket executes the TimeoutBucket operation.",
+        "summary": "TimeoutBucket returns an exact or effective timeout bucket. The RPC moved\nhere from task.v1.Query with the governance writer.\nTimeoutBucket executes the TimeoutBucket operation.",
         "tags": [
           "Query"
         ]
@@ -8123,7 +8353,7 @@
             }
           }
         },
-        "summary": "EpochTaskSummary returns either the resumable fold or its retained receipt.",
+        "summary": "EpochTaskSummary returns the retained immutable receipt. Epoch zero is\ninvalid, an in-progress fold fails precondition, and a missing or pruned\nreceipt is not found. Partial cursor state is never returned.",
         "tags": [
           "Query"
         ]
@@ -9125,6 +9355,61 @@
           }
         },
         "summary": "VerifierAssignment returns one round's verifier assignment.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/task/{task_id}/verifier_value_evidence/{verify_round}/{target_operator_address}/{position}": {
+      "get": {
+        "operationId": "Query_VerifierValueEvidence",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 64,
+            "minLength": 64,
+            "name": "task_id",
+            "pattern": "^[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "int64",
+            "in": "path",
+            "name": "verify_round",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "path",
+            "name": "target_operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "int64",
+            "in": "path",
+            "name": "position",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryVerifierValueEvidenceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "VerifierValueEvidence is registered but returns ERR_NOT_ACTIVATED.",
         "tags": [
           "Query"
         ]

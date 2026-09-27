@@ -131,7 +131,11 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 // P2-08 ④: before this, nothing in the module ever removed the row, so
 // QuerySessionsByOwner enumerated CLOSED sessions forever.
 func (k Keeper) removeSessionByOwnerIndex(ctx context.Context, owner string, sessionKey types.SessionKey) error {
-	key := types.NewSessionByOwnerKey(owner, sessionKey)
+	raw, err := k.sessionAddressToStore("session owner index", owner)
+	if err != nil {
+		return err
+	}
+	key := types.NewSessionByOwnerKey(raw, sessionKey)
 	has, err := k.SessionByOwnerIndex.Has(ctx, key)
 	if err != nil || !has {
 		return err

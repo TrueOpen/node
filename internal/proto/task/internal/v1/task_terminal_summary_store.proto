@@ -15,7 +15,7 @@ message TaskTerminalSummaryStoreState {
   int32 settlement_status = 8;
   int32 finality_status = 9;
   uint32 effective_verify_round = 10;
-  string model_id = 11;
+  bytes model_id = 11;
   uint32 profile_version = 12;
   int32 task_type = 13;
   bytes candidate_pool_snapshot_id = 14;

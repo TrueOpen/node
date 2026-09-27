@@ -780,6 +780,10 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 			shared.RawCanonicalFieldV1(shared.Uint64BE(p.Evidence.MaxOutputMmrLeaves)),
 			shared.RawCanonicalFieldV1(shared.Uint32BE(p.Evidence.MinOutputStreamFrameBytes)),
 			shared.RawCanonicalFieldV1(shared.Uint64BE(p.Evidence.MaxWorkerEvidenceBytesV1)),
+			shared.RawCanonicalFieldV1(shared.Uint64BE(p.Evidence.EncryptionActivationHeight)),
+			shared.RawCanonicalFieldV1(shared.Uint64BE(p.Evidence.VerifierValueEvidenceWindowBlocks)),
+			shared.RawCanonicalFieldV1(shared.Uint32BE(p.Evidence.MaxVerifierValueEvidencePositions)),
+			shared.RawCanonicalFieldV1(shared.Uint64BE(p.Evidence.MaxVerifierValueEvidenceBytes)),
 		),
 		// field 8: TaskCleanupParamsV1
 		shared.RawCanonicalFieldsV1(

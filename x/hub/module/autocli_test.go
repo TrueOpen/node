@@ -59,7 +59,7 @@ func TestAutoCLITxCommandsAreShapeConsistent(t *testing.T) {
 
 func TestDeclareModelSupportAutoCLIUsesOperatorManagementFields(t *testing.T) {
 	want := []string{
-		"operator_address", "model_id", "profile_version",
+		"operator_address", "model_id",
 		"inference_capability", "verification_capability",
 	}
 	for _, cmd := range (AppModule{}).AutoCLIOptions().Tx.RpcCommandOptions {

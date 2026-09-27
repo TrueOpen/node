@@ -289,12 +289,9 @@ func parseFrozenLiabilityRequest(req types.FrozenFactLiabilityRequest) (shared.H
 		req.RequiredTaskLiability == 0 || req.ActiveBondSnapshot == 0 || req.AvailableBondSnapshot < req.RequiredTaskLiability ||
 		req.MinStakeSnapshot == 0 || req.BondVersionSnapshot == 0 || req.CapabilityVersionSnapshot == 0 || req.SupportVersionSnapshot == 0 ||
 		req.ActiveBondSnapshot < req.MinStakeSnapshot ||
-		req.ModelID == "" || req.ModelID != strings.TrimSpace(req.ModelID) || req.ProfileVersion == 0 || req.Height == 0 ||
+		len(req.ModelID) != shared.Hash32KeySize || req.ProfileVersion == 0 || req.Height == 0 ||
 		(req.Duty != shared.DutyWorker && req.Duty != shared.DutyVerifier) {
 		return nil, fmt.Errorf("frozen task liability request is incomplete")
-	}
-	if err := types.ValidateModelID(req.ModelID); err != nil {
-		return nil, err
 	}
 	return append(shared.Hash32Key(nil), req.TaskID...), nil
 }
@@ -303,7 +300,7 @@ func (k Keeper) validateTaskLiabilityCapability(
 	ctx context.Context,
 	operatorAddress string,
 	duty shared.Duty,
-	modelID string,
+	modelID []byte,
 	profileVersion uint32,
 	expectedCapabilityVersion, expectedSupportVersion, currentEpoch, effectiveBond uint64,
 	bondStatus types.ServiceBondStatus,
@@ -313,26 +310,26 @@ func (k Keeper) validateTaskLiabilityCapability(
 		return 0, fmt.Errorf("model is not accepting task liability")
 	}
 	profile, err := k.GetProfile(ctx, modelID, profileVersion)
-	if err != nil || (profile.Status != types.ModelStatusRegistered && profile.Status != types.ModelStatusActive) {
+	if err != nil || profile.Status != types.ModelStatusRegistered {
 		return 0, fmt.Errorf("profile is not accepting task liability")
 	}
 	if effectiveBond < RequiredServiceBondForProfile(profile) {
 		return 0, fmt.Errorf("effective active bond is below profile min_stake")
 	}
-	capability, err := k.GetProfileCapabilityState(ctx, operatorAddress, modelID, profileVersion)
+	capability, err := k.GetModelCapabilityState(ctx, operatorAddress, modelID)
 	if err != nil {
-		return 0, fmt.Errorf("profile capability is required: %w", err)
+		return 0, fmt.Errorf("model capability is required: %w", err)
 	}
-	support, err := k.GetModelSupportState(ctx, operatorAddress, modelID, profileVersion)
+	support, err := k.GetModelSupportState(ctx, operatorAddress, modelID)
 	if err != nil {
 		return 0, fmt.Errorf("model support is required: %w", err)
 	}
-	if capability.OperatorAddress != operatorAddress || capability.ModelId != modelID || capability.ProfileVersion != profileVersion ||
-		support.OperatorAddress != operatorAddress || support.ModelId != modelID || support.ProfileVersion != profileVersion {
+	if capability.OperatorAddress != operatorAddress || !bytes.Equal(capability.ModelId, modelID) ||
+		support.OperatorAddress != operatorAddress || !bytes.Equal(support.ModelId, modelID) {
 		return 0, fmt.Errorf("capability or support state does not match its store key")
 	}
 	if err := capability.Validate(); err != nil {
-		return 0, fmt.Errorf("invalid profile capability: %w", err)
+		return 0, fmt.Errorf("invalid model capability: %w", err)
 	}
 	if capability.CapabilityVersion != expectedCapabilityVersion {
 		return 0, fmt.Errorf("task liability capability version does not match the frozen fact")

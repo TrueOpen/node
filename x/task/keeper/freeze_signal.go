@@ -19,7 +19,7 @@ var _ hubtypes.FreezeSignalTaskValidator = Keeper{}
 // window. LastIndexKey is the canonical encoded primary key, so a cursor cannot
 // be replayed against another profile or window.
 func (k Keeper) ScanFreezeSignalFailures(ctx context.Context, req hubtypes.FreezeSignalFailureScanRequest) (hubtypes.FreezeSignalFailureScanResult, error) {
-	if req.ModelID == "" || req.ProfileVersion == 0 {
+	if len(req.ModelID) != types.Hash32Len || req.ProfileVersion == 0 {
 		return hubtypes.FreezeSignalFailureScanResult{}, fmt.Errorf("freeze failure selector is incomplete")
 	}
 	if req.RiskWindowStartHeight == 0 || req.RiskWindowEndHeight < req.RiskWindowStartHeight {
@@ -43,7 +43,7 @@ func (k Keeper) ScanFreezeSignalFailures(ctx context.Context, req hubtypes.Freez
 		if err != nil {
 			return hubtypes.FreezeSignalFailureScanResult{}, err
 		}
-		if last.K1() != req.ModelID || last.K2() != req.ProfileVersion ||
+		if !bytes.Equal(last.K1(), req.ModelID) || last.K2() != req.ProfileVersion ||
 			last.K3() < req.RiskWindowStartHeight || last.K3() > req.RiskWindowEndHeight {
 			return hubtypes.FreezeSignalFailureScanResult{}, fmt.Errorf("freeze failure cursor does not match selector")
 		}
@@ -98,7 +98,7 @@ func (k Keeper) failureForFreezeIndex(ctx context.Context, key types.TaskFailure
 			return hubtypes.FreezeSignalFailure{}, err
 		}
 		if state.SupersededByVerifyRound == 0 && state.XTaskFinalityHeight != nil &&
-			state.ModelId == key.K1() && state.ProfileVersion == key.K2() &&
+			bytes.Equal(state.ModelId, key.K1()) && state.ProfileVersion == key.K2() &&
 			state.GetTaskFinalityHeight() == key.K3() && state.FailureClass == failureClass {
 			copy := state
 			if found != nil {

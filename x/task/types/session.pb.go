@@ -25,12 +25,10 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// SessionStatus is the StreamState lifecycle of data_structure_contract §6.2.
+// SessionStatus is the StreamState lifecycle of the public storage contract.
 //
-// CONTRACT-GAP: §6.2 names ACTIVE / IDLE / CLOSED and their order, but
-// the API contract (the sole closed-enum registry) does not register the
-// enum, so the numbers are derived from that listing order with the mandatory
-// UNSPECIFIED=0.
+// Numeric values are frozen here with UNSPECIFIED=0, followed by ACTIVE,
+// IDLE, and CLOSED in lifecycle order.
 // SessionStatus defines the SessionStatus wire type.
 type SessionStatus int32
 
@@ -72,10 +70,10 @@ func (SessionStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // SessionLifecycleAction is the action component of the SessionLifecycleIndex
-// key (§6.2/§10.0b1). The index is key-only and rebuilt from StreamState at
+// key. The index is key-only and rebuilt from StreamState at
 // genesis, so it has no value message; this enum is its canonical key codec.
 //
-// CONTRACT-GAP: §6.2 names MARK_IDLE / CLOSE; §9.6b does not register the enum.
+// MARK_IDLE and CLOSE are the only lifecycle-index actions.
 // SessionLifecycleAction defines the SessionLifecycleAction wire type.
 type SessionLifecycleAction int32
 
@@ -111,10 +109,9 @@ func (SessionLifecycleAction) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_eaa9868f95fea5c3, []int{1}
 }
 
-// OrderSequenceStatus is the per-sequence audit status of §6.2.
+// OrderSequenceStatus is the per-sequence audit status of this contract.
 //
-// CONTRACT-GAP: §6.2 names the five values and their order; §9.6b does not
-// register the enum, so the numbers are derived from that listing order.
+// The five nonzero values are frozen in sequence lifecycle order.
 // OrderSequenceStatus defines the OrderSequenceStatus wire type.
 type OrderSequenceStatus int32
 
@@ -165,10 +162,9 @@ func (OrderSequenceStatus) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_eaa9868f95fea5c3, []int{2}
 }
 
-// TaskBudgetStatus is the TaskBudgetState lifecycle of §6.2.
+// TaskBudgetStatus is the TaskBudgetState lifecycle of this contract.
 //
-// CONTRACT-GAP: §6.2 names RESERVED / FINALIZED; §9.6b does not register the
-// enum, so the numbers are derived from that listing order.
+// RESERVED and FINALIZED are the only nonzero budget states.
 // TaskBudgetStatus defines the TaskBudgetStatus wire type.
 type TaskBudgetStatus int32
 
@@ -204,7 +200,7 @@ func (TaskBudgetStatus) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_eaa9868f95fea5c3, []int{3}
 }
 
-// SessionNonceState is the per-user session counter (§6.2, key = user_address).
+// SessionNonceState is the per-user session counter (key = user_address).
 // It is retained long term so session_id is never reused.
 // SessionNonceState defines the SessionNonceState wire type.
 type SessionNonceState struct {
@@ -260,7 +256,7 @@ func (m *SessionNonceState) GetNextSessionNonce() uint64 {
 }
 
 // StreamState is one session: sequence counter, owner and in-flight count only
-// (§6.2, key = session_id). Model A: a session never holds a balance; the
+// (key = session_id). Model A: a session never holds a balance; the
 // abandoned SessionEscrowState double ledger is deleted, and funds live in the
 // user account and the escrow module account with TaskBudgetState as the only
 // per-task ledger.
@@ -349,7 +345,7 @@ func (m *StreamState) GetStatus() SessionStatus {
 	return SessionStatus_SESSION_STATUS_UNSPECIFIED
 }
 
-// OrderSequenceState records how one order sequence was used (§6.2, key =
+// OrderSequenceState records how one order sequence was used (this contract, key =
 // (session_id, order_sequence)). StreamState.next_expected_sequence stays the
 // only authority for the next acceptable sequence.
 // OrderSequenceState defines the OrderSequenceState wire type.
@@ -438,7 +434,7 @@ func (m *OrderSequenceState) GetCancelledHeight() uint64 {
 }
 
 // SessionHistoryPruneCursorState folds order history after a session closed
-// (§6.2, key = session_id). rolling_sequence_root advances by
+// (key = session_id). rolling_sequence_root advances by
 // TRUEOPEN_SESSION_SEQUENCE_ROOT_V1; visited_count counts every visited row,
 // including already collapsed or missing ones. No DONE row is persisted.
 // SessionHistoryPruneCursorState defines the SessionHistoryPruneCursorState wire type.
@@ -543,7 +539,7 @@ func (m *SessionHistoryPruneCursorState) GetVisitedCount() uint64 {
 }
 
 // SessionTerminalSummaryState replaces StreamState and the order rows once the
-// session is closed and every task reached a terminal compaction (§6.2, key =
+// session is closed and every task reached a terminal compaction (this contract, key =
 // session_id). It is deleted when its retention prune index fires.
 // SessionTerminalSummaryState defines the SessionTerminalSummaryState wire type.
 type SessionTerminalSummaryState struct {
@@ -725,7 +721,7 @@ func (m *FeePerGasRateV1) GetDenominator() uint64 {
 	return 0
 }
 
-// TaskBudgetState is the only authoritative per-task fund ledger (§6.6, key =
+// TaskBudgetState is the only authoritative per-task fund ledger (this contract, key =
 // task_id). Every payout, refund, maintenance and gas reimbursement must be
 // deducted or released here. reserved_amount is the only outstanding balance;
 // refund is derived inside a complete settlement plan, so no refund sub-account

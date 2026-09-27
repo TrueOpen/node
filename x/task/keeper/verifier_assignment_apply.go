@@ -311,7 +311,7 @@ func (k Keeper) preflightVerifierTaskLiability(
 		return request, errorsmod.Wrap(types.ErrInvariantBroken, "selected verifier no longer matches immutable pool binding")
 	}
 	hubParams := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx))
-	if _, err := k.loadVerifierEligibilityFacts(ctx, core, operatorBytes, operator, hubParams); err != nil {
+	if _, err := k.loadVerifierEligibilityFacts(ctx, core, workerAssignment, operatorBytes, operator, hubParams); err != nil {
 		// Every branch of this re-check reads live state that may legitimately
 		// have moved since the handraise froze the fact — support freshness
 		// expiring by epoch, a revoked capability, a frozen profile, or the same
@@ -334,6 +334,10 @@ func (k Keeper) preflightVerifierTaskLiability(
 	minStake, err := shared.ParseAmount(fact.MinStakeSnapshot)
 	if err != nil {
 		return request, err
+	}
+	acceptedMinStake, err := shared.ParseAmount(workerAssignment.MinStakeSnapshot)
+	if err != nil || acceptedMinStake == 0 || minStake != acceptedMinStake {
+		return request, errorsmod.Wrap(types.ErrInvariantBroken, "verifier minimum stake fact does not match the task snapshot")
 	}
 	orderValue, err := shared.ParseAmount(core.OrderValue)
 	if err != nil {

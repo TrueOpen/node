@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -20,14 +21,14 @@ const modelProfileFixtureDenom = "uusdc"
 func validProfileState(modelID string, profileVersion uint32) ProfileState {
 	requiredHash := bytes.Repeat([]byte{1}, 32)
 	state := ProfileState{
-		ModelId: modelID, ProfileVersion: profileVersion,
+		ModelId: modelIDBytes(modelID), ProfileVersion: profileVersion,
 		ManifestHash: requiredHash, TokenizerHash: requiredHash, SchemaHash: requiredHash,
 		RuntimeClass: "CAUSAL_LM_PREFILL_LOGPROBS_V1", RequiredTopK: 8,
 		TaskTypes:      []shared.TaskType{shared.TaskType_TASK_TYPE_TEXT_GENERATION},
 		GenerationType: shared.GenerationType_GENERATION_TYPE_SAMPLED,
 		ResourceTier:   1, MinStake: 1_000,
 		ChallengeOpenWindowBlocks: ProfileChallengeOpenWindowMinBlocks,
-		Status:                    ModelStatusRegistered, StatusSource: ProfileStatusSourceAutoSupport,
+		Status:                    ModelStatusRegistered, StatusSource: ProfileStatusSourceGovernance,
 		VerificationProfile: shared.VerificationProfile{
 			VerificationMode:            shared.VerificationMode_VERIFICATION_MODE_SINGLE_SAMPLE,
 			TokenScope:                  shared.TokenScope_TOKEN_SCOPE_ALL_GENERATED_OUTPUT_TOKENS,
@@ -37,7 +38,7 @@ func validProfileState(modelID string, profileVersion uint32) ProfileState {
 			Metrics: shared.MetricSpec{
 				ComparedTopK: 8, NumericScale: shared.NumericScale_NUMERIC_SCALE_FP_1E6,
 			},
-			EvidenceSchema: shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+			EvidenceSchema: shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 		},
 		PricingProfile: shared.PricingProfile{
 			InitialOutputPrice: 1, VerifyRatioBps: 1_000, MinOrderValue: 1,
@@ -60,9 +61,10 @@ func validProfileState(modelID string, profileVersion uint32) ProfileState {
 
 func TestModelAndProfileStatusSourcesAreClosed(t *testing.T) {
 	model := ModelState{
-		ModelId: "model-status-source", ProposerAddress: "proposer1",
-		Status: ModelStatusRegistered, StatusSource: ModelStatusSourceAutoProfile,
+		ModelId: modelIDBytes("model-status-source"), ProposerAddress: "proposer1",
+		Status: ModelStatusRegistered, StatusSource: ModelStatusSourceAutoSupport,
 		LatestProfileVersion: 1, RegistrationFeePaid: 1, CreatedHeight: 1, UpdatedHeight: 1,
+		SupportMinStake: 1_000,
 	}
 	require.NoError(t, model.Validate())
 
@@ -74,7 +76,7 @@ func TestModelAndProfileStatusSourcesAreClosed(t *testing.T) {
 
 	profile := validProfileState("model-status-source", 1)
 	require.NoError(t, profile.Validate())
-	profile.StatusSource = ProfileStatusSourceGovernance
+	profile.StatusSource = ProfileStatusSourceEmergency
 	require.ErrorContains(t, profile.Validate(), "incompatible with status_source")
 	profile.Status = ModelStatusEmergencyFrozen
 	profile.StatusSource = ProfileStatusSourceEmergency
@@ -91,18 +93,18 @@ func TestModelRegistrationDigestGoldenVector(t *testing.T) {
 	projection := goldenModelProfileProjection(t)
 	projectionBytes, err := CanonicalModelProfileProjection(projection)
 	require.NoError(t, err)
-	projectionHash, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelChainProjectionV2), projectionBytes)
+	projectionHash, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelChainProjectionV3), projectionBytes)
 	require.NoError(t, err)
-	require.Equal(t, "761a6e8d76d31a43d02e35f681156dfafceed361effa6bfb68133e0430c0108d", hex.EncodeToString(projectionHash))
+	require.Equal(t, "d9a3cc73e9ed01a0b37c2f0ef2a4ea2a4b1308f8553e93e5b2b3f34ebf095858", hex.EncodeToString(projectionHash))
 
 	digest, returnedProjection, err := ModelRegistrationDigest(
-		"trueopen-testnet-1",
-		"trueopen1registrant000000000000000000000000000",
+		"trueopen-golden-1",
+		"trueopen1rfjz7r3u8t65teavh5utquj3kwvsj983p3jclz",
 		projection,
 	)
 	require.NoError(t, err)
 	require.Equal(t, projectionBytes, returnedProjection)
-	require.Equal(t, "4a6ee76aa3b32fabf3eaff9851656405fb45e65ba98f39224a3e894807948873", hex.EncodeToString(digest))
+	require.Equal(t, "abd1672363a05dd9d5d9ffb381666c4fa1eae88d223a02248cf38badcddfc2c7", hex.EncodeToString(digest))
 }
 
 func TestProfileExecutionSnapshotHashGolden(t *testing.T) {
@@ -116,7 +118,7 @@ func TestProfileExecutionSnapshotHashGolden(t *testing.T) {
 	// position. That list reaches this
 	// digest through verification_profile field 14, which is why the nested layer
 	// changed the snapshot hash and nothing above it did.
-	require.Equal(t, "d01ffcff23a702e764bd8d1d5d1caa209908e1acd056ceacf6c948968ff01463", hex.EncodeToString(got))
+	require.Equal(t, "85e3709f6a609d2a03d44450b160657a8d9612cecf4b5c4ade00e7ea7b34875a", hex.EncodeToString(got))
 
 	snapshot.GenerationType = shared.GenerationType_GENERATION_TYPE_DETERMINISTIC
 	changed, err := ProfileExecutionSnapshotHash(snapshot)
@@ -178,7 +180,7 @@ func TestProfileExecutionSnapshotHashBindsEveryNestedVerificationProfileField(t 
 		}},
 		{"13_metric_aggregate_proof_version", func(v *shared.VerificationProfile) { v.MetricAggregateProofVersion += "-x" }},
 		{"14_evidence_schema", func(v *shared.VerificationProfile) {
-			v.EvidenceSchema = shared.NewWorkerValueEvidenceSchemaV1(1 << 29)
+			v.EvidenceSchema = shared.NewPhase0WorkerEvidenceSchemaV1(1<<29, 1<<26)
 		}},
 	}
 	require.Len(t, mutations, 19, "fourteen field positions, with field 10 expanded into its six MetricSpec positions")
@@ -228,7 +230,7 @@ func goldenProfileExecutionSnapshot(t *testing.T) shared.ProfileExecutionSnapsho
 			CanonicalEncodingVersion:    "canonical-1",
 			EvidenceSchemaHash:          []byte{0x05, 0x06},
 			MetricAggregateProofVersion: "aggregate-1",
-			EvidenceSchema:              shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+			EvidenceSchema:              shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 		},
 		VerificationThresholds: shared.VerificationThresholds{
 			PassMinFiniteCount:            1,
@@ -304,7 +306,7 @@ func TestEvidenceSchemaHashGoldenAndScopeBinding(t *testing.T) {
 	projection := goldenModelProfileProjection(t)
 	got, err := EvidenceSchemaHash(projection)
 	require.NoError(t, err)
-	require.Equal(t, "1a50512bbf59345321280a92bec7ccd6ed5c5020f28ca578d96973eab1070dc1", hex.EncodeToString(got))
+	require.Equal(t, "32bde2e9a69fef898b82cc23f0be211c17f06cb01cec111494d4ed5fcf35ffe0", hex.EncodeToString(got))
 	require.Equal(t, got, projection.VerificationProfile.EvidenceSchemaHash)
 
 	mutated := projection
@@ -318,7 +320,8 @@ func TestEvidenceSchemaHashGoldenAndScopeBinding(t *testing.T) {
 	require.NotEqual(t, got, changed)
 
 	mutated = projection
-	mutated.ModelId = "hf-qwen3-8b-other"
+	mutated.ModelId = append([]byte(nil), projection.ModelId...)
+	mutated.ModelId[0] ^= 0xff
 	changed, err = EvidenceSchemaHash(mutated)
 	require.NoError(t, err)
 	require.NotEqual(t, got, changed)
@@ -344,11 +347,11 @@ func TestModelProfileCanonicalCrossLanguageVector(t *testing.T) {
 		CanonicalProjection       json.RawMessage  `json:"canonical_projection"`
 		EvidenceSchemaHash        string           `json:"evidence_schema_hash"`
 	}
-	raw, err := os.ReadFile("testdata/model_profile_canonical_v2.json")
+	raw, err := os.ReadFile("testdata/model_profile_canonical_v3.json")
 	require.NoError(t, err)
 	var fixture vector
 	require.NoError(t, json.Unmarshal(raw, &fixture))
-	require.Equal(t, "trueopen-model-profile-canonical-v2", fixture.Schema)
+	require.Equal(t, "trueopen-model-profile-canonical-v3", fixture.Schema)
 
 	orderedTaskTypes := make([]shared.TaskType, len(fixture.TaskTypesNumericOrder))
 	for index, item := range fixture.TaskTypesNumericOrder {
@@ -400,16 +403,16 @@ func TestModelProfileCanonicalCrossLanguageVector(t *testing.T) {
 }
 
 func TestProfileStateRejectsNonCanonicalIDsAndEnums(t *testing.T) {
-	for _, modelID := range []string{"Model-A", "/model-a", "model/a", "model a", "\u6a21\u578b", "a" + string(bytes.Repeat([]byte{'a'}, 128))} {
+	for _, modelID := range [][]byte{nil, []byte("short"), bytes.Repeat([]byte{0x01}, 31), bytes.Repeat([]byte{0x01}, 33), make([]byte, 32)} {
 		state := validProfileState("model-a", 1)
 		state.ModelId = modelID
-		require.ErrorContains(t, state.Validate(), "model_id must match")
+		require.ErrorContains(t, state.Validate(), "non-zero 32-byte hash")
 	}
 
 	projection := goldenModelProfileProjection(t)
-	projection.ModelId = "hf/model-a"
+	projection.ModelId = []byte("hf/model-a")
 	_, err := CanonicalModelProfileProjection(projection)
-	require.ErrorContains(t, err, "model_id must match")
+	require.ErrorContains(t, err, "non-zero 32-byte hash")
 
 	state := validProfileState("model-a", 1)
 	state.TaskTypes = []shared.TaskType{
@@ -450,7 +453,7 @@ func TestProfileStateRejectsNonCanonicalIDsAndEnums(t *testing.T) {
 func goldenModelProfileProjection(t *testing.T) shared.ModelProfileProjection {
 	t.Helper()
 	projection := shared.ModelProfileProjection{
-		ModelId:        "hf-qwen3-8b-test",
+		ModelId:        mustDecodeRegistrationHash(t, "c65241d19b257f935ddea99ea59a19175b4b29751e259853d403fe59f04f4e4f"),
 		ProfileVersion: 1,
 		ManifestHash:   mustDecodeRegistrationHash(t, "9b0148865efde2dbf366305733ee5275dc247e3b9af8def770955d3758b52031"),
 		TokenizerHash:  bytes.Repeat([]byte{0x44}, 32),
@@ -482,7 +485,7 @@ func goldenModelProfileProjection(t *testing.T) shared.ModelProfileProjection {
 			},
 			CanonicalEncodingVersion:    "CANONICAL_OUTPUT_TEXT_V1",
 			MetricAggregateProofVersion: "PREFILL_METRIC_AGGREGATE_PROOF_V1",
-			EvidenceSchema:              shared.NewWorkerValueEvidenceSchemaV1(1 << 30),
+			EvidenceSchema:              shared.NewPhase0WorkerEvidenceSchemaV1(1<<30, 1<<26),
 		},
 		VerificationThresholds: shared.VerificationThresholds{
 			PassMinFiniteCount:            16,
@@ -512,6 +515,11 @@ func goldenModelProfileProjection(t *testing.T) shared.ModelProfileProjection {
 		},
 		SchemaHash:      bytes.Repeat([]byte{0x99}, 32),
 		RegistrationFee: sdk.NewCoin(modelProfileFixtureDenom, sdkmath.NewInt(1_000_000)),
+		Source: shared.SourceRefV1{
+			Provider: "HUGGINGFACE", RepoId: "trueopen/golden-model", RepoType: "model",
+			ResolverVersion: "HF_RESOLVER_V1", Revision: "0123456789abcdef0123456789abcdef01234567",
+			SourceUri: "hf://trueopen/golden-model@0123456789abcdef0123456789abcdef01234567",
+		},
 	}
 	evidenceSchemaHash, err := EvidenceSchemaHash(projection)
 	require.NoError(t, err)
@@ -525,4 +533,9 @@ func mustDecodeRegistrationHash(t *testing.T, value string) []byte {
 	require.NoError(t, err)
 	require.Len(t, decoded, 32)
 	return decoded
+}
+
+func modelIDBytes(label string) []byte {
+	sum := sha256.Sum256([]byte(label))
+	return sum[:]
 }

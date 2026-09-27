@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"errors"
 
@@ -16,7 +17,7 @@ func (q queryServer) Model(ctx context.Context, req *types.QueryModelRequest) (*
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
-	if err := types.ValidateModelID(req.ModelId); err != nil {
+	if err := validateModelQueryID(req.ModelId); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	model, err := q.k.Model.Get(ctx, req.ModelId)
@@ -26,7 +27,7 @@ func (q queryServer) Model(ctx context.Context, req *types.QueryModelRequest) (*
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
-	if model.ModelId != req.ModelId || model.Validate() != nil {
+	if !bytes.Equal(model.ModelId, req.ModelId) || model.Validate() != nil {
 		return nil, status.Error(codes.Internal, "invalid model state")
 	}
 	return &types.QueryModelResponse{Model: model}, nil
@@ -45,7 +46,7 @@ func (q queryServer) Models(ctx context.Context, req *types.QueryModelsRequest) 
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
-	scope, err := q.newRegistryPageScope(ctx, modelsRPC, req.Page, q.k.Model.KeyCodec(), types.ValidateModelID)
+	scope, err := newRegistryPageScope(q, ctx, modelsRPC, req.Page, q.k.Model.KeyCodec(), validateModelQueryID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (q queryServer) Models(ctx context.Context, req *types.QueryModelsRequest) 
 		if err != nil {
 			return nil, status.Error(codes.Internal, "model row unavailable")
 		}
-		if model.ModelId != key || model.Validate() != nil {
+		if !bytes.Equal(model.ModelId, key) || model.Validate() != nil {
 			return nil, status.Error(codes.Internal, "model key disagrees with primary state")
 		}
 		candidate := append(response.Models, model)
@@ -123,7 +124,7 @@ func (q queryServer) Profile(ctx context.Context, req *types.QueryProfileRequest
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
-	if profile.ModelId != modelID || profile.ProfileVersion != profileVersion || q.k.validateStoredProfile(ctx, profile) != nil {
+	if !bytes.Equal(profile.ModelId, modelID) || profile.ProfileVersion != profileVersion || q.k.validateStoredProfile(ctx, profile) != nil {
 		return nil, status.Error(codes.Internal, "invalid profile state")
 	}
 	return &types.QueryProfileResponse{Profile: profile}, nil

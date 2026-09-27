@@ -1,6 +1,7 @@
 package taskevents
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -90,7 +91,7 @@ func TestMalformedTrueOpenEventIsObservableButUnrelatedEventIsIgnored(t *testing
 }
 
 func TestNormalizeProtocolEventUsesTypedTarget(t *testing.T) {
-	want := &hubtypes.EventModelSupportUpdated{Operator: "operator", ModelId: "model", ProfileVersion: 1, SupportVersion: 2}
+	want := &hubtypes.EventModelSupportUpdated{Operator: "operator", ModelId: bytes.Repeat([]byte{0x6d}, 32), SupportVersion: 2}
 	event, ok := normalizeEvent(typedABCIEvent(t, want))
 	require.True(t, ok)
 	require.Equal(t, eventKindProtocol, event.Kind)

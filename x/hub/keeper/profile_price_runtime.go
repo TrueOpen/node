@@ -35,8 +35,8 @@ func (k Keeper) RecordProfilePriceSample(ctx context.Context, sample shared.Prof
 
 func (k Keeper) recordProfilePriceSample(ctx context.Context, sample shared.ProfilePriceSampleV1) error {
 	if len(sample.TaskId) != shared.Hash32KeySize || bytes.Equal(sample.TaskId, make([]byte, shared.Hash32KeySize)) ||
-		types.ValidateModelID(sample.ModelId) != nil ||
-		sample.ProfileVersion == 0 || sample.PriceBid == 0 || bytes.IndexByte([]byte(sample.ModelId), 0) >= 0 {
+		len(sample.ModelId) != shared.Hash32KeySize ||
+		sample.ProfileVersion == 0 || sample.PriceBid == 0 {
 		return fmt.Errorf("profile price sample has an invalid task/profile/price scope")
 	}
 	profile, err := k.Profile.Get(ctx, types.NewProfileStateKey(sample.ModelId, sample.ProfileVersion))
@@ -269,22 +269,22 @@ func encodeProfilePriceSeen(sample shared.ProfilePriceSampleV1) []byte {
 	return encoded
 }
 
-func encodeProfilePriceAccumulatorKey(modelID string, profileVersion uint32) []byte {
-	key := make([]byte, 1+len(modelID)+1+4)
+func encodeProfilePriceAccumulatorKey(modelID []byte, profileVersion uint32) []byte {
+	key := make([]byte, 1+shared.Hash32KeySize+4)
 	key[0] = profilePriceAccumulatorPrefix
 	copy(key[1:], modelID)
 	binary.BigEndian.PutUint32(key[len(key)-4:], profileVersion)
 	return key
 }
 
-func decodeProfilePriceAccumulatorKey(key []byte) (string, uint32, error) {
-	if len(key) < 7 || key[0] != profilePriceAccumulatorPrefix || key[len(key)-5] != 0 {
-		return "", 0, fmt.Errorf("profile price accumulator key is invalid")
+func decodeProfilePriceAccumulatorKey(key []byte) ([]byte, uint32, error) {
+	if len(key) != 1+shared.Hash32KeySize+4 || key[0] != profilePriceAccumulatorPrefix {
+		return nil, 0, fmt.Errorf("profile price accumulator key is invalid")
 	}
-	modelID := string(key[1 : len(key)-5])
+	modelID := append([]byte(nil), key[1:1+shared.Hash32KeySize]...)
 	version := binary.BigEndian.Uint32(key[len(key)-4:])
-	if types.ValidateModelID(modelID) != nil || version == 0 {
-		return "", 0, fmt.Errorf("profile price accumulator scope is invalid")
+	if version == 0 {
+		return nil, 0, fmt.Errorf("profile price accumulator scope is invalid")
 	}
 	return modelID, version, nil
 }

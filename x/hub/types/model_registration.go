@@ -13,7 +13,7 @@ import (
 // CanonicalModelProfileProjection encodes the frozen Canonical JSON V1
 // projection used by the registration protocol.
 func CanonicalModelProfileProjection(profile shared.ModelProfileProjection) ([]byte, error) {
-	if err := ValidateModelID(profile.ModelId); err != nil {
+	if err := validateRequiredHash32("model profile model_id", profile.ModelId); err != nil {
 		return nil, err
 	}
 	minStake, err := canonicalJSONCoin("min_stake", profile.MinStake)
@@ -77,7 +77,7 @@ func CanonicalModelProfileProjection(profile shared.ModelProfileProjection) ([]b
 		"generation_type":              generationTypeName(profile.GenerationType),
 		"manifest_hash":                manifestHash,
 		"min_stake":                    minStake,
-		"model_id":                     profile.ModelId,
+		"model_id":                     "0x" + hex.EncodeToString(profile.ModelId),
 		"previous_profile_version":     profile.PreviousProfileVersion,
 		"pricing_profile": map[string]any{
 			"initial_output_price": pricing.InitialOutputPrice,
@@ -90,6 +90,16 @@ func CanonicalModelProfileProjection(profile shared.ModelProfileProjection) ([]b
 		"resource_tier":    profile.ResourceTier,
 		"runtime_class":    profile.RuntimeClass,
 		"schema_hash":      schemaHash,
+		"source": map[string]any{
+			"provider":         profile.Source.Provider,
+			"source_uri":       profile.Source.SourceUri,
+			"revision":         profile.Source.Revision,
+			"resolver_version": profile.Source.ResolverVersion,
+			"repo_id":          profile.Source.RepoId,
+			"repo_type":        profile.Source.RepoType,
+		},
+		"tool_call_parser": parserRefProjection(profile.ToolCallParser),
+		"reasoning_parser": parserRefProjection(profile.ReasoningParser),
 		"task_types":       taskTypes,
 		"timeout_bootstrap_profile": map[string]any{
 			"bootstrap_valid_until_epoch":     timeout.BootstrapValidUntilEpoch,
@@ -148,7 +158,7 @@ func ModelRegistrationDigest(chainID, proposer string, profile shared.ModelProfi
 	if err != nil {
 		return nil, nil, err
 	}
-	projectionHash, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelChainProjectionV2), projection)
+	projectionHash, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelChainProjectionV3), projection)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,11 +176,18 @@ func ModelRegistrationDigest(chainID, proposer string, profile shared.ModelProfi
 	if err != nil {
 		return nil, nil, err
 	}
-	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelRegistrationDigestV2), payload)
+	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelRegistrationDigestV3), payload)
 	if err != nil {
 		return nil, nil, err
 	}
 	return digest, projection, nil
+}
+
+func parserRefProjection(ref shared.ParserRefV1) map[string]any {
+	if ref.Name == "" && ref.Version == 0 {
+		return map[string]any{}
+	}
+	return map[string]any{"name": ref.Name, "version": ref.Version}
 }
 
 func canonicalJSONCoin(name string, coin sdk.Coin) (map[string]any, error) {
@@ -272,7 +289,7 @@ func canonicalVerificationProfile(value shared.VerificationProfile) (shared.Cano
 // EvidenceSchemaHash is the only producer for the readable evidence descriptor
 // committed by VerificationProfile.evidence_schema_hash.
 func EvidenceSchemaHash(profile shared.ModelProfileProjection) ([]byte, error) {
-	if err := ValidateModelID(profile.ModelId); err != nil {
+	if err := validateRequiredHash32("evidence schema model_id", profile.ModelId); err != nil {
 		return nil, err
 	}
 	if profile.ProfileVersion == 0 || len(profile.SchemaHash) != 32 || len(profile.TokenizerHash) != 32 {

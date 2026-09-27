@@ -70,7 +70,7 @@ func (k Keeper) prepareSettlementFaults(
 			if verifyRound != types.ChallengeVerifyRoundV1 ||
 				existing.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND ||
 				!bytes.Equal(existing.TaskId, inputs.Core.TaskId) || existing.VerifyRound != verifyRound ||
-				existing.ModelId != inputs.Core.ModelId || existing.ProfileVersion != inputs.Core.ProfileVersion ||
+				!bytes.Equal(existing.ModelId, inputs.Core.ModelId) || existing.ProfileVersion != inputs.Core.ProfileVersion ||
 				existing.FailureClass != round.GetFailureClass() || existing.FreezeSignalEligible != freezeEligible ||
 				existing.AcceptedCommitCount != deadlineFacts.AcceptedCommitCount ||
 				existing.AcceptedResultReceiptCount != deadlineFacts.AcceptedResultCount ||

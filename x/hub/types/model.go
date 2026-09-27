@@ -37,18 +37,11 @@ func IsValidModelStatus(status ModelProfileStatus) bool {
 }
 
 func (s ModelState) Validate() error {
-	modelID, err := requireCanonicalNonEmpty("model model_id", s.ModelId)
-	if err != nil {
-		return err
-	}
-	if err := validateOptionalCanonicalString("model model_id", modelID); err != nil {
-		return err
-	}
-	if err := ValidateModelID(modelID); err != nil {
+	if err := validateRequiredHash32("model model_id", s.ModelId); err != nil {
 		return err
 	}
 	if !IsValidModelStatus(s.Status) {
-		return fmt.Errorf("invalid model status %q for model_id %s", s.Status, modelID)
+		return fmt.Errorf("invalid model status %q for model_id %x", s.Status, s.ModelId)
 	}
 	if strings.TrimSpace(s.ProposerAddress) != s.ProposerAddress || s.ProposerAddress == "" {
 		return fmt.Errorf("model proposer_address must be canonical and non-empty")
@@ -60,10 +53,19 @@ func (s ModelState) Validate() error {
 		return fmt.Errorf("model created_height must be greater than 0")
 	}
 	if s.UpdatedHeight < s.CreatedHeight {
-		return fmt.Errorf("model %s updated_height must be >= created_height", modelID)
+		return fmt.Errorf("model %x updated_height must be >= created_height", s.ModelId)
+	}
+	if s.SupportMinStake == 0 {
+		return fmt.Errorf("model support_min_stake must be positive")
+	}
+	if (s.PendingEffectiveHeight == 0) != (s.PendingSupportMinStake == 0) {
+		return fmt.Errorf("model pending support threshold and effective height must be present together")
+	}
+	if s.PendingEffectiveHeight != 0 && s.PendingSupportMinStake <= s.SupportMinStake {
+		return fmt.Errorf("pending support threshold must raise the effective threshold")
 	}
 	switch s.StatusSource {
-	case ModelStatusSourceAutoProfile, ModelStatusSourceGovernance, ModelStatusSourceEmergency:
+	case ModelStatusSourceAutoSupport, ModelStatusSourceGovernance, ModelStatusSourceEmergency:
 	default:
 		return fmt.Errorf("invalid model status_source %q", s.StatusSource)
 	}
@@ -74,21 +76,14 @@ func (s ModelState) Validate() error {
 }
 
 func (s ProfileState) Validate() error {
-	modelID, err := requireCanonicalNonEmpty("profile model_id", s.ModelId)
-	if err != nil {
-		return err
-	}
-	if err := validateOptionalCanonicalString("profile model_id", modelID); err != nil {
-		return err
-	}
-	if err := ValidateModelID(modelID); err != nil {
+	if err := validateRequiredHash32("profile model_id", s.ModelId); err != nil {
 		return err
 	}
 	if s.ProfileVersion == 0 {
 		return fmt.Errorf("profile profile_version must be greater than 0")
 	}
 	if !IsValidModelStatus(s.Status) {
-		return fmt.Errorf("invalid profile status %q for %s/%d", s.Status, modelID, s.ProfileVersion)
+		return fmt.Errorf("invalid profile status %q for %x/%d", s.Status, s.ModelId, s.ProfileVersion)
 	}
 	if err := validateRequiredHash32("profile manifest_hash", s.ManifestHash); err != nil {
 		return err
@@ -106,10 +101,12 @@ func (s ProfileState) Validate() error {
 		return fmt.Errorf("profile evidence_schema: %w", err)
 	}
 	requirements := s.VerificationProfile.EvidenceSchema.RequiredInferEvidence
-	if len(requirements) != 1 ||
+	if len(requirements) != 2 ||
 		requirements[0].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING ||
-		requirements[0].CommitmentSchemaVersion != shared.WorkerValueCommitmentSchemaVersionV2 {
-		return fmt.Errorf("Phase 0 text-LLM profile must require exactly WORKER_VALUE_OPENING schema version %d", shared.WorkerValueCommitmentSchemaVersionV2)
+		requirements[0].CommitmentSchemaVersion != shared.WorkerValueCommitmentSchemaVersionV3 ||
+		requirements[1].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING ||
+		requirements[1].CommitmentSchemaVersion != shared.WorkerTokenCommitmentSchemaVersionV1 {
+		return fmt.Errorf("Phase 0 text-LLM profile must require ordered Worker value V3 and Worker token V1 evidence")
 	}
 	if strings.TrimSpace(s.RuntimeClass) != s.RuntimeClass || s.RuntimeClass == "" {
 		return fmt.Errorf("profile runtime_class must be canonical and non-empty")
@@ -171,7 +168,7 @@ func (s ProfileState) Validate() error {
 		return fmt.Errorf("profile ref_price must be greater than 0")
 	}
 	if s.UpdatedHeight < s.CreatedHeight {
-		return fmt.Errorf("profile %s/%d updated_height must be >= created_height", modelID, s.ProfileVersion)
+		return fmt.Errorf("profile %x/%d updated_height must be >= created_height", s.ModelId, s.ProfileVersion)
 	}
 	if s.ResourceTier == 0 {
 		return fmt.Errorf("profile resource_tier must be greater than 0")
@@ -182,11 +179,8 @@ func (s ProfileState) Validate() error {
 	if s.ChallengeOpenWindowBlocks < ProfileChallengeOpenWindowMinBlocks || s.ChallengeOpenWindowBlocks > ProfileChallengeOpenWindowMaxBlocks {
 		return fmt.Errorf("profile challenge_open_window_blocks %d outside [%d, %d]", s.ChallengeOpenWindowBlocks, ProfileChallengeOpenWindowMinBlocks, ProfileChallengeOpenWindowMaxBlocks)
 	}
-	if s.ActiveSupportStake > s.EligibleSupportStake {
-		return fmt.Errorf("profile active_support_stake must be <= eligible_support_stake")
-	}
 	switch s.StatusSource {
-	case ProfileStatusSourceAutoSupport, ProfileStatusSourceGovernance, ProfileStatusSourceEmergency:
+	case ProfileStatusSourceGovernance, ProfileStatusSourceEmergency:
 	default:
 		return fmt.Errorf("invalid profile status_source %q", s.StatusSource)
 	}
@@ -215,7 +209,7 @@ func (s ProfileState) Validate() error {
 }
 
 func (s RegistrationReceipt) Validate() error {
-	if err := ValidateModelID(s.ModelId); err != nil {
+	if err := validateRequiredHash32("registration receipt model_id", s.ModelId); err != nil {
 		return fmt.Errorf("registration receipt: %w", err)
 	}
 	if s.ProfileVersion == 0 {
@@ -232,7 +226,7 @@ func ValidateModelID(value string) error {
 func validModelStatusSource(status ModelProfileStatus, source ModelStatusSource) bool {
 	switch status {
 	case ModelStatusRegistered, ModelStatusActive:
-		return source == ModelStatusSourceAutoProfile
+		return source == ModelStatusSourceAutoSupport
 	case ModelStatusFrozen, ModelStatusDelisted:
 		return source == ModelStatusSourceGovernance
 	case ModelStatusEmergencyFrozen:
@@ -244,8 +238,8 @@ func validModelStatusSource(status ModelProfileStatus, source ModelStatusSource)
 
 func validProfileStatusSource(status ModelProfileStatus, source ProfileStatusSource) bool {
 	switch status {
-	case ModelStatusRegistered, ModelStatusActive:
-		return source == ProfileStatusSourceAutoSupport
+	case ModelStatusRegistered:
+		return source == ProfileStatusSourceGovernance
 	case ModelStatusFrozen, ModelStatusDelisted:
 		return source == ProfileStatusSourceGovernance
 	case ModelStatusEmergencyFrozen:

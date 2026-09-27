@@ -63,7 +63,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 			continue
 		}
 		if handraise.VerifyRound != scope.VerifyRound || !bytes.Equal(handraise.InferReceiptHash, scope.InferReceiptHash) ||
-			!bytes.Equal(handraise.OutputHash, scope.OutputHash) || handraise.ModelId != scope.ModelId ||
+			!bytes.Equal(handraise.OutputHash, scope.OutputHash) || !bytes.Equal(handraise.ModelId, scope.ModelId) ||
 			handraise.ProfileVersion != scope.ProfileVersion ||
 			!bytes.Equal(handraise.Member.CandidatePoolSnapshotId, scope.Member.CandidatePoolSnapshotId) {
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier handraises do not share one frozen task-round scope")
@@ -105,7 +105,7 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal window scope is unavailable")
 	}
 	if scope.VerifyRound != window.VerifyRound || !bytes.Equal(scope.InferReceiptHash, receipt.InferReceiptHash) ||
-		!bytes.Equal(scope.OutputHash, receipt.OutputHash) || scope.ModelId != core.ModelId ||
+		!bytes.Equal(scope.OutputHash, receipt.OutputHash) || !bytes.Equal(scope.ModelId, core.ModelId) ||
 		scope.ProfileVersion != core.ProfileVersion ||
 		!bytes.Equal(scope.Member.CandidatePoolSnapshotId, window.CandidatePoolSnapshotId) {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal does not match the frozen task scope")
@@ -564,7 +564,7 @@ func validateVerifierHandraiseEnvelope(chainID string, taskID []byte, currentHei
 	if handraise == nil || handraise.SchemaVersion != types.VerifierHandraiseSchemaVersionV1 ||
 		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !isPhase0VerifyRound(handraise.VerifyRound) ||
 		len(handraise.InferReceiptHash) != types.Hash32Len || len(handraise.OutputHash) != types.Hash32Len ||
-		handraise.ModelId == "" || handraise.ProfileVersion == 0 ||
+		len(handraise.ModelId) != types.Hash32Len || handraise.ProfileVersion == 0 ||
 		len(handraise.Member.CandidatePoolSnapshotId) != types.Hash32Len || handraise.Member.SlotVersion == 0 ||
 		handraise.Duty != shared.Duty_DUTY_VERIFIER || handraise.ExpiryHeight == 0 || currentHeight > handraise.ExpiryHeight ||
 		len(handraise.ServiceSignature) != 64 {

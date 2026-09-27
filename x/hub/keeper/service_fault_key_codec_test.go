@@ -56,7 +56,7 @@ func TestServiceFaultCollectionsUseRawHash32Keys(t *testing.T) {
 
 	summary := encodeCustodyKey(t, f.keeper.SlashSummary.KeyCodec(),
 		types.NewSlashSummaryKey(types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, id, 3))
-	require.Len(t, summary, 4+shared.Hash32KeySize+8)
+	require.Len(t, summary, 4+shared.Hash32KeySize+4)
 	require.Equal(t, id, summary[4:4+shared.Hash32KeySize])
 
 	builderFault := encodeCustodyKey(t, f.keeper.BuilderFault.KeyCodec(), types.NewBuilderFaultKey(operator, id))

@@ -8,6 +8,7 @@ import (
 	corestore "cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	internaltypes "github.com/TrueOpen/node/x/task/internal/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
@@ -47,9 +48,8 @@ type Keeper struct {
 	// the only ledger. SessionByOwnerIndex holds ACTIVE/IDLE streams only, and the
 	// three prune rows implement the bounded CLOSED -> sequence_root -> terminal
 	// summary -> deleted pipeline.
-	// SessionNonce is the one map in this block still keyed by a string: its key is
-	// the owner's bech32 account address, not a session_id.
-	SessionNonce                     collections.Map[string, internaltypes.SessionNonceStoreState]
+	// SessionNonce uses the owner's canonical address bytes as its store key.
+	SessionNonce                     collections.Map[types.AddrKey, internaltypes.SessionNonceStoreState]
 	Stream                           collections.Map[types.SessionKey, internaltypes.StreamStoreState]
 	SessionByOwnerIndex              collections.KeySet[types.SessionByOwnerKey]
 	SessionLifecycleIndex            collections.KeySet[types.SessionLifecycleIndexKey]
@@ -172,7 +172,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	sb := collections.NewSchemaBuilder(storeService)
 
 	// Key codecs. Every one of them mirrors a key tuple that
-	// the data-structure contractspells out; nothing here re-encodes an integer or a
+	// the data-structure contract spells out; nothing here re-encodes an integer or a
 	// Hash32 as text.
 	//
 	// Every Hash32 component (task_id, session_id, commit_key, proposal_digest) is
@@ -182,10 +182,9 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	// the no-migration policy that makes any later change to these codecs a state
 	// migration rather than a refactor.
 	//
-	// collections.StringKey survives only where the component really is a string:
-	// an operator/owner bech32 address, the Hub-owned model_id, and the
-	// governance-chosen bucket_key.
-	sessionOwnerKeyCodec := collections.PairKeyCodec(collections.StringKey, types.Hash32KeyCodec)
+	// Address components use raw codec bytes, while collections.StringKey remains
+	// only for true text such as the governance-chosen bucket key.
+	sessionOwnerKeyCodec := collections.PairKeyCodec(types.AddrKeyCodec, types.Hash32KeyCodec)
 	sessionLifecycleKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, types.Hash32KeyCodec, collections.Int32Key)
 	sessionHeightIndexKeyCodec := collections.PairKeyCodec(collections.Uint64Key, types.Hash32KeyCodec)
 	orderSequenceKeyCodec := collections.PairKeyCodec(types.Hash32KeyCodec, collections.Uint64Key)
@@ -194,15 +193,16 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	taskStageDigestKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, collections.Int32Key, types.Hash32KeyCodec)
 	verifyRoundKeyCodec := collections.PairKeyCodec(types.Hash32KeyCodec, collections.Uint32Key)
 	verifyRoundSegmentKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, collections.Uint32Key, collections.Uint32Key)
-	verifyActorKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, collections.Uint32Key, collections.StringKey)
-	workerEvidenceReceiptKeyCodec := collections.QuadKeyCodec(types.Hash32KeyCodec, collections.StringKey, collections.Int32Key, collections.Uint64Key)
+	addressStringKeyCodec := shared.AddressStringKeyCodec{AddressCodec: addressCodec}
+	verifyActorKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, collections.Uint32Key, addressStringKeyCodec)
+	workerEvidenceReceiptKeyCodec := collections.QuadKeyCodec(types.Hash32KeyCodec, addressStringKeyCodec, collections.Int32Key, collections.Uint64Key)
 	verifyRoundIndexKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, types.Hash32KeyCodec, collections.Uint32Key)
 	taskGasReimbursementKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, types.Hash32KeyCodec, collections.Uint32Key)
 	deadlineKeyCodec := collections.PairKeyCodec(collections.Uint64Key, types.Hash32KeyCodec)
-	roleActiveTaskKeyCodec := collections.PairKeyCodec(collections.StringKey, types.Hash32KeyCodec)
+	roleActiveTaskKeyCodec := collections.PairKeyCodec(types.AddrKeyCodec, types.Hash32KeyCodec)
 	taskBucketRefKeyCodec := collections.TripleKeyCodec(types.Hash32KeyCodec, collections.Int32Key, collections.StringKey)
 	failureClassOrderKeyCodec := collections.PairKeyCodec(collections.Int32Key, types.Hash32KeyCodec)
-	failureClassWindowKeyCodec := collections.QuadKeyCodec(collections.StringKey, collections.Uint32Key, collections.Uint64Key, failureClassOrderKeyCodec)
+	failureClassWindowKeyCodec := collections.QuadKeyCodec(types.Hash32KeyCodec, collections.Uint32Key, collections.Uint64Key, failureClassOrderKeyCodec)
 	epochTaskSummaryScheduleKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)
 
 	k := Keeper{
@@ -217,7 +217,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		Params:     collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.TaskParamsV1](cdc)),
 		ParamsMeta: collections.NewItem(sb, types.ParamsMetaKey, "params_meta", codec.CollValue[types.TaskParamsMetaState](cdc)),
 
-		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", collections.StringKey, codec.CollValue[internaltypes.SessionNonceStoreState](cdc)),
+		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", types.AddrKeyCodec, codec.CollValue[internaltypes.SessionNonceStoreState](cdc)),
 		Stream:                           collections.NewMap(sb, types.StreamStateKey, "stream_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.StreamStoreState](cdc)),
 		SessionByOwnerIndex:              collections.NewKeySet(sb, types.SessionByOwnerIndexKey, "session_by_owner_index", sessionOwnerKeyCodec),
 		SessionLifecycleIndex:            collections.NewKeySet(sb, types.SessionLifecycleIndexKeyPrefix, "session_lifecycle_index", sessionLifecycleKeyCodec),
@@ -228,7 +228,11 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		SessionTerminalSummaryPruneIndex: collections.NewKeySet(sb, types.SessionTerminalSummaryPruneIndexKey, "session_terminal_summary_prune_index", sessionHeightIndexKeyCodec),
 		TaskBudget:                       collections.NewMap(sb, types.TaskBudgetKeyPrefix, "task_budget", types.Hash32KeyCodec, codec.CollValue[types.TaskBudgetState](cdc)),
 
-		TaskCore:                       collections.NewMap(sb, types.TaskCoreKey, "task_core", types.Hash32KeyCodec, codec.CollValue[types.TaskCoreState](cdc)),
+		TaskCore: collections.NewMap(sb, types.TaskCoreKey, "task_core", types.Hash32KeyCodec, taskCoreValueCodec{
+			addressCodec: addressCodec,
+			public:       codec.CollValue[types.TaskCoreState](cdc),
+			private:      codec.CollValue[internaltypes.TaskCoreStoreState](cdc),
+		}),
 		TaskAssignment:                 collections.NewMap(sb, types.TaskAssignmentKey, "task_assignment", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskAssignmentStoreState](cdc)),
 		AssignmentCandidateSet:         collections.NewMap(sb, types.AssignmentCandidateSetKey, "assignment_candidate_set", types.Hash32KeyCodec, codec.CollValue[types.AssignmentCandidateSetState](cdc)),
 		TaskCandidateFact:              collections.NewMap(sb, types.TaskCandidateFactKey, "task_candidate_fact", taskStageSlotKeyCodec, codec.CollValue[internaltypes.TaskCandidateFactStoreState](cdc)),

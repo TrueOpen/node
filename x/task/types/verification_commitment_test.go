@@ -14,10 +14,10 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// wireVectorFile is the Wire v0.3 `trueopen.task.result_receipt.v2` fixture vendored
+// wireVectorFile is the Wire v0.3 `trueopen.task.result_receipt.v3` fixture vendored
 // under testdata. It is the single authority for the V2 result-chain preimages;
 // Node reproduces it rather than pinning locally computed digests.
-const wireVectorFile = "testdata/result_receipt_v2.json"
+const wireVectorFile = "testdata/result_receipt_v3.json"
 
 type wireVectorSet struct {
 	Vectors []struct {
@@ -55,20 +55,14 @@ func TestMetricSummaryHashMatchesWireVector(t *testing.T) {
 	preimage, digest := loadWireVector(t, "metric_summary_v1")
 
 	summary := tasktypes.MetricSummaryV1{
-		FiniteCount:                3,
-		MissingComparedCount:       0,
-		MeanAbsLogprobDiffFp_1E6:   10_000,
-		AbsLogprobDiffP95Fp_1E6:    20_000,
-		AbsLogprobDiffP99Fp_1E6:    30_000,
-		RankDeltaNonzeroRateFp_1E6: 40_000,
-		XTopkJaccardMeanFp_1E6: &tasktypes.MetricSummaryV1_TopkJaccardMeanFp_1E6{
-			TopkJaccardMeanFp_1E6: 900_000,
-		},
-		XUnionJsP99Fp_1E6: &tasktypes.MetricSummaryV1_UnionJsP99Fp_1E6{
-			UnionJsP99Fp_1E6: 50_000,
-		},
-		ComparedTopkCount: 3,
-		ComparedRankCount: 3,
+		FiniteCount:                2,
+		MissingComparedCount:       1,
+		MeanAbsLogprobDiffFp_1E6:   50_000,
+		AbsLogprobDiffP95Fp_1E6:    50_000,
+		AbsLogprobDiffP99Fp_1E6:    50_000,
+		RankDeltaNonzeroRateFp_1E6: 0,
+		ComparedTopkCount: 0,
+		ComparedRankCount: 2,
 	}
 
 	// The published preimage is the whole H_FIELDS_V1 root — the domain frame
@@ -88,25 +82,28 @@ func TestResultReceiptSigningDigestReadsEveryField(t *testing.T) {
 	baseDigest, err := tasktypes.ResultReceiptSigningDigest(base)
 	require.NoError(t, err)
 
-	mutations := map[string]func(*tasktypes.ResultReceiptV2){
-		"schema_version":              func(v *tasktypes.ResultReceiptV2) { v.SchemaVersion++ },
-		"chain_id":                    func(v *tasktypes.ResultReceiptV2) { v.ChainId += "-other" },
-		"task_id":                     func(v *tasktypes.ResultReceiptV2) { v.TaskId[0] ^= 0xff },
-		"verify_round":                func(v *tasktypes.ResultReceiptV2) { v.VerifyRound++ },
-		"verifier_operator_address":   func(v *tasktypes.ResultReceiptV2) { v.VerifierOperatorAddress = verificationAddress(t, 0x41) },
-		"service_authorization_nonce": func(v *tasktypes.ResultReceiptV2) { v.ServiceAuthorizationNonce++ },
-		"generation_params_digest":    func(v *tasktypes.ResultReceiptV2) { v.GenerationParamsDigest[0] ^= 0xff },
-		"metric_root":                 func(v *tasktypes.ResultReceiptV2) { v.MetricRoot[0] ^= 0xff },
-		"metric_summary":              func(v *tasktypes.ResultReceiptV2) { v.MetricSummary.FiniteCount++ },
-		"aggregate_proof_hash":        func(v *tasktypes.ResultReceiptV2) { v.AggregateProofHash[0] ^= 0xff },
-		"verifier_evidence_bundle_hash": func(v *tasktypes.ResultReceiptV2) {
+	mutations := map[string]func(*tasktypes.ResultReceiptV3){
+		"schema_version":              func(v *tasktypes.ResultReceiptV3) { v.SchemaVersion++ },
+		"chain_id":                    func(v *tasktypes.ResultReceiptV3) { v.ChainId += "-other" },
+		"task_id":                     func(v *tasktypes.ResultReceiptV3) { v.TaskId[0] ^= 0xff },
+		"verify_round":                func(v *tasktypes.ResultReceiptV3) { v.VerifyRound++ },
+		"verifier_operator_address":   func(v *tasktypes.ResultReceiptV3) { v.VerifierOperatorAddress = verificationAddress(t, 0x41) },
+		"service_authorization_nonce": func(v *tasktypes.ResultReceiptV3) { v.ServiceAuthorizationNonce++ },
+		"generation_params_digest":    func(v *tasktypes.ResultReceiptV3) { v.GenerationParamsDigest[0] ^= 0xff },
+		"metric_root":                 func(v *tasktypes.ResultReceiptV3) { v.MetricRoot[0] ^= 0xff },
+		"metric_summary":              func(v *tasktypes.ResultReceiptV3) { v.MetricSummary.FiniteCount++ },
+		"aggregate_proof_hash":        func(v *tasktypes.ResultReceiptV3) { v.AggregateProofHash[0] ^= 0xff },
+		"verifier_evidence_bundle_hash": func(v *tasktypes.ResultReceiptV3) {
 			v.VerifierEvidenceBundleHash[0] ^= 0xff
 		},
-		"verifier_evidence_manifest_size_bytes": func(v *tasktypes.ResultReceiptV2) {
+		"verifier_evidence_manifest_size_bytes": func(v *tasktypes.ResultReceiptV3) {
 			v.VerifierEvidenceManifestSizeBytes++
 		},
-		"salt":          func(v *tasktypes.ResultReceiptV2) { v.Salt[0] ^= 0xff },
-		"expiry_height": func(v *tasktypes.ResultReceiptV2) { v.ExpiryHeight++ },
+		"salt":                             func(v *tasktypes.ResultReceiptV3) { v.Salt[0] ^= 0xff },
+		"expiry_height":                    func(v *tasktypes.ResultReceiptV3) { v.ExpiryHeight++ },
+		"verifier_value_root":              func(v *tasktypes.ResultReceiptV3) { v.VerifierValueRoot[0] ^= 0xff },
+		"metric_leaf_count":                func(v *tasktypes.ResultReceiptV3) { v.MetricLeafCount++ },
+		"verifier_evidence_key_commitment": func(v *tasktypes.ResultReceiptV3) { v.VerifierEvidenceKeyCommitment[0] ^= 0xff },
 	}
 	for name, mutate := range mutations {
 		t.Run(name, func(t *testing.T) {
@@ -174,10 +171,10 @@ func TestCommitmentHelpersRejectNonHashPlaceholders(t *testing.T) {
 	require.Error(t, err)
 }
 
-func verificationReceiptFixture(t *testing.T) tasktypes.ResultReceiptV2 {
+func verificationReceiptFixture(t *testing.T) tasktypes.ResultReceiptV3 {
 	t.Helper()
-	return tasktypes.ResultReceiptV2{
-		SchemaVersion:             tasktypes.ResultReceiptSchemaVersionV2,
+	return tasktypes.ResultReceiptV3{
+		SchemaVersion:             tasktypes.ResultReceiptSchemaVersionV3,
 		ChainId:                   "trueopen-verification-1",
 		TaskId:                    verificationBytes(0x11),
 		VerifyRound:               7,
@@ -207,6 +204,9 @@ func verificationReceiptFixture(t *testing.T) tasktypes.ResultReceiptV2 {
 		Salt:                              verificationBytes(0x66),
 		ExpiryHeight:                      987_654,
 		ServiceSignature:                  make([]byte, 64),
+		VerifierValueRoot:                 verificationBytes(0x77),
+		MetricLeafCount:                   23,
+		VerifierEvidenceKeyCommitment:     make([]byte, tasktypes.Hash32Len),
 	}
 }
 

@@ -85,20 +85,20 @@ func TestTaskCompletionActivatesSupportAndJailRecoveryRestoresIt(t *testing.T) {
 		OrderValue: req.OrderValue, Height: 3,
 	}
 	require.NoError(t, f.keeper.RecordTaskSupportCompletion(f.ctx, fact))
-	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.True(t, support.SupportActive)
 	require.Equal(t, types.ModelSupportActivationVerifierAssignedValid, support.ActivationKind)
 	require.Equal(t, shared.DutyVerifier, support.FirstActivationDuty)
-	profile, err := f.keeper.GetProfile(f.ctx, req.ModelID, req.ProfileVersion)
+	model, err := f.keeper.GetModel(f.ctx, req.ModelID)
 	require.NoError(t, err)
-	require.Equal(t, types.ModelStatusActive, profile.Status)
+	require.Equal(t, types.ModelStatusActive, model.Status)
 	bond, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceBondStatusActive, bond.Status)
 	require.Len(t, hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventModelSupportActivated{}), activationEventsBefore+1)
 
-	capability, err := f.keeper.GetProfileCapabilityState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	capability, err := f.keeper.GetModelCapabilityState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	secondTaskID := hubHash("support-refresh-second-task")
 	second := seedOwnedTaskLiabilityForTest(
@@ -109,10 +109,10 @@ func TestTaskCompletionActivatesSupportAndJailRecoveryRestoresIt(t *testing.T) {
 	secondFact.TaskID = second.TaskId
 	secondFact.Height = 4
 	require.NoError(t, f.keeper.RecordTaskSupportCompletion(f.ctx, secondFact))
-	afterSecond, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	afterSecond, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.RecordTaskSupportCompletion(f.ctx, fact))
-	afterReplay, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	afterReplay, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.Equal(t, afterSecond.SupportVersion, afterReplay.SupportVersion)
 	require.Equal(t, afterSecond.SupportFreshUntilEpoch, afterReplay.SupportFreshUntilEpoch)
@@ -121,7 +121,7 @@ func TestTaskCompletionActivatesSupportAndJailRecoveryRestoresIt(t *testing.T) {
 	_, tombstoned, err := f.keeper.IncJail(f.ctx, identity.Address, types.ServiceBondRoleVerifier, 5)
 	require.NoError(t, err)
 	require.False(t, tombstoned)
-	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.False(t, support.SupportActive)
 
@@ -135,7 +135,7 @@ func TestTaskCompletionActivatesSupportAndJailRecoveryRestoresIt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceBondStatusActive, bond.Status)
 	require.Zero(t, bond.JailCount)
-	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.True(t, support.SupportActive)
 	recoveryEvents := hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceJailRecovered{})
@@ -203,7 +203,7 @@ func seedJailAdmissionLiabilityFixture(t *testing.T, salt int) (*fixture, hubTes
 		BondVersionSnapshot:       bond.BondVersion,
 		CapabilityVersionSnapshot: supportVersion,
 		SupportVersionSnapshot:    supportVersion,
-		ModelID:                   modelID, ProfileVersion: profileVersion, Height: 2,
+		ModelID:                   testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), hubAddress(t, 250), modelID), ProfileVersion: profileVersion, Height: 2,
 	}
 }
 
@@ -238,17 +238,17 @@ func TestTaskSupportCompletionSkipsUnmetConditionsInsteadOfFailingSettlement(t *
 
 	// The support row goes stale after the liability was frozen, exactly as it
 	// would if the operator unstaked or let the window lapse mid-task.
-	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	before := support
 	support.DeclaredSupport = false
 	support.SupportFreshUntilEpoch = 0
 	require.NoError(t, f.keeper.ModelSupport.Set(f.ctx,
-		types.NewModelSupportKey(identity.Address, req.ModelID, req.ProfileVersion), support))
+		types.NewModelSupportKey(identity.Address, req.ModelID), support))
 
 	require.NoError(t, f.keeper.RecordTaskSupportCompletion(f.ctx, fact),
 		"an unmet activation condition must not fail the settlement transaction")
-	after, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID, req.ProfileVersion)
+	after, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
 	require.NoError(t, err)
 	require.False(t, after.SupportActive)
 	require.Equal(t, support.SupportVersion, after.SupportVersion, "a skipped completion writes nothing")

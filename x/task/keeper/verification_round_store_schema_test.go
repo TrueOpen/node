@@ -87,6 +87,9 @@ func TestTaskAssignmentPrivateStoreWireLayoutMatchesPublic(t *testing.T) {
 		case 10:
 			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_STRING, public.GetType())
 			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_BYTES, private.GetType())
+		case 23:
+			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_MESSAGE, public.GetType())
+			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_BYTES, private.GetType())
 		case 6:
 			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_ENUM, public.GetType())
 			require.Equal(t, descriptor.FieldDescriptorProto_TYPE_INT32, private.GetType())

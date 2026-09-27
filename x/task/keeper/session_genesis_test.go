@@ -42,6 +42,39 @@ func TestSessionTerminalSummaryGenesisStoresRawOwnerAndRoundTrips(t *testing.T) 
 	require.True(t, proto.Equal(exported, reexported))
 }
 
+func TestSessionNonceGenesisUsesRawAddressKeyAndRejectsMismatchedValue(t *testing.T) {
+	f := initFixture(t)
+	genesis := tasktypes.DefaultGenesis()
+	genesis.SessionNonces = []tasktypes.SessionNonceState{{UserAddress: genesisUser, NextSessionNonce: 7}}
+	require.NoError(t, genesis.Validate())
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+	raw, err := sdk.AccAddressFromBech32(genesisUser)
+	require.NoError(t, err)
+	key := tasktypes.AddrKey(raw)
+	stored, err := f.keeper.SessionNonce.Get(f.ctx, key)
+	require.NoError(t, err)
+	require.Equal(t, []byte(raw), stored.UserAddress)
+	iter, err := f.keeper.SessionNonce.Iterate(f.ctx, nil)
+	require.NoError(t, err)
+	entry, err := iter.KeyValue()
+	require.NoError(t, err)
+	require.Equal(t, []byte(raw), []byte(entry.Key))
+	require.NoError(t, iter.Close())
+	state, err := f.keeper.ReadSessionNonce(f.ctx, genesisUser)
+	require.NoError(t, err)
+	require.Equal(t, genesis.SessionNonces[0], state)
+	exported, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.True(t, proto.Equal(genesis, exported))
+
+	stored.UserAddress = bytes.Repeat([]byte{0x7f}, len(raw))
+	require.NoError(t, f.keeper.SessionNonce.Set(f.ctx, key, stored))
+	_, err = f.keeper.ReadSessionNonce(f.ctx, genesisUser)
+	require.ErrorContains(t, err, "session nonce key/address mismatch")
+	_, err = f.keeper.ExportGenesis(f.ctx)
+	require.ErrorContains(t, err, "session nonce key/address mismatch")
+}
+
 func TestSessionGenesisRoundTripAllowsCancelledSequenceWithoutTaskID(t *testing.T) {
 	f := initFixture(t)
 	genesis := tasktypes.DefaultGenesis()

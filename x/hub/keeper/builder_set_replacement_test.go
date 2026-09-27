@@ -166,7 +166,7 @@ func (f *builderSetReplacementFixture) seedGenesisBuilderSet(t *testing.T) {
 		}))
 	}
 	require.NoError(t, f.keeper.CurrentBuilderSet.Set(f.ctx, types.CurrentBuilderSetState{
-		Mode: "GOVERNED_FIXED_V1", BuilderSetVersion: 1, BuilderSetId: set.BuilderSetId,
+		Mode: types.BuilderSetModeV1_BUILDER_SET_MODE_V1_GOVERNED_FIXED_V1, BuilderSetVersion: 1, BuilderSetId: set.BuilderSetId,
 		BuilderSetHash: setHash, BuilderSetMembersHash: membersHash, EffectiveHeight: 1,
 	}))
 }
@@ -421,7 +421,7 @@ func TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), current.BuilderSetVersion)
 	require.Equal(t, builderSetTestNextID, current.BuilderSetId)
-	require.Equal(t, "GOVERNED_FIXED_V1", current.Mode)
+	require.Equal(t, types.BuilderSetModeV1_BUILDER_SET_MODE_V1_GOVERNED_FIXED_V1, current.Mode)
 	require.Equal(t, pending.Pending.NextBuilderSetHash, current.BuilderSetHash)
 	require.Equal(t, f.leadFor, current.EffectiveHeight)
 
