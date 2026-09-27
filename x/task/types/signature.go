@@ -1,8 +1,6 @@
 package types
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"math"
 
@@ -296,25 +294,6 @@ func VerifierHandraiseSigningDigest(handraise VerifierHandraiseV1) ([32]byte, er
 	return [32]byte(digest), nil
 }
 
-// CanonicalCandidateMemberRefFrameV1 encodes the required nested
-// CandidateMemberRefV1 of §4.1 as a FieldFrameV1 with NO domain prefix and its four
-// fields in ascending schema field-number order (§1.2):
-//
-//	u64_be(32) || candidate_pool_snapshot_id
-//	u64_be(4)  || uint32_be(slot)
-//	u64_be(8)  || uint64_be(slot_version)
-//	u64_be(n)  || operator_address codec bytes
-//
-// The handraise carries candidate_pool_snapshot_id only; §4.1 forbids an asserted
-// pool-hash copy because the snapshot ID already commits to it.
-func CanonicalCandidateMemberRefFrameV1(member CandidateMemberRefV1) ([]byte, error) {
-	frame, err := CanonicalCandidateMemberRefTypedFrameV1(member)
-	if err != nil {
-		return nil, err
-	}
-	return frame.Bytes()
-}
-
 func CanonicalCandidateMemberRefTypedFrameV1(member CandidateMemberRefV1) (shared.CanonicalFrameV1, error) {
 	snapshotID, err := canonicalHash32("member.candidate_pool_snapshot_id", member.CandidatePoolSnapshotId)
 	if err != nil {
@@ -344,10 +323,4 @@ func canonicalDuty(duty shared.Duty) (uint32, error) {
 	default:
 		return 0, fmt.Errorf("duty %d is not a registered Duty value", int32(duty))
 	}
-}
-
-// IsCanonicalSHA256Hex reports whether value is a lowercase, 32-byte SHA-256 digest.
-func IsCanonicalSHA256Hex(value string) bool {
-	raw, err := hex.DecodeString(value)
-	return err == nil && len(raw) == sha256.Size && hex.EncodeToString(raw) == value
 }

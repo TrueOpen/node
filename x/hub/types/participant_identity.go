@@ -321,7 +321,3 @@ func isValidServiceEndpointKind(value ServiceEndpointKind) bool {
 		return false
 	}
 }
-
-func IsValidBuilderStatus(value BuilderStatus) bool {
-	return value == BuilderStatus_BUILDER_STATUS_ADMITTED || value == BuilderStatus_BUILDER_STATUS_REVOKED
-}

@@ -67,10 +67,6 @@ func IsKnownEvidenceKind(kind EvidenceKind) bool {
 	}
 }
 
-func CanonicalInferEvidenceRequirementFrameV1(requirement InferEvidenceRequirementV1) ([]byte, error) {
-	return CanonicalInferEvidenceRequirementTypedFrameV1(requirement).Bytes()
-}
-
 func CanonicalInferEvidenceRequirementTypedFrameV1(requirement InferEvidenceRequirementV1) CanonicalFrameV1 {
 	if !IsKnownEvidenceKind(requirement.EvidenceKind) {
 		return canonicalFrameErrorV1(fmt.Errorf("unknown evidence_kind %d", requirement.EvidenceKind))

@@ -575,25 +575,6 @@ func (v canonicalHubParamsValue) canonicalField() shared.CanonicalFieldV1 {
 	}
 }
 
-func (v canonicalHubParamsValue) appendScalarLeaves(leaves [][]byte) [][]byte {
-	if v.kind == canonicalHubParamsScalar {
-		return append(leaves, append([]byte(nil), v.scalar...))
-	}
-	for _, child := range v.children {
-		leaves = child.appendScalarLeaves(leaves)
-	}
-	return leaves
-}
-
-func CanonicalHubParamsFields(p HubParamsV2) [][]byte {
-	values := canonicalHubParamsValues(p)
-	leaves := make([][]byte, 0, 128)
-	for _, value := range values {
-		leaves = value.appendScalarLeaves(leaves)
-	}
-	return leaves
-}
-
 func CanonicalHubParamsTypedFields(p HubParamsV2) []shared.CanonicalFieldV1 {
 	values := canonicalHubParamsValues(p)
 	fields := make([]shared.CanonicalFieldV1, len(values))

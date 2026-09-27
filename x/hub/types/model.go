@@ -218,11 +218,6 @@ func (s RegistrationReceipt) Validate() error {
 	return nil
 }
 
-// ValidateModelID preserves the Hub API while delegating the shared identifier contract.
-func ValidateModelID(value string) error {
-	return shared.ValidateModelID(value)
-}
-
 func validModelStatusSource(status ModelProfileStatus, source ModelStatusSource) bool {
 	switch status {
 	case ModelStatusRegistered, ModelStatusActive:

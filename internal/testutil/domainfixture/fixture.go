@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -310,8 +309,4 @@ func RequireProducer(t testing.TB, vector Vector, want string) {
 	if vector.Producer != want {
 		t.Fatalf("%s producer is %q, want %q", vector.Name, vector.Producer, want)
 	}
-}
-
-func Where(vector Vector, suffix string) string {
-	return fmt.Sprintf("%s.%s", vector.Name, suffix)
 }

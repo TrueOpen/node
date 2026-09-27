@@ -164,11 +164,6 @@ func OptionalPresentCanonicalFieldV1(encoded []byte) CanonicalFieldV1 {
 	return PrefixedNestedCanonicalFieldV1([]byte{1}, FlatCanonicalFrameV1(encoded))
 }
 
-// OptionalPresentNestedCanonicalFieldV1 encodes 01 || FRAME_V1(nested frame).
-func OptionalPresentNestedCanonicalFieldV1(frame CanonicalFrameV1) CanonicalFieldV1 {
-	return PrefixedNestedCanonicalFieldV1([]byte{1}, NewCanonicalFrameBuilderV1().Nested(frame).Build())
-}
-
 // OneofFrameV1 encodes one selected branch as u32_be(field_number) followed by
 // FRAME_V1 over its already-encoded payload fields. The caller owns the schema
 // check that the non-zero field number names an allowed branch.
