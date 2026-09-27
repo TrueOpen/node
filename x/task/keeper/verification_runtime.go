@@ -279,11 +279,13 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 		VerifyRound: receipt.VerifyRound, SelectedVerifierIndex: selectedIndex,
 		VerifierOperatorAddress: operator, InferReceiptHash: infer.InferReceiptHash,
 		ProfileExecutionSnapshotHash: taskAssignment.ProfileExecutionSnapshotHash,
-		GenerationParamsDigest:       receipt.GenerationParamsDigest, MetricRoot: receipt.MetricRoot,
+		GenerationParamsDigest: receipt.GenerationParamsDigest, VerifierValueRoot: receipt.VerifierValueRoot,
+		MetricRoot:      receipt.MetricRoot,
 		MetricLeafCount: uint32(metricLeafCount), MetricSummaryHash: metricSummaryHash[:],
 		AggregateProofHash:                receipt.AggregateProofHash,
 		VerifierEvidenceBundleHash:        receipt.VerifierEvidenceBundleHash,
 		VerifierEvidenceManifestSizeBytes: receipt.VerifierEvidenceManifestSizeBytes,
+		VerifierEvidenceKeyCommitment:     receipt.VerifierEvidenceKeyCommitment,
 	})
 	if err != nil {
 		return plan, errorsmod.Wrap(types.ErrInvalidOpenVerify, err.Error())

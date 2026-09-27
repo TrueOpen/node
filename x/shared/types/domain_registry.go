@@ -177,7 +177,7 @@ const (
 	DomainVerifierFinalizeCursorLeafV1    = "TRUEOPEN_VERIFIER_FINALIZE_CURSOR_LEAF_V1"
 	DomainVerifierHandraiseV1             = "TRUEOPEN_VERIFIER_HANDRAISE_V1"
 	DomainVerifierLegalSetV1              = "TRUEOPEN_VERIFIER_LEGAL_SET_V1"
-	DomainVerifierResultPayloadV1         = "TRUEOPEN_VERIFIER_RESULT_PAYLOAD_V1"
+	DomainVerifierResultPayloadV2         = "TRUEOPEN_VERIFIER_RESULT_PAYLOAD_V2"
 	DomainVerifierWindowRankV1            = "TRUEOPEN_VERIFIER_WINDOW_RANK_V1"
 	DomainVerifierWindowSourceV1          = "TRUEOPEN_VERIFIER_WINDOW_SOURCE_V1"
 	DomainVerifierWindowV1                = "TRUEOPEN_VERIFIER_WINDOW_V1"

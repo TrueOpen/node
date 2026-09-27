@@ -6,7 +6,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-const verifierResultPayloadVersionV1 = "VERIFIER_RESULT_REVEAL_V1"
+const verifierResultPayloadVersionV2 = "VERIFIER_RESULT_REVEAL_V2"
 
 // VerifierResultPayloadInput contains the authoritative inputs to the opaque
 // canonical verifier payload. Caller-supplied ResultReceiptV3 fields and
@@ -21,12 +21,14 @@ type VerifierResultPayloadInput struct {
 	InferReceiptHash                  []byte
 	ProfileExecutionSnapshotHash      []byte
 	GenerationParamsDigest            []byte
+	VerifierValueRoot                 []byte
 	MetricRoot                        []byte
 	MetricLeafCount                   uint32
 	MetricSummaryHash                 []byte
 	AggregateProofHash                []byte
 	VerifierEvidenceBundleHash        []byte
 	VerifierEvidenceManifestSizeBytes uint64
+	VerifierEvidenceKeyCommitment     []byte
 }
 
 // VerifierResultPayloadHash derives the H_V1 commitment to the canonical
@@ -49,10 +51,12 @@ func VerifierResultPayloadHash(input VerifierResultPayloadInput) ([32]byte, erro
 		{"infer_receipt_hash", input.InferReceiptHash},
 		{"profile_execution_snapshot_hash", input.ProfileExecutionSnapshotHash},
 		{"generation_params_digest", input.GenerationParamsDigest},
+		{"verifier_value_root", input.VerifierValueRoot},
 		{"metric_root", input.MetricRoot},
 		{"metric_summary_hash", input.MetricSummaryHash},
 		{"aggregate_proof_hash", input.AggregateProofHash},
 		{"verifier_evidence_bundle_hash", input.VerifierEvidenceBundleHash},
+		{"verifier_evidence_key_commitment", input.VerifierEvidenceKeyCommitment},
 	}
 	canonical := make([][]byte, len(hashes))
 	for i, item := range hashes {
@@ -62,17 +66,18 @@ func VerifierResultPayloadHash(input VerifierResultPayloadInput) ([32]byte, erro
 		}
 	}
 	payload, err := shared.FlatCanonicalFrameV1(
-		[]byte(verifierResultPayloadVersionV1), chainID,
+		[]byte(verifierResultPayloadVersionV2), chainID,
 		canonical[0], canonical[1], shared.Uint32BE(input.VerifyRound),
 		shared.Uint32BE(input.SelectedVerifierIndex), verifier,
 		canonical[2], canonical[3], canonical[4], canonical[5],
-		shared.Uint32BE(input.MetricLeafCount), canonical[6], canonical[7],
-		canonical[8], shared.Uint64BE(input.VerifierEvidenceManifestSizeBytes),
+		canonical[6], shared.Uint32BE(input.MetricLeafCount), canonical[7],
+		canonical[8], canonical[9], shared.Uint64BE(input.VerifierEvidenceManifestSizeBytes),
+		canonical[10],
 	).Bytes()
 	if err != nil {
 		return [32]byte{}, err
 	}
-	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainVerifierResultPayloadV1), payload)
+	digest, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainVerifierResultPayloadV2), payload)
 	if err != nil {
 		return [32]byte{}, err
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdklegacy "github.com/cosmos/cosmos-sdk/codec/legacy"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -307,12 +308,31 @@ func requiresFreshGenesisVrfKeyCoverage(req *abci.RequestInitChain) bool {
 // the account key and tx extension types used by Ethereum wallets. The SDK
 // crypto registrations already exist at this point, so only the EVM additions
 // are installed to avoid duplicate Amino registrations.
+//
+// codec/legacy.Cdc is a second, separate global amino codec the SDK keeps for
+// itself (x/auth/ante.ConsumeTxSizeGasDecorator marshals the simulated
+// signature through it, not through app.legacyAmino). Registering
+// ethsecp256k1 only on app.legacyAmino left that global codec unable to
+// encode this chain's only account pubkey type, so any tx whose gas is
+// estimated via simulation (the CLI's --gas auto, or any client doing the
+// same) panicked baseapp's runTx instead of failing cleanly.
 func RegisterEthereumAccountEncoding(amino *codec.LegacyAmino, interfaces codectypes.InterfaceRegistry) {
 	evmcryptocodec.RegisterInterfaces(interfaces)
 	eip712.RegisterInterfaces(interfaces)
 	amino.RegisterConcrete(&ethsecp256k1.PubKey{}, ethsecp256k1.PubKeyName, nil)
 	amino.RegisterConcrete(&ethsecp256k1.PrivKey{}, ethsecp256k1.PrivKeyName, nil)
+	registerEthereumAccountEncodingOnSDKGlobalCodec()
 }
+
+// registerEthereumAccountEncodingOnSDKGlobalCodec runs the same two
+// registrations against codec/legacy.Cdc exactly once per process: it is a
+// package-level global the SDK owns, and every App construction after the
+// first (every test in this module boots one) would otherwise re-register
+// the same concrete type and panic.
+var registerEthereumAccountEncodingOnSDKGlobalCodec = sync.OnceFunc(func() {
+	sdklegacy.Cdc.RegisterConcrete(&ethsecp256k1.PubKey{}, ethsecp256k1.PubKeyName, nil)
+	sdklegacy.Cdc.RegisterConcrete(&ethsecp256k1.PrivKey{}, ethsecp256k1.PrivKeyName, nil)
+})
 
 // EnsureLoadedStoreSchemas rejects Task stores that do not match the exact
 // schema supported by this binary. Hub uses a fresh-genesis-only contract and
