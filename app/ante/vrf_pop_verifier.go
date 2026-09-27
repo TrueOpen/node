@@ -34,8 +34,12 @@ func (vrfPoPVerifier) VerifyVrfPossession(pubkey, alpha, proof []byte) error {
 	if len(proof) == 0 {
 		return errors.New("vrf possession proof must not be empty")
 	}
+	// Same final RFC 9381 suite Prove/VerifyBeaconProof use (vrf_verifier.go):
+	// Verify_v10 is an earlier IETF draft with different domain separators and
+	// never verifies a proof this repo's own Prove produces, so every
+	// MsgRegisterVrfKey would fail possession no matter how it was signed.
 	public := ed25519.PublicKey(append([]byte(nil), pubkey...))
-	if ok, _ := ecvrf.Verify_v10(public, proof, alpha); !ok {
+	if ok, _ := ecvrf.Verify(public, proof, alpha); !ok {
 		return errors.New("vrf possession proof does not verify under the submitted public key")
 	}
 	return nil
