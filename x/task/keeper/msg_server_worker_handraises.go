@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -190,16 +191,25 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		ProposalDigest: proposalDigest[:], ProposerOperator: builder,
 	}
 
-	facts := make([]types.TaskCandidateFactState, len(msg.Handraises))
+	// A handraise that is no longer eligible by the time this proposal lands is
+	// skipped, not fatal: a Task Builder collects handraises from many
+	// independent operators and cannot guarantee every one is still eligible at
+	// inclusion time, so one stale or bad-faith handraise must not void every
+	// other operator's otherwise-valid candidacy in the same proposal. See
+	// errCandidateNotApplicable.
+	facts := make([]types.TaskCandidateFactState, 0, len(msg.Handraises))
 	newSlots := make([]uint32, 0, len(msg.Handraises))
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))
 	existingSlots := make([]uint32, 0, len(msg.Handraises))
-	for index, handraise := range msg.Handraises {
+	for _, handraise := range msg.Handraises {
 		fact, err := m.k.freezeWorkerCandidateFact(cache, pool, handraise, orderValue, minStake, currentHeight)
 		if err != nil {
+			if errors.Is(err, errCandidateNotApplicable) {
+				continue
+			}
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 		}
-		facts[index] = fact
+		facts = append(facts, fact)
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
 		if persisted, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			// An accepted fact is immutable; a second proposal may re-list the same

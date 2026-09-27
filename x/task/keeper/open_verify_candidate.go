@@ -745,45 +745,45 @@ func (k Keeper) freezeVerifierCandidateFact(
 		handraise.VerifyRound != window.VerifyRound || !bytes.Equal(handraise.InferReceiptHash, receipt.InferReceiptHash) ||
 		!bytes.Equal(handraise.OutputHash, receipt.OutputHash) || !bytes.Equal(handraise.ModelId, core.ModelId) ||
 		handraise.ProfileVersion != core.ProfileVersion {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise scope is invalid")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise scope is invalid: %w", errCandidateNotApplicable)
 	}
 	if handraise.ExpiryHeight == 0 || acceptedHeight > handraise.ExpiryHeight || acceptedHeight > window.HandraiseCloseHeight {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise expired")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise expired: %w", errCandidateNotApplicable)
 	}
 	if !bytes.Equal(handraise.Member.CandidatePoolSnapshotId, window.CandidatePoolSnapshotId) ||
 		handraise.Member.Slot != member.Slot || handraise.Member.SlotVersion != member.SlotVersion ||
 		handraise.Member.OperatorAddress != member.OperatorAddress {
-		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise window member mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("verifier handraise window member mismatch: %w", errCandidateNotApplicable)
 	}
 	operatorBytes, operator, err := k.canonicalAddress("verifier_operator_address", handraise.Member.OperatorAddress)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if operator == assignment.WinnerWorker {
-		return types.TaskCandidateFactState{}, fmt.Errorf("winner worker cannot verify the same task")
+		return types.TaskCandidateFactState{}, fmt.Errorf("winner worker cannot verify the same task: %w", errCandidateNotApplicable)
 	}
 	poolMember, binding, err := k.hubKeeper.ResolveCandidatePoolMember(ctx, window.CandidatePoolSnapshotId, member.Slot)
 	if err != nil {
-		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member: %w", err)
+		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member: %w: %w", err, errCandidateNotApplicable)
 	}
 	if poolMember.SlotVersion != member.SlotVersion || poolMember.OperatorAddress != operator ||
 		binding.SlotVersion != member.SlotVersion || binding.OperatorAddress != operator || !bytes.Equal(poolMember.BindingHash, binding.BindingHash) {
-		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member binding mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("candidate pool member binding mismatch: %w", errCandidateNotApplicable)
 	}
 	node, ok := k.hubKeeper.GetCortexNode(sdk.UnwrapSDKContext(ctx), sdk.AccAddress(operatorBytes))
 	if !ok || node.OperatorAddress != operator || node.ServiceKeyStatus != hubtypes.ServiceKeyStatusActive ||
 		node.ServiceAuthorizationNonce != handraise.ServiceAuthorizationNonce {
-		return types.TaskCandidateFactState{}, fmt.Errorf("current service binding mismatch")
+		return types.TaskCandidateFactState{}, fmt.Errorf("current service binding mismatch: %w", errCandidateNotApplicable)
 	}
 	hubParams := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx))
 	eligibility, err := k.loadVerifierEligibilityFacts(ctx, core, assignment, operatorBytes, operator, hubParams)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if len(assignment.ProfileExecutionSnapshotHash) != types.Hash32Len ||
 		len(eligibility.Profile.ExecutionSnapshotHash) != types.Hash32Len ||
 		!bytes.Equal(assignment.ProfileExecutionSnapshotHash, eligibility.Profile.ExecutionSnapshotHash) {
-		return types.TaskCandidateFactState{}, fmt.Errorf("locked Profile execution snapshot is unavailable")
+		return types.TaskCandidateFactState{}, fmt.Errorf("locked Profile execution snapshot is unavailable: %w", errCandidateNotApplicable)
 	}
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -796,14 +796,14 @@ func (k Keeper) freezeVerifierCandidateFact(
 		params.Weights.CandidateWeightPpmMax,
 	)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	digest, err := types.VerifierHandraiseSigningDigest(handraise)
 	if err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	if err := k.hubKeeper.VerifyCurrentCortexServiceDigest(ctx, operator, handraise.ServiceSignature, digest[:], acceptedHeight); err != nil {
-		return types.TaskCandidateFactState{}, err
+		return types.TaskCandidateFactState{}, fmt.Errorf("%w: %w", errCandidateNotApplicable, err)
 	}
 	return types.TaskCandidateFactState{
 		SchemaVersion: types.AssignmentCandidateSchemaVersionV1,

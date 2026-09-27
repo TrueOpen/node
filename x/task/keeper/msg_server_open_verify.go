@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -173,20 +174,26 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		members[member.Slot] = member
 	}
 
-	facts := make([]types.TaskCandidateFactState, len(msg.Handraises))
+	// A handraise that is no longer eligible by the time this proposal lands is
+	// skipped, not fatal: see the identical reasoning in
+	// msg_server_worker_handraises.go and errCandidateNotApplicable.
+	facts := make([]types.TaskCandidateFactState, 0, len(msg.Handraises))
 	newSlots := make([]uint32, 0, len(msg.Handraises))
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))
 	existingSlots := make([]uint32, 0, len(msg.Handraises))
-	for index, handraise := range msg.Handraises {
+	for _, handraise := range msg.Handraises {
 		member, found := members[handraise.Member.Slot]
 		if !found {
-			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier handraise member is outside the frozen window")
+			continue
 		}
 		fact, err := m.k.freezeVerifierCandidateFact(cache, core, assignment, receipt, window, member, handraise, currentHeight)
 		if err != nil {
+			if errors.Is(err, errCandidateNotApplicable) {
+				continue
+			}
 			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, err.Error())
 		}
-		facts[index] = fact
+		facts = append(facts, fact)
 		factKey := types.NewTaskCandidateFactKey(taskKey, stage, fact.Slot)
 		if existing, err := m.k.ReadTaskCandidateFact(cache, factKey); err == nil {
 			if !proto.Equal(&existing, &fact) {

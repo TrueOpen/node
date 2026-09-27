@@ -250,3 +250,48 @@ func TestCandidateJailLadderEjectsExactlyAtTheTombstoneThreshold(t *testing.T) {
 	require.NotZero(t, candidateJailFactorPpm(threshold-1),
 		"the ladder must still admit one jail below the tombstone threshold")
 }
+
+// TestFreezeWorkerCandidateFactRejectionIsSkippable pins node issue #11: a
+// Worker candidate that is no longer eligible (here, ejected past the jail
+// ladder) must produce an error the caller can recognize as skippable rather
+// than a generic failure, so msg_server_worker_handraises.go can drop that one
+// candidate and admit the rest of the same proposal instead of rejecting the
+// whole batch.
+func TestFreezeWorkerCandidateFactRejectionIsSkippable(t *testing.T) {
+	operatorBytes := bytes.Repeat([]byte{0x61}, 20)
+	operator := sdk.AccAddress(operatorBytes).String()
+	poolID := bytes.Repeat([]byte{0x53}, types.Hash32Len)
+	bindingHash := bytes.Repeat([]byte{0x55}, types.Hash32Len)
+
+	f := initInternalFixture(t)
+	sdkCtx := sdk.UnwrapSDKContext(f.ctx).WithChainID("trueopen-window-test").WithBlockHeight(10)
+	ctx := sdk.WrapSDKContext(sdkCtx)
+	f.keeper.hubKeeper = jailAdmissionHubStub{
+		verifierAdmissionHubStub: verifierAdmissionHubStub{
+			member: hubtypes.CandidatePoolMemberState{
+				Slot: 3, SlotVersion: 1, OperatorAddress: operator, BindingHash: bindingHash,
+			},
+			binding: hubtypes.CandidateSlotBindingState{
+				Slot: 3, SlotVersion: 1, OperatorAddress: operator, BindingHash: bindingHash,
+			},
+		},
+		bondStatus: hubtypes.ServiceBondStatusJailed, jailCount: 3, // third jail ejects
+	}
+	pool := hubtypes.CandidatePoolSnapshotState{SnapshotId: poolID, SlotCapacity: 8}
+	handraise := types.WorkerHandraiseV1{
+		SchemaVersion: types.WorkerHandraiseSchemaVersionV1, ChainId: sdkCtx.ChainID(),
+		TaskId:   bytes.Repeat([]byte{0x31}, types.Hash32Len),
+		TaskHash: bytes.Repeat([]byte{0x32}, types.Hash32Len),
+		ModelId:  bytes.Repeat([]byte{0x6d}, types.Hash32Len), ProfileVersion: 1,
+		Member: types.CandidateMemberRefV1{
+			CandidatePoolSnapshotId: poolID, Slot: 3, SlotVersion: 1, OperatorAddress: operator,
+		},
+		Duty: shared.Duty_DUTY_WORKER, ServiceAuthorizationNonce: 1, ExpiryHeight: 40,
+		ServiceSignature: bytes.Repeat([]byte{0x81}, 64),
+	}
+
+	_, err := f.keeper.freezeWorkerCandidateFact(ctx, pool, handraise, 100, 1_000_000, 10)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errCandidateNotApplicable,
+		"an ineligible candidate must be recognizable as skippable, not a generic failure")
+}
