@@ -12,8 +12,8 @@
     "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.3.1",
-  "release_commit": "f1016de72fa08a8a49b9af40a7fb75902d5c785b",
+  "release_tag": "v0.3.2",
+  "release_commit": "d631c99b3a19d99ad401d4d2e924dc158eeba3a9",
   "descriptor": {
     "path": "wire/wire.binpb",
     "bytes": 1068561,
@@ -36,7 +36,7 @@
   "withheld_packages": [
     {
       "package": "cortex.v1",
-      "reason": "The v0.3.1 release withholds Cortex messages because their data-plane contract remains unfrozen; Node must not generate or depend on them from this descriptor."
+      "reason": "The v0.3.2 release withholds Cortex messages because their data-plane contract remains unfrozen; Node must not generate or depend on them from this descriptor."
     }
   ]
 }
