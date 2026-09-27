@@ -95,7 +95,7 @@ func TestModelRegistrationDigestGoldenVector(t *testing.T) {
 	require.NoError(t, err)
 	projectionHash, err := shared.PayloadHashV1(shared.MustDomain(shared.DomainModelChainProjectionV3), projectionBytes)
 	require.NoError(t, err)
-	require.Equal(t, "d9a3cc73e9ed01a0b37c2f0ef2a4ea2a4b1308f8553e93e5b2b3f34ebf095858", hex.EncodeToString(projectionHash))
+	require.Equal(t, "e8bc8a61ad223ed5782d7b6cec4bb4b86d3ba0d383a699f785e03b79a072cdf1", hex.EncodeToString(projectionHash))
 
 	digest, returnedProjection, err := ModelRegistrationDigest(
 		"trueopen-golden-1",
@@ -104,7 +104,7 @@ func TestModelRegistrationDigestGoldenVector(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, projectionBytes, returnedProjection)
-	require.Equal(t, "abd1672363a05dd9d5d9ffb381666c4fa1eae88d223a02248cf38badcddfc2c7", hex.EncodeToString(digest))
+	require.Equal(t, "6a55016e31a510a71457e4fb962558792ff93e770965fe6a55ad6f2edb3f771a", hex.EncodeToString(digest))
 }
 
 func TestProfileExecutionSnapshotHashGolden(t *testing.T) {
@@ -456,6 +456,7 @@ func goldenModelProfileProjection(t *testing.T) shared.ModelProfileProjection {
 		ModelId:        mustDecodeRegistrationHash(t, "c65241d19b257f935ddea99ea59a19175b4b29751e259853d403fe59f04f4e4f"),
 		ProfileVersion: 1,
 		ManifestHash:   mustDecodeRegistrationHash(t, "9b0148865efde2dbf366305733ee5275dc247e3b9af8def770955d3758b52031"),
+		ManifestUri:    "https://models.trueopen.example/manifests/golden-model/v1.json?rev=3&sig=ab",
 		TokenizerHash:  bytes.Repeat([]byte{0x44}, 32),
 		RuntimeClass:   "CAUSAL_LM_PREFILL_LOGPROBS_V1",
 		RequiredTopK:   20,

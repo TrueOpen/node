@@ -1164,6 +1164,11 @@
     "hub.v1.ModelParamsV1": {
       "description": "ModelParamsV1 governs parser allowlists and registration string bounds.\nUpdating a parser list only affects future registrations, not stored profiles.",
       "properties": {
+        "max_manifest_uri_bytes": {
+          "description": "max_manifest_uri_bytes caps ModelProfileProjection.manifest_uri; a\nregistration whose manifest_uri is empty or longer is rejected.",
+          "format": "int64",
+          "type": "integer"
+        },
         "max_parser_name_bytes": {
           "format": "int64",
           "type": "integer"
@@ -1569,6 +1574,10 @@
           "maxLength": 64,
           "minLength": 64,
           "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "manifest_uri": {
+          "description": "manifest_uri is the registrant-hosted retrieval pointer for the manifest\nbody, copied from the registered ModelProfileProjection.manifest_uri and\nfrozen with this profile version. QueryProfile returns it together with\nmanifest_hash; there is no separate manifest-pointer query.",
           "type": "string"
         },
         "min_stake": {

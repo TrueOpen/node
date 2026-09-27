@@ -21,6 +21,7 @@ type modelProfileJSON struct {
 	ChallengeOpenWindow     uint64                         `json:"challenge_open_window_blocks"`
 	GenerationType          string                         `json:"generation_type"`
 	ManifestHash            string                         `json:"manifest_hash"`
+	ManifestURI             string                         `json:"manifest_uri"`
 	MinStake                modelProfileCoinJSON           `json:"min_stake"`
 	ModelID                 string                         `json:"model_id"`
 	PreviousProfileVersion  uint32                         `json:"previous_profile_version"`
@@ -189,7 +190,8 @@ func ParseModelProfileProjectionJSON(data []byte) (shared.ModelProfileProjection
 
 	return shared.ModelProfileProjection{
 		ModelId: modelID, ProfileVersion: input.ProfileVersion,
-		ManifestHash: manifestHash, TokenizerHash: tokenizerHash, RuntimeClass: input.RuntimeClass,
+		ManifestHash: manifestHash, ManifestUri: input.ManifestURI,
+		TokenizerHash: tokenizerHash, RuntimeClass: input.RuntimeClass,
 		RequiredTopK: input.RequiredTopK, TaskTypes: taskTypes, GenerationType: generationType,
 		ResourceTier:              input.ResourceTier,
 		MinStake:                  sdk.NewCoin(input.MinStake.Denom, sdkmath.NewIntFromUint64(input.MinStake.Amount)),
@@ -307,7 +309,7 @@ func validateModelProfileJSONShape(data []byte) error {
 	}
 	if err := requireModelProfileFields(root,
 		"batch_verification", "challenge_open_window_blocks", "generation_type",
-		"manifest_hash", "min_stake", "model_id", "previous_profile_version",
+		"manifest_hash", "manifest_uri", "min_stake", "model_id", "previous_profile_version",
 		"pricing_profile", "profile_version", "registration_fee", "required_top_k", "resource_tier",
 		"runtime_class", "schema_hash", "source", "tool_call_parser", "reasoning_parser", "task_types", "timeout_bootstrap_profile", "tokenizer_hash",
 		"verification_profile", "verification_thresholds",

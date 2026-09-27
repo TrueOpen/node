@@ -83,6 +83,7 @@ func marshalModelProfileProjectionJSON(t *testing.T, profile shared.ModelProfile
 		"challenge_open_window_blocks": profile.ChallengeOpenWindowBlocks,
 		"generation_type":              generationTypeName(profile.GenerationType),
 		"manifest_hash":                testHashHex(profile.ManifestHash),
+		"manifest_uri":                 profile.ManifestUri,
 		"min_stake": map[string]any{
 			"amount": json.Number(profile.MinStake.Amount.String()), "denom": profile.MinStake.Denom,
 		},

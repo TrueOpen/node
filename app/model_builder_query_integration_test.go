@@ -92,6 +92,7 @@ func appTestModelProfileProjection(modelID []byte, profileVersion uint32) shared
 	projection := shared.ModelProfileProjection{
 		ModelId: modelID, ProfileVersion: profileVersion,
 		ManifestHash: requiredHash, TokenizerHash: requiredHash,
+		ManifestUri:  "https://models.trueopen.example/manifests/app-test.json",
 		RuntimeClass: "CAUSAL_LM_PREFILL_LOGPROBS_V1", RequiredTopK: 8,
 		TaskTypes:                 []shared.TaskType{shared.TaskType_TASK_TYPE_TEXT_GENERATION},
 		GenerationType:            shared.GenerationType_GENERATION_TYPE_SAMPLED,

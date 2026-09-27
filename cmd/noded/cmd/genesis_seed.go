@@ -107,6 +107,7 @@ type genesisSeedProfile struct {
 	ChallengeOpenWindow     uint64                             `json:"challenge_open_window_blocks"`
 	GenerationType          string                             `json:"generation_type"`
 	ManifestHash            string                             `json:"manifest_hash"`
+	ManifestURI             string                             `json:"manifest_uri"`
 	MinStake                genesisSeedCoin                    `json:"min_stake"`
 	Source                  shared.SourceRefV1                 `json:"source"`
 	ToolCallParser          shared.ParserRefV1                 `json:"tool_call_parser"`
@@ -1051,6 +1052,9 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 		if err != nil {
 			return err
 		}
+		if err := hubtypes.ValidateManifestURI(projection.ManifestUri, hub.Params.Model.MaxManifestUriBytes); err != nil {
+			return fmt.Errorf("profile %x/%d manifest_uri: %w", modelID, projection.ProfileVersion, err)
+		}
 		businessDenom := hub.Params.Phase0.BusinessDenom
 		if projection.MinStake.Denom != businessDenom || projection.RegistrationFee.Denom != businessDenom {
 			return fmt.Errorf("profile %x/%d amounts must use business_denom %q", modelID, projection.ProfileVersion, businessDenom)
@@ -1086,7 +1090,7 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 		}
 		profile := hubtypes.ProfileState{
 			ModelId: append([]byte(nil), modelID...), ProfileVersion: projection.ProfileVersion,
-			ManifestHash: projection.ManifestHash, TokenizerHash: projection.TokenizerHash,
+			ManifestHash: projection.ManifestHash, TokenizerHash: projection.TokenizerHash, ManifestUri: projection.ManifestUri,
 			RuntimeClass: projection.RuntimeClass, RequiredTopK: projection.RequiredTopK, TaskTypes: projection.TaskTypes,
 			GenerationType: projection.GenerationType, ResourceTier: projection.ResourceTier, MinStake: minStake,
 			ChallengeOpenWindowBlocks: projection.ChallengeOpenWindowBlocks,
@@ -1267,6 +1271,7 @@ func genesisSeedProjection(seed genesisSeedProfile, modelID []byte) (shared.Mode
 	}
 	projection := shared.ModelProfileProjection{
 		ModelId: append([]byte(nil), modelID...), ProfileVersion: seed.ProfileVersion, ManifestHash: manifestHash, TokenizerHash: tokenizerHash,
+		ManifestUri:  seed.ManifestURI,
 		RuntimeClass: seed.RuntimeClass, RequiredTopK: seed.RequiredTopK, TaskTypes: taskTypes, GenerationType: generationType,
 		ResourceTier: seed.ResourceTier, MinStake: sdk.NewCoin(seed.MinStake.Denom, sdkmath.NewIntFromUint64(seed.MinStake.Amount)),
 		ChallengeOpenWindowBlocks: seed.ChallengeOpenWindow,

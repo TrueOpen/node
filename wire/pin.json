@@ -12,17 +12,17 @@
     "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.3.0",
-  "release_commit": "3938bd25c20e63d767a0abc0067f662a993cd75a",
+  "release_tag": "v0.3.1",
+  "release_commit": "f1016de72fa08a8a49b9af40a7fb75902d5c785b",
   "descriptor": {
     "path": "wire/wire.binpb",
-    "bytes": 1066789,
-    "sha256": "d0c240eb9b1ca57ad645721dd0b23db1c4510901bdad18759ddbaf58b51460b9"
+    "bytes": 1068561,
+    "sha256": "9513467cc3aaa12d2ff997eb4460d5f37c5d21cf4a4e34c978e945c8f091b893"
   },
   "domain_registry": {
     "path": "registry/v1/domains.json",
-    "bytes": 154514,
-    "sha256": "773f91446b603eb7f9eb06bcc7d085c167822ddc062cbb56ac71d11ec0d42501"
+    "bytes": 155086,
+    "sha256": "c2afaa712a2a9bb429dc3d89630ac0f9ebe36990dd399e7ab16474bb2ee73e37"
   },
   "released_packages": [
     "bus.v1",
@@ -36,7 +36,7 @@
   "withheld_packages": [
     {
       "package": "cortex.v1",
-      "reason": "The v0.3.0 release withholds Cortex messages because their data-plane contract remains unfrozen; Node must not generate or depend on them from this descriptor."
+      "reason": "The v0.3.1 release withholds Cortex messages because their data-plane contract remains unfrozen; Node must not generate or depend on them from this descriptor."
     }
   ]
 }

@@ -39,7 +39,8 @@
       "max_revision_bytes": 128,
       "max_resolver_version_bytes": 64,
       "max_repo_id_bytes": 255,
-      "max_repo_type_bytes": 32
+      "max_repo_type_bytes": 32,
+      "max_manifest_uri_bytes": 2048
     },
     "beacon": {
       "beacon_retention_blocks": "60480",
@@ -477,6 +478,7 @@
       "challenge_open_window_blocks": 300,
       "generation_type": "SAMPLED",
       "manifest_hash": "0x86eaed40cd6276d3b0e6c5b95767078dd2a1cae9712d1244cef75b08b87e0c6a",
+      "manifest_uri": "https://models.trueopen.example/manifests/golden-model/v1.json?rev=3&sig=ab",
       "min_stake": {
         "amount": 1000000,
         "denom": "uusdc"

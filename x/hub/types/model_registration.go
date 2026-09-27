@@ -76,6 +76,7 @@ func CanonicalModelProfileProjection(profile shared.ModelProfileProjection) ([]b
 		"challenge_open_window_blocks": profile.ChallengeOpenWindowBlocks,
 		"generation_type":              generationTypeName(profile.GenerationType),
 		"manifest_hash":                manifestHash,
+		"manifest_uri":                 profile.ManifestUri,
 		"min_stake":                    minStake,
 		"model_id":                     "0x" + hex.EncodeToString(profile.ModelId),
 		"previous_profile_version":     profile.PreviousProfileVersion,
