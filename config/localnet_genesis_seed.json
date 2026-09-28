@@ -419,7 +419,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "trueopen/golden-model",
+          "model_ref": "Qwen/Qwen3-8B",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -432,7 +432,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "trueopen/golden-model",
+          "model_ref": "Qwen/Qwen3-8B",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -445,7 +445,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "trueopen/golden-model",
+          "model_ref": "Qwen/Qwen3-8B",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -458,7 +458,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "trueopen/golden-model",
+          "model_ref": "Qwen/Qwen3-8B",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -475,24 +475,30 @@
         "pass_min_sample_pass_ratio_bps": 0,
         "reject_min_sample_reject_ratio_bps": 0
       },
-      "challenge_open_window_blocks": 300,
+      "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0x86eaed40cd6276d3b0e6c5b95767078dd2a1cae9712d1244cef75b08b87e0c6a",
-      "manifest_uri": "https://models.trueopen.example/manifests/golden-model/v1.json?rev=3&sig=ab",
+      "manifest_hash": "0xd1173555a1dda1c9808342b40ef405423f9edfed718af57a9d1774b5293f774f",
+      "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/registered/1-Qwen%3AQwen3-8B/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
         "denom": "uusdc"
       },
       "source": {
         "provider": "HUGGINGFACE",
-        "repo_id": "trueopen/golden-model",
+        "repo_id": "Qwen/Qwen3-8B",
         "repo_type": "model",
         "resolver_version": "HF_RESOLVER_V1",
-        "revision": "0123456789abcdef0123456789abcdef01234567",
-        "source_uri": "hf://trueopen/golden-model@0123456789abcdef0123456789abcdef01234567"
+        "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+        "source_uri": "hf://Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
       },
-      "tool_call_parser": {},
-      "reasoning_parser": {},
+      "tool_call_parser": {
+        "name": "hermes",
+        "version": 1
+      },
+      "reasoning_parser": {
+        "name": "qwen3",
+        "version": 1
+      },
       "previous_profile_version": 0,
       "pricing_profile": {
         "initial_output_price": 10,
@@ -505,7 +511,7 @@
         "denom": "uusdc"
       },
       "required_top_k": 20,
-      "resource_tier": 1,
+      "resource_tier": 2,
       "runtime_class": "CAUSAL_LM_PREFILL_LOGPROBS_V1",
       "schema_hash": "0x9999999999999999999999999999999999999999999999999999999999999999",
       "task_types": [
@@ -518,7 +524,7 @@
         "infer_timeout_bootstrap_blocks": 100,
         "verify_timeout_bootstrap_blocks": 50
       },
-      "tokenizer_hash": "0xcbdf28d8de232c9451d0b25d75dc1ce15d74add14c3f46796838f66168d69c3b",
+      "tokenizer_hash": "0x7d23221ed4115f89bc29d8d837e71cea817941d3ba802907db4a4f1e7046f323",
       "verification_profile": {
         "canonical_encoding_version": "CANONICAL_OUTPUT_TEXT_V1",
         "evidence_schema": {

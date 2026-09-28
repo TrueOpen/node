@@ -345,7 +345,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	}
 	model := seed.Models[0]
 	require.Equal(t, "HUGGINGFACE", model.Profile.Source.Provider)
-	require.Equal(t, "trueopen/golden-model", model.Profile.Source.RepoId)
+	require.Equal(t, "Qwen/Qwen3-8B", model.Profile.Source.RepoId)
 	require.Equal(t, uint32(1), model.Profile.ProfileVersion)
 	require.Equal(t, []string{"TEXT_GENERATION", "CHAT"}, model.Profile.TaskTypes)
 	require.Equal(t, "uusdc", model.Profile.MinStake.Denom)
