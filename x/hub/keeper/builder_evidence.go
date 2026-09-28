@@ -72,8 +72,7 @@ func (k Keeper) canonicalBuilderEvidenceFact(chainID string, fact shared.Builder
 	}, nil
 }
 
-// ApplyBuilderObjectiveEvidence is the Task -> Hub fault-kernel boundary fixed
-// by the keeper contract section 5.5. Task has already verified the exact Bus bytes,
+// ApplyBuilderObjectiveEvidence is the Task -> Hub fault-kernel boundary. Task has already verified the exact Bus bytes,
 // proof key, signature, payload scope, and Task authority before this call.
 func (k Keeper) ApplyBuilderObjectiveEvidence(ctx context.Context, fact shared.BuilderObjectiveEvidenceFactV2) (shared.BuilderObjectiveEvidenceReceiptV2, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)

@@ -6,7 +6,7 @@ import (
 
 // hex32 renders a canonical 32-byte ID as its lowercase-hex string form.
 //
-// Since X-16 this is a *rendering* helper and nothing else. It used to be the
+// Now that store keys are raw bytes, this is a *rendering* helper and nothing else. It used to be the
 // module's key encoding, which put a 64-byte text form of every task_id,
 // session_id, commit_key and proposal_digest into the store — and, because IAVL
 // inner nodes carry the same keys, roughly doubled the whole task keyspace.

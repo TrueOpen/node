@@ -49,12 +49,12 @@ func SelectedTaskBuildersHash(chainID string, taskID []byte, builderSetID string
 	).Nested(shared.CanonicalRepeatedFieldsV1(elements)).Sum()
 }
 
-// ---- Frozen stage wire digests (the API contract) ----
+// ---- Frozen stage wire digests ----
 //
 // The pre-freeze infer-receipt signing-bytes helper and its hex receipt-hash wrapper
 // (this file, lines 94 and 116 at ff76daa) framed uint64 values as DECIMAL TEXT and
 // covered fields - infer_receipt_commit_hash, trace_commit_root,
-// checkpoint_commit_root, batch_log_root, token_count, work_unit - that §5.14 deleted
+// checkpoint_commit_root, batch_log_root, token_count, work_unit - that the frozen wire deleted
 // from the wire. Both are deleted outright with no alias: an alias would let a
 // caller keep producing a digest the frozen wire can never accept.
 
@@ -70,7 +70,7 @@ const (
 )
 
 // InferReceiptSigningDigest is the one ordered preimage of both
-// infer_receipt_signing_digest and infer_receipt_hash - §5.14 lines 1345-1351 write
+// infer_receipt_signing_digest and infer_receipt_hash - the protocol defines
 // them as a single equality, so a second "business hash" must never be derived:
 //
 //	infer_receipt_hash = infer_receipt_signing_digest =
@@ -85,7 +85,7 @@ const (
 // NOT a wire field: required_evidence_commitments (wire field 10) enters only through
 // the Keeper-derived EvidenceCommitmentsHash, so the signature still covers the whole
 // typed list. worker_operator_address is framed as address codec bytes, not Bech32
-// text (Ruling 24).
+// text.
 func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", receipt.ChainId)
 	if err != nil {
@@ -137,7 +137,7 @@ func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 	)
 }
 
-// VerifyCommitSigningDigest is the §5.14 lines 1353-1357 verifier commit digest:
+// VerifyCommitSigningDigest is the verifier commit digest:
 //
 //	verify_commit_signing_digest =
 //	  H_FIELDS_V1("TRUEOPEN_COMMIT_V1",
@@ -147,7 +147,7 @@ func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 //
 // Eight fields; service_signature (wire field 9) is excluded. verify_round is
 // uint32_be, never decimal text. commit_hash must be the canonical
-// TRUEOPEN_RESULT_COMMITMENT_V1 value: §5.14 forbids a "non-empty placeholder", and the
+// TRUEOPEN_RESULT_COMMITMENT_V1 value: a non-empty placeholder is forbidden, and the
 // Hash32 length check here is the structural half of that rule.
 func VerifyCommitSigningDigest(commit VerifyCommitV1) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", commit.ChainId)
@@ -187,8 +187,8 @@ func VerifyCommitSigningDigest(commit VerifyCommitV1) ([32]byte, error) {
 //	member, duty, service_authorization_nonce, expiry_height, recipient_pubkey
 //
 // member is a required nested CandidateMemberRefV1 and is therefore framed
-// recursively per §1.2, and duty is framed as uint32_be per the §1.2 enum rule.
-// §4.1 pins duty = WORKER for this wire; that equality is an admission check and is
+// recursively, and duty is framed as uint32_be per the enum rule.
+// The protocol pins duty = WORKER for this wire; that equality is an admission check and is
 // left to the handler so the derivation stays total, exactly as for schema_version.
 func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", handraise.ChainId)
@@ -242,7 +242,7 @@ func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error)
 //	model_id, profile_version, member, duty, service_authorization_nonce,
 //	expiry_height, recipient_pubkey
 //
-// Same framing rules as WorkerHandraiseSigningDigest; §4.1 pins duty = VERIFIER for
+// Same framing rules as WorkerHandraiseSigningDigest; the protocol pins duty = VERIFIER for
 // this wire.
 func VerifierHandraiseSigningDigest(handraise VerifierHandraiseV1) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", handraise.ChainId)
@@ -311,8 +311,8 @@ func CanonicalCandidateMemberRefTypedFrameV1(member CandidateMemberRefV1) (share
 	), nil
 }
 
-// canonicalDuty rejects the unspecified and unknown Duty values §1.2 requires to be
-// rejected. It does not enforce which of the two live duties belongs to which wire;
+// canonicalDuty rejects the unspecified and unknown Duty values the typed
+// encoding requires to be rejected. It does not enforce which of the two live duties belongs to which wire;
 // see WorkerHandraiseSigningDigest.
 func canonicalDuty(duty shared.Duty) (uint32, error) {
 	switch duty {

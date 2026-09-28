@@ -35,8 +35,7 @@ func DefaultGenesis() *GenesisState {
 // from a height-0 context. A Genesis exported at a later height and re-imported
 // into a fresh chain therefore has its epoch-dependent support aggregates
 // re-evaluated at epoch 0; every freshness field (support_fresh_until_epoch,
-// effective_bond_epoch) is validated against epoch 0 as well. Registered in
-// the node context document.
+// effective_bond_epoch) is validated against epoch 0 as well.
 const GenesisEpoch = uint64(0)
 
 func (gs GenesisState) Validate() error {
@@ -568,13 +567,13 @@ func validateBeaconGenesis(rows []BeaconState, checkpoints []BeaconCheckpointSta
 	return nil
 }
 
-// validateVrfKeyGenesis checks the §9.3a VRF registry rows an import carries.
+// validateVrfKeyGenesis checks the VRF registry rows an import carries.
 //
-// This is the only source of beacon verification public keys
-// (the sampling protocol), so the shape has to be pinned down at
+// This is the only source of beacon verification public keys,
+// so the shape has to be pinned down at
 // import time: a bad row does not fail InitGenesis, it makes the whole network
-// reject that validator's block the moment it is elected proposer. Genesis protocol
-// §4 requires a fresh genesis to write one active_from_epoch=0 row per validator,
+// reject that validator's block the moment it is elected proposer. A fresh genesis
+// must write one active_from_epoch=0 row per validator,
 // and that constraint is enforced here for active rows; a pending-only row can only
 // come from the export of a running chain, so it is let through.
 func validateVrfKeyGenesis(keys []VrfKeyState, history []VrfKeyHistoryState) error {
@@ -711,7 +710,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 		if err := state.Validate(); err != nil {
 			return nil, nil, fmt.Errorf("service bond: %w", err)
 		}
-		// Ruling 9: the unregistered effective_active_bond snapshot must be
+		// Epoch consistency: the unregistered effective_active_bond snapshot must be
 		// internally consistent with active_bond at the import epoch.
 		if err := ValidateServiceBondEpochConsistency(state, GenesisEpoch); err != nil {
 			return nil, nil, fmt.Errorf("service bond: %w", err)
@@ -1101,11 +1100,11 @@ func validateBuilderGenesis(gs GenesisState) error {
 // validateSupportGenesis recomputes every support aggregate from the imported
 // bond/identity/model rows instead of trusting the snapshots in the document.
 //
-// P1-10: the previous implementation summed ModelSupportState's own
+// The previous implementation summed ModelSupportState's own
 // active/eligible stake snapshots and compared the totals with ProfileState. That
 // accepted any self-consistent pair of fabricated numbers: an importer could give
 // a 1-token operator an arbitrary support_vote_weight, push a profile over the
-// §4 activation threshold and get a chain whose candidate weights and reward
+// activation threshold and get a chain whose candidate weights and reward
 // eligibility were never backed by real bond. Both the per-row weight and the
 // eligibility predicate are now derived here, and the stored snapshots must equal
 // the derived values.
@@ -1352,7 +1351,7 @@ func validateModelSupportDeactivateCursorGenesis(cursorRows []ModelSupportDeacti
 
 // validateFaultGenesis no longer takes jail or tombstone rows: jail_count,
 // normal_action_count_since_jail and the TOMBSTONED status are operator-global
-// fields on ServiceBondState (the data-structure contract), so they are validated
+// fields on ServiceBondState, so they are validated
 // by validateServiceBondState instead of by a second collection.
 func validateFaultGenesis(faultRows []RoleFaultState, summaryRows []SlashSummaryState, nodes map[string]CortexNodeState, bonds map[string]ServiceBondState) error {
 	// source is a fixed-width array rather than the hex text SlashSummarySourceKey

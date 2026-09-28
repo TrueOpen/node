@@ -17,12 +17,12 @@ import (
 //
 // Collection inventory. Primary rows are exactly the ones
 // task/v1/genesis.proto exports; height indexes are exactly the ones
-// the data-structure contract registers for this module (the two documented
+// the protocol registers for this module (the two documented
 // CONTRACT-GAP exceptions are marked in types/keys.go). Deleted collections are
 // deleted: fresh genesis has no compatibility collection, no "always empty"
 // collection and no placeholder.
 //
-// Ruling 23: every task-scoped collection is keyed by task_id alone and every task
+// Every task-scoped collection is keyed by task_id alone and every task
 // deadline index by (deadline_height, task_id). task_id is already globally
 // unique: H_FIELDS_V1("TRUEOPEN_TASK_ID_V1", session_id, order_sequence), as
 // frozen. The old (session_id, task_id) pair added
@@ -42,7 +42,7 @@ type Keeper struct {
 	Params     collections.Item[types.TaskParamsV1]
 	ParamsMeta collections.Item[types.TaskParamsMetaState]
 
-	// ---- Session / Order (the data-structure contract) ----
+	// ---- Session / Order ----
 	//
 	// Model A: a session never holds funds. SessionEscrow is deleted; TaskBudget is
 	// the only ledger. SessionByOwnerIndex holds ACTIVE/IDLE streams only, and the
@@ -60,7 +60,7 @@ type Keeper struct {
 	SessionTerminalSummaryPruneIndex collections.KeySet[types.SessionHeightIndexKey]
 	TaskBudget                       collections.Map[types.TaskBudgetKey, types.TaskBudgetState]
 
-	// ---- Task core, assignment and handraise (§4.2/§4.3/§4.6/§6.6) ----
+	// ---- Task core, assignment and handraise ----
 	//
 	// TaskCore is the only primary of task_phase / assignment_status /
 	// receipt_status / verification_status / settlement_status / challenge_status;
@@ -81,15 +81,15 @@ type Keeper struct {
 	TaskBuilderSelection           collections.Map[types.TaskKey, internaltypes.TaskBuilderSelectionStoreState]
 
 	// TaskBucketRef is the reference-count-only side of the versioned governance
-	// parameter buckets (§2.4/§6.7): the bodies and the current/pending pointers
+	// parameter buckets: the bodies and the current/pending pointers
 	// live in x/hub. It replaces the deleted per-module TimeoutBucket copy.
 	TaskBucketRef collections.Map[types.TaskBucketRefKeyTriple, types.TaskBucketRefState]
 
-	// ---- Receipt, verifier window and verification (§4.4/§6.6) ----
+	// ---- Receipt, verifier window and verification ----
 	//
-	// VerifierCandidateSet is deleted: §4.4 replaces the second candidate vector
+	// VerifierCandidateSet is deleted: the protocol replaces the second candidate vector
 	// with a frozen fixed-length eligibility bitmap plus dense rank members.
-	// Commit / ResultReceipt / FullResultReveal are keyed by the §10.9 commit_key,
+	// Commit / ResultReceipt / FullResultReveal are keyed by the commit_key,
 	// which is the only registered derivation and the only one that binds chain_id.
 	InferReceipt                        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
@@ -102,13 +102,11 @@ type Keeper struct {
 	BuilderDataUnavailableAggregate     collections.Map[types.VerifyActorKey, internaltypes.BuilderDataUnavailableAggregateStoreState]
 	WorkerEvidenceReceipt               collections.Map[types.WorkerEvidenceReceiptKey, internaltypes.WorkerEvidenceReceiptStoreState]
 
-	// ---- Settlement facts, failure class and challenge summary (§6.6) ----
+	// ---- Settlement facts, failure class and challenge summary ----
 	//
-	// TaskSettlement IS registered (below). K-BLOCK-16 is closed —
-	// PHASE0_PER_OUTPUT_TOKEN_V2 froze SettlementPlan/State/Query/Event — and
-	// the data-structure contractnow keys TaskSettlementState by (task_id) with
-	// Genesis field 71
-	// carrying it. The non-amount SettlementFactsV1 stays a pure value object;
+	// TaskSettlement IS registered (below). PHASE0_PER_OUTPUT_TOKEN_V2 froze
+	// SettlementPlan/State/Query/Event, and TaskSettlementState is keyed by
+	// (task_id) with Genesis field 71 carrying it. The non-amount SettlementFactsV1 stays a pure value object;
 	// only the amounts live in the stored row.
 	VerificationRound                    collections.Map[types.VerifyRoundKey, internaltypes.VerificationRoundStoreState]
 	RoundFunding                         collections.Map[types.VerifyRoundKey, internaltypes.RoundFundingStoreState]
@@ -130,11 +128,11 @@ type Keeper struct {
 	EpochTaskSummaryScheduleIndex        collections.KeySet[types.EpochTaskSummaryScheduleKey]
 	TaskFailureClassWindowPruneIndex     collections.KeySet[types.TaskFailureClassPruneKey]
 
-	// ---- Height indexes (§7; deadline boundary rules in §5.9) ----
+	// ---- Height indexes ----
 	//
-	// SampleReadyIndex and WorkerRevealDeadlineIndex are deleted (Ruling 25: not in
-	// §7, no DeadlineKindV1 value). TaskByModelIndex is deleted (§2.4 forbids a
-	// KeySet a primary prefix scan can already page).
+	// SampleReadyIndex and WorkerRevealDeadlineIndex are deleted (not a
+	// registered height index, no DeadlineKindV1 value). TaskByModelIndex is
+	// deleted (the protocol forbids a KeySet a primary prefix scan can already page).
 	AssignmentRandomnessIndex        collections.KeySet[types.DeadlineIndexKey]
 	InferDeadlineIndex               collections.KeySet[types.DeadlineIndexKey]
 	VerifyOpenDeadlineIndex          collections.KeySet[types.DeadlineIndexKey]
@@ -172,7 +170,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	sb := collections.NewSchemaBuilder(storeService)
 
 	// Key codecs. Every one of them mirrors a key tuple that
-	// the data-structure contract spells out; nothing here re-encodes an integer or a
+	// the protocol spells out; nothing here re-encodes an integer or a
 	// Hash32 as text.
 	//
 	// Every Hash32 component (task_id, session_id, commit_key, proposal_digest) is

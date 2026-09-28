@@ -84,17 +84,16 @@ func (k Keeper) prepareRegisterService(
 	if amount < minInitial {
 		return StakeServiceResult{}, fmt.Errorf("initial service bond must be at least %d", minInitial)
 	}
-	// Ruling 17/24: address codec bytes, not Bech32 text (the API contract
-	// §1.2). Cortex
+	// Address codec bytes, not Bech32 text. Cortex
 	// registration and Builder registration (msg_server_builder.go) share this one
-	// domain, so both must frame the operator identically or §1.4 rule 1 is broken.
+	// domain, so both must frame the operator identically or the one-domain-one-meaning rule is broken.
 	//
 	// participant_type is bound right after chain_id, matching the field order of
 	// the two sibling domains TRUEOPEN_SERVICE_KEY_ROTATION_V1 and
 	// TRUEOPEN_UNBONDING_ID_V1. Without it Cortex and Builder registration build a
-	// byte-identical preimage, which is the §1.4 rule 1 breach of one domain with
-	// two semantics: the same service-key proof satisfies either role, and §1.3
-	// rule 7's role-replay negative test cannot even be written. This is not a
+	// byte-identical preimage, which is the breach of one domain with
+	// two semantics: the same service-key proof satisfies either role, and the
+	// role-replay negative test cannot even be written. This is not a
 	// funds path - requireServiceAddressAvailable already scans both participant
 	// types before binding a service address, and both Msgs are authorized by the
 	// operator's own account signature - it is a wire-identity fix.
@@ -143,8 +142,8 @@ func (k Keeper) prepareRegisterService(
 	// Re-registration reuses the existing row, so jail_count and its recovery
 	// counter survive a full exit. Writing REGISTERED unconditionally would launder
 	// a jailed operator back into candidate selection while still carrying the
-	// count that feeds the tombstone threshold. lets only §10.0c's
-	// jail-clear leave JAILED, and it does so by decrementing to zero first.
+	// count that feeds the tombstone threshold. Only the
+	// jail-clear may leave JAILED, and it does so by decrementing to zero first.
 	bond.Status = types.ServiceBondStatus_SERVICE_BOND_STATUS_REGISTERED
 	if bond.JailCount != 0 {
 		bond.Status = types.ServiceBondStatusJailed
@@ -156,8 +155,8 @@ func (k Keeper) prepareRegisterService(
 	if err := bond.Validate(); err != nil {
 		return StakeServiceResult{}, err
 	}
-	// §5.11 fixes the event order as "material accepted -> primary state
-	// transition -> budget/earning transfer": code 112 service_registered must
+	// The event order is fixed as material accepted -> primary state
+	// transition -> budget/earning transfer: code 112 service_registered must
 	// precede code 6 service_stake_changed, which the msg server emits in the same
 	// cached event stream, so a failed bank transfer or persist discards both
 	// lifecycle events with the writes.
@@ -219,7 +218,7 @@ func (k Keeper) prepareTopUpService(ctx context.Context, operatorAddress string,
 	}
 	bond.EffectiveActiveBond = effectiveBond
 	bond.LastStakeHeight = height
-	// EXITED no longer owns a Cortex identity (A-20), so it cannot be revived by a
+	// EXITED no longer owns a Cortex identity, so it cannot be revived by a
 	// top-up that carries no new service-key proof. Re-entry goes through register
 	// and its initial-bond floor; UNBONDING still owns its identity and may cancel a
 	// full exit by topping up to the same floor.

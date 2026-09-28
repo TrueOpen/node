@@ -376,14 +376,14 @@ func (k Keeper) validateTreasurySpendAction(
 // the Hub recomputation must agree on.
 //
 // Everything above it in validateTreasurySpendAction is authorisation and bounds
-// checking, which is Hub policy; the eight framed fields below are the frozen §9.6c
+// checking, which is Hub policy; the eight framed fields below are the frozen
 // preimage. Separating them lets a golden vector state that preimage directly, which
 // matters here because not_before_height and expiry_height are adjacent Uint64BE and
 // proposal_id is a third one - a swap among them is invisible to any binding that
 // only sees encoder classes.
 //
 // The amount stays a nested one-field frame carrying the decimal ASCII of
-// atomic_units, not a Uint64BE; that is the frozen §4.4 Amount shape and building it
+// atomic_units, not a Uint64BE; that is the frozen Amount shape and building it
 // here keeps the exception next to the only preimage that uses it.
 func treasurySpendActionDigest(
 	chainID string, proposalID uint64, itemIndex uint32, recipient []byte, amount shared.Amount,

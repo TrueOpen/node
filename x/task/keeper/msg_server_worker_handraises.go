@@ -16,7 +16,7 @@ import (
 )
 
 // SubmitWorkerHandraises ORs legal Worker handraises into the authoritative
-// OPEN_TASK union (the API contract). A signed_order creates the Task
+// OPEN_TASK union. A signed_order creates the Task
 // atomically; an existing_task can only append to that frozen scope.
 //
 // Nothing but `submitter_address` is taken from the request: the Task Builder
@@ -153,7 +153,7 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker handraise window is closed")
 	}
 
-	// The snapshot body must still be retained by this Task's own ref; §10.1 does
+	// The snapshot body must still be retained by this Task's own ref; the protocol does
 	// not require it to still be the ACTIVE epoch pool.
 	pool, ok := m.k.hubKeeper.GetCandidatePoolSnapshot(cacheCtx, assignment.CandidatePoolSnapshotId)
 	if !ok || !bytes.Equal(pool.SnapshotId, assignment.CandidatePoolSnapshotId) ||
@@ -301,11 +301,9 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	if err := m.k.WriteBuilderStageProposal(cache, types.NewBuilderStageProposalKey(taskKey, stage, proposalDigest[:]), proposedReceipt); err != nil {
 		return nil, err
 	}
-	// No Builder contribution is credited here. the API contract:3398 says a
-	// fallback submitter adds none, and :3635 / the data-structure contract:1564
-	// go further: Phase 0 does
-	// not create BuilderContributionState at all, because must freeze a
-	// fresh stage/writer/window schema rather than have it back-derived from
+	// No Builder contribution is credited here. A fallback submitter adds none,
+	// and Phase 0 does not create BuilderContributionState at all, because a
+	// later phase must freeze a fresh stage/writer/window schema rather than have it back-derived from
 	// Phase 0 events. The BuilderStageProposal receipt written just above, plus
 	// the acceptance event below, are the audit trail.
 	if err := emitTypedEvent(cache, &types.EventWorkerHandraisesAccepted{

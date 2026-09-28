@@ -146,7 +146,7 @@ func TestPreBlockerPanicsOnMissingSentinelAtRequiredHeight(t *testing.T) {
 		})
 	}, "a missing sentinel at a required height means ProcessProposal let through a block it should have rejected; the protocol forbids writing a placeholder in that range, so a hard stop is the only option")
 	require.Nil(t, keeper.placeholderPersisted,
-		"writing a placeholder is forbidden in the required range (randomness_and_sampling_protocol.md §3)")
+		"writing a placeholder is forbidden in the required range")
 }
 
 func TestPreBlockerSurfacesUnreadableRequiredPolicy(t *testing.T) {

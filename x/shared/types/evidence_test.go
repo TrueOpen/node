@@ -21,7 +21,7 @@ func TestEvidenceSchemaV1CanonicalFrameGolden(t *testing.T) {
 	//
 	// The requirement list used to be spliced straight into the message frame as
 	// u32_be(n) followed by the elements, which is the
-	// the canonical encoding contract flattening
+	// flattening
 	// removed everywhere else; see CanonicalEvidenceSchemaTypedFrameV1.
 	require.Equal(t, "000000000000000400000001000000000000006c000000000000000400000002000000000000002800000000000000040000000100000000000000040000000300000000000000080000000040000000000000000000002800000000000000040000000400000000000000040000000100000000000000080000000004000000", hex.EncodeToString(frame))
 

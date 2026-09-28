@@ -30,7 +30,7 @@ func TestWorkerProposalDigestUsesSlotOrder(t *testing.T) {
 	// reorder visible in the diff instead of self-consistent.
 	require.Equal(t, "f022250f77b82c08889c9df0c472a96b2909fe85f2b12e8060e61b592ae20438",
 		hex.EncodeToString(forward[:]),
-		"TRUEOPEN_WORKER_PROPOSAL_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_WORKER_PROPOSAL_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 
 	expected := shared.CanonicalHashBytes(
 		shared.MustDomain(shared.DomainWorkerProposalV1),

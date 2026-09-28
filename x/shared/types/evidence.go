@@ -92,12 +92,12 @@ func CanonicalEvidenceSchemaFrameV1(schema EvidenceSchemaV1) ([]byte, error) {
 // proto fields of the message, schema_version and the required_infer_evidence
 // list, in field-number order.
 //
-// The list is ONE position. the canonical encoding contract fixes
+// The list is ONE position. The canonical encoding fixes
 // REPEATED_V1([e1..en]) = FRAME_V1(u32_be(n), ENC(e1), ..., ENC(en)), so the
 // count and the elements live inside their own frame. This function used to write
 // FRAME_V1(schema_version, u32_be(n), ENC(e1), ..., ENC(en)) instead - the count
 // and every element spliced into the message frame as siblings of
-// schema_version - which is the §4.4 violation removed from 30 other
+// schema_version - which is the repeated-encoding violation removed from 30 other
 // shapes.
 //
 // It survived that audit because it is not a top-level domain preimage: it is

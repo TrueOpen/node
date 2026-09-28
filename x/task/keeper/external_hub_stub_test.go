@@ -120,7 +120,7 @@ func (stubHubKeeper) GetBeaconForDomain(sdk.Context, string, int64) (types.Beaco
 	return types.BeaconSnapshot{}, false
 }
 
-// taskKeyOf names the raw 32-byte task store key since X-16. It is deliberately
+// taskKeyOf names the raw 32-byte task store key. It is deliberately
 // not called hexTaskKey any more: the result is a []byte digest, so it must never
 // reach a %s verb or be used as a Go map key without an explicit hex rendering.
 func taskKeyOf(taskID []byte) tasktypes.TaskKey { return tasktypes.NewTaskKey(taskID) }

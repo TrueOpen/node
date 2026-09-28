@@ -17,13 +17,13 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// The two envelopes are the API contract's linked V2 vectors, byte for
+// The two envelopes are the protocol's linked V2 vectors, byte for
 // byte. Their OPEN_VERIFY payload explicitly projects initial verify_round=1,
 // while zero is the invalid/unspecified proto3 value. The current public V1
 // surface opens no challenge round, so this is the only round with Task
 // authority here.
 //
-// §5.5 publishes an evidence_id and a fault_id for the tag 2 pair, which are
+// The protocol publishes an evidence_id and a fault_id for the tag 2 pair, which are
 // reachable only if both envelopes clear that authority - the identities are
 // derived from the canonical digest, and the canonical digest is only produced
 // once the equivocation entry point has accepted both actions. So the fixture
@@ -86,7 +86,7 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 	// tag 3, against a Task with no accepted InferReceipt: the missing receipt is
 	// the missing stage prerequisite, so the envelope carries the asserted
 	// WRONG_STAGE violation. The equivocation branch is unreachable in this same
-	// state, which is why §5.5 gives the two branches different Task states.
+	// state, which is why the protocol gives the two branches different Task states.
 	invalidFact, err := f.keeper.canonicalBuilderProtocolFault(f.ctx, "c", bus.SignedEnvelopeProtocolFaultV2{
 		Envelope:  envelopeA,
 		Violation: int32(types.BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_WRONG_STAGE),
@@ -148,7 +148,7 @@ func TestBuilderEvidenceV2LinkedWireVectors(t *testing.T) {
 	require.False(t, errors.Is(err, errBuilderEvidenceWrongStage))
 }
 
-// requireBuilderEvidenceIdentities derives §5.5's published evidence_id and
+// requireBuilderEvidenceIdentities derives the published evidence_id and
 // fault_id from a canonical fact exactly as the Hub fault kernel does. The
 // derivation is a pure function of the fact, so asserting it here proves the
 // Task-side fact is the one the published identities were computed from without

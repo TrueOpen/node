@@ -74,7 +74,7 @@ still true here for opaque blobs, but every field that carries a registered
 32-byte protocol identifier — task IDs, session IDs, digests, fault IDs, commit
 keys — is projected as a 64-character lower-case hex string instead, so the
 value a REST client sees is the same string that appears in events, logs and
-the protocol specifications.
+the wire test vectors.
 
 In OpenAPI the two are distinguishable:
 

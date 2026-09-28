@@ -15,7 +15,7 @@ import (
 
 const (
 	// InvariantEscrowReserved is the first of the two funding equations that
-	// the data-structure contract (lines 845-846) declares the *only* authoritative
+	// the protocol declares the *only* authoritative
 	// money statements of this module:
 	//
 	//	bank.balance(trueopen_escrow) == sum(TaskBudgetState.reserved_amount
@@ -27,7 +27,7 @@ const (
 	//	StreamState.open_pending_count == count(TaskBudgetState
 	//	    where budget_status = RESERVED and the budget belongs to that session)
 	//
-	// The session binding is not duplicated on TaskBudgetState (Ruling 23 keys it by
+	// The session binding is not duplicated on TaskBudgetState (it is keyed by
 	// task_id alone), so it is resolved through the single authoritative
 	// TaskCoreState.session_id.
 	InvariantSessionOpenPending = "session_open_pending_count"
@@ -37,7 +37,7 @@ const (
 	InvariantDeadlineIndexNonZeroHeight = "deadline_index_nonzero_height"
 )
 
-// Ruling 23 / §1.2: the fresh V1 store has no migration surface. The former
+// The fresh V1 store has no migration surface. The former
 // store_schema_current invariant read StateVersionState + StoreMigrationState,
 // both of which are deleted collections, so it is gone rather than stubbed.
 
@@ -57,7 +57,7 @@ func (k Keeper) InvariantChecks() []InvariantCheck {
 // EnsureDeadlineIndexNonZeroHeightInvariant asserts the one property of the
 // deadline indexes that no correct writer can ever violate: addDeadlineIndex
 // refuses height 0, because a row at height 0 is due at every height and the
-// sweep would re-select it for the life of the chain. N-18 found sixteen Genesis
+// sweep would re-select it for the life of the chain. A review found sixteen Genesis
 // rebuild sites that bypassed that floor.
 //
 // Deliberately narrow. "The row's Task primary still exists" is the other
@@ -170,7 +170,7 @@ func (k Keeper) reservedTaskBudgetTotals(ctx context.Context) (uint64, map[strin
 	return total, perSession, nil
 }
 
-// EnsureEscrowReservedInvariant is §6.2 line 845.
+// EnsureEscrowReservedInvariant checks the escrow funding equation above.
 func (k Keeper) EnsureEscrowReservedInvariant(ctx context.Context) error {
 	total, _, err := k.reservedTaskBudgetTotals(ctx)
 	if err != nil {
@@ -187,7 +187,7 @@ func (k Keeper) EnsureEscrowReservedInvariant(ctx context.Context) error {
 	return nil
 }
 
-// EnsureSessionOpenPendingInvariant is §6.2 line 846. It is bidirectional: a
+// EnsureSessionOpenPendingInvariant checks the session open-pending equation. It is bidirectional: a
 // stream whose counter disagrees with its RESERVED rows fails, and a RESERVED
 // budget whose session has no stream row fails too (that combination is what
 // would let a CLOSED session leave frozen funds behind).
@@ -222,7 +222,7 @@ func (k Keeper) EnsureSessionOpenPendingInvariant(ctx context.Context) error {
 				"session %s open_pending_count %d does not match its %d RESERVED task budgets",
 				sessionHex, stream.OpenPendingCount, reservedRows)
 		}
-		// §6.2 line 851: IDLE/CLOSED requires open_pending_count == 0.
+		// IDLE/CLOSED requires open_pending_count == 0.
 		if stream.OpenPendingCount != 0 && stream.Status != types.SessionStatus_SESSION_STATUS_ACTIVE {
 			return errorsmod.Wrapf(types.ErrInvariantBroken,
 				"session %s is %s with %d in-flight orders", sessionHex, stream.Status, stream.OpenPendingCount)

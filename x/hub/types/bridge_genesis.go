@@ -27,7 +27,7 @@ func ValidateBridgeGenesis(chainID string, genesis BridgeGenesisV1, signers []Va
 		return fmt.Errorf("bridge route usdc_route_id is not the hash of its own eleven frozen fields")
 	}
 	// The local identifiers must be real upstream HexAddresses or the guard's
-	// comparison against the actual Mailbox/token can never succeed (DOC-012).
+	// comparison against the actual Mailbox/token can never succeed.
 	if _, err := RequireHyperlaneID("local_mailbox_id", genesis.Route.LocalMailboxId); err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func ValidateBridgeGenesis(chainID string, genesis BridgeGenesisV1, signers []Va
 			return fmt.Errorf("an ACTIVE bridge must not carry a cutover row")
 		}
 	case BridgeLifecycleV1_BRIDGE_LIFECYCLE_V1_PENDING_EVM_CONFIRMATION:
-		// §4.3: the whole point of PENDING is that the bridge stays shut until the
+		// The whole point of PENDING is that the bridge stays shut until the
 		// EVM side is confirmed, so a thawed pending bridge is not a state the
 		// import may produce.
 		if !genesis.Frozen {
@@ -87,7 +87,7 @@ func requireBridgeGenesisHash(field string, value []byte) error {
 
 // validateBridgeSignerProjection is the Genesis half of I-BRIDGE-1: the frozen
 // signer-set hash must be the hash of the Validator bridge signer table, and the
-// confirmed EVM hash must equal it. §4.2 lets the bridge run only when all three
+// confirmed EVM hash must equal it. The bridge may run only when all three
 // views agree, and at Genesis the third view is the confirmed deployment.
 func validateBridgeSignerProjection(chainID string, genesis BridgeGenesisV1, signers []ValidatorBridgeSignerState) error {
 	if uint32(len(signers)) != genesis.SignerCount {
@@ -116,8 +116,8 @@ func validateBridgeSignerProjection(chainID string, genesis BridgeGenesisV1, sig
 	return nil
 }
 
-// BridgeSignerProjection hashes the Validator bridge signer table the way
-// §4.2 defines it: current signers only, ascending by raw address bytes, with
+// BridgeSignerProjection hashes the Validator bridge signer table:
+// current signers only, ascending by raw address bytes, with
 // the derived threshold. Every raw20 must be globally unique and every row must
 // carry a PoP that recovers to its own signer, so a registration cannot smuggle
 // in a key nobody controls.
@@ -214,7 +214,7 @@ func validateBridgeCutoverGenesis(cutover *BridgeCutoverGenesisV1, params Bridge
 			return fmt.Errorf("cutover inflight_manifest_hash without its message count")
 		}
 	}
-	// §4.3: the EVM confirmation tail arrives as one group. A half-filled tail
+	// The EVM confirmation tail arrives as one group. A half-filled tail
 	// would let unfreeze read a confirmation that was never actually approved.
 	present := 0
 	for _, set := range []bool{
@@ -273,7 +273,7 @@ func validateBridgeLimitGenesis(limits BridgeLimitGenesisV1, pending *BridgePend
 	return requireBridgeLimitPair("pending", pending.InboundLimitPerEpoch, pending.OutboundLimitPerEpoch, hardMax)
 }
 
-// requireBridgeLimitPair enforces §7.2: a limit is a positive Amount bounded by
+// requireBridgeLimitPair enforces the limit rule: a limit is a positive Amount bounded by
 // the hard max. Zero is explicitly not "unlimited" — the limit exists to bound
 // the loss when the signer threshold is stolen, so an unbounded limit would
 // remove the only cap on that loss.
@@ -316,7 +316,7 @@ func validateBridgeSupplyGenesis(supply BridgeSupplyGenesisV1) error {
 	return nil
 }
 
-// validateBridgeBootstrapGenesis enforces §5.3's three shapes. The binding
+// validateBridgeBootstrapGenesis enforces the three allowed shapes. The binding
 // fields are all-or-nothing because a partially bound bootstrap would let an
 // arbitrary first message take the fee exemption.
 func validateBridgeBootstrapGenesis(chainID string, genesis BridgeGenesisV1) error {
@@ -376,7 +376,7 @@ func validateBridgeBootstrapGenesis(chainID string, genesis BridgeGenesisV1) err
 	return nil
 }
 
-// validateBridgeUsageGenesis mirrors §6.6a: a fresh Genesis carries no usage
+// validateBridgeUsageGenesis enforces the usage rule: a fresh Genesis carries no usage
 // rows at all, and an export may only carry closed rows that each name their own
 // prune epoch. A current, still-open epoch is not exportable state because the
 // epoch it belongs to is decided by the importing chain's own clock.

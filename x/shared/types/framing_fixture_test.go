@@ -17,7 +17,7 @@ import (
 )
 
 // framingFixturePath holds the language-independent golden vectors for
-// the canonical encoding contractsections 3-10. The file carries only
+// the canonical encoding rules. The file carries only
 // inputs and expected hex outputs so a non-Go implementation can be validated
 // against the same vectors.
 //
@@ -137,12 +137,12 @@ type fieldFrameVector struct {
 	HashHex      string         `json:"hash_hex"`
 }
 
-// optionalVector is the the canonical encoding contract optional
+// optionalVector is the canonical optional
 // layout: absent is the single byte
 // 00, present is 01 || FRAME_V1(ENC(value)) where FRAME_V1(x) = u64_be(len(x)) || x.
 //
 // Presence is an explicit boolean rather than "the value key is missing" on
-// purpose: §10.3 needs a present optional carrying an empty value to stay
+// purpose: the optional encoding needs a present optional carrying an empty value to stay
 // expressible and to stay a different preimage from an absent one, and a fixture
 // that inferred presence from the absence of a key could not write that case
 // down at all.
@@ -198,7 +198,7 @@ type signatureVector struct {
 	SignatureDigestHex string       `json:"signature_digest_hex"`
 }
 
-// directDigestVector is the the canonical encoding contract
+// directDigestVector is the canonical
 // direct-digest form: the signer receives
 // an already-derived 32-byte SIGN_DIGEST and signs it as-is. It is a section of
 // its own rather than a flag on signatureVector because the two forms have
@@ -334,8 +334,7 @@ func TestFramingFixtureMatchesFrozenFramings(t *testing.T) {
 	}
 }
 
-// TestFramingFixtureOptionalV1 pins the the canonical encoding contract
-// §10.3 optional primitive as
+// TestFramingFixtureOptionalV1 pins the canonical OPTIONAL_V1 primitive as
 // published bytes, so a non-Go implementation can be checked against the same two
 // vectors. The frames are raw layout, not hashes: OPTIONAL_V1 is a value encoding
 // that gets fed into H_FIELDS_V1 by its callers, never hashed on its own.
@@ -483,11 +482,10 @@ func TestFramingFixtureSignatureRoundTripAndRejects(t *testing.T) {
 }
 
 // TestFramingFixtureDirectDigestSignature pins
-// the canonical encoding contract: a SIGN_DIGEST is
+// the canonical encoding rule: a SIGN_DIGEST is
 // signed and verified as-is.
 //
-// The negative half is the reason the vector exists. The task specification §10.3
-// makes
+// The negative half is the reason the vector exists. The protocol makes
 // "verifying against SHA256(digest) fails" a precondition for adoption, because
 // the generic Cosmos SDK entry point PubKey.VerifySignature hashes whatever it is
 // given before verifying. Handing it a digest therefore verifies against
@@ -575,7 +573,7 @@ func TestFramingFixtureDistinctHashGroups(t *testing.T) {
 }
 
 // The fixture uses dedicated test domains; they must never be mistaken for
-// registered business domains (the API contract rule 1).
+// registered business domains.
 func TestFramingFixtureUsesOnlyTestDomains(t *testing.T) {
 	fixture := loadFramingFixture(t)
 	domains := make(map[string]struct{})

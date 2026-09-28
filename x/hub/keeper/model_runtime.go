@@ -407,27 +407,25 @@ func statusDisablesSupport(status types.ModelProfileStatus) bool {
 // deriveProfileAndModelStatus itself writes whenever the aggregates fall back
 // below the activation thresholds — the absence of a verdict, never a verdict.
 // The three statuses statusDisablesSupport covers are verdicts no support
-// statistic can produce, and those stay locked: the API contract:2563
-// "the governance freeze/delist statuses may only be rewritten by the governance
-// path", the data-structure contract:698 "governance or EmergencyFreeze
-// may still change a model/profile status to FROZEN / EMERGENCY_FROZEN / DELISTED"
-// — REGISTERED is deliberately absent from that list.
+// statistic can produce, and those stay locked: the governance freeze/delist
+// statuses may only be rewritten by the governance path, and governance or
+// EmergencyFreeze may still change a model/profile status to FROZEN /
+// EMERGENCY_FROZEN / DELISTED — REGISTERED is deliberately absent from that list.
 //
 // Without the reset the lock was permanent and ACTIVE became unreachable for the
 // rest of the chain's life. The derivation is gated on the AUTO sources
-// (the data-structure contract:696 "the automatic aggregation may rewrite
-// the model status only when status_source=AUTO_PROFILE"), and it is the *only*
+// (the automatic aggregation may rewrite the model status only when
+// status_source=AUTO_PROFILE), and it is the *only*
 // writer of ACTIVE, because both governance entries refuse that target outright
 // (msg_server_registry.go SetModelStatus / SetProfileStatus,
-// the API contract:2225 "ACTIVE is derived only from valid support,
-// the P30 activation facts and the thresholds"). So a GOVERNANCE/EMERGENCY-stamped
+// ACTIVE is derived only from valid support, the P30 activation facts and the
+// thresholds). So a GOVERNANCE/EMERGENCY-stamped
 // REGISTERED row had no path to ACTIVE at all: not a Msg, not the derivation, not
-// Genesis. That contradicts the data-structure contract:698 "once the
-// profile-local supporter count and support stake ratio thresholds are reached,
-// ProfileState.status enters ACTIVE automatically from REGISTERED ... no extra
-// 'apply for ACTIVE' transaction is needed" and the API contract
-// §9.6a:1499 "a governance unfreeze of FROZEN returns to REGISTERED, not directly
-// to ACTIVE" — "not directly" presupposes that it does get there indirectly.
+// Genesis. That contradicts two rules: once the profile-local supporter count and
+// support stake ratio thresholds are reached, ProfileState.status enters ACTIVE
+// automatically from REGISTERED with no extra "apply for ACTIVE" transaction; and
+// a governance unfreeze of FROZEN returns to REGISTERED, not directly to ACTIVE —
+// "not directly" presupposes that it does get there indirectly.
 func statusReturnsToAutoDerivation(status types.ModelProfileStatus) bool {
 	return status == types.ModelStatusRegistered
 }
@@ -439,7 +437,7 @@ func isParentModelOpenForProfile(status types.ModelProfileStatus) bool {
 
 // validateProfileRegistrationState enforces the single minimum-deposit value.
 //
-// Ruling 16: the floor is params.Service.ServiceBondMinInitial (§18.0 field 12).
+// The floor is params.Service.ServiceBondMinInitial.
 // The repo previously carried two: the unregistered keeper constant
 // MinServiceBond = 500_000 used here, and ServiceBondMinInitial = 1_000_000 used
 // by prepareRegisterService. Behaviour change: with default params the profile

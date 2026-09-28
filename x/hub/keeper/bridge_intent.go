@@ -16,7 +16,7 @@ import (
 // messages execute.
 //
 // A transient store is used for the same reason the Task gas post-handler uses
-// one (the API contract): the queue is block-scoped scratch space and
+// one: the queue is block-scoped scratch space and
 // must never reach the app hash. It is *not* self-cleaning across transactions,
 // which is what ResetBridgeTransferIntents exists to handle.
 const (
@@ -74,7 +74,7 @@ func (k Keeper) PushBridgeTransferIntent(ctx context.Context, transfer BridgeTra
 
 // TakeBridgeTransferIntent consumes the next recorded transfer. A missing entry
 // is not a soft failure: it means business_denom was about to move without a
-// decorated bridge message behind it, which §5.1 does not permit at all.
+// decorated bridge message behind it, which is never permitted.
 func (k Keeper) TakeBridgeTransferIntent(ctx context.Context) (BridgeTransferContext, bool) {
 	store := k.transientStoreService.OpenTransientStore(ctx)
 	cursor, err := bridgeIntentCounter(ctx, k, bridgeTransferCursorPrefix)

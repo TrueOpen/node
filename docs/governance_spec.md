@@ -50,7 +50,7 @@ for instance).
 - **Freeze / unfreeze / delist a model**: set a model (or a profile version) to
   FROZEN / REGISTERED / DELISTED.
   **Note that governance cannot set ACTIVE** — activation is derived
-  automatically from aggregated node support; see §11 and governance protocol §5.
+  automatically from aggregated node support; see §11.
 - **Change governance's own parameters**: voting period, deposit threshold, pass
   rate, and so on.
 - **Adjust business reference tables**: the reference bucket, the timeout bucket.
@@ -325,11 +325,10 @@ noded tx gov submit-proposal proposal.json \
 > from support statistics, and the chain rejects it outright
 > (`x/hub/keeper/msg_server_registry.go:28`, reporting `ACTIVE status is derived
 > from active profile support and cannot be set by governance`); the protocol
-> forbids it too (governance protocol §5, "governance must not: set ACTIVE
-> directly"). **Listing a model is not a governance action** — it is activated
+> forbids governance from setting ACTIVE directly. **Listing a model is not a governance action** — it is activated
 > automatically by a threshold once nodes declare support.
 >
-> These are the only status changes governance can make (governance protocol §5):
+> These are the only status changes governance can make:
 >
 > | from → to | reason_code |
 > |---|---|
@@ -550,15 +549,15 @@ the middle of this address; only the prefix and the checksum differ.
 
 ## 17. Phase 0 (a mainnet without a token): this is the current shape
 
-The token-free phase defined by monorepo (merged) **is already what this
+The token-free phase defined by the protocol **is already what this
 chain is**, not a future plan.
 
 | Item | Phase 0 (current) | Location |
 |---|---|---|
 | **What carries voting power** | the non-circulating internal denom `ubond`; each validator self-delegates the same amount | `app/config.go:7` |
 | **Business / deposit denom** | `uusdc` (USDC bridged in over Hyperlane) | `x/hub/types/params.go:32` |
-| **Who decides model freezing/delisting** | **standard governance (the validators)**, using x/gov's default tally — the ADR is explicit that Builders are not given governance voting power, and Builders have no bond left to weight by | `app/gov_domain.go` |
-| **Custom tally** | **None.** This chain supplies no `CalculateVoteResultsAndVotingPowerFn` to x/gov | governance protocol §2 / parameter table §8 `[hard boundary]` |
+| **Who decides model freezing/delisting** | **standard governance (the validators)**, using x/gov's default tally — the protocol is explicit that Builders are not given governance voting power, and Builders have no bond left to weight by | `app/gov_domain.go` |
+| **Custom tally** | **None.** This chain supplies no `CalculateVoteResultsAndVotingPowerFn` to x/gov | governance rules `[hard boundary]` |
 | **gov deposit denom** | forced to the business denom at genesis | `cmd/noded/cmd/genesis_seed.go:744` |
 | **veto deposit** | nominally burned, actually **transferred into hub_treasury and recorded** | `app/governance_bank_guard.go:27` |
 
@@ -594,8 +593,7 @@ triggers this path.
 Node **does not implement** a Phase 0 / Phase 1 runtime switch, for two reasons:
 
 1. The switch could only live inside a tally function, and a custom tally is
-   expressly forbidden (governance protocol §2 and §6,,
-   parameter table §8 `[hard boundary]`, genesis protocol §6).
+   expressly forbidden by the governance rules `[hard boundary]`.
 2. Phase 1 is not yet expressible: `validatePhase0Params` rejects both
    `native_token_enabled = true` and `consensus_bond_denom != "ubond"`
    (`x/hub/types/params.go:349,357`).
@@ -609,8 +607,7 @@ noded query staking params  -o json | jq -r '.params.bond_denom'            # ub
 
 A Phase 1 builder electorate needs the protocol side to define the source of
 weight and the snapshot semantics first, and is to be introduced by a **protocol
-upgrade** per governance protocol §9 ("adding a governance action type" is listed
-among the cases that require an upgrade) — not by Node unilaterally flipping on a
+upgrade** (adding a governance action type requires an upgrade) — not by Node unilaterally flipping on a
 parameter read.
 
 ## 18. Four verified implementation facts

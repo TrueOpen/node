@@ -146,7 +146,7 @@ in `scripts/servicekeyproof` changes each of the five fields in turn and asserts
 the digest must change; and it has been verified on a live chain that a proof
 generated for another chain_id is rejected.
 
-> ⚠️ A key implementation detail (the code comments call it "ruling 24"): the
+> ⚠️ A key implementation detail: the
 > preimage uses the **codec-decoded address bytes**, not the bech32 text.
 > Historically Builder used the text and Cortex used the bytes, which produced two
 > different preimages within one domain; they are unified now. `participant_type`

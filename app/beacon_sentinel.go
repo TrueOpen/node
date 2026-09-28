@@ -2,12 +2,12 @@ package app
 
 // Beacon carrier sentinel-tx codec.
 //
-// The Node proposal-extension design (see
-// §2) carries the BeaconCarrier proto as a synthetic tx prepended to
+// The Node proposal-extension design carries the BeaconCarrier proto as a
+// synthetic tx prepended to
 // RequestPrepareProposal.Txs[0]. All validators pull it back in ProcessProposal
 // / PreBlocker.
 //
-// Wire format (frozen; changing anything here is a Spec §14.6 breaking change):
+// Wire format (frozen; changing anything here is a consensus-breaking change):
 //
 //   [ 0..15]  magic  = "TRUEOPEN_BEACON\x00"  (exactly 16 bytes, right-padded
 //                                              with NUL so the raw string is

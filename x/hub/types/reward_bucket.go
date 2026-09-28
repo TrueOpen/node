@@ -2,7 +2,7 @@ package types
 
 import "fmt"
 
-// MinProfileResourceTier / MaxProfileResourceTier are the §2 registration bounds
+// MinProfileResourceTier / MaxProfileResourceTier are the registration bounds
 // on `profile_resource_tier`. Registration rejects anything outside them, so a
 // stored ProfileState can always be mapped.
 const (

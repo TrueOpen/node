@@ -34,7 +34,7 @@ func NewQueryServerImpl(k Keeper) types.QueryServer {
 
 var _ types.QueryServer = (*queryServer)(nil)
 
-// resolveQueryPage validates a §16.1 page request: `limit=0` uses the default,
+// resolveQueryPage validates a page request: `limit=0` uses the default,
 // non-zero above the cap is rejected instead of silently clamped, and an
 // over-long token is rejected.
 //
@@ -68,9 +68,9 @@ func resolveQueryPage(page shared.QueryPageRequestV1, caps taskQueryCaps) (uint3
 	return limit, page.PageToken, nil
 }
 
-// decodeAddressPairQueryPageToken opens a §16.1 page token whose primary key is
+// decodeAddressPairQueryPageToken opens a page token whose primary key is
 // an (address, Hash32) pair — SessionByOwnerIndex and the two RoleActiveTask
-// indexes. The second component is types.Hash32Key since X-16, so the returned
+// indexes. The second component is types.Hash32Key, so the returned
 // cursor is the raw 32 bytes and feeds a range bound directly.
 //
 // The three rejections below are not redundant. Decode catches a token that is
@@ -138,7 +138,7 @@ func encodeAddressPairQueryPageToken(rpcDigest, selectorDigest, lastPrimaryKey [
 	return shared.EncodePageTokenV1(rpcDigest, selectorDigest, lastPrimaryKey, queryHeight)
 }
 
-// requireQueryHash32 is the §16.1 selector gate: a malformed ID is
+// requireQueryHash32 is the selector gate: a malformed ID is
 // InvalidArgument, never an empty page. It is the query-side twin of
 // taskStoreKey / sessionStoreKey — same width check, different status code,
 // because a bad selector is the caller's fault rather than a broken invariant.

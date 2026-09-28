@@ -3,7 +3,7 @@ package keeper
 // The first two gates of loadSettlementInputs must report different errors.
 //
 // This is not wording fastidiousness. The submitter of MsgSettleTask has nothing to
-// read but the error text: the contract's §10.10a step 2 lists "verify
+// read but the error text: settlement lists "verify
 // phase=SETTLING" and "no conflicting terminal state exists" as two separate
 // things, because the correct reactions to them are opposite -- the former means
 // "come back once the challenge window closes", the latter means "this is already

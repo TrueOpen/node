@@ -9,8 +9,8 @@ import (
 
 // The five bridge governance actions are x/gov internal actions: they have no
 // Tx route, no AutoCLI entry and no signer field. Their digests are never
-// persisted — the API contract keys the bridge rows on proposal_id and
-// has the Keeper recompute the digest inside the execution transaction, so
+// persisted — the bridge rows are keyed on proposal_id and
+// the Keeper recomputes the digest inside the execution transaction, so
 // replay protection is expressed by the expected_* fields rather than by a
 // stored digest. These functions exist so the Keeper's recomputation and any
 // auditor's reproduce the same bytes.
@@ -74,7 +74,7 @@ func BurnBondActionDigest(chainID string, action BurnBondV1) ([32]byte, error) {
 }
 
 // RotateBridgeSignerActionDigest commits the whole rotation including the PoP
-// signature bytes. §1.3 rule 4 keeps signature bytes out of *business* digests;
+// signature bytes. Signature bytes are kept out of *business* digests;
 // this is a governance action digest over the action's own literal content, and
 // the action is exactly "install these bytes", so omitting them would let two
 // different rotations share one digest.

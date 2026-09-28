@@ -13,7 +13,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// RoleActiveTasks is §16.3 `QueryRoleActiveTasks`: duty is restricted to
+// RoleActiveTasks is `QueryRoleActiveTasks`: duty is restricted to
 // WORKER / VERIFIER, a malformed address is InvalidArgument (never an empty
 // page), and the walk is task_id canonical-bytes ascending over the bounded
 // reverse index only.
@@ -49,9 +49,8 @@ func (q *queryServer) RoleActiveTasks(ctx context.Context, req *types.QueryRoleA
 	}
 	queryHeight, lastTaskKey, rpcDigest, selectorDigest, err := q.decodeAddressPairQueryPageToken(
 		ctx, token, shared.QueryRPCTaskRoleActiveTasksV1, operatorBytes, index.KeyCodec(),
-		// duty is a closed proto enum, so §16.1's "enums use their frozen numeric
-		// values" makes EnumBE its
-		// encoder. The four bytes are the same ones Uint32BE wrote here before, so
+		// duty is a closed proto enum, and enums use their frozen numeric values,
+		// so EnumBE is its encoder. The four bytes are the same ones Uint32BE wrote here before, so
 		// no page token changes; what changes is that the selector no longer claims
 		// any 32-bit value is legal input to this field.
 		operatorBytes, shared.EnumBE(uint32(req.Duty)),
@@ -132,7 +131,7 @@ func encodeRoleActiveTasksPageToken(
 }
 
 // activeTaskRef projects one active task. A role index row that does not resolve
-// to a TaskCore row is a broken invariant, not an empty entry (§16.1).
+// to a TaskCore row is a broken invariant, not an empty entry.
 func (q *queryServer) activeTaskRef(ctx context.Context, taskKey types.TaskKey, operator string, duty shared.Duty) (types.ActiveTaskRefV1, error) {
 	core, err := q.k.TaskCore.Get(ctx, taskKey)
 	if err != nil {

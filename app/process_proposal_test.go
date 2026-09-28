@@ -36,7 +36,7 @@ import (
 //
 // vrfPubkey plays the on-chain VRF registry: the verification public key can
 // only come from here, and the consensus public key is entirely absent from
-// this path (the sampling protocol).
+// this path.
 type realCryptoKeeper struct {
 	input        []byte
 	inputErr     error
@@ -355,9 +355,8 @@ func TestProcessProposalRejectsOperatorLookupFailure(t *testing.T) {
 		"a proposal signed by an unknown proposer must be rejected")
 }
 
-// the sampling protocol: with no active VRF public key,
-// REJECT — do not fall back to the consensus public key and do not look up
-// historical keys. This is the core assertion of the DOC-021 fix.
+// With no active VRF public key, REJECT — do not fall back to the consensus
+// public key and do not look up historical keys.
 func TestProcessProposalRejectsWhenProposerHasNoActiveVrfKey(t *testing.T) {
 	input := []byte("in")
 	sentinel, _ := makeValidCarrierBytes(t, 42, input)
@@ -441,7 +440,7 @@ func TestProcessProposalChainsToInnerHandler(t *testing.T) {
 	require.True(t, innerRan, "inner handler must run after sentinel check passes")
 }
 
-// Contract §1.4:404 — exactly one sentinel and only at index 0; the magic
+// Exactly one sentinel and only at index 0; the magic
 // appearing anywhere else REJECTs the whole block.
 // Only a proposer can get such a payload into a block (an externally
 // submitted one dies in CheckTx decode), so this is the proposer-misbehaviour

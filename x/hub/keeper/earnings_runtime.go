@@ -149,7 +149,7 @@ func (k Keeper) claimEarnings(ctx context.Context, address string, claimClass ty
 		return ClaimEarningsResult{}, err
 	}
 	if claimClass != types.ClaimClassV1_CLAIM_CLASS_V1_ALL && claimClass != types.ClaimClassV1_CLAIM_CLASS_V1_TASK_FEE {
-		// §16.1: a Phase 0 disabled path is a typed FailedPrecondition, not an
+		// A Phase 0 disabled path is a typed FailedPrecondition, not an
 		// untyped internal error, so a client can tell "not yet" from "broken".
 		return ClaimEarningsResult{}, status.Error(codes.FailedPrecondition, "FEATURE_DISABLED")
 	}
@@ -179,8 +179,7 @@ func (k Keeper) claimEarnings(ctx context.Context, address string, claimClass ty
 		return ClaimEarningsResult{}, err
 	}
 	if amount < minimum {
-		// §14 table: `0 < claimable < min_claim_amount -> FailedPrecondition, zero
-		// writes`.
+		// 0 < claimable < min_claim_amount -> FailedPrecondition, zero writes.
 		// The dust threshold is a state precondition, not a malformed request: the
 		// same message succeeds unchanged once the ledger crosses the floor, and
 		// the enclosing cache context is what supplies the zero-write half.
@@ -198,7 +197,7 @@ func (k Keeper) claimEarnings(ctx context.Context, address string, claimClass ty
 		return ClaimEarningsResult{}, fmt.Errorf("earnings_version overflow for %s", canonical)
 	}
 	height := sdkWrappedContextHeight(ctx)
-	// §10.0b1 claims one class: zero claimable_task_fee and recompute
+	// A claim covers one class: zero claimable_task_fee and recompute
 	// claimable_amount. Removing the whole row would silently discard the
 	// service and builder sub-ledgers, and EnsureRewardsEarningsInvariant would
 	// then find trueopen_rewards holding coins no claimable row accounts for.

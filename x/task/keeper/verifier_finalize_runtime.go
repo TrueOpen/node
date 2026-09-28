@@ -23,9 +23,8 @@ var emptyVerifierFactFold = make([]byte, types.Hash32Len)
 // ErrInsufficientVerifierHandraises reports that the frozen handraise window
 // closed with fewer entrants than weights.selected_verifier_count.
 //
-// This is a runtime-normal dispatch outcome, not store corruption: the task
-// specification 04 §5 and the interface and topic list §6.3 classify "insufficient
-// candidates" as a task failure. It used to be
+// This is a runtime-normal dispatch outcome, not store corruption: the protocol
+// classifies "insufficient candidates" as a task failure. It used to be
 // wrapped in ErrInvariantBroken, which aborted FinalizeBlock and halted the
 // whole chain whenever a network briefly ran short of verifiers — a two-cortex
 // test network could stop consensus by having one node take the Worker duty.
@@ -42,7 +41,7 @@ var ErrInsufficientVerifierHandraises = errors.New("verifier handraise count is 
 // ErrVerifierLiabilityUnavailable reports that a selected verifier could no
 // longer back its frozen candidate fact with a live task-liability reservation.
 //
-// This is the verifier-side twin of the §10.2 "winner unavailable" outcome the
+// This is the verifier-side twin of the "winner unavailable" outcome the
 // worker path already handles gracefully (assignment_randomness.go maps it to
 // ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE and refunds). Because
 // the legal set is frozen at the handraise close, there is no redraw: the round

@@ -122,9 +122,8 @@ func AppConfig() depinject.Config {
 		depinject.Provide(ProvideGovernanceContentRuntime),
 		depinject.Provide(ProvideVrfPoPVerifier),
 		// NOTE: no CalculateVoteResultsAndVotingPowerFn is supplied on purpose.
-		// x/gov's default tally is the only permitted one
-		// (the governance protocol,,
-		// the parameter table [hard boundary]). See app/gov_domain.go.
+		// x/gov's default tally is the only permitted one; this is a hard
+		// boundary of the governance parameters. See app/gov_domain.go.
 		depinject.Configs(HyperlaneBankKeeperBindings...),
 		StakingBankKeeperBinding,
 		GovernanceBankKeeperBinding,
@@ -205,8 +204,7 @@ func New(
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
-	// the bridge protocol: only MsgProcessMessage
-	// and MsgRemoteTransfer are callable Hyperlane messages. The circuit
+	// Only MsgProcessMessage and MsgRemoteTransfer are callable Hyperlane messages. The circuit
 	// breaker is consulted by the router for every message before its handler
 	// runs, so a closed message has no reachable route even though the upstream
 	// modules are mounted whole for their state, Genesis and Query services.
@@ -253,8 +251,7 @@ func New(
 				return nil, fmt.Errorf("invalid genesis validator VRF keys: %w", err)
 			}
 		}
-		// the bridge protocol: the frozen
-		// route must describe the Hyperlane objects that were actually
+		// The frozen route must describe the Hyperlane objects that were actually
 		// imported. Neither module can check this alone, and it has to hold
 		// before the first block rather than at the first transfer.
 		if err := app.HubKeeper.ValidateBridgeUpstream(ctx); err != nil {

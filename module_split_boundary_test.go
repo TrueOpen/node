@@ -99,8 +99,8 @@ func assertNoImport(t *testing.T, repo, dir, forbidden string) {
 }
 
 // assertNoSharedBusinessSurface scans identifiers and selector expressions only,
-// deliberately skipping comments and string literals. The §1.4 domain registry in
-// x/shared/types has to record the contract's producer column verbatim ("Task
+// deliberately skipping comments and string literals. The domain registry in
+// x/shared/types has to record each domain's producer verbatim ("Task
 // Keeper", "Hub bond handler", ...), and that documentation is what lets us catch a
 // single domain growing two different preimages. A doc comment naming a module does
 // not give shared a business surface, so the earlier raw substring scan over the

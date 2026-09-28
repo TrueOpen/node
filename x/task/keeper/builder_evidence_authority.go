@@ -141,7 +141,7 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 		// A round the Task never opened is a missing stage prerequisite, not a
 		// contradiction of the Task's identity: round 1 is the original
 		// verification, while the current public V1 surface has no authority behind
-		// a challenge round. §5.5 calls exactly this case a
+		// a challenge round. The protocol calls exactly this case a
 		// "premature OPEN_VERIFY", which is what WRONG_STAGE is for.
 		if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
 			return fmt.Errorf("%w: OPEN_VERIFY verify_round", errBuilderEvidenceWrongStage)

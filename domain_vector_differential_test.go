@@ -114,7 +114,7 @@ var domainVectorFilesWithPositionalFields = map[string]string{}
 // per-field re-framing and the name order are not, because the vector does not say
 // where one field ends and the next begins.
 var domainVectorFilesWithoutFields = map[string]string{
-	"x/task/types/testdata/token_ids_v1.json": "Wire v0.4.1 publishes exact token-ID preimages and digests but no fields[] decomposition",
+	"x/task/types/testdata/token_ids_v1.json": "Wire v0.3.x publishes exact token-ID preimages and digests but no fields[] decomposition",
 }
 
 // TestGoldenVectorsMatchDomainRegistryFieldOrder is the differential: for every golden
@@ -369,8 +369,8 @@ func isRepeatedRegistryField(entry string) bool {
 // registry's ordered Fields.
 //
 // The only structural allowance is the repeated tail. A domain whose preimage ends in
-// a variable-length list records that list as one final "repeated(...)" entry, and per
-// the canonical encoding contract a compliant producer frames the whole
+// a variable-length list records that list as one final "repeated(...)" entry, and
+// under the canonical encoding rules a compliant producer frames the whole
 // group as one REPEATED_V1 position, so the vector should name exactly one field for it
 // however many elements it carries.
 // The fixed head is matched name-for-name; the tail's *arity* is checked separately by
@@ -501,7 +501,7 @@ func assertRegistryFieldOrder(t *testing.T, spec shared.DomainSpec, label, varia
 // assertRepeatedTailIsOnePosition closes the arity half of the repeated-tail hole
 // described above.
 //
-// the canonical encoding contract says
+// The canonical encoding rules define
 // REPEATED_V1([e1..en]) = FRAME_V1(u32_be(n), ENC(e1), ..., ENC(en)):
 // the whole group is ONE outer position regardless of n. A registry row that ends in a
 // repeated entry therefore describes len(spec.Fields) outer positions, and a compliant
@@ -528,24 +528,24 @@ func assertRepeatedTailIsOnePosition(t *testing.T, spec shared.DomainSpec, label
 		return
 	}
 	require.Equal(t, head+1, framed,
-		"%s: %s frames %d outer positions but DomainRegistryV1[%s].Fields names %d. Its repeated group is spliced into the outer field list instead of being framed as one canonical_encoding_and_domain_hashing.md §4.4 REPEATED_V1 position. Fix the producer with shared.CanonicalRepeatedFramesV1 (see x/hub/types/parameter_bucket.go for the shape); do not relax this check and do not add an allowlist entry.",
+		"%s: %s frames %d outer positions but DomainRegistryV1[%s].Fields names %d. Its repeated group is spliced into the outer field list instead of being framed as one REPEATED_V1 position. Fix the producer with shared.CanonicalRepeatedFramesV1 (see x/hub/types/parameter_bucket.go for the shape); do not relax this check and do not add an allowlist entry.",
 		label, spec.Domain, framed, spec.Domain, head+1)
 }
 
 // flattenedRepeatedTailAllowlistV1 names every domain that still splices a repeated
 // group's elements into its outer field list. Each entry is one known
-// the canonical encoding contract violation awaiting a producer fix.
+// canonical encoding violation awaiting a producer fix.
 // The list only shrinks - the assertion above fails on an entry whose
 // domain has been fixed, so a batch cannot land without removing the domains it
 // repaired.
 //
 // The original 29-domain audit missed TRUEOPEN_CANDIDATE_ACTIVE_BITMAP_V1:
 // its only vector had one single-field element, so the flattened and compliant
-// layouts had the same outer arity. Reviewing ENC(element) against monorepo §4.4
+// layouts had the same outer arity. Reviewing ENC(element) against the REPEATED_V1 rule
 // exposed the missing repeated count and raised the repaired total to 30.
 var flattenedRepeatedTailAllowlistV1 = map[string]bool{}
 
-// encode applies the §1.2 typed encoders to one fixture field. An unrecognised type
+// encode applies the typed field encoders to one fixture field. An unrecognised type
 // is fatal on purpose: a new encoder that this function does not know about would
 // otherwise frame as an empty field and quietly weaken every vector that uses it.
 func (f domainGoldenField) encode(t *testing.T, where string) []byte {
@@ -642,7 +642,7 @@ func (f domainGoldenField) encode(t *testing.T, where string) []byte {
 // only with the tracked contract gap that explains why no authoritative vector
 // exists yet; an unexplained string is not an allowlist.
 //
-// Removing an entry takes more than publishing a vector, and the Track A batch 1
+// Removing an entry takes more than publishing a vector, and an earlier vector
 // migration is why the distinction is spelled out here. A vector whose digest is only
 // checked against re-framing its own fields[] pins the framing and nothing else: it
 // agrees with itself. TRUEOPEN_UNBONDING_ID_V1 had exactly such a vector and a
@@ -651,24 +651,24 @@ func (f domainGoldenField) encode(t *testing.T, where string) []byte {
 // cannot see a swap between two fields with the same encoder. So a domain leaves
 // this list only once some test feeds the vector's own typed inputs to the real
 // producer and demands the pinned digest back. That checks field identity rather
-// than field encoding, and it is what the eight domains removed in batch 1 have.
+// than field encoding, and it is what the eight domains removed in that migration have.
 //
 // Node implementations may test an algorithm locally, but that does not turn a
 // locally generated digest into a cross-language release vector. These entries
-// therefore remain visible until the named Wire/document gap is closed.
+// therefore remain visible until the Wire vector gap is closed.
 var domainVectorCoverageAllowlistV1 = map[string]string{
-	shared.DomainBeaconVRFInputV1:         "no released cross-language input vector (DOC-020)",
-	shared.DomainBeginBridgeCutoverV1:     "Wire bridge action vectors missing (DOC-013)",
-	shared.DomainBridgeInflightManifestV1: "Wire bridge manifest vectors missing (DOC-013)",
-	shared.DomainBridgeSignerPoPV1:        "Wire bridge signer vectors missing (DOC-013)",
-	shared.DomainBridgeSignerSetV1:        "Wire bridge signer vectors missing (DOC-013)",
+	shared.DomainBeaconVRFInputV1:         "no released cross-language input vector",
+	shared.DomainBeginBridgeCutoverV1:     "Wire bridge action vectors missing",
+	shared.DomainBridgeInflightManifestV1: "Wire bridge manifest vectors missing",
+	shared.DomainBridgeSignerPoPV1:        "Wire bridge signer vectors missing",
+	shared.DomainBridgeSignerSetV1:        "Wire bridge signer vectors missing",
 	shared.DomainBuilderSetV1:             "the release carries only the superseded term-based vector; the current six-field producer is tested independently",
-	shared.DomainConfirmBridgeCutoverV1:   "Wire bridge action vectors missing (DOC-013)",
-	shared.DomainOrderOpeningV2:           "no released H_FIELDS_V1 order-opening vector (DOC-020)",
-	shared.DomainReplaceBuilderSetV1:      "no released BuilderSet replacement action vector (DOC-020)",
-	shared.DomainRotateBridgeSignerV1:     "Wire bridge action vectors missing (DOC-013)",
-	shared.DomainSetBridgeFreezeV1:        "Wire bridge action vectors missing (DOC-013)",
-	shared.DomainSetBridgeLimitV1:         "Wire bridge action vectors missing (DOC-013)",
+	shared.DomainConfirmBridgeCutoverV1:   "Wire bridge action vectors missing",
+	shared.DomainOrderOpeningV2:           "no released H_FIELDS_V1 order-opening vector",
+	shared.DomainReplaceBuilderSetV1:      "no released BuilderSet replacement action vector",
+	shared.DomainRotateBridgeSignerV1:     "Wire bridge action vectors missing",
+	shared.DomainSetBridgeFreezeV1:        "Wire bridge action vectors missing",
+	shared.DomainSetBridgeLimitV1:         "Wire bridge action vectors missing",
 }
 
 // wireOwnedDomainVectorCoverage records domains whose normative producer and
@@ -726,7 +726,7 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 // fields would have moved every rank and agreed with a regenerated file. The
 // fixture now publishes both named fields and its preimage.
 var domainsCoveredWithoutFieldOrder = map[string]string{
-	shared.DomainOutputChunkEquivocationV1: "Wire v0.4.1 fixture publishes linked equivocation cases without a top-level preimage_hex",
+	shared.DomainOutputChunkEquivocationV1: "Wire v0.3.x fixture publishes linked equivocation cases without a top-level preimage_hex",
 }
 
 // TestDomainRegistryV1HFieldsVectorCoverageIsFrozen walks every registered H_FIELDS_V1

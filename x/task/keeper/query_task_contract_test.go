@@ -16,7 +16,7 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// §16.2 QueryTask / QueryTaskStage / QueryTaskAssignment: TaskCoreState is the
+// QueryTask / QueryTaskStage / QueryTaskAssignment: TaskCoreState is the
 // only primary of the six sub-statuses, and while the draw is still pending the
 // three winner fields must be *absent* rather than defaulted.
 func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
@@ -49,7 +49,7 @@ func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
 	stage, err := server.TaskStage(f.ctx, &tasktypes.QueryTaskStageRequest{TaskId: taskID})
 	require.NoError(t, err)
 	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING, stage.Stage.TaskPhase)
-	// §5.9 value 9 WORKER_ASSIGNMENT is the assignment randomness expiry.
+	// DeadlineKindV1 value 9 WORKER_ASSIGNMENT is the assignment randomness expiry.
 	require.Equal(t,
 		tasktypes.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT,
 		stage.Stage.GetNextDeadlineKind())
@@ -60,7 +60,7 @@ func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
 	require.Equal(t, genesis.TaskAssignments[0].GenerationParamsDigest, assignment.Assignment.GenerationParamsDigest)
 	require.Equal(t, genesis.TaskAssignments[0].MinStakeSnapshot, assignment.Assignment.MinStakeSnapshot)
 
-	// §16.1: a malformed selector is InvalidArgument, never an empty result.
+	// A malformed selector is InvalidArgument, never an empty result.
 	_, err = server.Task(f.ctx, &tasktypes.QueryTaskRequest{TaskId: []byte{0x01}})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	_, err = server.Task(f.ctx, &tasktypes.QueryTaskRequest{TaskId: repeatByte(0xfe)})
@@ -195,7 +195,7 @@ func TestQueryTaskStageUsesTheCurrentVerifierMilestone(t *testing.T) {
 	require.Equal(t, codes.Internal, status.Code(err))
 }
 
-// §16.2 next_deadline_kind/height, and issue 156: EndBlock consumes a queue row
+// next_deadline_kind/height: EndBlock consumes a queue row
 // as soon as current_height >= deadline_height, and handleExpiredCommitDeadline,
 // handleExpiredRevealDeadline and rescheduleVerifyOpenDeadline each move that row
 // without touching any status. The stage view must therefore never name a height
@@ -389,7 +389,7 @@ func TestQueryTaskStageProjectsPostVerificationDeadlines(t *testing.T) {
 	require.Equal(t, codes.Internal, status.Code(err), "a terminal phase must not default a missing finality height")
 }
 
-// §16.2 QueryTaskBuilders: the three body states are frozen. ACTIVE must carry
+// QueryTaskBuilders: the three body states are frozen. ACTIVE must carry
 // exactly the frozen member list, PRUNED must keep every header field with an
 // empty member array (and is NOT NotFound), and an ACTIVE row with no resident
 // members is an invariant break, never an empty page.
@@ -443,8 +443,8 @@ func TestQueryTaskBuildersTriStateSemantics(t *testing.T) {
 	require.Equal(t, codes.NotFound, status.Code(err))
 }
 
-// §16.2 QuerySessionsByOwner only walks the ACTIVE/IDLE owner index; §7 line 2011
-// forbids CLOSED rows there, and QueryOrderSequence is detail-retention only.
+// QuerySessionsByOwner only walks the ACTIVE/IDLE owner index; CLOSED rows
+// are forbidden there, and QueryOrderSequence is detail-retention only.
 func TestQuerySessionSurface(t *testing.T) {
 	f := initFixture(t)
 	genesis := taskGenesisV1(t, genesisChainID(f))
@@ -751,10 +751,10 @@ func TestDataUnavailableReportsUsesCanonicalBoundPageTokens(t *testing.T) {
 	// earlier binary actually carries, so it is the part that has to be defended.
 	require.Equal(t, "b18a0901f429262f4f746ec4059acbb0baa739c3ae182613e4fcf517cef64c63",
 		hex.EncodeToString(expectedRPC),
-		"TRUEOPEN_QUERY_RPC_V1 over /task.v1.Query/DataUnavailableReports is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_QUERY_RPC_V1 over /task.v1.Query/DataUnavailableReports is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	require.Equal(t, "9d71a4585a13eee5d436b5c974c06924f74a3af28de66176d4c27ec434813461",
 		hex.EncodeToString(expectedSelector),
-		"TRUEOPEN_QUERY_SELECTOR_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_QUERY_SELECTOR_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	require.Equal(t, expectedRPC, token.RpcMethodDigest)
 	require.Equal(t, expectedSelector, token.SelectorDigest)
 	require.Equal(t, uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight()), token.QueryHeight)

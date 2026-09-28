@@ -15,10 +15,10 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// This file holds the single service-bond slash entry point required by
-// the API contract ("the slash debit function must be a single
-// unified internal function; every Cortex Node Worker/Verifier duty fault,
-// successful challenge and objective forgery calls the same sequence").
+// This file holds the single service-bond slash entry point: the slash debit
+// function must be a single unified internal function; every Cortex Node
+// Worker/Verifier duty fault, successful challenge and objective forgery calls
+// the same sequence.
 //
 // Before this consolidation the repository had two mutually unaware debit
 // paths: SlashServiceBond capped itself at `active_bond - reserved_liability`
@@ -28,7 +28,7 @@ import (
 // `active_bond`. Neither ever reached the unbonding queue or claimable
 // earnings, and `unfilled_amount` had no writer at all.
 //
-// The waterfall below implements §10.0c steps 0..6 verbatim:
+// The waterfall below implements steps 0..6 of the slash rule verbatim:
 //
 //	0. pending task earnings of the bound task (skipped for a plain fault)
 //	1. ServiceBondState.active_bond          <- reserved_liability is NOT subtracted
@@ -42,7 +42,7 @@ import (
 //	6. bond_version += 1
 //
 // Step 1 deliberately ignores `reserved_liability`: reserved liability is the
-// gate for unstake (§B.1.3 "Unstake may only use unreserved bond"), never the gate for
+// gate for unstake (unstake may only use unreserved bond), never the gate for
 // slash. That single change is what makes a fully-reserved operator slashable.
 // A consequence is that `reserved_liability` may transiently exceed
 // `active_bond` after a slash while reservations are still open; that is the
@@ -53,8 +53,8 @@ import (
 // Hash32 and the waterfall first consumes that task's pending earnings before a
 // responsible operator can claim them.
 //
-// Duty is attribution only: the bond is not split per duty (§6.4 "the deposit is
-// not lock-split by profile, capability or task duty"), so the waterfall never
+// Duty is attribution only: the bond is not split per duty (the deposit is
+// not lock-split by profile, capability or task duty), so the waterfall never
 // reads it. It is
 // carried here so the caller's event 52 payload and this request cannot drift.
 type ApplyServiceSlashRequest struct {
@@ -94,7 +94,7 @@ func newRoleFaultSlashMetadata(fault types.RoleFaultState) *applyServiceSlashMet
 
 // ApplyServiceSlashResult reports the audited outcome of one waterfall run.
 //
-// Applied/Unfilled/BondVersion are the contract-visible values (§5.11 code 52
+// Applied/Unfilled/BondVersion are the contract-visible values (event code 52
 // `role_slashed` carries applied_amount / unfilled_amount / bond_version).
 //
 // The per-layer fields are persisted in SlashSummary and drive the mandatory
@@ -171,7 +171,7 @@ func (k Keeper) applyServiceSlashInCache(ctx context.Context, req ApplyServiceSl
 	result := ApplyServiceSlashResult{BondVersion: bond.BondVersion}
 	remaining := req.Requested
 
-	// Ruling 18/9: normalize effective_active_bond before the waterfall touches
+	// Normalize effective_active_bond before the waterfall touches
 	// active_bond. Layer 1 lowers active_bond, and the previous inline
 	// one-directional clamp could only lower effective_active_bond, so a slash at
 	// or after effective_bond_epoch left effective < active and broke the epoch
@@ -246,8 +246,8 @@ func (k Keeper) applyServiceSlashInCache(ctx context.Context, req ApplyServiceSl
 			return ApplyServiceSlashResult{}, err
 		}
 		result.BondVersion = bond.BondVersion
-		// Ruling 29a: min_stake changes do not affect global membership, but a slash
-		// that removes the last effective active bond flips the §3.3 bond predicate.
+		// min_stake changes do not affect global membership, but a slash
+		// that removes the last effective active bond flips the bond predicate.
 		if err := k.syncCandidateSlotMembershipOnBondExit(ctx, operatorAddress, bond, req.Height); err != nil {
 			return ApplyServiceSlashResult{}, err
 		}
@@ -445,7 +445,7 @@ func (k Keeper) transferServiceSlashCustody(ctx context.Context, destination typ
 }
 
 // slashPendingTaskEarnings consumes the operator's still-pending task earnings
-// for one task (§10.0c layer 0) and atomically drops the maturity index of any
+// for one task (waterfall layer 0) and atomically drops the maturity index of any
 // row it exhausts, so a responsible operator cannot mature and claim ahead of
 // the deduction.
 //
@@ -506,8 +506,8 @@ func (k Keeper) slashServiceUnbondingQueue(ctx context.Context, chainID string, 
 }
 
 // boundedServiceUnbondingRows returns the operator's unbonding rows sorted by
-// (mature_height, unbonding_id). §6.4 makes
-// max_open_unbonding_entries_per_operator the synchronous access bound of the
+// (mature_height, unbonding_id).
+// max_open_unbonding_entries_per_operator is the synchronous access bound of the
 // unified slash function, so more rows than that is an invariant error rather
 // than a longer scan.
 func (k Keeper) boundedServiceUnbondingRows(ctx context.Context, operatorAddress string, limit uint64) ([]types.UnbondingState, error) {
@@ -546,7 +546,7 @@ func (k Keeper) boundedServiceUnbondingRows(ctx context.Context, operatorAddress
 	return rows, nil
 }
 
-// slashClaimableEarnings implements §10.0c layer 3. EarningsState.Validate
+// slashClaimableEarnings implements waterfall layer 3. EarningsState.Validate
 // requires claimable_amount to equal the sum of its claimable sub-ledgers, so the
 // debit drains them in a fixed order instead of only lowering the total.
 //
@@ -602,7 +602,7 @@ func (k Keeper) slashClaimableEarnings(ctx context.Context, operatorAddress stri
 
 // applyPostSlashBondStatus derives the terminal bond status after a debit.
 // A bond that still carries open task reservations is not EXITED even at zero
-// balance: §B.1.3 requires every reservation to be closed through
+// balance: every reservation must be closed through
 // CloseTaskLiabilityReservation before the operator is considered gone.
 func applyPostSlashBondStatus(bond *types.ServiceBondState) {
 	if bond.Status == types.ServiceBondStatusTombstoned {

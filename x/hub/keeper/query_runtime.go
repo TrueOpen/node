@@ -30,7 +30,7 @@ const (
 	serviceUnbondingsRPC    = shared.QueryRPCHubServiceUnbondingsV1
 )
 
-// pageTokenBudget is the token-and-bytes half of one page of any §16.1 keyset
+// pageTokenBudget is the token-and-bytes half of one page of any keyset
 // Query: the caps it must respect and the scope its next-page token binds to.
 // Every paginated Hub Query builds one, so the cap is enforced the same way on
 // all of them.

@@ -13,7 +13,7 @@ import (
 )
 
 // bridgeSignerPoPFixture produces a real bridge signer identity and a real PoP
-// over the §4.1 digest: the tests must exercise recovery, not a stub, because
+// over the PoP digest: the tests must exercise recovery, not a stub, because
 // the whole point of the PoP is that only the key holder can produce it.
 func bridgeSignerPoPFixture(t *testing.T, chainID, operatorAddress string, keyVersion uint64) (signerRaw20, signature []byte) {
 	t.Helper()

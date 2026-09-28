@@ -12,7 +12,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// CONTRACT-GAP: the interface contract requires every bounded loop to cap
+// CONTRACT-GAP: the protocol requires every bounded loop to cap
 // visited items and serialized bytes at the same time, but no serialized-byte
 // budget is registered in TaskParamsV1. Keep this explicit consensus constant
 // until the parameter contract is extended.
@@ -29,7 +29,7 @@ func deadlineIndexRowBytes(taskID types.TaskKey, roundScoped bool) uint64 {
 	// The ordered key codec stores an 8-byte height, the fixed 32-byte task ID,
 	// and, for round queues, a 4-byte round. Sixteen bytes conservatively cover
 	// tuple framing around those fixed components. len(taskID) is measured rather
-	// than hard-coded so this stays the real encoded width: since X-16 a task ID
+	// than hard-coded so this stays the real encoded width: a raw task ID
 	// costs 32 bytes here, not the 64 the lowercase-hex key used to.
 	rowBytes := uint64(len(taskID)) + 8 + 16
 	if roundScoped {
@@ -66,7 +66,7 @@ func withDeadlineSweepUsageRecorder(ctx context.Context, bytesLimit uint64) (con
 
 // deadlineSweepOutcome is the only vocabulary a per-row handler may return.
 //
-// P1-07: the previous implementation had a *single* counter that was bumped only
+// The previous implementation had a *single* counter that was bumped only
 // when a row actually advanced. A row that permanently returned a "recoverable"
 // error therefore never charged the per-block budget, so with the EndBlock
 // fair-share limit of one item the loop kept scanning the whole expired prefix
@@ -81,10 +81,10 @@ const (
 	deadlineSweepAdvanced deadlineSweepOutcome = iota
 	// deadlineSweepStale: the index row can be proven not to describe the
 	// primary any more (missing primary, deadline mismatch, already terminal).
-	// the API contract / §2.2 line 375: count it and delete it.
+	// Count it and delete it.
 	deadlineSweepStale
-	// deadlineSweepPending: the row is legitimately not actionable yet (§4.5:
-	// the beacon for the frozen randomness height is not published). The row
+	// deadlineSweepPending: the row is legitimately not actionable yet (the
+	// beacon for the frozen randomness height is not published). The row
 	// stays, but the visited budget is consumed so the scan is still bounded.
 	deadlineSweepPending
 )
@@ -163,7 +163,7 @@ func (k Keeper) sweepExpiredTaskDeadlinesWithBudget(
 			_ = iter.Close()
 			return usage, err
 		}
-		// §7 lines 2019-2022: EndBlock processes height >= deadline_height.
+		// EndBlock processes height >= deadline_height.
 		if key.K1() > currentHeight {
 			break
 		}
@@ -181,7 +181,7 @@ func (k Keeper) sweepExpiredTaskDeadlinesWithBudget(
 			break
 		}
 		// The counter is unconditional and independent of the outcome. This is
-		// the fix for P1-07 and mirrors the correct template already in
+		// the fix for the unbounded-rescan bug and mirrors the correct template already in
 		// evidence_cleanup.go / assignment_randomness.go.
 		usage.visited++
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -248,7 +248,7 @@ func (k Keeper) loadSweepTaskCore(ctx context.Context, taskID types.TaskKey) (ty
 }
 
 // ---------------------------------------------------------------------------
-// 1. WORKER_INFER (InferDeadlineIndex, §10.2a)
+// 1. WORKER_INFER (InferDeadlineIndex)
 // ---------------------------------------------------------------------------
 
 func (k Keeper) processExpiredInferDeadlines(ctx context.Context, currentHeight, maxPerBlock uint64) (uint64, error) {
@@ -386,7 +386,7 @@ func (k Keeper) handleExpiredVerifyOpenDeadline(ctx context.Context, taskID type
 }
 
 // ---------------------------------------------------------------------------
-// 3. VERIFY_COMMIT (CommitDeadlineIndex, §10.7)
+// 3. VERIFY_COMMIT (CommitDeadlineIndex)
 // ---------------------------------------------------------------------------
 
 func (k Keeper) processExpiredCommitDeadlines(ctx context.Context, currentHeight, maxPerBlock uint64) (uint64, error) {
@@ -444,7 +444,7 @@ func (k Keeper) handleExpiredCommitDeadline(ctx context.Context, taskID types.Ta
 	if !advanced {
 		return deadlineSweepStale, rowBytes, nil
 	}
-	// §5.11 code 20 fires after any sweep that actually advanced state, not only
+	// Event code 20 fires after any sweep that actually advanced state, not only
 	// after the failing ones. COMMIT_CLOSED / REVEAL_CLOSED / VERIFY_ROUND_CLOSED /
 	// CHALLENGE_WINDOW_CLOSED are frozen DeadlineTransitionCode values that had no
 	// producer at all, so four of the ten kinds swept silently.
@@ -455,7 +455,7 @@ func (k Keeper) handleExpiredCommitDeadline(ctx context.Context, taskID types.Ta
 }
 
 // ---------------------------------------------------------------------------
-// 4. VERIFY_REVEAL (RevealDeadlineIndex, §10.11)
+// 4. VERIFY_REVEAL (RevealDeadlineIndex)
 // ---------------------------------------------------------------------------
 
 func (k Keeper) processExpiredRevealDeadlines(ctx context.Context, currentHeight, maxPerBlock uint64) (uint64, error) {
@@ -494,7 +494,7 @@ func (k Keeper) handleExpiredRevealDeadline(ctx context.Context, taskID types.Ta
 }
 
 // ---------------------------------------------------------------------------
-// 5. VERIFY_FINAL (VerifyDeadlineIndex, §10.13)
+// 5. VERIFY_FINAL (VerifyDeadlineIndex)
 // ---------------------------------------------------------------------------
 
 func (k Keeper) processExpiredVerifyDeadlines(ctx context.Context, currentHeight, maxPerBlock uint64) (uint64, error) {

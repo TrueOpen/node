@@ -29,7 +29,7 @@ import (
 //
 // What makes a vector here worth having is the binding, not the bytes. A fixture
 // that only re-frames its own fields[] and hashes the result proves the framing
-// primitive works and nothing about the function that ships: the Track A batch 1
+// primitive works and nothing about the function that ships: an earlier
 // audit measured that on TRUEOPEN_UNBONDING_ID_V1, where swapping two same-width
 // fields inside the producer left the published vector, the source-shape binding
 // and the whole suite green. So every vector in this file states its expectation
@@ -82,7 +82,7 @@ type sharedDomainField struct {
 	Fields []sharedDomainField `json:"fields,omitempty"`
 }
 
-// encode applies the §1.2 typed encoders. An unknown type is fatal rather than
+// encode applies the typed-field encoders. An unknown type is fatal rather than
 // framed as empty: a type this reader does not understand would otherwise weaken
 // every vector that used it without failing anything.
 func (f sharedDomainField) encode(t *testing.T) []byte {

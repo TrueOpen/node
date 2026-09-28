@@ -13,7 +13,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// UpdateHubParams implements the the API contract ordering exactly:
+// UpdateHubParams implements the protocol ordering exactly:
 // assertAuthority -> Params.Validate -> expected_version match ->
 // per-field genesis-only rejection -> cross-field clamp -> one atomic write of
 // params and its meta row -> event 110.
@@ -23,7 +23,7 @@ import (
 // compared whole submessages (`!current.Support.Equal(next.Support)`), which
 // rejected purely operational changes such as
 // max_model_support_prune_items_per_block, and gated the genesis-only fields on
-// "are there rows yet", which §18.0 does not allow.
+// "are there rows yet", which the parameter rules do not allow.
 func (m msgServer) UpdateHubParams(ctx context.Context, req *types.MsgUpdateHubParams) (*types.MsgUpdateHubParamsResponse, error) {
 	if req == nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSigner, "nil request")
@@ -88,9 +88,9 @@ func (m msgServer) UpdateHubParams(ctx context.Context, req *types.MsgUpdateHubP
 	}
 	commit()
 
-	// CONTRACT-GAP: the API contract's ProtocolEventPrimaryLocatorV1 oneof
+	// CONTRACT-GAP: the ProtocolEventPrimaryLocatorV1 oneof
 	// has no params/global branch, so code 110 has no legal primary locator to
-	// carry. The typed payload below is emitted without one; the document side
+	// carry. The typed payload below is emitted without one; the protocol
 	// must add the branch.
 	mustEmitHubEvent(ctx, &types.EventHubParamsUpdated{
 		OldVersion: meta.ParamsVersion,
@@ -138,7 +138,7 @@ func (m msgServer) validateCrossModuleSafetyWindows(ctx context.Context, params 
 	return m.k.validateFreezeValidatorHistoryCoverage(ctx, params)
 }
 
-// ClaimEarnings is §14's pull path.
+// ClaimEarnings is the pull path.
 func (m *msgServer) ClaimEarnings(ctx context.Context, req *types.MsgClaimEarnings) (*types.MsgClaimEarningsResponse, error) {
 	if req == nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidEarnings, "nil request")

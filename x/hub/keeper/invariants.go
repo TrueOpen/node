@@ -590,11 +590,11 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 	return nil
 }
 
-// EnsureCandidateSlotReverseIndexInvariant closes the §3.3 line 227 loop:
-// "OperatorCandidateSlotState is the only reverse index of
-// CandidateSlotCurrentState … an ALLOCATED/RETIRING slot has exactly one reverse
-// row, a FREE slot has none", plus §3.3 line 223's "the same operator must not hold
-// two slots at once, and one (slot,version) must not bind two operators".
+// EnsureCandidateSlotReverseIndexInvariant closes the reverse-index loop:
+// OperatorCandidateSlotState is the only reverse index of
+// CandidateSlotCurrentState, an ALLOCATED/RETIRING slot has exactly one reverse
+// row, and a FREE slot has none; plus the same operator must not hold two slots
+// at once, and one (slot,version) must not bind two operators.
 //
 // A one-sided reverse row is either an operator who can never be re-admitted to
 // the pool (a stale row makes allocateCandidateSlot skip straight to the retire
@@ -641,7 +641,7 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate slot %d has invalid status %s", state.Slot, state.Status)
 		}
 		// A slot that names an operator must resolve its immutable binding, and
-		// the binding must name the same operator (§3.3 line 223).
+		// the binding must name the same operator.
 		if state.OperatorAddress != "" {
 			binding, err := k.ReadCandidateSlotBinding(ctx, types.NewCandidateSlotBindingKey(state.Slot, state.SlotVersion))
 			if err != nil {
@@ -693,12 +693,12 @@ func (k Keeper) EnsureCandidateSlotReverseIndexInvariant(ctx context.Context) er
 	return nil
 }
 
-// EnsureCandidatePoolBodyInvariant is §3.2 line 217: "for every READY/ACTIVE/EXPIRED
-// snapshot that still has a body … any inconsistency in the bitmap, member rows,
-// bindings or counts is an invariant error".
+// EnsureCandidatePoolBodyInvariant enforces that, for every READY/ACTIVE/EXPIRED
+// snapshot that still has a body, any inconsistency in the bitmap, member rows,
+// bindings or counts is an invariant error.
 //
 // It recomputes both canonical commitments from the stored bitmap segments and
-// member rows (missing segments read as fixed-width zero bytes, §3.2 line 176)
+// member rows (missing segments read as fixed-width zero bytes)
 // and compares active_bitmap_hash / member_set_hash / pool_hash / snapshot_id /
 // active_count against the header. That covers all four of "bitmap, member row,
 // binding, count" in one pass, because verifyCandidatePoolBody resolves each
@@ -734,7 +734,7 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 		}
 		// Every stored segment must be exactly candidate_bitmap_segment_bytes wide
 		// and inside the snapshot geometry, and no bit may be set beyond
-		// slot_capacity (§3.2: trailing bits must be zero).
+		// slot_capacity (trailing bits must be zero).
 		count, err := candidateSegmentCount(snapshot.SlotCapacity, segmentBytes)
 		if err != nil {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate snapshot %s geometry: %s", entry.Key, err)
@@ -764,7 +764,7 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 		}
 		segments.Close()
 	}
-	// §3.4 line 249: with no build cursor, no epoch may retain draft member rows
+	// With no build cursor, no epoch may retain draft member rows
 	// without a snapshot header.
 	members, err := k.CandidatePoolMember.Iterate(ctx, nil)
 	if err != nil {
@@ -794,10 +794,10 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 	return nil
 }
 
-// EnsureCandidateBindingRefCountInvariant is the counting half of §3.2 line 217
-// ("every READY/ACTIVE/EXPIRED snapshot that still has a body counts exactly one
-// snapshot_ref_count against each binding it references") and the release
-// precondition of §3.3.
+// EnsureCandidateBindingRefCountInvariant is the counting half of the
+// body invariant (every READY/ACTIVE/EXPIRED snapshot that still has a body counts
+// exactly one snapshot_ref_count against each binding it references) and the
+// slot release precondition.
 //
 // The refcount is the only durable proof that a binding is still referenced by a
 // snapshot body, so an over-count permanently pins a RETIRING slot and an
@@ -832,7 +832,7 @@ func (k Keeper) EnsureCandidateBindingRefCountInvariant(ctx context.Context) err
 		}
 		if _, ok := bodies[member.Epoch]; !ok {
 			// Draft rows of an in-flight build are not counted: finalize is what
-			// increments the refcount (§3.4).
+			// increments the refcount.
 			continue
 		}
 		key := candidateSlotBindingKey{member.Slot, member.SlotVersion}
@@ -875,9 +875,9 @@ func (k Keeper) EnsureCandidateBindingRefCountInvariant(ctx context.Context) err
 	return nil
 }
 
-// EnsureCandidatePoolPointerInvariant is §3.4 line 245's "the current pointer must
-// not point at an EXPIRED/PRUNED snapshot or one missing its body", plus §3.4's "at
-// most one ACTIVE snapshot".
+// EnsureCandidatePoolPointerInvariant enforces that the current pointer must
+// not point at an EXPIRED/PRUNED snapshot or one missing its body, plus at most
+// one ACTIVE snapshot.
 func (k Keeper) EnsureCandidatePoolPointerInvariant(ctx context.Context) error {
 	activeCount := 0
 	var activeKey shared.Hash32Key
@@ -927,7 +927,7 @@ func (k Keeper) EnsureCandidatePoolPointerInvariant(ctx context.Context) error {
 }
 
 // candidateSegmentTrailingBitsClear rejects a bitmap segment that sets a bit for
-// a slot index >= slot_capacity. §3.2 makes a non-zero trailing bit a hard
+// a slot index >= slot_capacity. A non-zero trailing bit is a hard
 // rejection, not something to mask off on read, because the canonical segment
 // hash covers the whole fixed-width segment.
 func candidateSegmentTrailingBitsClear(segment types.CandidatePoolActiveSegmentState, slotCapacity, segmentBytes uint32) error {
@@ -947,7 +947,7 @@ func candidateSegmentTrailingBitsClear(segment types.CandidatePoolActiveSegmentS
 	return nil
 }
 
-// EnsureServiceBondEpochInvariant runs the height-independent half of Ruling 9:
+// EnsureServiceBondEpochInvariant runs the height-independent half of the bond epoch rule:
 // effective_active_bond never exceeds active_bond.
 //
 // That clamp is what makes the stored snapshot safe to read. It is also the only
@@ -973,7 +973,7 @@ func (k Keeper) EnsureServiceBondEpochInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		// Only Ruling 9 invariant 1 (effective_active_bond <= active_bond) is a
+		// Only the first invariant (effective_active_bond <= active_bond) is a
 		// property of the stored row at an arbitrary height.
 		//
 		// Invariant 2 ("currentEpoch >= effective_bond_epoch =>
@@ -1217,7 +1217,7 @@ func (k Keeper) EnsureModelProfileAggregateInvariant(ctx context.Context) error 
 // EnsureTaskLiabilityIndexInvariant closes the liability/index loop in both
 // directions: every RESERVED reservation owns both of its active index keys, every
 // terminal reservation owns neither, and neither index may contain a key with no
-// primary row. §B.1.3 makes ActiveLiabilityByOperatorIndex the only bounded way to
+// primary row. ActiveLiabilityByOperatorIndex is the only bounded way to
 // find an operator's open duties and TaskLiabilityByTaskIndex the only bounded way
 // to close a task, so a one-sided index is either an unreleasable liability or an
 // invisible one.
@@ -1427,7 +1427,7 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 	return nil
 }
 
-// EnsureRewardsEarningsInvariant is the §5.3 funds-conservation main path: the
+// EnsureRewardsEarningsInvariant is the funds-conservation main path: the
 // trueopen_rewards module balance must equal the sum of every money-holding
 // sub-ledger on EarningsState.
 //
@@ -1438,9 +1438,8 @@ func (k Keeper) EnsureCurrentServiceAddressIndexInvariant(ctx context.Context) e
 //	claimable_service_reward
 //	claimable_builder_reward
 //
-// claimable_amount is not a fifth account — §1830-1834 of
-// the data-structure contractdefines it as the checked sum of the THREE claimable
-// sub-ledgers and explicitly excludes pending_task_fee_amount. So the module
+// claimable_amount is not a fifth account: it is defined as the checked sum of
+// the THREE claimable sub-ledgers and explicitly excludes pending_task_fee_amount. So the module
 // balance is Σ(claimable_amount + pending_task_fee_amount) over all rows, and
 // dropping pending_task_fee_amount here would under-count the escrow by exactly
 // the optimistic-settlement float.

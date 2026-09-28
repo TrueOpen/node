@@ -16,12 +16,12 @@ import (
 // proof-of-possession preimage step 1. The initial
 // authorization nonce is Keeper-derived and fixed to 1, and service_pubkey is the
 // raw 33-byte compressed key rather than its hex text. operator_address is framed
-// as address-codec bytes, never Bech32 presentation text (Ruling 17).
+// as address-codec bytes, never Bech32 presentation text.
 //
 // participant_type sits right after chain_id, matching the two sibling domains
 // TRUEOPEN_SERVICE_KEY_ROTATION_V1 and TRUEOPEN_UNBONDING_ID_V1. It is what makes the
 // Cortex and the Builder registration proof two distinct digests, so the role
-// replay negative test below is expressible at all (§1.3 rule 7).
+// replay negative test below is expressible at all.
 func serviceRegistrationProofBytes(
 	chainID string, participantType shared.ParticipantType, operatorAddress string, servicePubkey []byte,
 ) []byte {
@@ -55,8 +55,8 @@ func registerServiceAction(servicePubkey, serviceKeyProof []byte, amount uint64)
 	}}
 }
 
-// topUpServiceAction carries an amount and nothing else: the API contract
-// step 1 removed every service key, proof and nonce field from TopUpServiceV1.
+// topUpServiceAction carries an amount and nothing else: every service key,
+// proof and nonce field was removed from TopUpServiceV1.
 func topUpServiceAction(amount uint64) types.ServiceStakeActionV1 {
 	return types.ServiceStakeActionV1{Action: &types.ServiceStakeActionV1_TopUp{
 		TopUp: &types.TopUpServiceV1{Amount: shared.NewAmount(amount)},
@@ -114,7 +114,7 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 	require.False(t, hasIndex, "revoke must clear the index row; that is what frees the address")
 	revoked, err := f.keeper.GetCortexNodeState(f.ctx, firstOwner.Address)
 	require.NoError(t, err)
-	require.Equal(t, contestedKey.Address, revoked.CurrentServiceAddress, "revoke deliberately keeps the address on the primary (A-20)")
+	require.Equal(t, contestedKey.Address, revoked.CurrentServiceAddress, "revoke deliberately keeps the address on the primary")
 
 	// (3) A second operator legitimately takes the now-free address.
 	f.bank.seedAccount(victimOfCleanup.Address, testServiceBondMinInitial)
@@ -341,11 +341,11 @@ func TestMsgStakeServiceRejectsNonCanonicalServicePubkeyWithoutSideEffects(t *te
 	require.False(t, hasIndex)
 }
 
-// TestServiceRegistrationProofIsRoleBound is the §1.3 rule 7 role-replay negative
+// TestServiceRegistrationProofIsRoleBound is the role-replay negative
 // test that binding participant_type made writable. While Cortex registration and
 // Builder registration built a byte-identical TRUEOPEN_SERVICE_REGISTRATION_V1
 // preimage, one proof-of-possession satisfied both handlers and this assertion
-// could not be expressed at all: that is the §1.4 rule 1 breach of one domain
+// could not be expressed at all: that is the breach of one domain
 // carrying two semantics.
 func TestServiceRegistrationProofIsRoleBound(t *testing.T) {
 	f := initFixture(t)
@@ -484,7 +484,7 @@ func TestMsgStakeServicePersistsOperatorBondAndCurrentServiceKeyAtomically(t *te
 	require.Equal(t, operator.Address, index.OperatorAddress)
 	require.Equal(t, uint64(1), index.ServiceAuthorizationNonce)
 
-	// P1-6 / §5.11 event order: 112 service_registered must precede
+	// Event order: 112 service_registered must precede
 	// 6 service_stake_changed.
 	registeredIndex, stakeChangedIndex := -1, -1
 	for i, event := range sdk.UnwrapSDKContext(f.ctx).EventManager().Events() {
@@ -522,7 +522,7 @@ func TestMsgStakeServicePersistsOperatorBondAndCurrentServiceKeyAtomically(t *te
 // rotation-scoped form of the old-key rejection property.
 //
 // The original premise -- "a top-up signed by the pre-rotation service key is
-// refused" -- became unexpressible when the API contract step 1 removed
+// refused" -- became unexpressible when the protocol removed
 // service_pubkey / service_key_proof / authorization_nonce from TopUpServiceV1: a
 // top-up now carries an amount only, so there is no old key material left to
 // refuse. The property under test is unchanged ("the previous service key loses
@@ -532,7 +532,7 @@ func TestMsgStakeServicePersistsOperatorBondAndCurrentServiceKeyAtomically(t *te
 //  1. the pre-rotation nonce is no longer accepted (replay),
 //  2. a proof produced by the old key no longer authorizes a rotation,
 //  3. the old service address is no longer resolvable and the new one is, and
-//  4. the keyless top-up succeeds, which is the §10.0c step 1 fact that replaced
+//  4. the keyless top-up succeeds, which is the fact that replaced
 //     the deleted premise.
 func TestMsgStakeServiceTopUpRejectsOldKeyImmediatelyAfterRotation(t *testing.T) {
 	f := initFixture(t)

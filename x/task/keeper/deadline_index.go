@@ -34,7 +34,7 @@ func removeDeadlineIndex(ctx context.Context, set collections.KeySet[types.Deadl
 
 // The exported Add*/Remove* wrappers keep the legacy (sessionID, taskID) arity so
 // evidence-cleanup callers and the internal test API remain source compatible;
-// Ruling 23 makes the session component of the key unused. New production code
+// Keying by task_id alone makes the session component of the key unused. New production code
 // calls addDeadlineIndex directly with the Task primary.
 
 func (k Keeper) AddEvidenceCleanupIndex(ctx context.Context, _ types.SessionKey, taskID types.TaskKey, deadline uint64) error {
@@ -49,7 +49,7 @@ type expiredDeadlineFn func(sessionID types.SessionKey, taskID types.TaskKey, de
 // iterateExpiredTaskDeadlines is the read-only walk used by the evidence cleanup
 // cursor. Every bounded *mutating* sweep goes through
 // Keeper.sweepExpiredTaskDeadlines instead, which collects the due rows before
-// mutating and charges a visited item per row (P1-07).
+// mutating and charges a visited item per row.
 func (k Keeper) iterateExpiredTaskDeadlines(ctx context.Context, set collections.KeySet[types.DeadlineIndexKey], currentHeight uint64, fn expiredDeadlineFn) error {
 	iter, err := set.Iterate(ctx, nil)
 	if err != nil {
@@ -87,13 +87,13 @@ func (k Keeper) IterateExpiredEvidenceCleanup(ctx context.Context, height uint64
 	return k.iterateExpiredTaskDeadlines(ctx, k.EvidenceCleanupIndex, height, fn)
 }
 
-// Ruling 25: SampleReadyIndex and WorkerRevealDeadlineIndex are deleted (§7 does
-// not register them and §5.9 has no DeadlineKindV1 value for either), and the
+// SampleReadyIndex and WorkerRevealDeadlineIndex are deleted (neither is a
+// registered height index and DeadlineKindV1 has no value for either), and the
 // CHALLENGE_* / EVIDENCE_REQUEST no-op bridges are gone with the challenge
-// slice. §5.9 lines 989-994 keep the enum values and locator shapes frozen so
+// slice. The protocol keeps the enum values and locator shapes frozen so
 // that verification work cannot invent a second deadline enum, but nothing in V1 may create
 // those objects.
 // Future challenge work may add the real indexes for DeadlineKindV1 3 / 4 / 12
-// only when K-BLOCK-03/04 closes.
+// only once challenge and evidence-request objects are enabled.
 
 func errIsNotFound(err error) bool { return errors.Is(err, collections.ErrNotFound) }

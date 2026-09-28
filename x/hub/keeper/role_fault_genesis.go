@@ -27,7 +27,7 @@ func (k Keeper) initRoleFaultGenesis(ctx context.Context, states []types.RoleFau
 		// RoleFaultByTaskIndex is derived, so it is rebuilt here instead of being
 		// carried on the wire: an exported index could disagree with the primaries
 		// it indexes, and a disagreement in this direction would silently change a
-		// task's §6.6 fault vector.
+		// task's fault vector.
 		if err := k.RoleFaultByTaskIndex.Set(ctx, types.NewRoleFaultByTaskKey(state.TaskId, faultID)); err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func (k Keeper) EnsureRoleFaultByTaskIndexInvariant(ctx context.Context) error {
 	return nil
 }
 
-// RoleFaultsForTask reads one task's §6.6 fault vector in bounded work through
+// RoleFaultsForTask reads one task's fault vector in bounded work through
 // the derived by-task index. The rows come back in fault_id ascending order
 // because the index is keyed (task_id, fault_id) and both components are now raw
 // Hash32; memcmp order is the same order the lower-hex key produced.

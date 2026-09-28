@@ -17,11 +17,11 @@ package app
 // writes, so this handler can be safely re-invoked on state sync catch-up
 // without corrupting BeaconState.
 //
-// Policy (the sampling protocol; the single source is the
-// committed `BeaconParamsV1.vrf_required_from_height`):
+// Policy (the single source is the committed
+// `BeaconParamsV1.vrf_required_from_height`):
 //   - height >= required > 0: a missing sentinel is a bug, ProcessProposal
-//     should already have rejected it; the same section rules that a
-//     "placeholder write is forbidden" in that range, so here we can neither
+//     should already have rejected it; a placeholder write is forbidden
+//     in that range, so here we can neither
 //     write a placeholder nor let the block through — only panic, so that
 //     operators notice immediately.
 //   - pre-required: a missing sentinel is allowed, and a placeholder is written

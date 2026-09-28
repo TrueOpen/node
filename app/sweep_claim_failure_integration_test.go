@@ -19,7 +19,7 @@ package app
 // even before the full settle lifecycle lands.
 //
 // The sweep failure path is deleted. MsgSweepExpiredTask no
-// longer exists; §5.9 sweeping is MsgSweepDeadline over the typed
+// longer exists; deadline sweeping is MsgSweepDeadline over the typed
 // DeadlineKindV1 indexes, and TaskStatus / TaskSettlementState are both gone
 // (TaskCore carries the stage union now). The three deleted cases were:
 // missing task rejected with ErrTaskNotFound leaving no settlement/status row,

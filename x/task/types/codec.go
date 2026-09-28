@@ -34,11 +34,11 @@ var msgRegistrations = []msgRegistration{
 // RegisterInterfaces registers all Task-owned transaction messages.
 //
 // The set below is exactly the 16 rpc entries of task.v1.Msg in
-// proto/task/v1/tx.proto (the API contract). Fresh genesis: the 16
+// proto/task/v1/tx.proto. Fresh genesis: the 16
 // messages listed in the tx.proto footer are de-registered outright — there is
 // no alias, no compatibility decoder and no placeholder type URL for them.
 //
-//	MsgSessionSweep, MsgSweepExpiredTask            -> MsgSweepDeadline (§10.0b1)
+//	MsgSessionSweep, MsgSweepExpiredTask            -> MsgSweepDeadline
 //	MsgAssign                                       -> MsgSubmitWorkerHandraises
 //	MsgOpenVerify                                   -> MsgSubmitVerifierHandraises
 //	MsgInferReceiptCommitOnly                       -> MsgSubmitInferReceipt
@@ -48,7 +48,7 @@ var msgRegistrations = []msgRegistration{
 //	MsgWorkerReveal                                 -> deleted, no replacement
 //	MsgUserChallenge, MsgChallengeCommit,
 //	MsgChallengeResult,
-//	MsgSubmitChallengeFullResultReveal              -> K-BLOCK-03/04, no ACTIVE Msg
+//	MsgSubmitChallengeFullResultReveal              -> challenges inactive, no ACTIVE Msg
 //	MsgUpdateTimeoutBucket                          -> hub.v1.Msg governance
 func RegisterInterfaces(registrar codectypes.InterfaceRegistry) {
 	for _, registration := range msgRegistrations {

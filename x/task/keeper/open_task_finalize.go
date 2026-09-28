@@ -94,7 +94,7 @@ func (k Keeper) finalizeOpenTaskCandidateUnion(ctx context.Context, taskKey type
 	if err := k.releaseCandidateStageDuties(ctx, facts); err != nil {
 		return err
 	}
-	// §10.1 FinalizeAssignWindow: the frozen candidate set is only half of what
+	// FinalizeAssignWindow: the frozen candidate set is only half of what
 	// this transition owes. Without the randomness height and its index the
 	// EndBlock WORKER_ASSIGNMENT queue can never reach this Task, so the winner is
 	// never drawn and the user's max_fee stays in escrow with no infer deadline,

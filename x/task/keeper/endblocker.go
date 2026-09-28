@@ -44,9 +44,8 @@ const (
 )
 
 // EndBlockSweepResult reports visited work per queue. Every field counts
-// *visited* index rows, not successful transitions: the API contract /
-// §4.6 make the
-// per-block cap a visited-work budget so that a permanently unprocessable
+// *visited* index rows, not successful transitions: the protocol makes
+// the per-block cap a visited-work budget so that a permanently unprocessable
 // ("poison") row cannot be rescanned for free every block.
 type EndBlockSweepResult struct {
 	VerifierWindowBuild         uint64
@@ -62,7 +61,7 @@ type EndBlockSweepResult struct {
 	RoundEconomicEffect         uint64
 	Settlement                  uint64
 	EvidenceCleanup             uint64
-	// SessionLifecycle is the §10.0b1 MARK_IDLE/CLOSE processor. It shares its
+	// SessionLifecycle is the session MARK_IDLE/CLOSE processor. It shares its
 	// executor with MsgSweepDeadline(SessionLifecycleLocator); V1 does not
 	// register a second MsgSessionSweep.
 	SessionLifecycle    uint64
@@ -74,7 +73,7 @@ type EndBlockSweepResult struct {
 	Total               uint64
 }
 
-// primaryID is the §5.9 `primary_id` tie-break component of the queue head: the
+// primaryID is the `primary_id` tie-break component of the queue head: the
 // raw Hash32 task_id or session_id for the object queues, and the ordered
 // encoding of the epoch for the epoch-summary schedule. It is never rendered, so
 // it is carried as raw bytes; the lowercase-hex spelling it replaces compared
@@ -694,7 +693,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{endBlockPrioritySessionHistoryPrune, sessionHead(k.SessionHistoryPruneIndex), conservativeRun(k.processSessionHistoryPruneEndBlock, sessionLifecycleConservativeBytesV1), func(n uint64) { result.SessionHistoryPrune += n }},
 		{endBlockPrioritySessionSummaryPrune, sessionHead(k.SessionTerminalSummaryPruneIndex), conservativeRun(k.processSessionSummaryPruneEndBlock, sessionLifecycleConservativeBytesV1), func(n uint64) { result.SessionSummaryPrune += n }},
 	}
-	// K-BLOCK-03/04: no ACTIVE entry may create Challenge or EvidenceRequest
+	// No ACTIVE entry may create Challenge or EvidenceRequest
 	// objects, so CHALLENGE_RESOLVE / CHALLENGE_CLOSE / EVIDENCE_REQUEST queues
 	// are intentionally unreachable and must not be scheduled. They may be added
 	// only with the future wire/state contract that closes those blockers.
@@ -736,7 +735,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 			}
 			// Raw-byte order over the Hash32 primary ID. Lowercase hex was
 			// order-preserving, so the frozen fair-share tie-break resolves the
-			// same pair of queues in the same direction as before X-16.
+			// same pair of queues in the same direction as the old hex keys did.
 			return bytes.Compare(items[i].primaryID, items[j].primaryID) < 0
 		})
 		selected := items[0].queueIndex
@@ -788,7 +787,7 @@ func (k Keeper) processSessionSummaryPruneEndBlock(ctx context.Context, currentH
 	return result.VisitedCount, err
 }
 
-// processExpiredSessionLifecycle adapts the §10.0b1 session lifecycle executor to
+// processExpiredSessionLifecycle adapts the session lifecycle executor to
 // the EndBlock queue signature. It is the *same* function MsgSweepDeadline calls.
 func (k Keeper) processExpiredSessionLifecycle(ctx context.Context, currentHeight uint64, maxPerBlock uint64) (uint64, error) {
 	sweep, err := k.SweepExpiredSessionLifecycle(ctx, currentHeight, maxPerBlock)

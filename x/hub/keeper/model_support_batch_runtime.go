@@ -43,7 +43,7 @@ func (k Keeper) processModelSupportBatch(
 		return modelSupportBatchResult{}, errorsmod.Wrap(types.ErrInvalidSupportBatch, "epoch does not match execution height")
 	}
 
-	// Ruling 17/24 and §1.2 make the canonical order of an address list the decoded
+	// The canonical order of an address list is the decoded
 	// codec bytes, never the Bech32 text. The two disagree: Bech32's data part is
 	// base32 over a charset that is not in ASCII order, so a client that sorts the
 	// way every other list in this codebase is sorted would be rejected here.
@@ -165,12 +165,12 @@ func (k Keeper) processModelSupportBatch(
 // dailySupportConfirmationID is the object_id one accepted confirmation contributes
 // to the batch digest.
 //
-// CONTRACT-GAP: the API contract requires TRUEOPEN_BATCH_RESULT_V1 to commit to
+// CONTRACT-GAP: the protocol requires TRUEOPEN_BATCH_RESULT_V1 to commit to
 // a per-item object_id but never defines what that object_id is for
 // MsgBatchConfirmModelSupport. The derivation here is the existing implementation,
 // registered as an unregistered-domain gap in
-// x/shared/types/domain_registry.go; do not change the formula until §1.4 gains
-// the row. It is a named function so a golden vector can pin the formula the gap
+// x/shared/types/domain_registry.go; do not change the formula until the domain
+// registry gains the row. It is a named function so a golden vector can pin the formula the gap
 // note refers to, rather than describing it in prose only.
 func dailySupportConfirmationID(chainID string, epoch uint64, operatorAddress []byte) ([]byte, error) {
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainDailySupportConfirmationIDV1)).Raw(

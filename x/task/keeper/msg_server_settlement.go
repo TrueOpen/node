@@ -51,11 +51,10 @@ func (m msgServer) SettleTask(ctx context.Context, req *types.MsgSettleTask) (*t
 	if err != nil {
 		return nil, err
 	}
-	// authorizeSettlementSubmitter enforces §10.10a's SETTLE grace window and
+	// authorizeSettlementSubmitter enforces the SETTLE grace window and
 	// reports whether the submitter was the duty Builder inside it. The boolean is
 	// discarded: its only consumer was the Builder contribution credit, and Phase 0
-	// does not create BuilderContributionState at all (the API contract:3273/:3635,
-	// the data-structure contract:1564). The authorization it just performed
+	// does not create BuilderContributionState at all. The authorization it just performed
 	// is the live half.
 	if _, err := m.k.authorizeSettlementSubmitter(ctx, inputs, req.SubmitterAddress, height); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSignature, err.Error())
@@ -141,7 +140,7 @@ func (k Keeper) executeLoadedTaskSettlement(
 }
 
 // settleTaskReplay returns the original receipt for an already settled task.
-// §10.10a keeps the terminal summary as a second source so a compacted task
+// Settlement keeps the terminal summary as a second source so a compacted task
 // still replays instead of being rebuilt.
 func (k Keeper) settleTaskReplay(ctx context.Context, taskKey types.TaskKey) (*types.MsgSettleTaskResponse, bool, error) {
 	settlement, err := k.ReadTaskSettlement(ctx, taskKey)
@@ -179,15 +178,15 @@ func (k Keeper) settleTaskReplay(ctx context.Context, taskKey types.TaskKey) (*t
 	}, true, nil
 }
 
-// loadSettlementInputs performs §10.10a step 2: it loads the authoritative rows
+// loadSettlementInputs performs the settlement load step: it loads the authoritative rows
 // and refuses anything that is not a closed, challenge-free, still-reserved task.
 func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey, height uint64) (settlementInputs, error) {
 	core, err := k.TaskCore.Get(ctx, taskKey)
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task is unavailable")
 	}
-	// §10.10a step 2 lists "verify phase=SETTLING" and "no conflicting terminal
-	// state exists" as two separate things, and they must be reported separately
+	// Settlement treats "verify phase=SETTLING" and "no conflicting terminal
+	// state exists" as two separate checks, and they must be reported separately
 	// here: the former means "you came too early, retry once the challenge window
 	// closes", the latter means "this is already final, stop retrying". Merging them
 	// into one makes the Builder read "too early" as "already settled", whose only
@@ -400,7 +399,7 @@ func (k Keeper) rebuildClosedRound(
 }
 
 // settlementDutyBuilder resolves the SETTLE duty builder from the frozen rank.
-// §10.10a keeps the *actual* submitter out of the plan hash and out of the store,
+// Settlement keeps the *actual* submitter out of the plan hash and out of the store,
 // so only this derived operator is ever committed.
 func (k Keeper) settlementDutyBuilder(
 	ctx context.Context,
@@ -527,7 +526,7 @@ func settlementResponse(
 }
 
 // applySettlementPlan is the only writer of TaskSettlementState. It performs the
-// §10.10a step 7 sequence in one cache context: settlement rows, budget
+// settlement apply sequence in one cache context: settlement rows, budget
 // finalization, earnings credit, treasury maintenance, user refund, terminal task
 // state, liability release and the code 19 event.
 func (k Keeper) applySettlementPlan(
@@ -636,10 +635,8 @@ func (k Keeper) applySettlementPlan(
 			return types.TaskSettlementState{}, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 		}
 	}
-	// No settle-stage Builder contribution is credited. the API contract:3273/:3635
-	// and the data-structure contract:1564 all say Phase 0 does not create
-	// BuilderContributionState:
-	// it has no Builder reward or term consumer, and its four counter arrays have
+	// No settle-stage Builder contribution is credited. Phase 0 does not create
+	// BuilderContributionState: it has no Builder reward or term consumer, and its four counter arrays have
 	// no complete producer. The proposal receipt and its event are the audit fact.
 	if maintenance, err := shared.ParseAmount(plan.MaintenanceFee); err != nil {
 		return types.TaskSettlementState{}, err
@@ -667,17 +664,16 @@ func (k Keeper) applySettlementPlan(
 			core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFY_FAILED
 		}
 	}
-	// FINALIZED, not REFUNDED, even on a failing verdict. §16.4's enum tables pair
+	// FINALIZED, not REFUNDED, even on a failing verdict. The protocol's enum tables pair
 	// OrderSequenceStatus REFUNDED=4/SETTLED=5 with SettlementStatus
 	// FINALIZED=2/REFUNDED=3, and this path writes ORDER_SEQUENCE_STATUS_SETTLED;
 	// marking the settlement REFUNDED here would make the two disagree on the same
-	// task. It is also not a pure refund: §10.10c pays the round-1 verifier cluster
+	// task. It is also not a pure refund: settlement pays the round-1 verifier cluster
 	// off worker_gross even when worker_payable_gross is zero, so a FAIL verdict
 	// still moves business funds. The one path that is definitionally a refund —
 	// pre_verification_failure, which already declares ORDER_SEQUENCE_STATUS_REFUNDED
-	// — is where SETTLEMENT_STATUS_REFUNDED is produced. Whether §10.7's thin round
-	// should reach that shape through this path is the open contract question
-	// recorded as N-26/N-37(b).
+	// — is where SETTLEMENT_STATUS_REFUNDED is produced. Whether a thin round
+	// should reach that shape through this path is an open protocol question.
 	core.SettlementStatus = types.SettlementStatus_SETTLEMENT_STATUS_FINALIZED
 	core.FinalityStatus = shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL
 	core.EffectiveVerifyRound = plan.EffectiveVerifyRound

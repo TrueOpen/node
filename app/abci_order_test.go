@@ -6,7 +6,7 @@ import (
 )
 
 // TestBeginBlockOrderFrozen asserts the app-level BeginBlocker order matches
-// the Node specification.
+// the frozen order.
 // Changing this order is a cross-boundary breaking change; the intent is that
 // any accidental reordering trips the test before the diff can merge.
 func TestBeginBlockOrderFrozen(t *testing.T) {
@@ -23,7 +23,7 @@ func TestBeginBlockOrderFrozen(t *testing.T) {
 }
 
 // TestEndBlockOrderFrozen mirrors TestBeginBlockOrderFrozen for EndBlockers.
-// Note that distribution is intentionally absent from EndBlock; per §14.4 the
+// Note that distribution is intentionally absent from EndBlock; the frozen
 // EndBlock chain is gov -> staking -> hub -> task.
 //
 // gov leads the chain (SDK convention): its EndBlocker only tallies proposals

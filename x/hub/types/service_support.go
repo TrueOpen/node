@@ -38,16 +38,16 @@ func (s ServiceBondState) Validate() error {
 	if s.BondVersion == 0 {
 		return fmt.Errorf("service bond %s bond_version must be greater than 0", operator)
 	}
-	// Ruling 9 invariant 1: the frozen previous-epoch snapshot can never exceed the
+	// Epoch consistency invariant 1: the frozen previous-epoch snapshot can never exceed the
 	// live amount.
 	if s.EffectiveActiveBond > s.ActiveBond {
 		return fmt.Errorf("service bond effective_active_bond exceeds active_bond")
 	}
-	// reserved_liability is deliberately NOT bounded here. the API contract
-	// §10.0c layer 1 slashes active_bond without subtracting reserved_liability,
+	// reserved_liability is deliberately NOT bounded here. A layer-1
+	// slash reduces active_bond without subtracting reserved_liability,
 	// so "reserved_liability > effective_active_bond" is a reachable, legal state
 	// between a slash and the CloseTaskLiabilityReservation that releases each
-	// frozen reserved_amount (§B.1.3). Rejecting it here made a fully-reserved
+	// frozen reserved_amount. Rejecting it here made a fully-reserved
 	// operator unslashable and panicked Genesis/invariants on legal post-slash
 	// rows. types.AvailableBond is the single reader that has to cope with it and
 	// reports the condition instead of wrapping the subtraction.
@@ -57,8 +57,7 @@ func (s ServiceBondState) Validate() error {
 	if s.Status == ServiceBondStatusExited && (s.ActiveBond != 0 || s.EffectiveActiveBond != 0 || s.ReservedLiability != 0 || s.PendingUnbondingTotal != 0) {
 		return fmt.Errorf("exited service bond must have zero balances")
 	}
-	// jail invariant (the data-structure contract). Only the
-	// row-local half lives
+	// jail invariant. Only the row-local half lives
 	// here; the two halves that need params — `jail_count < tombstone threshold`
 	// for JAILED and `>=` for TOMBSTONED — plus the ModelSupport cross-check are
 	// enforced where the threshold is in scope.
@@ -80,12 +79,12 @@ func (s ServiceBondState) Validate() error {
 	return nil
 }
 
-// ValidateServiceBondEpochConsistency is Ruling 9's epoch-scoped invariant for the
+// ValidateServiceBondEpochConsistency is the epoch-scoped invariant for the
 // unregistered ServiceBondState.effective_active_bond field.
 //
-// CONTRACT-GAP: the data-structure contract does not register
-// effective_active_bond, but §6.1's support_vote_weight and §10.0c's "top-up
-// takes effect next epoch" both need the previous-epoch snapshot, so the field is
+// CONTRACT-GAP: the protocol state layout does not register
+// effective_active_bond, but support_vote_weight and the "top-up
+// takes effect next epoch" rule both need the previous-epoch snapshot, so the field is
 // kept and constrained here instead:
 //
 //  1. effective_active_bond <= active_bond (also enforced by Validate above).
@@ -311,7 +310,7 @@ type SupportEligibilityInputs struct {
 //
 // eligible requires all of: declared and still fresh support, at least one
 // declared capability, an ACTIVE service key, a live bond status
-// (REGISTERED || ACTIVE — see Ruling 15; JAILED / UNBONDING / EXITED / TOMBSTONED
+// (REGISTERED || ACTIVE; JAILED / UNBONDING / EXITED / TOMBSTONED
 // are excluded), an open model and profile status, and an effective bond at or
 // above the profile min_stake.
 //
@@ -332,7 +331,7 @@ func SupportVoteWeight(in SupportEligibilityInputs, currentEpoch uint64, params 
 	if in.Node.ServiceKeyStatus != ServiceKeyStatusActive {
 		return 0, false, nil
 	}
-	// Jail and tombstone are operator-global (§6.4). jail_count > 0 and
+	// Jail and tombstone are operator-global. jail_count > 0 and
 	// Status == JAILED are written together, but a Genesis document could set only
 	// one of them, so both are checked.
 	if !IsLiveServiceBondStatus(in.Bond.Status) || in.Bond.JailCount != 0 {
@@ -391,8 +390,7 @@ func IsLiveServiceBondStatus(status ServiceBondStatus) bool {
 // candidate_jail_factor as jail_count 1/2 -> 500000/250000 ppm with only
 // jail_count >= tombstone threshold ejecting from the pool. The graduated factor,
 // not the status, therefore owns jail exclusion. Rejecting JAILED here instead
-// would also strand the recovery path, because the API contract
-// clears jail_count
+// would also strand the recovery path, because jail_count is cleared
 // only through the normal actions a candidate has to be admitted to perform.
 func IsCandidateEligibleBondStatus(status ServiceBondStatus) bool {
 	return IsLiveServiceBondStatus(status) || status == ServiceBondStatusJailed

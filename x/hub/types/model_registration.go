@@ -207,13 +207,13 @@ func canonicalJSONHash(name string, value []byte) (string, error) {
 // ProfileExecutionSnapshotHash is the sole producer of
 // TRUEOPEN_PROFILE_VERIFICATION_SNAPSHOT_V1.
 //
-// The nine top-level fields below commit a superset of §10.1's ten-item list,
-// so the text is stale rather than the preimage weak, and the ruling is that
+// The nine top-level fields below commit a superset of an older ten-item
+// field list, so that list is stale rather than the preimage weak, and the ruling is that
 // this producer stands:
 //   - canonical_encoding_version, evidence_schema_hash and
 //     metric_aggregate_proof_version are not dropped. They are fields 11, 12
-//     and 13 of the recursively framed verification_profile. §10.1 enumerates
-//     them flat because it predates the §1.2 nested framing this producer now
+//     and 13 of the recursively framed verification_profile. The older list enumerates
+//     them flat because it predates the nested framing this producer now
 //     follows, which is the other half of the same fix.
 //   - manifest_hash and generation_type are the two extras. Both are
 //     execution-relevant and both are carried by the retained
@@ -222,10 +222,10 @@ func canonicalJSONHash(name string, value []byte) (string, error) {
 //
 // The nested layer is not a divergence any more: canonicalVerificationProfile,
 // canonicalVerificationThresholdsBytes and canonicalBatchVerification all frame
-// their message recursively in proto field-number ascending order per §1.2, and
-// the current monorepo formula registers exactly the nine positions below. That
+// their message recursively in proto field-number ascending order, and
+// the current formula registers exactly the nine positions below. That
 // is why PreimageDivergesFromContract is false in the domain registry: the
-// divergence this comment used to record was resolved on the document side, not
+// divergence this comment used to record was resolved in the specification, not
 // waived here.
 func ProfileExecutionSnapshotHash(snapshot shared.ProfileExecutionSnapshot) ([]byte, error) {
 	verificationProfile, err := canonicalVerificationProfile(snapshot.VerificationProfile)
@@ -247,7 +247,7 @@ func ProfileExecutionSnapshotHash(snapshot shared.ProfileExecutionSnapshot) ([]b
 	).Sum()
 }
 
-// canonicalVerificationProfile is the §1.2 recursive frame of the required
+// canonicalVerificationProfile is the recursive frame of the required
 // nested VerificationProfile message: every field of proto/shared/v1/
 // model_profile.proto's VerificationProfile in field-number ascending order 1->14,
 // with metrics (field 10) encoded as one recursive MetricSpec frame rather than

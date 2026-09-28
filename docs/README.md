@@ -1,21 +1,17 @@
 # TrueOpen Node Documentation
 
 This directory documents the node implementation. It does not define the
-protocol: the normative contract lives in the `` specification
-documents, and the wire format lives in the `TrueOpen/wire` release this
-repository pins.
+protocol: the wire format and frozen preimages live in the `TrueOpen/wire`
+release this repository pins.
 
 ## Authority Order
 
 When two statements disagree, the higher one wins:
 
-1. The upstream protocol and service-design documents — the API contract, the
-   data-structure contract, the protocol specifications, and the accepted
-   decision records. They are not published in this repository.
-2. The pinned wire release: the descriptor image and domain registry named in
+1. The pinned wire release: the descriptor image and domain registry named in
    `wire/pin.json`. Exact field numbers, registered RPC methods and frozen hash
    preimages come from there, never from a table written by hand.
-3. This repository's own documents, for how the implementation realises the
+2. This repository's own documents, for how the implementation realises the
    above.
 
 A document here never authorises new consensus behaviour. It cannot allocate a

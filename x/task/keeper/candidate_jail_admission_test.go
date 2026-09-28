@@ -13,8 +13,8 @@ import (
 )
 
 // A jailed operator has to keep drawing duty to ever leave jail.
-// the API contract clears one jail_count per
-// jail_clear_normal_action_count normal actions, and the Keeper detailed design
+// The protocol clears one jail_count per
+// jail_clear_normal_action_count normal actions, and the keeper
 // clears verifier_miss only after further completed verification duties. Both are
 // unreachable if JAILED is rejected at admission, so a single fault would be
 // terminal and the parameter table's candidate_jail_factor ladder (jail_count 1/2 ->

@@ -8,17 +8,16 @@ import (
 
 // BridgeUpstream is the whole of what TrueOpen reads from the Hyperlane modules.
 //
-// the bridge protocol forbids mirroring upstream proto, state
-// or handlers here,
-// so this interface deliberately exposes only the few frozen facts §2.1, §3.3,
-// §3.4 and §4.4 require the guard to compare against — never the objects
+// Upstream proto, state and handlers must not be mirrored here, so this
+// interface deliberately exposes only the few frozen facts the guard must
+// compare against — never the objects
 // themselves. The app supplies the adapter; x/hub never imports Hyperlane.
 type BridgeUpstream interface {
 	// MailboxFacts returns the local domain, the configured default ISM and the
 	// owner of the Mailbox the route names.
 	MailboxFacts(ctx context.Context, mailboxID []byte) (BridgeUpstreamMailbox, error)
 	// TokenFacts returns the Synthetic token's shape. ism_id is returned as
-	// present/absent because §3.4 turns on exactly that distinction.
+	// present/absent because the ISM rule turns on exactly that distinction.
 	TokenFacts(ctx context.Context, tokenID []byte) (BridgeUpstreamToken, error)
 	// RemoteRouters returns every enrolled router of the token, so the guard can
 	// require exactly one and reject a token that also speaks to another domain.
@@ -33,7 +32,7 @@ type BridgeUpstreamMailbox struct {
 
 type BridgeUpstreamToken struct {
 	// SyntheticTokenType reports whether the token is HYP_TOKEN_TYPE_SYNTHETIC.
-	// The raw upstream enum is not surfaced: §3.3 admits exactly one value and
+	// The raw upstream enum is not surfaced: only one value is admitted and
 	// re-exporting the rest would invite a second interpretation of it.
 	Synthetic     bool
 	OriginMailbox []byte
@@ -47,7 +46,7 @@ type BridgeUpstreamRemoteRouter struct {
 	ReceiverContract  []byte
 }
 
-// ValidateBridgeUpstream is the §2.1 / §3.3 / §3.4 / §4.4 cross-check that the
+// ValidateBridgeUpstream is the cross-check that the
 // route actually describes the live upstream objects. Genesis runs it once both
 // modules have imported, and the operator-facing query reports it.
 //
@@ -90,7 +89,7 @@ func ValidateBridgeUpstream(ctx context.Context, upstream BridgeUpstream, route 
 	if token.Owner != govAuthority {
 		return fmt.Errorf("warp token owner %s is not the x/gov module account", token.Owner)
 	}
-	// §3.4: a per-token ISM would shadow the Mailbox default, so a cutover that
+	// A per-token ISM would shadow the Mailbox default, so a cutover that
 	// repoints the default would look applied while the old signers still verify.
 	if token.HasIsmID {
 		return fmt.Errorf("the USDC warp token must have no ism_id; it must use the mailbox default ISM")

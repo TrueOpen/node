@@ -2,13 +2,13 @@ package app
 
 // RewardEligibility query integration (MarkGate).
 //
-// Spec §14 wants Node to expose the authoritative MarkGate /
+// Node must expose the authoritative MarkGate /
 // epoch-eligibility read-side. This file proves the handler works
 // end-to-end through the depinject-wired app — keeper unit tests exercise
 // the collections math, but not the codec + query server + address
 // validation layers a live client hits.
 //
-// The PerformanceScore half of this file is deleted. Ruling 21
+// The PerformanceScore half of this file is deleted. The protocol
 // fixes performance_score_snapshot_ppm at the neutral 1_000_000 with
 // PERFORMANCE_RAW_Q16_V1, so there is no PerformanceScoreState collection and
 // no QueryPerformanceScore rpc left to exercise. If a stored performance score is reintroduced,

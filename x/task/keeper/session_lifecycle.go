@@ -37,7 +37,7 @@ func sessionLifecycleDueHeights(params types.TaskParamsV1, lastActiveHeight uint
 	return idleDue, closeDue, nil
 }
 
-// advanceSessionLifecycleForIndex is the single §10.0b1 executor shared by
+// advanceSessionLifecycleForIndex is the single session lifecycle executor shared by
 // EndBlock and MsgSweepDeadline(SessionLifecycleLocator). The caller has already
 // removed the index row it is reporting, so this function is responsible for
 // re-arming the authoritative row when the transition does not apply.
@@ -55,7 +55,7 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 		return sessionLifecycleResult{}, errorsmod.Wrap(types.ErrInvariantBroken, "session lifecycle index points to mismatched stream")
 	}
 	if stream.OpenPendingCount != 0 || currentHeight < dueHeight {
-		// §10.0b1: open_pending_count != 0 and not-yet-due are both no-ops.
+		// open_pending_count != 0 and not-yet-due are both no-ops.
 		if err := k.refreshSessionLifecycleIndex(ctx, stream); err != nil {
 			return sessionLifecycleResult{}, err
 		}
@@ -100,7 +100,7 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 		if err := k.replaceStreamState(ctx, previous, stream); err != nil {
 			return sessionLifecycleResult{}, err
 		}
-		// §6.2 line 854 / §7 line 2011: the CLOSED transaction removes the owner
+		// The CLOSED transaction removes the owner
 		// index and every remaining lifecycle row of this session.
 		if err := k.removeSessionByOwnerIndex(ctx, stream.OwnerUserAddress, sessionKey); err != nil {
 			return sessionLifecycleResult{}, err
@@ -128,7 +128,7 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 }
 
 // removeSessionByOwnerIndex is the only writer that deletes SessionByOwnerIndex.
-// P2-08 ④: before this, nothing in the module ever removed the row, so
+// Before this, nothing in the module ever removed the row, so
 // QuerySessionsByOwner enumerated CLOSED sessions forever.
 func (k Keeper) removeSessionByOwnerIndex(ctx context.Context, owner string, sessionKey types.SessionKey) error {
 	raw, err := k.sessionAddressToStore("session owner index", owner)
@@ -211,7 +211,7 @@ func (k Keeper) SweepExpiredSessionLifecycle(ctx context.Context, currentHeight,
 	return result, nil
 }
 
-// SweepSessionLifecycleByID is the ByIDV1 branch of §5.9's
+// SweepSessionLifecycleByID is the ByIDV1 branch of
 // SessionLifecycleLocator. It resolves the due row from the authoritative
 // StreamState instead of scanning the index, so it is O(1).
 func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.SessionKey, currentHeight uint64) (SessionLifecycleSweepResult, error) {
@@ -241,7 +241,7 @@ func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.
 	case types.SessionStatus_SESSION_STATUS_IDLE:
 		dueHeight, action = closeDue, types.SessionLifecycleAction_SESSION_LIFECYCLE_ACTION_CLOSE
 	default:
-		// CLOSED is terminal: §10.0b1 line 2340 allows reactivation from IDLE only.
+		// CLOSED is terminal: the lifecycle allows reactivation from IDLE only.
 		return SessionLifecycleSweepResult{}, nil
 	}
 	if stream.OpenPendingCount != 0 || currentHeight < dueHeight {

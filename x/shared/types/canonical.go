@@ -28,34 +28,33 @@ func validateCanonicalDomainV1(domain string) error {
 	return nil
 }
 
-// Canonical framing resource limits
-// §6. They bound how much work an
+// Canonical framing resource limits. They bound how much work an
 // untrusted preimage can ask a node to do, so every framing helper that is able
 // to reject applies them before its first allocation. None of them can fire on a
 // value the chain accepts today: domains are frozen ASCII literals and every
 // field count reaching these helpers is a compile-time constant.
 const (
-	// MaxCanonicalDomainBytesV1 caps a framing domain at 128 bytes (§6 domain
+	// MaxCanonicalDomainBytesV1 caps a framing domain at 128 bytes (domain
 	// rule). It applies to H_V1, MERKLE_ROOT_V1 and MMR_ROOT_V1, whose domain
 	// frames use the same u32-length-prefixed shape.
 	MaxCanonicalDomainBytesV1 = 128
 	// MaxCanonicalFieldBytesV1 caps one framed field, and one H_V1 payload, at
-	// 32 MiB (§6 single-value rule).
+	// 32 MiB (single-value rule).
 	MaxCanonicalFieldBytesV1 = uint64(32 << 20)
-	// MaxCanonicalFramedBytesV1 caps a complete framed preimage at 64 MiB (§6
-	// total-preimage rule). It is a separate rule from MaxCanonicalFieldBytesV1
+	// MaxCanonicalFramedBytesV1 caps a complete framed preimage at 64 MiB
+	// (total-preimage rule). It is a separate rule from MaxCanonicalFieldBytesV1
 	// because one frame may carry several fields.
 	MaxCanonicalFramedBytesV1 = uint64(64 << 20)
-	// MaxCanonicalFrameFieldsV1 caps one frame at 65535 fields (§6 field-count
+	// MaxCanonicalFrameFieldsV1 caps one frame at 65535 fields (field-count
 	// rule).
 	MaxCanonicalFrameFieldsV1 = 65_535
 	// MaxCanonicalRepeatedElementsV1 caps one repeated value at 65534 elements
-	// (§6 repeated rule). Being one below MaxCanonicalFrameFieldsV1 is not a
-	// typo: §6 states the two bounds separately, so they must not be collapsed
+	// (repeated rule). Being one below MaxCanonicalFrameFieldsV1 is not a
+	// typo: the framing rules state the two bounds separately, so they must not be collapsed
 	// into a single constant.
 	MaxCanonicalRepeatedElementsV1 = 65_534
-	// MaxCanonicalNestedDepthV1 caps nested canonical frames at 32 levels (§6
-	// nesting rule). Raw []byte cannot carry this provenance; typed frame builders
+	// MaxCanonicalNestedDepthV1 caps nested canonical frames at 32 levels
+	// (nesting rule). Raw []byte cannot carry this provenance; typed frame builders
 	// below preserve it until the terminal frame or hash boundary.
 	MaxCanonicalNestedDepthV1 = uint8(32)
 )
@@ -70,7 +69,7 @@ func PayloadFrameV1(domain string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("payload exceeds %d bytes", MaxCanonicalFieldBytesV1)
 	}
 	// framed = prefix || u32(len(domain)) || domain || u64(len(payload)) || payload.
-	// §6 also caps a complete framed preimage at MaxCanonicalFramedBytesV1, but an
+	// The framing rules also cap a complete framed preimage at MaxCanonicalFramedBytesV1, but an
 	// H_V1 frame cannot reach it: the two caps above hold the total at or below
 	// 14 + 4 + 128 + 8 + 32 MiB = 33554586 bytes, and the same arithmetic keeps the
 	// sum from overflowing. Checking it here would add a branch no input can take
@@ -128,12 +127,11 @@ func EnumBE(value uint32) []byte {
 }
 
 // OptionalAbsentFrameV1 and OptionalPresentFrameV1 encode the
-// the canonical encoding contract
-// optional layout: absent is the single byte 00, present is 01 followed by
+// canonical optional layout: absent is the single byte 00, present is 01 followed by
 // FRAME_V1(ENC(value)), i.e. u64_be(len) || bytes.
 //
 // They are two functions rather than one OptionalFrameV1(present bool, encoded
-// []byte) on purpose. §10.3 requires absent, present-zero and present-empty to
+// []byte) on purpose. The optional encoding requires absent, present-zero and present-empty to
 // be three different preimages, and a presence boolean is exactly the parameter
 // a caller gets wrong: OptionalFrameV1(len(v) > 0, v) silently collapses
 // present-empty onto absent, and OptionalFrameV1(false, v) silently drops v.
@@ -355,7 +353,7 @@ func (builder *CanonicalFrameBuilderV1) Nested(frames ...CanonicalFrameV1) *Cano
 	return builder
 }
 
-// Build computes 1 + max(child depth) and rejects the first frame beyond §6's
+// Build computes 1 + max(child depth) and rejects the first frame beyond the
 // depth limit before allocating its encoded bytes.
 func (builder *CanonicalFrameBuilderV1) Build() CanonicalFrameV1 {
 	if len(builder.fields) > MaxCanonicalFrameFieldsV1 {
@@ -423,7 +421,7 @@ func RepeatedFrameV1(encodedElements ...[]byte) ([]byte, error) {
 // FRAME_V1(uint32_be(count), ENC(element_1), ..., ENC(element_n)). The repeated
 // container itself adds one nesting level.
 //
-// It takes already-typed element fields because §4.4 defines the container in
+// It takes already-typed element fields because the repeated encoding defines the container in
 // terms of ENC(element), which differs by element type: ENC of a scalar is the
 // scalar's own bytes, while ENC of a nested message is that message's FRAME_V1.
 // Both reach this encoder as one CanonicalFieldV1, so a repeated uint32 and a
@@ -538,7 +536,7 @@ func CanonicalFrameBytes(fields ...[]byte) []byte {
 // returned slices alias framed; callers that retain them past the buffer's
 // lifetime must copy.
 //
-// Every the canonical encoding contract bound is checked before the
+// Every canonical encoding bound is checked before the
 // result slice is reserved. That
 // ordering is the point: fieldCount is the caller's claim about the input, not a
 // fact about it, so reserving capacity for it first let
@@ -562,7 +560,7 @@ func DecodeCanonicalFrameBytes(framed []byte, fieldCount int, maxFieldBytes uint
 	}
 	// maxFieldBytes is rejected rather than clamped down to
 	// MaxCanonicalFieldBytesV1. Clamping would keep accepting a call whose stated
-	// contract §6 forbids and quietly enforce a different one; every call site
+	// cap exceeds what the framing rules allow and quietly enforce a different one; every call site
 	// passes a compile-time constant, so a value above the cap is a bug in the
 	// caller and should read as one. It also makes the int(length) conversion
 	// below safe on every platform, independently of the truncation check.

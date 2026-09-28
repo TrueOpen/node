@@ -212,8 +212,8 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 		return types.TaskLiabilityReservationState{}, err
 	}
 	// available_bond is checked for coverage, never for equality with the frozen
-	// snapshot. §B.1.3 only states the inequality "available_bond >=
-	// required_task_liability", and available_bond = effective_active_bond -
+	// snapshot. The rule is only the inequality available_bond >=
+	// required_task_liability, and available_bond = effective_active_bond -
 	// reserved_liability moves on every reservation *and* every release by any
 	// other duty of the same operator, while bond_version deliberately does not
 	// change for either. Demanding equality therefore made concurrent duties
@@ -343,8 +343,8 @@ func (k Keeper) validateTaskLiabilityCapability(
 	if err := support.Validate(); err != nil {
 		return 0, fmt.Errorf("invalid model support: %w", err)
 	}
-	// The accepted candidate version is an audit floor, not a CAS token. Contract
-	// §10.1 explicitly allows jail suspension, daily refresh and bond reweight to
+	// The accepted candidate version is an audit floor, not a CAS token. The protocol
+	// explicitly allows jail suspension, daily refresh and bond reweight to
 	// advance support_version before liability reservation; capability_version
 	// remains exact because changing either capability boolean changes duty
 	// eligibility itself.
@@ -431,7 +431,7 @@ func (k Keeper) ensureTaskLiabilityCapacity(ctx context.Context, taskID shared.H
 	return nil
 }
 
-// ReleaseTaskLiabilities is the CloseAllTaskLiabilitiesOnce entry of §B.1.3:
+// ReleaseTaskLiabilities is the CloseAllTaskLiabilitiesOnce entry:
 // it walks TaskLiabilityByTaskIndex in stable order under the hard bound and
 // closes every reservation through the single-row helper.
 func (k Keeper) ReleaseTaskLiabilities(ctx context.Context, sessionID, taskID string, height uint64) error {
@@ -666,8 +666,8 @@ func (k Keeper) closeTaskLiabilityReservationInCache(
 	if err := k.TaskLiabilityByTaskIndex.Remove(ctx, types.NewTaskLiabilityByTaskKey(taskID, duty, operatorAddress)); err != nil {
 		return ApplyServiceSlashResult{}, err
 	}
-	// Ruling 29: no pool invalidation here — closing a reservation does not change
-	// global membership. But this is §3.3 line 225 clearing point 2: the
+	// No pool invalidation here — closing a reservation does not change
+	// global membership. But this is clearing point 2: the
 	// ActiveLiabilityByOperatorIndex row just went away, so a RETIRING slot that
 	// was blocked only by it must complete its release in this same transaction.
 	if err := k.retryCandidateSlotRelease(ctx, operatorAddress, height); err != nil {
@@ -681,8 +681,8 @@ func (k Keeper) closeTaskLiabilityReservationInCache(
 
 	if outcome == types.TaskLiabilityStatusReleased {
 		// This is the only authoritative Hub-side fact for "the operator fully
-		// discharged one protocol-assigned duty without a fault", which §10.0c
-		// makes the jail-clear trigger. The SLASHED branch must never advance it.
+		// discharged one protocol-assigned duty without a fault", which is
+		// the jail-clear trigger. The SLASHED branch must never advance it.
 		if _, err := k.advanceJailClearCounter(ctx, operatorAddress, duty, height); err != nil {
 			return ApplyServiceSlashResult{}, err
 		}

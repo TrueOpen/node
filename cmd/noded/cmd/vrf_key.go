@@ -2,8 +2,7 @@ package cmd
 
 // `noded beacon` — the local operator commands for the beacon VRF hot key.
 //
-// the sampling protocol requires the beacon to use a VRF hot
-// key kept separate from the consensus signing key, with its public key
+// The beacon must use a VRF hot key kept separate from the consensus signing key, with its public key
 // registered on chain under the stable operator address. These two subcommands
 // cover the two things that must be done on the machine before registration:
 //

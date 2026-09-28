@@ -127,7 +127,7 @@ func TestProfileExecutionSnapshotHashGolden(t *testing.T) {
 }
 
 // TestProfileExecutionSnapshotHashBindsEveryNestedVerificationProfileField is the
-// per-position mutation gate for the nested layer fixed by X-6. There is no
+// per-position mutation gate for the nested verification-profile layer. There is no
 // cross-language JSON fixture for TRUEOPEN_PROFILE_VERIFICATION_SNAPSHOT_V1 today, so
 // this is the only thing standing between a reordered nested frame and a silent
 // consensus fork: each of the fourteen VerificationProfile field positions, and
@@ -259,9 +259,9 @@ func goldenProfileExecutionSnapshot(t *testing.T) shared.ProfileExecutionSnapsho
 	}
 }
 
-// TestCanonicalVerificationProfileFramesProtoFieldNumberOrder is the X-6
+// TestCanonicalVerificationProfileFramesProtoFieldNumberOrder is the
 // regression gate for the nested layer of TRUEOPEN_PROFILE_VERIFICATION_SNAPSHOT_V1.
-// §1.2 requires a required nested message to encode its field frames recursively
+// A required nested message must encode its field frames recursively
 // in schema field-number ascending order, so VerificationProfile must frame
 // 1->14 with metrics (field 10) as one recursive MetricSpec frame. The module
 // already owns the correct MetricSpec encoder (canonicalMetricSpecFrame, used by

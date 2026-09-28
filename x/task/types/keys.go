@@ -81,41 +81,39 @@ func validateStorePrefixComponent(component string) error {
 //	state_version, store_migration      no migration surface exists.
 //	task_status, task_worker,
 //	task_verifiers                      the six sub-states are only on
-//	                                    TaskCoreState
-//	                                    (the data-structure contract); the
-//	                                    two
+//	                                    TaskCoreState; the two
 //	                                    projections had zero readers.
 //	verifier_candidate_set              replaced by the frozen verifier window
-//	                                    header/segments/members (§4.4).
+//	                                    header/segments/members.
 //	worker_reveal_receipt_state         no worker reveal Msg exists.
 //	session_escrow                      Model A has no per-session balance;
-//	                                    TaskBudgetState is the only ledger (§6.2).
-//	task_settlement_by_height_index     no §7 index and no §5.9 DeadlineKindV1
+//	                                    TaskBudgetState is the only ledger.
+//	task_settlement_by_height_index     no height index and no DeadlineKindV1
 //	                                    value maps to it; TaskSettlementState is
 //	                                    reached by its (task_id) primary key.
-//	                                    (settlement_state itself IS registered —
-//	                                    K-BLOCK-16 closed and the row is stored.)
+//	                                    (settlement_state itself IS registered and
+//	                                    the row is stored.)
 //	evidence_digest_state, prune_cursor_state,
 //	epoch_payload_cursor_state          replaced by the bounded Task cleanup
 //	                                    cursor used by bounded Task cleanup.
 //	sample_ready_index,
-//	worker_reveal_deadline_index        Ruling 25: not registered in §7 and no §5.9
+//	worker_reveal_deadline_index        not a registered height index and no
 //	                                    DeadlineKindV1 value maps to them.
-//	task_by_model_index                 Ruling 25 / §2.4: a KeySet that a primary-key
+//	task_by_model_index                 a KeySet that a primary-key
 //	                                    prefix scan can already page is forbidden.
 //	challenge_*, task_evidence_request_*,
-//	evidence_request_deadline_index     K-BLOCK-03/04: the value messages are not
+//	evidence_request_deadline_index     the value messages are not
 //	                                    registered, so there is no internal schema
-//	                                    to key yet (§2.4).
+//	                                    to key yet.
 //	timeout_bucket, idx_timeout_bucket_effective
 //	                                    versioned parameter buckets live in
 //	                                    x/hub; this module keeps only
-//	                                    TaskBucketRefState refs (§2.4/§6.7).
+//	                                    TaskBucketRefState refs.
 var (
 	ParamsKey     = collections.NewPrefix("p_task")
 	ParamsMetaKey = MustVersionedStorePrefix("params_meta", CurrentStoreSchemaVersion)
 
-	// ---- Session / Order (the data-structure contract) ----
+	// ---- Session / Order ----
 	SessionNonceKey                     = MustVersionedStorePrefix("session_nonce", CurrentStoreSchemaVersion)
 	StreamStateKey                      = MustVersionedStorePrefix("stream_state", CurrentStoreSchemaVersion)
 	SessionByOwnerIndexKey              = MustVersionedStorePrefix("session_by_owner_index", CurrentStoreSchemaVersion)
@@ -125,12 +123,12 @@ var (
 	SessionTerminalSummaryKey           = MustVersionedStorePrefix("session_terminal_summary", CurrentStoreSchemaVersion)
 	SessionTerminalSummaryPruneIndexKey = MustVersionedStorePrefix("session_terminal_summary_prune_index", CurrentStoreSchemaVersion)
 	// OrderSequenceStateKey used to be the raw literal "sequence_audit", which
-	// named an audit log this collection is not: §6.2 makes OrderSequenceState the
+	// named an audit log this collection is not: OrderSequenceState is the
 	// authoritative per-sequence status row.
 	OrderSequenceStateKey = MustVersionedStorePrefix("order_sequence", CurrentStoreSchemaVersion)
 	TaskBudgetKeyPrefix   = MustVersionedStorePrefix("task_budget", CurrentStoreSchemaVersion)
 
-	// ---- Task core, assignment and handraise (§4.2/§4.3/§4.6/§6.6) ----
+	// ---- Task core, assignment and handraise ----
 	TaskCoreKey                       = MustVersionedStorePrefix("task_core", CurrentStoreSchemaVersion)
 	TaskAssignmentKey                 = MustVersionedStorePrefix("task_assignment", CurrentStoreSchemaVersion)
 	AssignmentCandidateSetKey         = MustVersionedStorePrefix("assignment_candidate_set", CurrentStoreSchemaVersion)
@@ -142,7 +140,7 @@ var (
 	TaskBuilderSelectionKey           = MustVersionedStorePrefix("task_builder_selection", CurrentStoreSchemaVersion)
 	TaskBucketRefKey                  = MustVersionedStorePrefix("task_bucket_ref", CurrentStoreSchemaVersion)
 
-	// ---- Receipt, verifier window and verification (§4.4/§6.6) ----
+	// ---- Receipt, verifier window and verification ----
 	InferReceiptKey                        = MustVersionedStorePrefix("infer_receipt", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
@@ -154,7 +152,7 @@ var (
 	BuilderDataUnavailableAggregateKey     = MustVersionedStorePrefix("builder_data_unavailable_aggregate", CurrentStoreSchemaVersion)
 	WorkerEvidenceReceiptStateKey          = MustVersionedStorePrefix("worker_evidence_receipt", CurrentStoreSchemaVersion)
 
-	// ---- Settlement facts, failure class and challenge summary (§6.6) ----
+	// ---- Settlement facts, failure class and challenge summary ----
 	VerificationRoundStateKey              = MustVersionedStorePrefix("verification_round", CurrentStoreSchemaVersion)
 	RoundFundingStateKey                   = MustVersionedStorePrefix("round_funding", CurrentStoreSchemaVersion)
 	RoundEconomicEffectStateKey            = MustVersionedStorePrefix("round_economic_effect", CurrentStoreSchemaVersion)
@@ -185,7 +183,7 @@ var (
 	// keeper/task_failure_prune.go can stop at the first row past the head.
 	TaskFailureClassWindowPruneIndexKey = MustVersionedStorePrefix("task_failure_class_window_prune_index", CurrentStoreSchemaVersion)
 
-	// ---- Height indexes (§7; deadline semantics in §5.9) ----
+	// ---- Height indexes ----
 	AssignmentRandomnessIndexKey        = MustVersionedStorePrefix("assignment_randomness_index", CurrentStoreSchemaVersion)
 	InferDeadlineIndexKey               = MustVersionedStorePrefix("infer_deadline_index", CurrentStoreSchemaVersion)
 	VerifyOpenDeadlineIndexKey          = MustVersionedStorePrefix("verify_open_deadline_index", CurrentStoreSchemaVersion)
@@ -200,12 +198,12 @@ var (
 	VerifierSelectionRandomnessIndexKey = MustVersionedStorePrefix("verifier_selection_randomness_index", CurrentStoreSchemaVersion)
 	RoundEconomicEffectApplyIndexKey    = MustVersionedStorePrefix("round_economic_effect_apply_index", CurrentStoreSchemaVersion)
 	// WorkerActiveTaskIndexKey and VerifierActiveJobIndexKey back
-	// QueryRoleActiveTasks (§16.3).
+	// QueryRoleActiveTasks.
 	//
-	// CONTRACT-GAP (Ruling 25): §7 registers neither index. VerifierActiveJobIndex is
-	// kept because the §16.3 duty selector explicitly allows the VERIFIER side and
+	// Open gap: the protocol registers neither index. VerifierActiveJobIndex is
+	// kept because the QueryRoleActiveTasks duty selector explicitly allows the VERIFIER side and
 	// there is no other bounded path for it; WorkerActiveTaskIndex is its WORKER
-	// twin. Document side must register both or drop the duty selector.
+	// twin. The protocol must register both or drop the duty selector.
 	WorkerActiveTaskIndexKey  = MustVersionedStorePrefix("worker_active_task_index", CurrentStoreSchemaVersion)
 	VerifierActiveJobIndexKey = MustVersionedStorePrefix("verifier_active_job_index", CurrentStoreSchemaVersion)
 )
@@ -220,10 +218,10 @@ var (
 //
 // Hash32 key components (task_id, session_id, commit_key, proposal_digest) are
 // the raw 32 bytes, carried by Hash32Key and encoded by the fixed-width
-// Hash32KeyCodec in key_codec.go. §0.1 forbids storing a Hash32 as an arbitrary
+// Hash32KeyCodec in key_codec.go. The protocol forbids storing a Hash32 as an arbitrary
 // string, and the lowercase-64-hex form this revision deletes doubled every one
 // of these components — including inside the IAVL inner nodes, which carry the
-// same keys — on a keyspace §A.2-35 sizes at millions of task rows.
+// same keys — on a keyspace expected to hold millions of task rows.
 //
 // The switch is behaviour-neutral on ordering: lowercase hex is order-preserving
 // over the underlying bytes and Hash32KeyCodec is fixed-width, so every range
@@ -244,7 +242,7 @@ type SessionKey = Hash32Key
 
 func NewSessionKey(sessionID Hash32Key) SessionKey { return sessionID }
 
-// DeadlineIndexKey = (deadline_height, task_id). §5.9 makes the sweep order
+// DeadlineIndexKey = (deadline_height, task_id). The sweep order is
 // (deadline_height, kind_priority, primary_id); kind_priority is fixed per index,
 // so ascending iteration of one index is already the frozen order.
 type DeadlineIndexKey = collections.Pair[uint64, Hash32Key]
@@ -260,11 +258,11 @@ func NewEpochTaskSummaryScheduleKey(dueHeight, epoch uint64) EpochTaskSummarySch
 	return collections.Join(dueHeight, epoch)
 }
 
-// TaskBudgetKey = task_id (§6.2). TaskBudgetState is the only funding ledger, so
+// TaskBudgetKey = task_id. TaskBudgetState is the only funding ledger, so
 // it is keyed exactly like the task it funds.
 type TaskBudgetKey = Hash32Key
 
-// SessionByOwnerKey = (owner_user_address, session_id) (§6.2). Only ACTIVE/IDLE
+// SessionByOwnerKey = (owner_user_address, session_id). Only ACTIVE/IDLE
 // streams are in this index.
 type SessionByOwnerKey = collections.Pair[AddrKey, Hash32Key]
 
@@ -272,7 +270,7 @@ func NewSessionByOwnerKey(owner AddrKey, sessionID Hash32Key) SessionByOwnerKey 
 	return collections.Join(owner, sessionID)
 }
 
-// SessionLifecycleIndexKey = (due_height, session_id, action) (§6.2). action is
+// SessionLifecycleIndexKey = (due_height, session_id, action). action is
 // the SessionLifecycleAction enum, not free text, so MARK_IDLE and CLOSE cannot
 // collide with an unregistered third spelling.
 type SessionLifecycleIndexKey = collections.Triple[uint64, Hash32Key, int32]
@@ -283,7 +281,7 @@ func NewSessionLifecycleIndexKey(dueHeight uint64, sessionID Hash32Key, action S
 
 // SessionHeightIndexKey = (height, session_id). Shared shape of
 // SessionHistoryPruneIndex(eligible_height, session_id) and
-// SessionTerminalSummaryPruneIndex(prune_height, session_id) (§6.2/§7).
+// SessionTerminalSummaryPruneIndex(prune_height, session_id).
 type SessionHeightIndexKey = collections.Pair[uint64, Hash32Key]
 
 func NewSessionHistoryPruneIndexKey(eligibleHeight uint64, sessionID Hash32Key) SessionHeightIndexKey {
@@ -294,7 +292,7 @@ func NewSessionTerminalSummaryPruneIndexKey(pruneHeight uint64, sessionID Hash32
 	return collections.Join(pruneHeight, sessionID)
 }
 
-// OrderSequenceStateKeyPair = (session_id, order_sequence) (§6.2). Ascending
+// OrderSequenceStateKeyPair = (session_id, order_sequence). Ascending
 // order_sequence inside one session is the fold order of
 // TRUEOPEN_SESSION_SEQUENCE_ROOT_V1.
 type OrderSequenceStateKeyPair = collections.Pair[Hash32Key, uint64]
@@ -303,7 +301,7 @@ func NewOrderSequenceStateKey(sessionID Hash32Key, orderSequence uint64) OrderSe
 	return collections.Join(sessionID, orderSequence)
 }
 
-// TaskStageKey = (task_id, stage) (§4.2/§4.6). Key of
+// TaskStageKey = (task_id, stage). Key of
 // TaskStageHandraiseUnionState and TaskCandidateFinalizeCursorState.
 type TaskStageKey = collections.Pair[Hash32Key, int32]
 
@@ -311,8 +309,8 @@ func NewTaskStageKey(taskID Hash32Key, stage TaskCandidateStage) TaskStageKey {
 	return collections.Join(taskID, int32(stage))
 }
 
-// TaskCandidateFactKeyTriple = (task_id, stage, slot) (§4.2). Ascending slot
-// inside one stage is the §4.3 finalize and §4.5 draw order, so the frozen facts
+// TaskCandidateFactKeyTriple = (task_id, stage, slot). Ascending slot
+// inside one stage is the finalize and weighted-draw order, so the frozen facts
 // are read by a bounded prefix scan and never re-sorted in memory.
 type TaskCandidateFactKeyTriple = collections.Triple[Hash32Key, int32, uint32]
 
@@ -320,21 +318,21 @@ func NewTaskCandidateFactKey(taskID Hash32Key, stage TaskCandidateStage, slot ui
 	return collections.Join3(taskID, int32(stage), slot)
 }
 
-// TaskStageSegmentKeyTriple = (task_id, stage, segment_index) (§4.2).
+// TaskStageSegmentKeyTriple = (task_id, stage, segment_index).
 type TaskStageSegmentKeyTriple = collections.Triple[Hash32Key, int32, uint32]
 
 func NewTaskStageSegmentKey(taskID Hash32Key, stage TaskCandidateStage, segmentIndex uint32) TaskStageSegmentKeyTriple {
 	return collections.Join3(taskID, int32(stage), segmentIndex)
 }
 
-// BuilderStageProposalKeyTriple = (task_id, stage, proposal_digest) (§4.2).
+// BuilderStageProposalKeyTriple = (task_id, stage, proposal_digest).
 type BuilderStageProposalKeyTriple = collections.Triple[Hash32Key, int32, Hash32Key]
 
 func NewBuilderStageProposalKey(taskID Hash32Key, stage TaskCandidateStage, proposalDigest Hash32Key) BuilderStageProposalKeyTriple {
 	return collections.Join3(taskID, int32(stage), proposalDigest)
 }
 
-// VerifyRoundKey = (task_id, verify_round) (§4.4/§6.6). Key of
+// VerifyRoundKey = (task_id, verify_round). Key of
 // VerifierCandidateWindowState and VerifierAssignmentState.
 type VerifyRoundKey = collections.Pair[Hash32Key, uint32]
 
@@ -343,7 +341,7 @@ func NewVerifyRoundKey(taskID Hash32Key, verifyRound uint32) VerifyRoundKey {
 }
 
 // VerifyRoundSegmentKey = (task_id, verify_round, segment_index) for the frozen
-// eligibility bitmap, and rank_index for the window members (§4.4). rank_index is
+// eligibility bitmap, and rank_index for the window members. rank_index is
 // dense in [0, window_size) so the member rows are read in rank order.
 type VerifyRoundSegmentKey = collections.Triple[Hash32Key, uint32, uint32]
 
@@ -355,7 +353,7 @@ func NewVerifierWindowMemberKey(taskID Hash32Key, verifyRound, rankIndex uint32)
 	return collections.Join3(taskID, verifyRound, rankIndex)
 }
 
-// VerifyActorKey = (task_id, verify_round, operator_address) (§6.6). Key of
+// VerifyActorKey = (task_id, verify_round, operator_address). Key of
 // VerifyResultState, DataUnavailableReportState and
 // BuilderDataUnavailableAggregateState. The address is the stable operator, never
 // the service address.
@@ -376,7 +374,7 @@ func NewWorkerEvidenceReceiptKey(taskID Hash32Key, worker string, kind WorkerEvi
 // VerifyRoundIndexKey = (height, task_id, verify_round). Shared shape of
 // VerifierWindowBuildIndex(window_randomness_height, ...),
 // VerifierHandraiseCloseIndex(handraise_close_height, ...) and
-// VerifierSelectionRandomnessIndex(selection_randomness_height, ...) (§4.4/§7).
+// VerifierSelectionRandomnessIndex(selection_randomness_height, ...).
 type VerifyRoundIndexKey = collections.Triple[uint64, Hash32Key, uint32]
 
 func NewVerifyRoundIndexKey(height uint64, taskID Hash32Key, verifyRound uint32) VerifyRoundIndexKey {
@@ -412,16 +410,16 @@ func NewVerifierPayoutKey(taskID Hash32Key, selectedVerifierIndex uint32) Verifi
 
 // CommitKey = commit_key, the Hash32 of
 // H_FIELDS_V1("TRUEOPEN_COMMIT_KEY_V1", chain_id, task_id, uint32_be(verify_round),
-// verifier_operator_address_bytes) (§10.9). It is the sole primary key of
+// verifier_operator_address_bytes). It is the sole primary key of
 // CommitState / ResultReceiptState, so the previous
 // (session_id, task_id, verify_round, verifier) quad is replaced rather than kept
-// alongside it: §10.9 forbids a second key derivation, and the quad had no
+// alongside it: the protocol forbids a second key derivation, and the quad had no
 // chain_id and therefore no cross-chain replay separation.
 type CommitKey = Hash32Key
 
 func NewCommitKey(commitKey Hash32Key) CommitKey { return commitKey }
 
-// TaskBucketRefKeyTriple = (task_id, bucket_kind, bucket_key) (§6.7). The bodies
+// TaskBucketRefKeyTriple = (task_id, bucket_kind, bucket_key). The bodies
 // and pointers live in x/hub; this module only holds the reference.
 //
 // bucket_key stays a string: it is a governance-chosen bucket name
@@ -446,8 +444,8 @@ func NewTaskFailureClassByProfileWindowKey(modelID Hash32Key, profileVersion uin
 	return collections.Join4(modelID, profileVersion, finalityHeight, collections.Join(int32(failureClass), taskID))
 }
 
-// RoleActiveTaskKey = (operator_address, task_id) for QueryRoleActiveTasks
-// (§16.3). session_id is gone with Ruling 23.
+// RoleActiveTaskKey = (operator_address, task_id) for QueryRoleActiveTasks.
+// session_id is gone.
 type RoleActiveTaskKey = collections.Pair[AddrKey, Hash32Key]
 
 func NewWorkerActiveTaskKey(workerAddress AddrKey, taskID Hash32Key) RoleActiveTaskKey {

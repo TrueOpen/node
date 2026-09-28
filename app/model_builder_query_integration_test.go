@@ -78,7 +78,7 @@ func TestQueryModelProfileReturnsSeededPair(t *testing.T) {
 }
 
 // appTestServiceBondMinInitial mirrors params.Service.ServiceBondMinInitial
-// (Ruling 16 removed the keeper.MinServiceBond constant).
+// (the keeper.MinServiceBond constant was removed).
 var appTestServiceBondMinInitial = func() uint64 {
 	value, err := hubtypes.AmountToUint64(hubtypes.DefaultHubParams().Service.ServiceBondMinInitial, false)
 	if err != nil {
@@ -232,7 +232,7 @@ func TestQueryRoleActiveTasksNegativePaths(t *testing.T) {
 
 	// Unregistered duty -> should return InvalidArgument (or empty list; assert
 	// non-Internal to keep loose enough to accept either shape). The old
-	// free-form role string is gone: §5.11 / §16.3 use the closed
+	// free-form role string is gone: events and queries use the closed
 	// hub.v1.Duty enum, so DUTY_UNSPECIFIED is the only invalid value the
 	// wire can still carry.
 	resp, err := qs.RoleActiveTasks(ctx, &tasktypes.QueryRoleActiveTasksRequest{

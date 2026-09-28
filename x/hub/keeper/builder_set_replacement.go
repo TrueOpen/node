@@ -16,7 +16,7 @@ import (
 
 // BuilderSetReplacementResult reports what one accepted ReplaceBuilderSetV1 item
 // did. APPLIED means a pending replacement now exists and will activate in
-// BeginBlock at its effective_height; NOOP covers the two §9.6c no-op shapes -
+// BeginBlock at its effective_height; NOOP covers the two no-op shapes -
 // the exact same action replayed while its pending row is still there, and a
 // proposal whose member set already is the current one.
 type BuilderSetReplacementResult struct {
@@ -26,7 +26,7 @@ type BuilderSetReplacementResult struct {
 
 // ExecuteReplaceBuilderSetV1 is the internal callback for one accepted x/gov
 // item. Like the treasury and bridge actions it is deliberately absent from
-// hub.v1.Msg, AutoCLI and Tx routing: §9.6c makes governance the only
+// hub.v1.Msg, AutoCLI and Tx routing: governance is the only
 // admission and current-pointer path in Phase 0, and MsgRunBuilderTerm stays
 // FEATURE_DISABLED.
 //
@@ -74,7 +74,7 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 	// The pending row is an Item, so "at most one pending replacement" is a
 	// consequence of the store shape. What still needs deciding is what a second
 	// execution means: the same proposal item re-run under the same digest is the
-	// exact replay §9.6c calls a no-op, everything else is a conflict.
+	// exact replay that counts as a no-op, everything else is a conflict.
 	existing, err := k.GetPendingBuilderSetReplacement(ctx)
 	switch {
 	case err == nil:
@@ -133,7 +133,7 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 		return BuilderSetReplacementResult{}, err
 	}
 	if bytes.Equal(membersHash, current.BuilderSetMembersHash) {
-		// §9.6c: an unchanged member set is expressed only by the x/gov execution
+		// An unchanged member set is expressed only by the x/gov execution
 		// receipt. Creating a pending row here would burn a version and supersede
 		// the current set for a replacement that changes nothing.
 		return BuilderSetReplacementResult{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
@@ -189,7 +189,7 @@ func (k Keeper) requireAcceptedBuilderSetAction(execution AcceptedGovernanceActi
 	return nil
 }
 
-// requireAdmissibleBuilder is the §9.6c membership precondition: a Genesis Builder
+// requireAdmissibleBuilder is the membership precondition: a Genesis Builder
 // identity, an ACTIVE current service key and a descriptor row at the version the
 // identity points at. It runs at acceptance rather than at activation because a
 // proposal that names an unusable Builder must fail while it can still be voted
@@ -220,7 +220,7 @@ func (k Keeper) requireAdmissibleBuilder(ctx context.Context, builder string) er
 	return nil
 }
 
-// ActivateDueBuilderSetReplacements is the Keeper detailed design step 2. It runs in
+// ActivateDueBuilderSetReplacements is the second activation step. It runs in
 // BeginBlock, not EndBlock, because every transaction of this block must already
 // see the new set: a SignedOrder validated against the old members inside the
 // block that promotes them would bind a Task to a set that no longer exists.
@@ -257,7 +257,7 @@ func (k Keeper) ActivateDueBuilderSetReplacements(ctx context.Context, height ui
 	return nil
 }
 
-// activateBuilderSetReplacement performs the whole §9.6c activation inside one
+// activateBuilderSetReplacement performs the whole activation inside one
 // cache transaction: new snapshot, admissions, current pointer, superseded height
 // on the outgoing set, then the pending row and its index. Any step failing rolls
 // the block's BeginBlock back rather than leaving a half-switched set, which is

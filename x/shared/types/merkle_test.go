@@ -53,7 +53,7 @@ func TestMerkleRootV1RejectsInvalidInput(t *testing.T) {
 }
 
 // TestMerkleRootV1EnforcesSection6Limits covers the three bounds MERKLE_ROOT_V1
-// gained: the §6 domain cap, the §6 repeated-element cap on the leaf vector, and
+// gained: the domain cap, the repeated-element cap on the leaf vector, and
 // the UTF-8 rule PayloadFrameV1 already had. All three are rejection-only -- the
 // one production caller passes a DomainRegistryV1 ASCII literal and a leaf vector
 // far below the cap -- so the positive cases below are what proves that.

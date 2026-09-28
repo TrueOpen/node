@@ -25,7 +25,7 @@ const (
 
 type builderSetReplacementFixture struct {
 	*fixture
-	// members is sorted by address bytes, which is the order §9.6c requires every
+	// members is sorted by address bytes, which is the order required for every
 	// member list to be in. The genesis set holds members[0:3]; a replacement that
 	// drops members[0] and adds members[3] is the smallest change that exercises
 	// both the ADMITTED and the REVOKED branch.
@@ -220,7 +220,7 @@ func hubAddressBytesList(t *testing.T, addresses []string) [][]byte {
 }
 
 // TestExecuteReplaceBuilderSetV1SchedulesWithoutSwitching covers the half of
-// §9.6c that is easy to get backwards: acceptance must not move the current
+// the replacement rule that is easy to get backwards: acceptance must not move the current
 // pointer. A Task assigned earlier in the same block is bound to a builder set
 // version, so a replacement that took effect at acceptance height would change
 // the set out from under it.
@@ -271,8 +271,8 @@ func TestExecuteReplaceBuilderSetV1DistinguishesReplayFromConflict(t *testing.T)
 	require.ErrorContains(t, err, "already pending")
 }
 
-// TestExecuteReplaceBuilderSetV1RejectsUnusableActions walks the preconditions
-// §9.6c states, each one against an otherwise valid action.
+// TestExecuteReplaceBuilderSetV1RejectsUnusableActions walks the replacement
+// preconditions, each one against an otherwise valid action.
 func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 	for name, testCase := range map[string]struct {
 		mutate  func(*builderSetReplacementFixture, *types.ReplaceBuilderSetV1)
@@ -326,7 +326,7 @@ func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 			message: "strictly ascending",
 		},
 		// Dropping the identity rather than substituting a foreign address keeps the
-		// member list in §9.6c order, so the ordering rule cannot mask this one.
+		// member list in canonical order, so the ordering rule cannot mask this one.
 		"member without a builder identity": {
 			mutate: func(f *builderSetReplacementFixture, _ *types.ReplaceBuilderSetV1) {
 				require.NoError(t, f.keeper.Builder.Remove(f.ctx, f.members[2]))
@@ -377,7 +377,7 @@ func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 }
 
 // TestExecuteReplaceBuilderSetV1TreatsAnUnchangedMemberSetAsNoop covers the
-// §9.6c rule that costs a version if it is missed: re-proposing the sitting
+// rule that costs a version if it is missed: re-proposing the sitting
 // members must not create a pending row, because activating it would supersede
 // the current set and start its retention clock for no change at all.
 func TestExecuteReplaceBuilderSetV1TreatsAnUnchangedMemberSetAsNoop(t *testing.T) {
@@ -398,7 +398,7 @@ func TestExecuteReplaceBuilderSetV1TreatsAnUnchangedMemberSetAsNoop(t *testing.T
 }
 
 // TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight is the whole
-// §15.1 step 2 transaction: the new snapshot, both derived indexes, the admission
+// activation transaction: the new snapshot, both derived indexes, the admission
 // flips in both directions, the current pointer, superseded_height on the outgoing
 // set and the retirement of the pending row plus its index.
 func TestActivateDueBuilderSetReplacementsSwitchesAtEffectiveHeight(t *testing.T) {
@@ -503,7 +503,7 @@ func TestActivateDueBuilderSetReplacementsSchedulesTheOutgoingBodyPrune(t *testi
 
 // TestActivateDueBuilderSetReplacementsRejectsAnOrphanedIndexRow pins the
 // bidirectional pending/index correspondence. Silently dropping the row would let
-// BeginBlock paper over a store divergence that §15.1 step 4 says must stop the
+// BeginBlock paper over a store divergence that must stop the
 // block instead.
 func TestActivateDueBuilderSetReplacementsRejectsAnOrphanedIndexRow(t *testing.T) {
 	f := newBuilderSetReplacementFixture(t)

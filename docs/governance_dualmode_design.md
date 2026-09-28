@@ -4,12 +4,12 @@
 > builder-electorate part no longer holds.**
 > After main landed Phase 0, builders have no bond, so a bond-weighted
 > electorate has no source of weight and the corresponding implementation was
-> deleted. Further, monorepo governance protocol v0.5 §2 states outright that
+> deleted. Further, the governance rules state outright that
 > **no TrueOpen custom tally is added**, so the "custom tally function" extension
 > point that §1–§10 rest on is itself not permitted; the tally hook has been
 > removed too.
 > **For what the code actually does now see [§11](#11-implementation-notes-where-the-code-differs-from-the-design)
-> and [§12](#12-adr-0018-alignment-phase-0-has-only-one-electorate)**; the first
+> and [§12](#12-alignment-phase-0-has-only-one-electorate)**; the first
 > ten sections are kept as design history and as the starting point for Phase 1.
 
 > Location: `docs/governance_dualmode_design.md`
@@ -299,7 +299,7 @@ the Keeper side provides `BuilderElectorate` in parallel.
 > Round one (merging main): after Phase 0 landed, **builder bond ceased
 > to exist**, a bond-weighted electorate had no source of weight, and that
 > implementation was deleted.
-> Round two (against monorepo governance protocol v0.5): **a custom tally is
+> Round two (against the governance rules): **a custom tally is
 > itself forbidden**, so that went too.
 > What follows is the code as it stands.
 
@@ -345,7 +345,7 @@ message list should grow) is still waiting on product. The current list is
 
 ---
 
-## 12. alignment: Phase 0 has only one electorate
+## 12. Alignment: Phase 0 has only one electorate
 
 ### 12.1 The facts: main landed Phase 0, and builder bond no longer exists
 
@@ -382,18 +382,17 @@ to; the premise is gone.
 ### 12.3 Even the phase gate went: the protocol forbids a custom tally
 
 Round one kept a phase gate (reading hub `Phase0ParamsV1.native_token_enabled`
-to give builder-domain proposals zero weight in Phase 1). It was deleted after
-checking against monorepo `main@9b2c29c`, because **a custom tally is itself
-forbidden** and the gate can only live inside a tally function:
+to give builder-domain proposals zero weight in Phase 1). It was deleted because
+**a custom tally is itself forbidden** and the gate can only live inside a tally
+function. The governance rules that apply:
 
-| Source | Text |
-|---|---|
-| governance protocol §2 | the tally is Cosmos SDK v0.53.6 x/gov's, used unchanged; **no TrueOpen custom tally is added** |
-| governance protocol §6 | and **uses the SDK default tally** |
-| | … **no TrueOpen custom tally is added** |
-| implementation boundary | x/gov, x/slashing, ubond and a closed ValidatorSet (**the SDK default tally**) |
-| parameter table §8 | executed by the x/gov tally; **hub and task do not re-count votes** `[hard boundary]` |
-| genesis protocol §6 | initialise the x/gov params and **verify the default tally** |
+- The tally is Cosmos SDK v0.53.6 x/gov's, used unchanged; **no TrueOpen custom
+  tally is added**.
+- The implementation boundary is x/gov, x/slashing, ubond and a closed
+  ValidatorSet (**the SDK default tally**).
+- Proposals are executed by the x/gov tally; **hub and task do not re-count
+  votes** `[hard boundary]`.
+- Genesis initialises the x/gov params and **verifies the default tally**.
 
 The deleted `tallyStandardDomain` was a **hand copy** of x/gov's unexported
 implementation. Its behaviour was correct at the time, but that is precisely what
@@ -404,17 +403,15 @@ does not follow, and no test would notice.
 side to define first whether builders hold bond again, where the weight comes
 from, and how it is snapshotted; until then there is nothing for Node to
 implement, and no reason to bury a switch that cannot be thrown. When it does
-come, it should arrive as a **protocol upgrade** (governance protocol §9
-explicitly lists "adding a governance action type" as requiring an upgrade),
+come, it should arrive as a **protocol upgrade** (adding a governance action type
+requires an upgrade),
 rather than Node unilaterally flipping on a parameter read.
 
 ### 12.4 Instead, pin the three denominators of the SDK default tally
 
-In the same paragraph that forbids a custom tally, governance protocol §2 gives a
-MUST:
-
-> the tests must cover the **abstain, jailed and unbond** boundaries, and must not
-> write quorum, veto and the pass threshold against one shared denominator.
+The rule that forbids a custom tally comes with a MUST: the tests must cover the
+**abstain, jailed and unbond** boundaries, and must not write quorum, veto and
+the pass threshold against one shared denominator.
 
 `app/gov_tally_test.go` is where that lands. SDK v0.53.6's three denominators
 really are different (`x/gov/keeper/tally.go`):

@@ -40,7 +40,7 @@ func TestCurrentServiceKeyQueryContractForCortexAndBuilder(t *testing.T) {
 	require.Equal(t, cortexService.Address, cortexKey.Binding.ServiceAddress)
 	require.Equal(t, cortexService.PubKey, cortexKey.Binding.ServicePubkey)
 	require.Equal(t, uint64(1), cortexKey.Binding.ServiceAuthorizationNonce)
-	// §16.3 CurrentServiceKeyViewV1 carries the lifecycle status in the
+	// CurrentServiceKeyViewV1 carries the lifecycle status in the
 	// participant_status oneof; a CORTEX request must take the cortex branch and
 	// must not also expose the builder branch.
 	require.IsType(t, &types.CurrentServiceKeyViewV1_CortexServiceKeyStatus{}, cortexKey.Binding.ParticipantStatus)
@@ -78,7 +78,7 @@ func TestCurrentServiceKeyQueryRejectsInvalidOrMissingIdentity(t *testing.T) {
 	// participant_type is a closed enum now, so the old "wrong spelling" and
 	// "role name instead of participant type" cases become UNSPECIFIED and an
 	// out-of-range value. VERIFIER is a Duty, never a ParticipantType, and the
-	// enum only registers CORTEX=1/BUILDER=2 (§9.6b).
+	// enum only registers CORTEX=1/BUILDER=2.
 	_, err = queries.CurrentServiceKey(f.ctx, &types.QueryCurrentServiceKeyRequest{
 		ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_UNSPECIFIED, OperatorAddress: operator,
 	})
@@ -106,7 +106,7 @@ func TestCortexNodeQueryFailsClosedOnMissingOrMismatchedBinding(t *testing.T) {
 	queries := keeper.NewQueryServerImpl(f.keeper)
 
 	// The standalone ServiceKeyBinding primary is gone: the current key is
-	// inlined on CortexNodeState (§6.4), so "identity row present, binding row
+	// inlined on CortexNodeState, so "identity row present, binding row
 	// missing" no longer exists as a state. Removing the single row is a plain
 	// NotFound, already covered by
 	// TestCurrentServiceKeyQueryRejectsInvalidOrMissingIdentity. Only the
@@ -271,7 +271,7 @@ func TestTaskLiabilityJSONUsesOnlyOperatorAddress(t *testing.T) {
 	require.NotContains(t, output.String(), `"cortex_node_id"`)
 	require.NotContains(t, output.String(), `"operator_address_snapshot"`)
 	require.NotContains(t, output.String(), `"service_key_version"`)
-	// §B.1.3 dropped session_id from the reservation row; the task_id Hash32 is
+	// session_id was dropped from the reservation row; the task_id Hash32 is
 	// the only scope key left.
 	require.NotContains(t, output.String(), `"session_id"`)
 }

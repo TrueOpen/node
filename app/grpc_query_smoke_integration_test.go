@@ -58,7 +58,7 @@ func TestGRPCQueryParamsThroughRouter(t *testing.T) {
 // client relies on to distinguish "no such row" from "empty".
 //
 // This used to drive /hub.v1.Query/ChallengeEffectPool.
-// K-BLOCK-03/04 removed the whole public challenge query surface
+// The public challenge query surface has been removed
 // (QueryChallengeEffectPoolRequest and the ChallengeEconomicEffect ledger are
 // gone), so the router contract is now pinned on Model, which has the same
 // NotFound / InvalidArgument shape. Re-point at the challenge query if a public

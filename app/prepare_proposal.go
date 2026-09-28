@@ -2,7 +2,7 @@ package app
 
 // PrepareProposal handler that injects the Beacon sentinel.
 //
-// Data flow (see §2):
+// Data flow:
 //
 //   1. Confirm the local VRF public key is the on-chain active key for this
 //      proposer in the epoch this height belongs to.
@@ -17,7 +17,7 @@ package app
 //      remaining business tx selection.
 //
 // The signature uses the separately registered VRF private key, not the
-// consensus private key (the sampling protocol §3.1).
+// consensus private key.
 // The consensus private key can stay in tmkms / an HSM.
 //
 // Failure policy:
@@ -144,13 +144,13 @@ func (a beaconKeeperAdapter) ValidateAndWriteVerifiedBeacon(
 // bootstrap before priv_validator is loaded).
 //
 // The txDecoder argument remains part of the app hook signature but is unused.
-// The app-level order_value descending sort is intentionally absent. §10.1:2763
-// scopes order_value to "Builder/PrepareProposal congestion ordering and audit
-// events" and the contract registers no mempool tier: the deleted
+// The app-level order_value descending sort is intentionally absent. order_value
+// is scoped to Builder/PrepareProposal congestion ordering and audit events,
+// and the protocol registers no mempool tier: the deleted
 // implementation let a P1 bucket unconditionally outrank P0 and ordered
 // zero-valued buckets by proposer-local arrival, which is exploitable. When a
 // congestion policy is registered, decode here and sort by exactly the
-// keeper-derived order_value (§5.13 min(max_fee, checked_add(infer_fee_cap,
+// keeper-derived order_value (min(max_fee, checked_add(infer_fee_cap,
 // verify_fee_cap))), not by a second app-side formula.
 func NewPrepareProposalHandler(
 	keeper hubkeeper.Keeper,

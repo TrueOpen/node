@@ -28,8 +28,7 @@ func TestStrictSecp256k1DirectDigestGolden(t *testing.T) {
 }
 
 // TestVerifyStrictSecp256k1DigestHasNoImplicitSecondHash is the acceptance
-// precondition for the task specification §10.3: the digest verifier must consume
-// SIGN_DIGEST
+// precondition: the digest verifier must consume SIGN_DIGEST
 // exactly as handed to it. An implementation that hashes once more would still
 // pass a naive round-trip, so the counterexamples below pin both directions —
 // neither convention may ever accept the other's signature.

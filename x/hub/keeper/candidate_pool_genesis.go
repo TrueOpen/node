@@ -12,7 +12,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// initCandidatePoolGenesis imports the §3.2 global stable-slot CandidatePool.
+// initCandidatePoolGenesis imports the global stable-slot CandidatePool.
 //
 // Import order matters: bindings first (members resolve through them), then the
 // slot table (whose reverse index is rebuilt, never imported), then the epoch
@@ -31,10 +31,10 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 
 	// ---- CandidateSlotBindingState (immutable identity history) -------------
 	//
-	// §3.3: a released binding is retained for
+	// A released binding is retained for
 	// candidate_slot_binding_retention_epochs and then pruned, so its prune index
 	// row is derived from released_height. A binding that is still referenced by
-	// a snapshot body must NOT get a prune row (§3.4: "a prune index must not be
+	// a snapshot body must NOT get a prune row ("a prune index must not be
 	// built ahead of time while the binding has not been released"), and
 	// released_height == 0 means "not released".
 	for _, state := range genState.CandidateSlotBindings {
@@ -57,7 +57,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 		if state.Slot >= params.CandidatePool.CandidateSlotHardCapacity {
 			return fmt.Errorf("candidate slot binding %d is beyond candidate_slot_hard_capacity", state.Slot)
 		}
-		// §3.5: binding_hash is derived, so Genesis re-derives it instead of
+		// binding_hash is derived, so Genesis re-derives it instead of
 		// trusting the imported bytes.
 		want, err := types.CandidateSlotBindingHash(state.Slot, state.SlotVersion, operatorBytes, state.AllocatedEpoch)
 		if err != nil {
@@ -85,7 +85,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 
 	// ---- CandidateSlotCurrentState + derived OperatorCandidateSlotState -----
 	//
-	// §3.3 line 227: "OperatorCandidateSlotState is the only reverse index of
+	// OperatorCandidateSlotState is the only reverse index of
 	// CandidateSlotCurrentState; Genesis rebuilds it from the primary table and
 	// checks (operator,slot,slot_version) in both directions rather than trusting
 	// the imported value on its own; an ALLOCATED/RETIRING slot has exactly one
@@ -150,7 +150,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			return fmt.Errorf("candidate epoch %d: %w", state.Epoch, err)
 		}
 		if candidateBitmapEmpty(state.Bitmap) {
-			// §3.2: the store may omit an all-zero segment, so importing one is a
+			// The store may omit an all-zero segment, so importing one is a
 			// non-canonical export. Reject rather than silently normalize: the
 			// canonical segment hash covers the whole fixed-width segment and
 			// export->import->export must be byte-identical.
@@ -195,7 +195,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 
 	// ---- build cursor and status singleton ---------------------------------
 	//
-	// §3.4 line 249: with a cursor present, draft member/segment rows may only
+	// With a cursor present, draft member/segment rows may only
 	// belong to that cursor's target_epoch and that epoch must not already have a
 	// READY/ACTIVE header. The header side of that check runs below, once the
 	// headers are in.
@@ -241,7 +241,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			return fmt.Errorf("duplicate candidate snapshot %s", hexRef(key))
 		}
 		if prior, exists := headerEpochs[state.Epoch]; exists {
-			// §3.4 publishes exactly one snapshot per epoch, so two headers on one
+			// There is exactly one published snapshot per epoch, so two headers on one
 			// epoch would make the (epoch, slot) body rows ambiguous.
 			return fmt.Errorf("candidate epoch %d has two snapshot headers (%s and %s)", state.Epoch, prior, state.Status)
 		}
@@ -250,7 +250,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			(state.Status == candidateSnapshotReady || state.Status == candidateSnapshotActive) {
 			return fmt.Errorf("candidate epoch %d has both a build cursor and a %s header", state.Epoch, state.Status)
 		}
-		// §3.5: snapshot_id is derived from (chain_id, epoch, pool_hash) and can be
+		// snapshot_id is derived from (chain_id, epoch, pool_hash) and can be
 		// re-derived even for a PRUNED header, whose body is gone by design.
 		wantID, err := types.CandidatePoolSnapshotID(candidatePoolChainID(ctx), state.Epoch, state.PoolHash)
 		if err != nil {
@@ -287,7 +287,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			} else if state.TaskRefCount != 0 {
 				return fmt.Errorf("candidate snapshot %s is partially pruned while task_ref_count is non-zero", hexRef(key))
 			}
-			// §3.4: an EXPIRED snapshot whose last task ref is gone is due for body
+			// An EXPIRED snapshot whose last task ref is gone is due for body
 			// pruning; one that is still referenced waits for
 			// ReleaseCandidatePoolTaskRef to enqueue it.
 			if state.TaskRefCount == 0 {
@@ -350,7 +350,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 		}
 	}
 
-	// §3.4 line 249, other direction: no cursor for an epoch means that epoch may
+	// No cursor for an epoch means that epoch may
 	// not retain body rows without a header.
 	for _, state := range genState.CandidatePoolMembers {
 		if _, hasHeader := headerEpochs[state.Epoch]; hasHeader {
@@ -371,8 +371,8 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 
 	// ---- current pointer singleton -----------------------------------------
 	//
-	// §3.4 line 245: "the current pointer must not point at an EXPIRED/PRUNED
-	// snapshot or one missing its body".
+	// The current pointer must not point at an EXPIRED/PRUNED snapshot or one
+	// missing its body.
 	if len(genState.CurrentCandidatePool.SnapshotId) != 0 {
 		key, err := candidateHashKey(genState.CurrentCandidatePool.SnapshotId)
 		if err != nil {
@@ -397,8 +397,8 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 
 	// ---- task refs ---------------------------------------------------------
 	//
-	// §3.3 line 231: "Genesis must recount the number of ACQUIRED ref rows per
-	// snapshot and it must equal task_ref_count".
+	// Genesis must recount the number of ACQUIRED ref rows per snapshot and it
+	// must equal task_ref_count.
 	// The recount map is keyed by a fixed-width array rather than the lower-hex
 	// text it used to use: a raw Hash32 slice is not comparable, and every value
 	// that reaches it has already been proved to be exactly 32 bytes by
@@ -452,7 +452,7 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 	return nil
 }
 
-// exportCandidatePoolGenesis exports only the §3.2 primaries. Every CandidatePool
+// exportCandidatePoolGenesis exports only the primaries. Every CandidatePool
 // index and OperatorCandidateSlotState are derived and rebuilt by
 // initCandidatePoolGenesis, so exporting them would let a corrupted index survive
 // an export/import round trip.
@@ -541,8 +541,7 @@ func (k Keeper) exportCandidatePoolGenesis(ctx context.Context, genesis *types.G
 	if genesis.CandidatePoolTaskRefs, err = collectMapValues[types.CandidatePoolTaskRefKeyPair, types.CandidatePoolTaskRefState](ctx, k.CandidatePoolTaskRef); err != nil {
 		return err
 	}
-	// §3.4: "CandidatePoolBuildStatusState exports only the singleton's current
-	// value."
+	// CandidatePoolBuildStatusState exports only the singleton's current value.
 	if status, getErr := k.CandidatePoolBuildStatus.Get(ctx); getErr == nil {
 		genesis.CandidatePoolBuildStatus = status
 	} else if !errors.Is(getErr, collections.ErrNotFound) {

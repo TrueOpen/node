@@ -63,7 +63,7 @@ func TestRegisterModelProfileIsAtomicSignedAndReplaySafe(t *testing.T) {
 	storedProfile.MinStake--
 	require.NoError(t, f.keeper.Profile.Set(f.ctx, profileKey, storedProfile))
 
-	// §1.3 rule 2: MsgRegisterModelProfile no longer carries a same-account
+	// MsgRegisterModelProfile no longer carries a same-account
 	// detached registrant_signature; the Cosmos Tx signer is the only
 	// authorization. A request whose proposer has no funded account is rejected
 	// before any state or fee movement.

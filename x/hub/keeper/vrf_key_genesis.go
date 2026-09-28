@@ -1,10 +1,9 @@
 package keeper
 
-// §9.3a Genesis import/export for the VRF public key registry.
+// Genesis import/export for the VRF public key registry.
 //
-// Genesis protocol §4: "Genesis writes VrfKeyState(effective_from_epoch=0) for
-// every entry". Without this section, no operator holds an active VRF public key
-// once a fresh genesis starts the chain, ActiveVrfPubkeyForHeight always returns
+// Genesis writes VrfKeyState(effective_from_epoch=0) for every entry. Without this section, no operator holds an
+// active VRF public key once a fresh genesis starts the chain, ActiveVrfPubkeyForHeight always returns
 // ErrNoActiveVrfKey, and under a production genesis with
 // `vrf_required_from_height = 1` **the very first block cannot be produced**.
 //

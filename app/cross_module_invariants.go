@@ -218,10 +218,9 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 }
 
 // ensureRoleFaultEvidenceScope enforces the single-producer rule for
-// classification evidence: the API contract gives
-// `evidence_digest` exactly one production point in the whole chain (the Task
-// failure classifier), and the data-structure contractrequires that a
-// RoleFault sourced from DEADLINE / SETTLEMENT / VERIFICATION_ROUND carry the
+// classification evidence: `evidence_digest` has exactly one production point
+// in the whole chain (the Task failure classifier), and a
+// RoleFault sourced from DEADLINE / SETTLEMENT / VERIFICATION_ROUND must carry the
 // byte-identical digest — and the same classification_source — as the
 // TaskFailureClassState for its (task_id, verify_round).
 //
@@ -612,7 +611,7 @@ func (app *App) ensureBuilderDutyResponsibilities(ctx context.Context) error {
 		if selection.BuilderSetRefReleased {
 			continue
 		}
-		// Since X-16 a Task-side store key is the raw 32 bytes, so entry.Key feeds
+		// Now that a Task-side store key is the raw 32 bytes, so entry.Key feeds
 		// TaskCore.Get and NewVerifyRoundKey unchanged. taskHex exists only for the
 		// error text: a %s of the raw digest would emit unprintable bytes, and go vet
 		// does not flag that.
@@ -747,7 +746,7 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 		// A Hub liability row is not width-validated here, so a malformed task_id now
 		// fails at the codec rather than missing the row: Hash32KeyCodec is
 		// fail-closed, so Get returns an encoding error instead of ErrNotFound and
-		// this loop reports it through `return coreErr` below. Before X-16 the same
+		// this loop reports it through `return coreErr` below. Before raw-byte keys the same
 		// row hex-encoded to a wrong-length string and fell through to the terminal
 		// summary probe. Either way the invariant fails; only the message differs.
 		taskKey := tasktypes.TaskKey(liability.TaskId)
@@ -1026,7 +1025,7 @@ func (app *App) ensureTaskReferenceOwnership(ctx context.Context) error {
 		}
 		ref := entry.Value
 		// TaskBucketRef is a Task-owned collection, so both sides of the K1 check are
-		// raw bytes since X-16 and the comparison is bytes.Equal — a `!=` here would
+		// raw bytes and the comparison is bytes.Equal — a `!=` here would
 		// have compared slice headers, which is why the compiler rejects it. Only the
 		// message needs the hex form; bucketRefCounts is keyed by (kind, key, version)
 		// and never by the task, so no Go map has to be re-keyed here.

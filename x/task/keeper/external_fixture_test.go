@@ -42,13 +42,12 @@ func initFixture(t *testing.T) *fixture {
 	authority := authtypes.NewModuleAddress(tasktypes.GovModuleName)
 
 	k := keeper.NewKeeper(storeService, transientStoreService, encCfg.Codec, addressCodec, authority, taskExternalAuthKeeper{}, taskExternalBankKeeper{}, stubHubKeeper{})
-	// Every registered hash binds chain_id (§1.3 rule 4), so the test context
+	// Every registered hash binds chain_id, so the test context
 	// must carry one or the canonical helpers correctly refuse to hash.
 	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1")), keeper: k}
 }
 
-// Canonical bech32 addresses: the API contract rule 4 / §2.2 step 3
-// require every
+// Canonical bech32 addresses: the protocol requires every
 // address field to survive the address codec, and the frozen
 // TRUEOPEN_SELECTED_TASK_BUILDERS_V1 preimage uses the codec bytes.
 var (
@@ -137,7 +136,7 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		TxFeeReserveRemaining:  shared.NewAmount(100),
 		GasReimbursedTotal:     shared.NewAmount(0),
 		BudgetStatus:           tasktypes.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED,
-		// The frozen §10.1 identities hold on these numbers:
+		// The frozen budget identities hold on these numbers:
 		// worker_max = mulDiv(640, 1_000_000, 1e6) = 640,
 		// verify_max = mulDiv(640, 2500, 1e4) = 160, order_value = 800 = TaskCoreState.OrderValue,
 		// and order_value + tx_fee_reserve = 900 <= max_fee = 1000.

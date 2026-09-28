@@ -2,8 +2,8 @@ package app
 
 // Tests for the FinalizeBlock sentinel masking.
 //
-// The invariant under test is contract §1.4:407 "the sentinel must not enter
-// … Tx result": the block's first result must carry no error code and no gas
+// The invariant under test is that the sentinel must not enter the Tx
+// results: the block's first result must carry no error code and no gas
 // once the payload at Txs[0] is a beacon sentinel, while every business tx
 // result is passed through untouched.
 

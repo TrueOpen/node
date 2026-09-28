@@ -10,7 +10,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// ---- Store key codecs (the data-structure contract) ----
+// ---- Store key codecs ----
 //
 // NO-MIGRATION POLICY. Everything in this file describes the on-disk key layout
 // of a chain whose only genesis is the fresh V1 genesis. There is no v0
@@ -30,8 +30,8 @@ import (
 //   - The one thing that is safe to change post-launch is a purely cosmetic
 //     method (Stringify, EncodeJSON): those do not participate in the store key.
 //
-// §0.1 requires Hash32 to be "a fixed 32 bytes; it must not be stored as an
-// arbitrary string". These codecs
+// A Hash32 is a fixed 32 bytes and must not be stored as an arbitrary string.
+// These codecs
 // are how that requirement is enforced at the store boundary rather than by
 // convention.
 
@@ -65,7 +65,7 @@ const AddrKeyMaxLen = 255
 //     by iterating across distinct addresses (see the audit recorded on
 //     WorkerActiveTaskIndex / VerifierActiveJobIndex / VerifyResultState in
 //     keys.go): every walk either fixes the address as an exact prefix or
-//     re-sorts the rows it collected by raw address bytes, which is the D-9
+//     re-sorts the rows it collected by raw address bytes, which is the
 //     "address raw bytes ASC" tie-break.
 //   - This encoding is NOT the bech32 order. Replacing bech32 text keys with raw
 //     bytes changes the global iteration order of every address-keyed

@@ -9,7 +9,7 @@ import (
 )
 
 // ReplaceBuilderSetActionDigest is the TRUEOPEN_REPLACE_BUILDER_SET_V1 preimage that
-// x/gov and the Hub recomputation must agree on (the API contract).
+// x/gov and the Hub recomputation must agree on.
 //
 // Unlike the five bridge action digests this one *is* persisted:
 // BuilderSetPendingReplacementState.action_digest keeps it for the whole lead
@@ -63,7 +63,7 @@ func ReplaceBuilderSetActionDigest(chainID string, action ReplaceBuilderSetV1) (
 }
 
 // ReplaceBuilderSetMemberBytes decodes members into the canonical codec bytes the
-// preimage contributes, enforcing the §9.6c ordering rule while it goes: strictly
+// preimage contributes, enforcing the member ordering rule while it goes: strictly
 // ascending by address bytes, which makes uniqueness a consequence rather than a
 // separate check. The Keeper reuses it so the digest and the snapshot it stores
 // can never disagree about which bytes a member contributed.
@@ -76,7 +76,7 @@ func ReplaceBuilderSetMemberBytes(members []string) ([][]byte, error) {
 	}
 	decoded := make([][]byte, len(members))
 	for index, member := range members {
-		// §1.4 rule 4 address encoding: every Address field in a governance action
+		// Address encoding: every Address field in a governance action
 		// preimage contributes its canonical codec bytes, never its Bech32 text.
 		raw, err := bridgeAddressBytes(fmt.Sprintf("members[%d]", index), member)
 		if err != nil {

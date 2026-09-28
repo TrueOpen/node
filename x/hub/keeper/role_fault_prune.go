@@ -120,7 +120,7 @@ func (k Keeper) processRoleFaultPrune(ctx context.Context, key types.RoleFaultPr
 	if err := k.RoleFault.Remove(ctx, faultID); err != nil {
 		return err
 	}
-	// §6.6 licenses this deletion only because the task's fault vector is already
+	// This deletion is licensed only because the task's fault vector is already
 	// committed in TaskFailureClassState.fault_summary_hash and copied into the
 	// retained terminal summary; nothing downstream may recompute the vector from
 	// the Store after this point.

@@ -89,7 +89,7 @@ func (k Keeper) DeclareModelSupport(
 	// FirstActivationDuty remains on the retained support row after deactivation
 	// and Genesis requires it to be declared by the paired capability. Refusing a
 	// narrowing declaration here prevents runtime from writing state that its own
-	// Genesis validator rejects (B-23). Capability expansion and changes before
+	// Genesis validator rejects. Capability expansion and changes before
 	// first activation remain allowed.
 	if supportExists {
 		switch oldSupport.FirstActivationDuty {
@@ -184,10 +184,10 @@ func (k Keeper) DeclareModelSupport(
 // RecordTaskSupportCompletion applies the support consequence of one fault-free
 // task duty. The Task caller supplies only immutable task facts; Hub verifies the
 // released liability and derives P30, support weight, lifecycle status and events.
-// errSupportActivationNotApplicable marks a §10.9 *condition* that is simply not
+// errSupportActivationNotApplicable marks an activation *condition* that is simply not
 // met, as opposed to a failure.
 //
-// §10.9 lists conditions 2-4 (declared support matches the task's model/profile,
+// The activation rule lists conditions 2-4 (declared support matches the task's model/profile,
 // the assigned duty's capability is true, the support row is still fresh) as
 // prerequisites for activation, and the function below already expresses two
 // other conditions — a repeat of the same task, and an order_value under the P30
@@ -350,9 +350,9 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 			return fmt.Errorf("%w: %s", errSupportActivationNotApplicable, err.Error())
 		}
 		if bond.Status != types.ServiceBondStatusJailed || bond.JailCount == 0 {
-			// §10.9 step 6 branches on jail: still JAILED keeps the activation proof
-			// with support_active=false, otherwise the row is written "according to
-			// current eligibility".
+			// Activation branches on jail: still JAILED keeps the activation proof
+			// with support_active=false, otherwise the row is written according to
+			// current eligibility.
 			// An operator that is neither eligible nor jailed — slashed below
 			// min_stake or unbonding since the task was assigned — is simply not
 			// activating, and the deactivation itself is owned by
@@ -469,7 +469,7 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress stri
 // leaving the declaration standing. It is the non-terminal counterpart of
 // DeactivateModelSupport, for jail rather than tombstone.
 //
-// §6.1 requires jail to run through applyModelSupportMutation for a concrete
+// Jail must run through applyModelSupportMutation for a concrete
 // reason: a row left at support_active=true with jail_count > 0 is exactly the
 // shape validateSupportGenesis rejects, so a chain that ever jailed an operator
 // exported a genesis it could not re-import. Zeroing support_active and both
@@ -480,7 +480,7 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress stri
 // the candidate selection contract admits a candidate on a declared
 // support, so wiping the declaration removed the operator from every candidate
 // pool, and requireSupportScope refuses to re-declare while the bond is JAILED.
-// the API contract then only decrements jail_count after
+// The protocol then only decrements jail_count after
 // jail_clear_normal_action_count normal actions the operator can no longer
 // perform. Keeping the declaration leaves the Worker path open — task_candidate_fact
 // tests declared_support alone — at the reduced candidate_jail_factor, which is
@@ -542,7 +542,7 @@ func (k Keeper) suspendModelSupportForJail(ctx context.Context, operatorAddress 
 // never earned activation stays declared-and-eligible until a completed task
 // promotes it. So this restores what jail suspended and nothing more.
 //
-// The scan is bounded by params.Support.MaxSupportedProfilesPerOperator (§6.1),
+// The scan is bounded by params.Support.MaxSupportedProfilesPerOperator,
 // the same bound the jail-time scan relies on, and it only runs on the rare
 // transition to jail_count == 0.
 func (k Keeper) restoreSupportsAfterJailClear(ctx context.Context, operatorAddress string, height uint64) (bool, error) {
@@ -592,7 +592,7 @@ func (k Keeper) nextModelSupportOperator(ctx context.Context, modelID []byte, la
 }
 
 // WriteModelSupportIndexes is the single writer for every ModelSupportState side
-// index (P1-11). Genesis import and every runtime mutation must go through it so
+// index. Genesis import and every runtime mutation must go through it so
 // a rebuilt store is identical to a runtime-built one:
 //
 //   - ByProfile/ByOperator are written unconditionally. They are the reverse

@@ -2,12 +2,9 @@ package app
 
 // x/gov tally boundary tests.
 //
-// the governance protocol requires the chain to use Cosmos SDK x/gov's default tally
-// unchanged, and states the obligation these tests discharge:
-//
-//	"the tests must cover the abstain, jailed and unbond boundaries, and must
-//	 not write quorum, veto and the pass threshold against one shared
-//	 denominator."
+// The chain must use Cosmos SDK x/gov's default tally unchanged. These tests
+// cover the abstain, jailed and unbond boundaries, and must not write quorum,
+// veto and the pass threshold against one shared denominator.
 //
 // The three denominators in x/gov/keeper/tally.go v0.53.6 are genuinely
 // different, and conflating any two changes governance outcomes:

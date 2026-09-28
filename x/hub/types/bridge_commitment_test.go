@@ -12,11 +12,10 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// The two vectors below are the published conformance values of
-// monorepo the bridge protocol. They
-// are the only authority for these preimages: Wire v0.3 ships no testdata file
-// for the bridge domains (DOC-013), so the doc's own golden hex is
-// what Node reproduces rather than a digest computed here.
+// The two vectors below are the published conformance values of the bridge
+// protocol. They are the only authority for these preimages: Wire v0.3 ships no
+// testdata file for the bridge domains, so this golden hex is what Node
+// reproduces rather than a digest computed here.
 const (
 	goldenBridgeChainID = "trueopen-golden-1"
 	goldenUSDCRouteID   = "e33c90dd889124dbb52a982a29f9f9caaa3392aa0f39fb8bf3e8c61bc2d67aa4"
@@ -47,7 +46,7 @@ func bridgeAddress(t *testing.T, raw []byte) string {
 	return encoded
 }
 
-// goldenRoute is §10.1 verbatim. Its local_mailbox_id / local_warp_token_id are
+// goldenRoute is the published route vector verbatim. Its local_mailbox_id / local_warp_token_id are
 // 20-byte placeholders, which is why USDCRouteID length-checks only the EVM-side
 // fields: the published vector must reproduce even though a real network carries
 // 32-byte upstream HexAddresses there.
@@ -73,7 +72,7 @@ func TestUSDCRouteIDMatchesTheProtocolGoldenVector(t *testing.T) {
 	require.Equal(t, goldenUSDCRouteID, hex.EncodeToString(got[:]))
 }
 
-// §10.3 lists the route mutations that must be rejected. Each one either changes
+// These are the route mutations that must be rejected. Each one either changes
 // the identity or is refused outright; none may quietly keep the old id.
 func TestUSDCRouteIDRejectsTheProtocolNegativeCases(t *testing.T) {
 	base, err := hubtypes.USDCRouteID(goldenBridgeChainID, goldenRoute(t))
@@ -162,8 +161,8 @@ func TestBridgeDeploymentManifestHashMatchesTheProtocolGoldenVector(t *testing.T
 	require.Equal(t, goldenManifestHash, hex.EncodeToString(got[:]))
 }
 
-// §10.1a: "changing the outer chain_id, any one of the 23 manifest fields, the
-// order of agents/relayers or the nested framing must all change the digest". The
+// Changing the outer chain_id, any one of the 23 manifest fields, the order of
+// agents/relayers or the nested framing must all change the digest. The
 // mutations below are the ones a wrong
 // implementation is most likely to get away with.
 func TestBridgeDeploymentManifestHashReadsEveryField(t *testing.T) {
@@ -268,7 +267,7 @@ func TestBridgeDeploymentManifestBindsFinalityPolicyToItsParameter(t *testing.T)
 	require.ErrorContains(t, err, "finality_source")
 }
 
-// §10.2 publishes the threshold table; an off-by-one here changes how many
+// The threshold table is published; an off-by-one here changes how many
 // stolen bridge keys it takes to mint USDC out of nothing.
 func TestBridgeThresholdMatchesTheProtocolTable(t *testing.T) {
 	for _, tc := range []struct{ n, want uint32 }{
@@ -282,7 +281,7 @@ func TestBridgeThresholdMatchesTheProtocolTable(t *testing.T) {
 	_, err := hubtypes.BridgeThresholdV1(0)
 	require.Error(t, err)
 
-	// The formula is total, but §4.1 refuses to run a bridge below four signers.
+	// The formula is total, but a bridge never runs below four signers.
 	require.Error(t, hubtypes.RequireBridgeSignerCount(3))
 	require.NoError(t, hubtypes.RequireBridgeSignerCount(4))
 }

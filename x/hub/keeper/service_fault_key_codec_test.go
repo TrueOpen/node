@@ -74,7 +74,7 @@ func TestServiceFaultCollectionsUseRawHash32Keys(t *testing.T) {
 	require.Equal(t, id, responsibility[len(responsibility)-shared.Hash32KeySize:])
 }
 
-// RoleFaultsForTask returns one task's fault vector in key order, and §6.6 frames
+// RoleFaultsForTask returns one task's fault vector in key order, and the protocol frames
 // that vector into fault_summary_hash -- so a reordering here is a consensus
 // change, not a cosmetic one. Lower hex and raw memcmp agree; this pins it on the
 // real composed codec rather than on the component.

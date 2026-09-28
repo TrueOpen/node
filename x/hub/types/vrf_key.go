@@ -6,10 +6,10 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// VrfPubkeyLen is the Ed25519 point width §9.3a step 2 requires.
+// VrfPubkeyLen is the Ed25519 point width a VRF public key requires.
 const VrfPubkeyLen = 32
 
-// VrfKeyPoPDigest is the §1.4 `TRUEOPEN_VRF_KEY_POP_V1` preimage: the ECVRF alpha a
+// VrfKeyPoPDigest is the `TRUEOPEN_VRF_KEY_POP_V1` preimage: the ECVRF alpha a
 // validator must produce a possession proof over.
 //
 // The nonce is inside it, which is what makes step 4's replay rule decidable —
@@ -39,8 +39,8 @@ func VrfKeyPoPDigest(chainID, operatorAddress string, vrfPubkey []byte, authoriz
 	return [32]byte(digest), nil
 }
 
-// ValidateVrfKeyState is the Genesis/import shape check. §9.3a keeps the raw VRF
-// private key out of every message, state and query, so the only thing stored is
+// ValidateVrfKeyState is the Genesis/import shape check. The raw VRF
+// private key is kept out of every message, state and query, so the only thing stored is
 // the public point and the epoch it becomes authoritative in.
 func ValidateVrfKeyState(state VrfKeyState) error {
 	if state.OperatorAddress == "" {
@@ -51,7 +51,7 @@ func ValidateVrfKeyState(state VrfKeyState) error {
 	}
 	pendingKey := state.XPendingVrfPubkey != nil
 	pendingEpoch := state.XPendingFromEpoch != nil
-	// §9.3a step 5 writes the pending key and its activation epoch together, so a
+	// Rotation writes the pending key and its activation epoch together, so a
 	// half-present pending would describe a rotation nothing can schedule.
 	if pendingKey != pendingEpoch {
 		return fmt.Errorf("vrf key pending pubkey and pending epoch must be both present or both absent")

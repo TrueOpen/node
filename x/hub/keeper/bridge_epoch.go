@@ -10,7 +10,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// ProcessBridgeEpochBoundary is the §6.6a ordering, executed once per block and
+// ProcessBridgeEpochBoundary is the ordering, executed once per block and
 // idempotent within an epoch: activate the pending limit *first*, then open the
 // new usage window, then retire windows past their retention.
 //

@@ -100,8 +100,8 @@ func (b *endblockBudget) result() (uint64, uint64) {
 	return b.visited, b.bytes
 }
 
-// BeginBlocker runs the future-effective activations the Keeper detailed design
-// requires to be visible before this block's transactions. It deliberately takes
+// BeginBlocker runs the future-effective activations that must be
+// visible before this block's transactions. It deliberately takes
 // no visited budget: the only thing registered here is the governed BuilderSet
 // replacement, which is a single Item and therefore bounded by the store shape
 // rather than by a cursor. Anything unbounded belongs in EndBlocker instead.
@@ -160,8 +160,7 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 		}
 		return nil
 	}
-	// the bridge protocol / the data-structure contract
-	// §6.6a: the epoch boundary
+	// The epoch boundary
 	// activates any pending limit before the new usage window opens, then retires
 	// windows past their retention under the registered per-block budget.
 	// The budget here is the general EndBlock allowance, not the prune allowance:
@@ -178,7 +177,7 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
-	// §9.3a step 6 fixes activation at the final EndBlock of the preceding
+	// Activation is fixed at the final EndBlock of the preceding
 	// epoch. That commit must already contain epoch E+1's active key before the
 	// first E+1 ProcessProposal runs; scanning with the current epoch on every
 	// block would activate one block too late.
@@ -322,9 +321,9 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 	})); err != nil {
 		return err
 	}
-	// §3.4 line 245: "once due, visit at most
+	// Once due, visit at most
 	// max_candidate_slot_binding_prune_items_per_block rows per block and delete the
-	// binding/index".
+	// binding/index.
 	// Without this the released bindings and their prune index rows grow without
 	// bound: the processor existed but had no EndBlock caller.
 	if err := run(params.CandidatePool.MaxCandidateSlotBindingPruneItemsPerBlock, visitedOnlyProcessor(rowBytes, func(limit uint64) (uint64, error) {

@@ -19,7 +19,7 @@ func (k Keeper) GetTaskSafetyWindows(ctx context.Context) (hubtypes.TaskSafetyWi
 
 func taskSafetyWindowsFromParams(types.TaskParamsV1) hubtypes.TaskSafetyWindows {
 	// Challenge windows are not part of the fresh ACTIVE TaskParamsV1 schema.
-	// The provider therefore contributes no unregistered K-BLOCK window.
+	// The provider therefore contributes no unregistered challenge window.
 	return hubtypes.TaskSafetyWindows{}
 }
 

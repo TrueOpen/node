@@ -126,12 +126,12 @@ const fixtureRegistrationChainID = "trueopen-hub-fixture"
 // registerCortexNodeIdentityForTest brings one operator to "registered cortex
 // node with an active service key" through the production registration path.
 //
-// the API contract step 1 made MsgStakeService.register the only entry
+// MsgStakeService.register is the only entry
 // point that may create an identity: keeper.StakeService is a pure top-up now and
 // refuses an operator that has no CortexNodeState. The helper therefore drives the
 // real handler, which means every fixture built on it also exercises the bank
 // debit, the proof-of-possession check, the service address derivation, the
-// CurrentServiceAddressIndex write and the §5.11 event 112 -> 6 order.
+// CurrentServiceAddressIndex write and the event 112 -> 6 order.
 //
 // identity is the *service* key, not the operator key: prepareRegisterService
 // derives current_service_address from its pubkey, so "the service address differs
@@ -187,7 +187,7 @@ func registerCortexNodeIdentityForTest(t *testing.T, f *fixture, operator string
 // activateServiceBondForTest brings an operator's staked bond into force at
 // `epoch`.
 //
-// §10.0c makes a stake effective only from effective_bond_epoch onwards, which
+// A stake is effective only from effective_bond_epoch onwards, which
 // production reaches by letting the chain advance. An in-memory fixture cannot
 // wait, so the tests that need the bond to already count (support weighting,
 // candidate eligibility, task liability) pin the snapshot explicitly.

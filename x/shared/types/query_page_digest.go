@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// The fully-qualified protobuf method names of every §16.1 paginated Query.
+// The fully-qualified protobuf method names of every paginated Query.
 //
 // They live here rather than next to each handler because the selector schema
 // below has to name all of them in one place anyway, and a literal that is
@@ -45,10 +45,10 @@ type QueryPageSelectorV1 struct {
 // QueryPageSelectorSchemaV1 is the closed set of paginated Query RPCs and, for
 // each one, its ordered selector fields.
 //
-// the API contract derives the tail mechanically: "canonical selectors
-// exclude the page field and are encoded as §1.2 typed fields in ascending request
-// field number order". So each entry below is
-// the RPC's request message minus its page field, in field-number order.
+// The tail is derived mechanically: canonical selectors exclude the page field
+// and encode the remaining request fields as typed fields in ascending field
+// number order. So each entry below is the RPC's request message minus its page
+// field, in field-number order.
 //
 // This is production data, not test data, and it is the single table behind three
 // consumers. QueryPageDigestsV1 refuses to mint a digest pair for an RPC that is
@@ -59,18 +59,18 @@ type QueryPageSelectorV1 struct {
 // against the proto descriptors and against the golden vectors, so the one thing
 // this table may not become is an independent opinion about the RPC set.
 //
-// An empty Fields is a real shape, not a missing one. §16.3 fixes it for the two
-// discovery RPCs: "the request has no fields other than page, so the selector
-// digest binds only chain_id and rpc_method_digest, and no placeholder input may be
-// padded in for an 'empty selector'."
+// An empty Fields is a real shape, not a missing one. The two discovery RPCs
+// have no request fields other than page, so the selector digest binds only
+// chain_id and rpc_method_digest, and no placeholder input may be padded in for
+// an empty selector.
 var QueryPageSelectorSchemaV1 = map[string]QueryPageSelectorV1{
-	QueryRPCHubBuildersV1: {Note: "§16.3 line 4004/4024: the discovery RPCs take only page, so the " +
+	QueryRPCHubBuildersV1: {Note: "the discovery RPCs take only page, so the " +
 		"selector binds chain_id and the RPC digest and nothing else; padding it with a placeholder " +
 		"input would let a token minted for one scope verify under another"},
 	QueryRPCHubCandidatePoolMembersV1: {Fields: []string{"snapshot_id"}},
 	QueryRPCHubEmergencyFreezeVotesV1: {Fields: []string{"freeze_signal_id"}},
 	QueryRPCHubFreezeSignalsV1:        {Fields: []string{"model_id", "profile_version", "status"}},
-	QueryRPCHubModelsV1: {Note: "§16.3 line 4004/4024: the discovery RPCs take only page, so the " +
+	QueryRPCHubModelsV1: {Note: "the discovery RPCs take only page, so the " +
 		"selector binds chain_id and the RPC digest and nothing else; padding it with a placeholder " +
 		"input would let a token minted for one scope verify under another"},
 	QueryRPCHubServiceUnbondingsV1: {Fields: []string{"operator_address", "status"}},
@@ -95,7 +95,7 @@ func QueryRPCDigestV1(rpcMethod string) ([]byte, error) {
 }
 
 // QueryPageDigestsV1 is the sole producer of the (TRUEOPEN_QUERY_RPC_V1,
-// TRUEOPEN_QUERY_SELECTOR_V1) pair every §16.1 page token binds to.
+// TRUEOPEN_QUERY_SELECTOR_V1) pair every page token binds to.
 //
 // The selector frames chain_id and the RPC digest first and then the RPC's own
 // ordered selector fields, which is why the two digests cannot be computed

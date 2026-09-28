@@ -65,7 +65,7 @@ func ParseSecp256k1PubKeyHex(fieldName, value string) (*secp256k1.PubKey, error)
 
 // ValidateCurrentServiceKeyBinding is the single "current_service_pubkey must
 // derive current_service_address" check for every participant type that carries a
-// service key (CortexNodeState §6.4 and BuilderState §6.5).
+// service key (CortexNodeState and BuilderState).
 //
 // The check used to live on the shared ServiceKeyBindingState row. When that
 // collection was removed the derivation was re-inlined on the cortex side only,

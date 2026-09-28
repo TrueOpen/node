@@ -3,8 +3,8 @@ package app
 // FinalizeBlock wrapper that keeps the beacon sentinel out of the block's
 // transaction results.
 //
-// The API contract requires that the
-// "sentinel must not enter Ante/gas/Tx result". Two of the three already hold
+// The sentinel must not enter the ante chain, gas accounting or the Tx
+// results. Two of the three already hold
 // without any help from us: baseapp.internalFinalizeBlock (SDK v0.53.6
 // abci.go:805)
 // calls app.txDecoder before app.deliverTx, the 16-byte magic is not a

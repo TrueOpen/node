@@ -262,7 +262,7 @@ func TestWirePinWithheldPackagesAreExcludedFromGeneration(t *testing.T) {
 func TestNoLocalProtoSourcesRemain(t *testing.T) {
 	var stray []string
 	require.NoError(t, walkProtoFiles(".", func(path string) {
-		if strings.HasPrefix(path, "internal/proto/") || strings.HasPrefix(path, "monorepo/") {
+		if strings.HasPrefix(path, "internal/proto/") {
 			return
 		}
 		stray = append(stray, path)

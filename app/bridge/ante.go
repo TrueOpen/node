@@ -17,7 +17,7 @@ import (
 )
 
 // BridgeDecorator is the decorated Msg boundary of
-// the bridge protocol. It runs
+// the bridge. It runs
 // before any message executes and does two things the ledger hook cannot:
 //
 //   - refuses every Hyperlane message outside the public two-URL set, so a
@@ -80,7 +80,7 @@ func (d BridgeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, n
 // parseBridgeTransfer reads the message-level facts out of one bridge message
 // and binds its upstream identifiers to the frozen canonical route.
 // It re-uses the upstream parsers rather than reimplementing the wire format:
-// §3.2 forbids a second copy of Hyperlane's message handling, and a divergent
+// Node must not carry a second copy of Hyperlane's message handling, and a divergent
 // parser here would be exactly that.
 func parseBridgeTransfer(msg sdk.Msg, route hubtypes.BridgeRouteState) (hubkeeper.BridgeTransferContext, error) {
 	switch typed := msg.(type) {

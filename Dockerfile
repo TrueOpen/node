@@ -12,9 +12,9 @@
 #     the CA certs + libc noded links against, and the operator can
 #     still `exec` a shell for debugging. Distroless is tempting for
 #     size but blocks the "exec into a running validator" workflow
-#     that N10.8 daily-ops leans on.
-#   - Non-root user `noded` (uid 1000) matches the systemd unit in
-#     N10.8 §1.1 so bind-mounted volumes with 0755 perms just work.
+#     that daily operations lean on.
+#   - Non-root user `noded` (uid 1000) matches the recommended systemd
+#     unit so bind-mounted volumes with 0755 perms just work.
 
 ARG GO_VERSION=1.25
 ARG DEBIAN_CODENAME=trixie

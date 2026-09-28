@@ -13,7 +13,7 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// §16.3 QueryRoleActiveTasks needs both reverse indexes; the writer takes raw
+// QueryRoleActiveTasks needs both reverse indexes; the writer takes raw
 // 32-byte task IDs and a canonical operator address.
 func TestRoleActiveTaskIndexesAddAndRemove(t *testing.T) {
 	f := initFixture(t)
@@ -62,7 +62,7 @@ func TestRoleActiveTaskIndexValidation(t *testing.T) {
 	require.Error(t, f.keeper.AddWorkerActiveTaskIndex(f.ctx, genesisWorker, []byte{0x01}))
 }
 
-// §5.13 / §1.4: session_id = H_FIELDS_V1("TRUEOPEN_SESSION_V1", user_address, nonce)
+// session_id = H_FIELDS_V1("TRUEOPEN_SESSION_V1", user_address, nonce)
 // over canonical address bytes and a u64 big-endian nonce, never display text.
 func TestDeriveSessionIDUsesRegisteredPreimage(t *testing.T) {
 	ownerBytes := bytes.Repeat([]byte{0x0a}, 20)
@@ -80,7 +80,7 @@ func TestDeriveSessionIDUsesRegisteredPreimage(t *testing.T) {
 	// cannot be re-derived from the code under test.
 	require.Equal(t, "f3e136453c4ff3532bf0429ec68016be579986071f7d67863bcbf10ccd34b0e3",
 		hex.EncodeToString(got),
-		"TRUEOPEN_SESSION_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the API contract §5.13 and the §1.4 domain registry")
+		"TRUEOPEN_SESSION_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	nextNonce, err := keeper.DeriveSessionID(ownerBytes, 8)
 	require.NoError(t, err)
 	require.NotEqual(t, got, nextNonce)

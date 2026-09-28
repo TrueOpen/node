@@ -124,7 +124,7 @@ func main() {
 func writePublicAPIIntroduction(b *strings.Builder, rpcCount int) {
 	b.WriteString("# TrueOpen Node V1 public RPC reference\n\n")
 	b.WriteString("> Generated from the current branch protobuf FileDescriptorSet by `scripts/generate_node_api_doc.go`. The descriptor is the authority for registered Msg and Query methods; blocked or internal-only methods are intentionally absent.\n\n")
-	fmt.Fprintf(b, "> Scope: %d registered `hub.v1` and `task.v1` Msg/Query RPCs. The full protocol rationale remains in the monorepo contract and is not duplicated here.\n\n", rpcCount)
+	fmt.Fprintf(b, "> Scope: %d registered `hub.v1` and `task.v1` Msg/Query RPCs.\n\n", rpcCount)
 	b.WriteString("## 1. Client contract\n\n")
 	b.WriteString("- Query methods are available through their full gRPC method names and the listed REST GET paths. Msg methods must be signed and broadcast as Cosmos SDK transactions.\n")
 	b.WriteString("- Client-facing Hash32 values use canonical lowercase 64-hex. TrueOpen Query REST selectors and JSON responses use that form directly; Msg/SDK adapters decode it to raw32 before protobuf transaction or gRPC transport. The outer Cosmos `tx_bytes` and explicitly classified non-Hash32 bytes remain base64; Store values remain raw bytes.\n")

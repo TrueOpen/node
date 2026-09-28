@@ -14,18 +14,18 @@ import (
 // than renamed, because proto/hub/v1/event.proto:525-548 records that they
 // have no successor message in this revision:
 //
-//   - EventEarningsPendingMatured: no §5.11 code exists; codes 40/41
+//   - EventEarningsPendingMatured: no event code exists; codes 40/41
 //     (EventEarningsAccrued / EventEarningsClaimed) carry the whole earnings
 //     ledger surface. The maturity path must assert the code it emits.
 //   - EventRewardEligibilityUpdated, EventRewardEpochCursorAdvanced,
 //     EventBuilderRewardEpochClosed, EventTreasuryEpochClosed,
-//     EventModelSupportP30Candidate: §5.11 forbids a runner-level summary event
+//     EventModelSupportP30Candidate: a runner-level summary event is forbidden
 //     and the builder-reward / treasury-epoch ledgers are deleted. Reward runner
 //     tests must assert the codes it really emits (70, 80, 81).
 //   - EventChallengeBondUpdated, EventChallengeEconomicEffectApplied,
-//     EventChallengeEffectPoolUpdated: K-BLOCK-03/04, no public challenge event
+//     EventChallengeEffectPoolUpdated: challenges are not active, so no public challenge event
 //     code may be assigned yet.
-//   - EventBuilderSetUpdated: §5.11 codes 60/90/91/92 are not registered in this
+//   - EventBuilderSetUpdated: event codes 60/90/91/92 are not registered in this
 //     revision (its payload still described the deleted per-profile pool and the
 //     string-typed builder set).
 //

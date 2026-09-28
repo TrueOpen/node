@@ -53,7 +53,7 @@ type DataUnavailableAggregateInput struct {
 	VerifierSlots             []DataUnavailableVerifierSlot
 }
 
-// DataUnavailableBuilderAggregateFacts is the pure §10.5 aggregation result for
+// DataUnavailableBuilderAggregateFacts is the pure data-availability aggregation result for
 // one frozen Builder slot. Empty digest entries retain selected-verifier slot
 // position. AggregateHash is the registered canonical commitment to those
 // fixed-slot facts.

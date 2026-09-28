@@ -53,8 +53,8 @@ import (
 //
 //	distribution -> staking -> trueopen
 //
-// Changes must be paired with a Node spec + Keeper spec update per
-// the Node specification (ABCI Hook Contract).
+// Changes are consensus-breaking and must be coordinated across the Node and
+// the keeper modules.
 var BeginBlockOrder = []string{
 	distrtypes.ModuleName,
 	slashingtypes.ModuleName,
@@ -93,7 +93,7 @@ var (
 		{Account: hubtypes.TreasuryModuleName},
 		{Account: hubtypes.ServiceBondModuleName},
 		// The warp module account is the single legal mint/burn authority for
-		// business_denom (the bridge protocol). Cosmos
+		// business_denom. Cosmos
 		// permissions are not denom-scoped, so app/bridge.GuardedBankKeeper is
 		// what actually closes the set; this grant only makes the one legal
 		// path possible.
@@ -121,7 +121,7 @@ var (
 		tasktypes.ModuleName,
 		tasktypes.EscrowModuleName,
 		tasktypes.ChallengeEffectModuleName,
-		// §5.1 requires the warp account to be blocked: an ordinary MsgSend into
+		// The warp account must be blocked: an ordinary MsgSend into
 		// it would add business_denom the conservation identity cannot account
 		// for.
 		hlwarptypes.ModuleName,
@@ -146,8 +146,8 @@ var (
 					// CanWithdrawInvariant invariant.
 					// NOTE: staking module is required if HistoricalEntries param > 0
 					// Hook order is frozen in BeginBlockOrder / EndBlockOrder above;
-					// changing the order requires a coordinated Node + Keeper spec update
-					// (see the Node specification).
+					// changing the order is consensus-breaking and must be coordinated
+					// across the Node and the keeper modules.
 					BeginBlockers: BeginBlockOrder,
 					EndBlockers:   EndBlockOrder,
 					// The following is mostly only needed when ModuleName != StoreKey name.
@@ -238,7 +238,7 @@ var (
 				Config: appconfig.WrapAny(&tasktypes.Module{}),
 			},
 			// The pinned upstream Hyperlane modules are mounted as-is: Node does
-			// not fork their proto, state or handlers (§3.2). Their public Msg
+			// not fork their proto, state or handlers. Their public Msg
 			// surface is narrowed by app/bridge.MsgClosedSet and their ledger
 			// access by app/bridge.GuardedBankKeeper.
 			{
@@ -247,9 +247,9 @@ var (
 			},
 			{
 				Name: hlwarptypes.ModuleName,
-				// §3.3: TrueOpen holds the Synthetic side only. A Collateral token here
+				// TrueOpen holds the Synthetic side only. A Collateral token here
 				// would put collateral on both sides of the same asset and break the
-				// §5 conservation identity, so it is excluded at the module config.
+				// bridge conservation identity, so it is excluded at the module config.
 				Config: appconfig.WrapAny(&hlwarpmodulev1.Module{
 					EnabledTokens: []int32{int32(hlwarptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
 				}),

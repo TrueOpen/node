@@ -40,7 +40,7 @@ func bridgeTestSigner(t *testing.T, chainID, operator string, seed byte, keyVers
 }
 
 // installBridge writes a minimal but fully consistent ACTIVE bridge: four
-// signers (the §4.1 floor), a projection-matching signer set, positive limits
+// signers (the floor), a projection-matching signer set, positive limits
 // and zero supply.
 func installBridge(t *testing.T, f *fixture, inboundLimit, outboundLimit uint64) {
 	t.Helper()
@@ -177,7 +177,7 @@ func TestBridgeInboundChargesUsageSupplyAndInvariant(t *testing.T) {
 	require.NoError(t, f.keeper.EnsureBridgeSupplyInvariant(f.ctx))
 }
 
-// §7.2: an over-limit transfer is rejected whole. Nothing may be partially
+// An over-limit transfer is rejected whole. Nothing may be partially
 // charged, because a partial mint would leave the two sides of the bridge
 // describing different amounts.
 func TestBridgeRejectsOverLimitTransferWhole(t *testing.T) {
@@ -206,7 +206,7 @@ func TestBridgeRejectsOverLimitTransferWhole(t *testing.T) {
 	require.ErrorContains(t, runBridgeTransfer(t, f, bridgeTransfer(keeper.BridgeInbound, 1, 0x14)), "rejected whole")
 }
 
-// §5.1: only business_denom crosses the bridge. Module Minter permission is not
+// Only business_denom crosses the bridge. Module Minter permission is not
 // denom-scoped, so this check is the closed set.
 func TestBridgeRefusesForeignDenom(t *testing.T) {
 	f := initFixture(t)
@@ -217,7 +217,7 @@ func TestBridgeRefusesForeignDenom(t *testing.T) {
 	require.ErrorContains(t, runBridgeTransfer(t, f, transfer), "may only mint or burn")
 }
 
-// §7.1 and §7.3: a frozen or non-ACTIVE bridge refuses both directions, and the
+// A frozen or non-ACTIVE bridge refuses both directions, and the
 // refusal is total rather than direction-specific.
 func TestBridgeRefusesWhenFrozenOrNotActive(t *testing.T) {
 	f := initFixture(t)
@@ -295,7 +295,7 @@ func TestBridgeLiveUpstreamDriftBlocksTransferQueryAndUnfreeze(t *testing.T) {
 	require.ErrorContains(t, err, "live Hyperlane state")
 }
 
-// §4.1: below four signers the bridge does not open at all.
+// Below four signers the bridge does not open at all.
 func TestBridgeRefusesBelowFourSigners(t *testing.T) {
 	f := initFixture(t)
 	installBridge(t, f, 1_000, 1_000)
@@ -309,7 +309,7 @@ func TestBridgeRefusesBelowFourSigners(t *testing.T) {
 	require.ErrorContains(t, runBridgeTransfer(t, f, bridgeTransfer(keeper.BridgeInbound, 1, 0x11)), "at least 4 signers")
 }
 
-// §5.2: the chain may never burn more than it minted, and the counters are the
+// The chain may never burn more than it minted, and the counters are the
 // authority rather than the current balance.
 func TestBridgeOutboundCannotBurnMoreThanMinted(t *testing.T) {
 	f := initFixture(t)
@@ -438,7 +438,7 @@ func TestBridgeSettleRejectsALedgerThatDidNotMoveTheAuthorisedAmount(t *testing.
 	require.Zero(t, minted, "a mismatched ledger move must not accrue supply")
 }
 
-// §7.3: a refusal is zero-write. The pre-ledger half must decide every rejection
+// A refusal is zero-write. The pre-ledger half must decide every rejection
 // so nothing is ever minted and then rolled back.
 func TestBridgePrepareRefusesBeforeTouchingState(t *testing.T) {
 	f := initFixture(t)
@@ -484,7 +484,7 @@ func TestBridgeTransferIntentsDoNotLeakBetweenTransactions(t *testing.T) {
 }
 
 // A mint or burn with no decorated bridge message behind it has no message-level
-// facts and must not be authorised at all (§5.1).
+// facts and must not be authorised at all.
 func TestBridgeTakeIntentRefusesWhenTheQueueIsEmpty(t *testing.T) {
 	f := initFixture(t)
 	_, ok := f.keeper.TakeBridgeTransferIntent(f.ctx)
