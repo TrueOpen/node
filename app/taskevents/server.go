@@ -293,7 +293,7 @@ func validateReplayStart(cursor string, fromHeight uint64) (*eventPosition, erro
 }
 
 // normalizedCodeFilter validates a subscription filter against the single
-// §5.11 code registry. The two local enums that used to split task and
+// protocol event code registry. The two local enums that used to split task and
 // protocol codes are gone, so one validator serves all three streams.
 func normalizedCodeFilter(values []shared.ProtocolEventCodeV1, owner eventKind) (map[shared.ProtocolEventCodeV1]struct{}, error) {
 	if len(values) > 64 {

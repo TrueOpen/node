@@ -3,13 +3,13 @@ package app
 // EndBlock scoreboard / hook-order contract for
 // PerformanceScore and MarkGate.
 //
-// Spec §14.4 states:
+// The rule under test:
 //
-//   "The PerformanceScore hook and the MarkGate hook are two independent
-//    paths (the former drives the P50/P60 gate on task-acceptance candidate
-//    weight, the latter drives the top10/P90 gate on block rewards), so the
-//    Node EndBlock order must guarantee that neither contaminates the other's
-//    epoch boundary."
+//   The PerformanceScore hook and the MarkGate hook are two independent
+//   paths (the former drives the P50/P60 gate on task-acceptance candidate
+//   weight, the latter drives the top10/P90 gate on block rewards), so the
+//   Node EndBlock order must guarantee that neither contaminates the other's
+//   epoch boundary.
 //
 // Current architecture (as of K10 landing):
 //   - PerformanceScore is updated INLINE from the Settle handler
@@ -116,7 +116,7 @@ func TestTrueOpenModuleNameIsStable(t *testing.T) {
 // contribution paths at compile time — if a future refactor introduces
 // a dedicated EndBlock function that touches these stores, the change
 // must land alongside an update to this test and a re-audit of the
-// Spec §14.4 non-interference property.
+// EndBlock non-interference property.
 //
 // The test currently only asserts the collections symbols exist and
 // remain reachable through the Keeper; the deeper property (hook

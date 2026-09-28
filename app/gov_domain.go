@@ -43,8 +43,8 @@ const (
 	// GovDomainStandard is everything that is not reserved to builders.
 	GovDomainStandard GovDomain = "standard"
 	// GovDomainBuilder marks operations reserved for the builder domain. In
-	// Phase 0 builders hold no bond and no voting power (the governance protocol:104,
-	// the parameter tablebuilder_bond = 0), so these are decided by the same validator
+	// Phase 0 builders hold no bond and no voting power (builder_bond = 0), so
+	// these are decided by the same validator
 	// electorate as everything else; the marking only keeps them in their own
 	// proposal.
 	GovDomainBuilder GovDomain = "builder"

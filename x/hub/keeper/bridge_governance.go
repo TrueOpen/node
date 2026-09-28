@@ -13,15 +13,15 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// The five bridge actions below are x/gov internal actions: the API contract
-// §9.6c gives them no Tx route, no AutoCLI entry and no signer field, so each
+// The five bridge actions below are x/gov internal actions: they
+// have no Tx route, no AutoCLI entry and no signer field, so each
 // takes the trusted execution locator instead of an authority argument. Every
 // one recomputes its own action digest and compares the caller's expected_*
 // fields against live state, which is how replay is expressed without a stored
 // digest.
 
-// ExecuteSetBridgeFreezeV1 is the only way the bridge freezes or thaws (§7.1).
-// Unfreezing is not a state flip: §4.3 requires the EVM side to be confirmed and
+// ExecuteSetBridgeFreezeV1 is the only way the bridge freezes or thaws.
+// Unfreezing is not a state flip: it requires the EVM side to be confirmed and
 // every invariant to hold first, and only then is the cutover row retired.
 func (k Keeper) ExecuteSetBridgeFreezeV1(
 	ctx context.Context,
@@ -69,7 +69,7 @@ func (k Keeper) ExecuteSetBridgeFreezeV1(
 	return nil
 }
 
-// completeBridgeCutoverOnUnfreeze is §4.3's closing gate. Thawing a bridge that
+// completeBridgeCutoverOnUnfreeze is the closing gate. Thawing a bridge that
 // is mid-cutover requires the EVM confirmation to be present, the in-flight
 // manifest to be closed, and both signer views to agree again; only then is the
 // cutover row deleted and the confirmed identity promoted.
@@ -113,7 +113,7 @@ func (k Keeper) completeBridgeCutoverOnUnfreeze(ctx context.Context) error {
 }
 
 // requireBridgeInvariantsForUnfreeze re-reads the authoritative rows rather than
-// trusting what the cutover claimed: §4.3 only permits ACTIVE once I-BRIDGE-1
+// trusting what the cutover claimed: ACTIVE is only permitted once I-BRIDGE-1
 // and the supply identity both hold against live state.
 func (k Keeper) requireBridgeInvariantsForUnfreeze(ctx context.Context) error {
 	signerSet, err := k.BridgeSignerSet.Get(ctx)
@@ -137,7 +137,7 @@ func (k Keeper) requireBridgeInvariantsForUnfreeze(ctx context.Context) error {
 	return k.EnsureBridgeSupplyInvariant(ctx)
 }
 
-// ExecuteSetBridgeLimitV1 schedules the next epoch's limits (§7.2). It never
+// ExecuteSetBridgeLimitV1 schedules the next epoch's limits. It never
 // writes the active row: limits change at an epoch boundary so the window a
 // transfer is measured against cannot move underneath it.
 func (k Keeper) ExecuteSetBridgeLimitV1(
@@ -216,7 +216,7 @@ func requireBridgeRuntimeLimitPair(inbound, outbound shared.Amount, hardMax uint
 }
 
 // ActivateDueBridgeLimit promotes a pending limit at the epoch boundary and then
-// opens that epoch's usage window. §6.6a fixes this order: a transfer in the new
+// opens that epoch's usage window. This order is fixed: a transfer in the new
 // epoch must be measured against the new limit, never the old one.
 func (k Keeper) ActivateDueBridgeLimit(ctx context.Context, epoch uint64) error {
 	pending, err := k.BridgePendingLimit.Get(ctx)
@@ -276,7 +276,7 @@ func (k Keeper) CloseBridgeUsageEpoch(ctx context.Context, epoch uint64, retenti
 
 // PruneDueBridgeUsage visits at most limit index rows per call and never scans
 // the whole table. A stale index row whose usage is gone still counts as visited
-// so the cursor always advances (§6.6a).
+// so the cursor always advances.
 func (k Keeper) PruneDueBridgeUsage(ctx context.Context, currentEpoch uint64, limit uint32) (uint32, error) {
 	if limit == 0 {
 		return 0, nil
@@ -326,7 +326,7 @@ func (k Keeper) PruneDueBridgeUsage(ctx context.Context, currentEpoch uint64, li
 }
 
 // ExecuteRotateBridgeSignerV1 advances one operator's bridge key by exactly one
-// version (§4.3). It never touches the operator's consensus identity or power,
+// version. It never touches the operator's consensus identity or power,
 // and it must run inside the same proposal and transaction as
 // BeginBridgeCutoverV1 — the caller enforces that pairing, because only the
 // proposal executor can see the whole item group.
@@ -359,7 +359,7 @@ func (k Keeper) ExecuteRotateBridgeSignerV1(
 	); err != nil {
 		return err
 	}
-	// §4.1: current signer raw20 is globally unique. Rotating onto an address
+	// Current signer raw20 is globally unique. Rotating onto an address
 	// another operator already holds would make the ISM set ambiguous.
 	if err := k.requireUnusedBridgeSigner(ctx, action.TargetOperator, action.NextBridgeSignerAddressRaw20); err != nil {
 		return err
@@ -409,7 +409,7 @@ func (k Keeper) requireUnusedBridgeSigner(ctx context.Context, operator string, 
 	return nil
 }
 
-// ExecuteBeginBridgeCutoverV1 performs the TrueOpen-atomic half of §4.3: it freezes
+// ExecuteBeginBridgeCutoverV1 performs the TrueOpen-atomic half of the cutover: it freezes
 // the bridge, records the next signer set and the EVM pause evidence, and moves
 // the lifecycle to PENDING_EVM_CONFIRMATION. It deliberately does not claim the
 // two sides switched atomically — the EVM ISM cannot change in this transaction,
@@ -455,7 +455,7 @@ func (k Keeper) ExecuteBeginBridgeCutoverV1(
 		!bytes.Equal(signerSet.LocalSignerSetHash, action.ExpectedCurrentSignerSetHash) {
 		return fmt.Errorf("the current ISM or signer set has moved since the proposal was written")
 	}
-	// §4.3: next_signer_set must be exactly the projection of the Validator
+	// next_signer_set must be exactly the projection of the Validator
 	// bridge signer table *after* the rotations in this same transaction, which
 	// is why this is recomputed here rather than trusted from the action.
 	projection, err := k.BridgeSignerProjectionHash(ctx)
@@ -508,7 +508,7 @@ func (k Keeper) ExecuteBeginBridgeCutoverV1(
 }
 
 // ExecuteConfirmBridgeCutoverV1 records the EVM side and closes the in-flight
-// manifest (§4.3). It fills the cutover's optional tail and nothing else: the
+// manifest. It fills the cutover's optional tail and nothing else: the
 // bridge stays frozen until a separate SetBridgeFreezeV1(false) re-checks every
 // invariant, so confirmation alone can never reopen the channel.
 func (k Keeper) ExecuteConfirmBridgeCutoverV1(

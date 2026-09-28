@@ -14,7 +14,7 @@ package app
 // beacon_pre_blocker.go so re-verification is cheap and the accept/reject
 // verdict cannot depend on write order.
 //
-// Policy (the sampling protocol):
+// Policy:
 //
 //	height >= vrf_required_from_height > 0:
 //	  a missing or invalid sentinel is always REJECTed.
@@ -23,12 +23,10 @@ package app
 //	  always REJECTed; a missing one lets the proposal continue.
 //
 // The verdict reads only the committed
-// `BeaconParamsV1.vrf_required_from_height`. The same section of the protocol
-// states it explicitly: "vrf_required_from_height is the only consensus policy;
-// a build tag may only make the startup-time configuration assertions stricter
-// and must not change the ACCEPT/REJECT decision of
-// PrepareProposal/ProcessProposal", and the closing sentence of contract
-// §1.4:406 points the same way. The ProposalPolicy that a build tag used to
+// `BeaconParamsV1.vrf_required_from_height`. That parameter is the only
+// consensus policy: a build tag may only make the startup-time configuration
+// assertions stricter and must not change the ACCEPT/REJECT decision of
+// PrepareProposal/ProcessProposal. The ProposalPolicy that a build tag used to
 // flip has been deleted — it would let two build artifacts reach different
 // verdicts on the same block, which is a fork risk.
 
@@ -44,9 +42,9 @@ import (
 )
 
 // ProposerOperatorLookup resolves the ABCI `req.ProposerAddress` bytes into
-// that validator's stable operator account address . The beacon
+// that validator's stable operator account address. The beacon
 // verification public key is indexed out of the on-chain VRF registry by that
-// address (the sampling protocol). For the production
+// address. For the production
 // implementation see staking_pubkey_lookup.go; the interface is kept narrow so
 // unit tests can stub it.
 type ProposerOperatorLookup interface {
@@ -62,10 +60,10 @@ type ProposerOperatorLookup interface {
 //
 // The txDecoder argument remains part of the app hook signature but is unused.
 // The order_value tx ordering / verification pass is intentionally absent:
-// the API contract:964 is the only same-height ordering rule, §7:2026
-// does not enable two-step assignment, and §10.1:2763 scopes order_value to
+// the deadline sweep order is the only same-height ordering rule, two-step
+// assignment is not enabled, and order_value is scoped to
 // Builder/PrepareProposal congestion ordering plus audit events, so there is no
-// contract rule for ProcessProposal to re-verify. If a future contract registers a
+// protocol rule for ProcessProposal to re-verify. If a future protocol registers a
 // proposal-level ordering rule, decode here and assert exactly that rule.
 func NewProcessProposalHandler(
 	keeper hubkeeper.Keeper,
@@ -123,7 +121,7 @@ func checkBeaconSentinelInProposal(
 		return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.New("proposal height must be positive")
 	}
 
-	// Contract §1.4:404 — the whole proposal carries exactly one sentinel and
+	// The whole proposal carries exactly one sentinel and
 	// only at index 0; the magic appearing anywhere else REJECTs the entire
 	// block. The scan runs under BOTH policies: a
 	// stray magic is never legitimate, and index >= 1 payloads are not

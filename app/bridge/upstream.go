@@ -19,8 +19,7 @@ import (
 
 // UpstreamAdapter is the only place TrueOpen reads Hyperlane state. It projects the
 // few frozen facts the route guard compares against and nothing else, so
-// x/hub keeps no Hyperlane import and no copy of upstream state
-// (the bridge protocol).
+// x/hub keeps no Hyperlane import and no copy of upstream state.
 type UpstreamAdapter struct {
 	core *corekeeper.Keeper
 	warp warpkeeper.Keeper
@@ -189,7 +188,7 @@ func (a UpstreamAdapter) RemoteRouters(ctx context.Context, tokenID []byte) ([]h
 
 // hexAddressFromBytes converts a stored raw upstream identifier back into the
 // HexAddress the upstream keepers key on. The width is the upstream constant,
-// not the 20 the prose states; see DOC-012.
+// not a hard-coded 20.
 func hexAddressFromBytes(raw []byte) (util.HexAddress, error) {
 	if len(raw) != util.HEX_ADDRESS_LENGTH {
 		return util.HexAddress{}, fmt.Errorf("hyperlane identifier must be exactly %d bytes, got %d", util.HEX_ADDRESS_LENGTH, len(raw))

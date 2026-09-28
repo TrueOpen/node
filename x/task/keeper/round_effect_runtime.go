@@ -70,7 +70,7 @@ func (k Keeper) freezeRoundEconomicEffects(
 		if err != nil {
 			return err
 		}
-		// §10.14a orders these by operator address bytes, and the resulting
+		// The protocol orders these by operator address bytes, and the resulting
 		// effect_index sequence is committed by TRUEOPEN_ROUND_EFFECT_PLAN_V1. A
 		// comparator that swallowed a decode error would compare two empty slices,
 		// make every comparison false, and leave sort.Slice free to pick any

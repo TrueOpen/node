@@ -4,7 +4,7 @@ package types
 // ServiceBondState.effective_active_bond. It is the write-side counterpart of
 // the read-side EffectiveActiveBond helper in bond_exposure.go.
 //
-// Ruling 9 (see ValidateServiceBondEpochConsistency in service_support.go) states
+// The epoch consistency rule (see ValidateServiceBondEpochConsistency in service_support.go) states
 // two invariants for the field:
 //
 //  1. effective_active_bond <= active_bond
@@ -28,7 +28,7 @@ package types
 // arithmetic.
 
 // NormalizeEffectiveActiveBond brings bond.EffectiveActiveBond back into the two
-// Ruling 9 invariants for currentEpoch. It is a pure function of the row and the
+// epoch consistency invariants for currentEpoch. It is a pure function of the row and the
 // epoch: no store read, no parameter, no rounding and no unchecked arithmetic
 // (both branches only copy or lower an existing uint64).
 //

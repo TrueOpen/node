@@ -32,7 +32,7 @@ func (k Keeper) WithBridgeUpstream(upstream types.BridgeUpstream) Keeper {
 	return k
 }
 
-// ValidateBridgeUpstream re-derives the §2.1 / §3.3 / §3.4 / §4.4 agreement
+// ValidateBridgeUpstream re-derives the agreement
 // between the frozen route and the live upstream objects.
 //
 // It is a no-op when the chain has no bridge, and when no adapter is installed
@@ -58,8 +58,8 @@ func (k Keeper) ValidateBridgeUpstream(ctx context.Context) error {
 		return err
 	}
 	if expected, err := k.addressCodec.BytesToString(authtypes.NewModuleAddress(types.GovModuleName)); err == nil && expected != authority {
-		// The keeper authority is what x/gov actually executes as; §4.4 requires
-		// the upstream owners to be that same account.
+		// The keeper authority is what x/gov actually executes as; the upstream
+		// owners are required to be that same account.
 		authority = expected
 	}
 	return types.ValidateBridgeUpstream(ctx, k.bridgeUpstream.upstream, route, signerSet.LocalIsmId, authority)

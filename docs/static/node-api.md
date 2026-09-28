@@ -2,7 +2,7 @@
 
 > Generated from the current branch protobuf FileDescriptorSet by `scripts/generate_node_api_doc.go`. The descriptor is the authority for registered Msg and Query methods; blocked or internal-only methods are intentionally absent.
 
-> Scope: 100 registered `hub.v1` and `task.v1` Msg/Query RPCs. The full protocol rationale remains in the monorepo contract and is not duplicated here.
+> Scope: 100 registered `hub.v1` and `task.v1` Msg/Query RPCs.
 
 ## 1. Client contract
 

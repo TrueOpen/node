@@ -151,7 +151,7 @@ func (k Keeper) validateBeaconCarrierStore(ctx context.Context, carrier types.Be
 	// The verification public key comes from the on-chain VRF registry, indexed by
 	// the stable operator, taking the active public key of the epoch the height
 	// belongs to. No active public key means REJECT, with no fallback to the
-	// consensus public key (randomness protocol §3.1 admission).
+	// consensus public key.
 	vrfPubkey, err := k.ActiveVrfPubkeyForHeight(ctx, proposerOperatorAddress, carrier.Height)
 	if err != nil {
 		return internaltypes.BeaconStoreState{}, fmt.Errorf("resolve beacon verification key: %w", err)

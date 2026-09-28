@@ -69,7 +69,7 @@ func validateStorePrefixComponent(component string) error {
 	return nil
 }
 
-// ---- Store prefix layout (X-13) ----
+// ---- Store prefix layout ----
 //
 // Every prefix in this module except ParamsKey is MustVersionedStorePrefix, i.e.
 // the byte string "hub/<component>/v<n>". That form is not decoration: for
@@ -102,12 +102,12 @@ var (
 	ParamsKey = collections.NewPrefix("p_hub")
 
 	// ParamsMetaKey holds the HubParamsMetaState singleton that
-	// the API contract needs for `expected_version == current_version`
-	// and that §5.11 event 110 needs for `old_version`/`params_hash`.
+	// MsgUpdateHubParams needs for `expected_version == current_version`
+	// and that event 110 needs for `old_version`/`params_hash`.
 	//
-	// CONTRACT-GAP: the data-structure contractregisters no HubParamsMetaState row;
-	// it is the minimal state the two interface-contract requirements above
-	// force into existence. Document side must register it.
+	// CONTRACT-GAP: the protocol state layout registers no HubParamsMetaState row;
+	// it is the minimal state the two requirements above force into existence.
+	// The specification must register it.
 	ParamsMetaKey = MustVersionedStorePrefix("params_meta", CurrentStoreSchemaVersion)
 	// EndBlockBudget* are overwritten once per block and are deliberately not
 	// exported. They carry the budget left by Hub to the Task EndBlocker, which
@@ -145,12 +145,12 @@ var (
 	DailySupportStateKey                   = MustVersionedStorePrefix("daily_support", CurrentStoreSchemaVersion)
 	DailySupportExpiryIndexKey             = MustVersionedStorePrefix("daily_support_expiry", CurrentStoreSchemaVersion)
 
-	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
+	// ---- Global epoch stable-slot CandidatePool ----
 	//
-	// The six PR #88 per-(model, profile_version, duty) prefixes
+	// The six earlier per-(model, profile_version, duty) prefixes
 	// (candidate_pool_snapshot as an inline candidate vector, candidate_pool_current,
 	// candidate_pool_dirty, candidate_pool_overflow and the two height indexes keyed
-	// by that triple) are deleted, not migrated: §3.2 replaces them with one global
+	// by that triple) are deleted, not migrated: they are replaced with one global
 	// pool per epoch. Fresh genesis, so no compatibility prefix is retained.
 	//
 	// The versioned form matters most here: the raw literal "candidate_pool"
@@ -185,10 +185,10 @@ var (
 	ServiceBondEffectiveIndexKey         = MustVersionedStorePrefix("service_bond_effective", CurrentStoreSchemaVersion)
 
 	// There is no jail or tombstone prefix either: both are operator-global
-	// counters on ServiceBondState (the data-structure contract).
+	// counters on ServiceBondState.
 	RoleFaultKey           = MustVersionedStorePrefix("role_fault", CurrentStoreSchemaVersion)
 	RoleFaultPruneIndexKey = MustVersionedStorePrefix("role_fault_prune", CurrentStoreSchemaVersion)
-	// RoleFaultByTaskIndexKey is the (task_id, fault_id) lookup direction §6.6's
+	// RoleFaultByTaskIndexKey is the (task_id, fault_id) lookup direction the
 	// fault_summary_hash needs. Without it the only way to read a task's fault
 	// vector is a full RoleFault scan, which cannot run in a consensus path.
 	RoleFaultByTaskIndexKey            = MustVersionedStorePrefix("role_fault_by_task", CurrentStoreSchemaVersion)
@@ -252,8 +252,7 @@ var (
 	BridgeBootstrapStateKey    = MustVersionedStorePrefix("bridge_bootstrap", CurrentStoreSchemaVersion)
 )
 
-// BridgeEpochUsagePruneKeyPair = (prune_epoch, reward_epoch) per
-// the data-structure contract. The due epoch leads so EndBlock can read
+// BridgeEpochUsagePruneKeyPair = (prune_epoch, reward_epoch). The due epoch leads so EndBlock can read
 // "everything due by epoch E" as one bounded ascending range.
 type BridgeEpochUsagePruneKeyPair = collections.Pair[uint64, uint64]
 
@@ -309,14 +308,14 @@ func NewBuilderSetTaskRefKey(taskID shared.Hash32Key, version uint64) BuilderSet
 }
 
 // BuilderSetPruneKeyTriple = (prune_epoch, builder_set_id, phase), the exact
-// component order the data-structure contractregisters (D-24). The previous key put a
+// frozen component order. The previous key put a
 // due *height* in K1; the schedule is denominated in retention *epochs*, so the
 // height was a derived value baked into a consensus key and the index could not
 // be read as "everything due by epoch E" without knowing epoch_length_blocks.
 // The epoch -> height conversion now happens in exactly one place,
 // firstDueBuilderSetPrune.
 //
-// builder_set_id is the term id. §6.5 gives a builder set one identity and the
+// builder_set_id is the term id. a builder set has one identity and the
 // task-ref direction spells it as the decimal string of term_id
 // (NewBuilderSetTaskRefKey); this index keeps the uint64 so that K1/K2 stay
 // numerically ordered, which is what makes "oldest due first" a single
@@ -512,7 +511,7 @@ func NewTaskLiabilityByTaskKey(taskID shared.Hash32Key, duty shared.Duty, operat
 // responsibility_id). participant_type is int32(ParticipantType), matching every
 // other participant-scoped Hub key (NewParticipantKey,
 // NewCurrentServiceAddressIndexKey). It used to be the participant-type *name*,
-// which put the string "CORTEX_NODE" into a consensus key even though §9.6b's
+// which put the string "CORTEX_NODE" into a consensus key even though the
 // frozen enum name is CORTEX - a spelling the contract does not define, and one
 // only the Keeper's own name/parse pair agreed on (A-15a).
 //
@@ -587,8 +586,8 @@ func NewDailySupportKey(epoch uint64, operatorAddress string) DailySupportKey {
 }
 
 // DailySupportExpiryIndexKeyTriple is (expiry_epoch, operator_address,
-// support_epoch), the exact component order frozen by
-// the data-structure contract. The previous
+// support_epoch), the exact frozen component order.
+// The previous
 // (expiry_epoch, support_epoch, operator_address) order made the index unusable
 // for an operator-scoped bounded prefix scan.
 type DailySupportExpiryIndexKeyTriple = collections.Triple[uint64, string, uint64]
@@ -597,11 +596,11 @@ func NewDailySupportExpiryIndexKey(expiryEpoch uint64, operatorAddress string, s
 	return collections.Join3(expiryEpoch, operatorAddress, supportEpoch)
 }
 
-// ---- Global CandidatePool key types (the data-structure contract) ----
+// ---- Global CandidatePool key types ----
 //
 // Hash32 key components (snapshot_id, task_id) are lowercase 64-hex strings, the
 // same wire form the rest of the Hub store already uses for Hash32 keys; the raw
-// 32 bytes only exist inside the value rows and inside the §1.2 hash framing.
+// 32 bytes only exist inside the value rows and inside the hash framing.
 //
 // CandidateSlotBindingKeyPair = (slot, slot_version). The binding is immutable
 // identity history, so slot_version must stay in the key.
@@ -619,14 +618,14 @@ func NewCandidatePoolSegmentKey(epoch uint64, segmentIndex uint32) CandidatePool
 }
 
 // CandidatePoolMemberKeyPair = (epoch, slot). Ascending slot order inside one
-// epoch is exactly the §3.5 hash order, so a prefix scan is the canonical read.
+// epoch is exactly the pool hash order, so a prefix scan is the canonical read.
 type CandidatePoolMemberKeyPair = collections.Pair[uint64, uint32]
 
 func NewCandidatePoolMemberKey(epoch uint64, slot uint32) CandidatePoolMemberKeyPair {
 	return collections.Join(epoch, slot)
 }
 
-// CandidatePoolTaskRefKeyPair = (task_id, snapshot_id). §3.3 makes this row the
+// CandidatePoolTaskRefKeyPair = (task_id, snapshot_id). This row is the
 // idempotent per-task reference; the task_id-first order is what lets cleanup
 // release a task's refs with a bounded prefix scan.
 //
@@ -646,8 +645,8 @@ func NewCandidatePoolExpiryIndexKey(expiresHeight uint64, snapshotID shared.Hash
 	return collections.Join(expiresHeight, snapshotID)
 }
 
-// CandidatePoolPruneIndexKeyTriple = (prune_height, snapshot_id, phase). §3.2
-// puts the BODY/HEADER phase in the key so the two prune stages of one snapshot
+// CandidatePoolPruneIndexKeyTriple = (prune_height, snapshot_id, phase). The
+// BODY/HEADER phase is in the key so the two prune stages of one snapshot
 // are separate due rows instead of a mutable status field.
 type CandidatePoolPruneIndexKeyTriple = collections.Triple[uint64, shared.Hash32Key, int32]
 
@@ -695,7 +694,7 @@ func NewRoleFaultPruneKey(pruneHeight uint64, faultID shared.Hash32Key) RoleFaul
 
 // RoleFaultByTaskKey is (task_id, fault_id), both raw Hash32. RoleFaultState is keyed by
 // fault_id alone, so this is the only bounded way to read one task's fault
-// vector; §6.6's fault_summary_hash is computed inside a settlement transition
+// vector; fault_summary_hash is computed inside a settlement transition
 // and may not scan the whole RoleFault map to find its own faults.
 type RoleFaultByTaskKey = collections.Pair[shared.Hash32Key, shared.Hash32Key]
 
@@ -849,7 +848,7 @@ const (
 // The custody Store rows spell these four statuses as proto enums, so the
 // former ChallengeBondStatus*, ChallengeEffectPoolStatus*,
 // ChallengeEffectReceiptStatusApplied and SettlementApplicationStatusApplied
-// string constants are gone: §9.6b allows one numeric definition per closed
+// string constants are gone: there is one numeric definition per closed
 // enum, and a bare string beside the generated enum is a second one.
 //
 
@@ -899,7 +898,7 @@ func NewProfileStateKey(modelID []byte, profileVersion uint32) ProfileStateKeyPa
 	return collections.Join(modelID, profileVersion)
 }
 
-// VRF key rotation state (§9.3a). History is keyed by the epoch a key became
+// VRF key rotation state. History is keyed by the epoch a key became
 // effective so a retired key stays addressable for audit; the activation index
 // leads with the epoch so the epoch boundary reads one bounded ascending range.
 var (

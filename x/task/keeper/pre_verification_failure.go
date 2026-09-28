@@ -379,7 +379,7 @@ func (k Keeper) applyPreVerificationFailure(
 	}
 
 	core.TaskPhase = types.TaskPhase_TASK_PHASE_FAILED
-	// §10.7 pairs the two halves as `task -> VERIFY_FAILED / REFUNDED`: a task that
+	// The protocol pairs the two halves as `task -> VERIFY_FAILED / REFUNDED`: a task that
 	// fails and has its budget returned carries settlement_status REFUNDED, not
 	// FINALIZED. This function is definitionally that path — it already declares
 	// ORDER_SEQUENCE_STATUS_REFUNDED a few lines above — so writing FINALIZED here

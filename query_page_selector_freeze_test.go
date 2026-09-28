@@ -18,8 +18,8 @@ import (
 	_ "github.com/TrueOpen/node/x/task/types"
 )
 
-// queryPageRequestMessageV1 is the one pagination request wire of
-// the API contract. A Query RPC is paginated exactly when its request
+// queryPageRequestMessageV1 is the one pagination request wire message.
+// A Query RPC is paginated exactly when its request
 // message carries a field of this type - that is the definition the proto files
 // themselves use, and it is why the set below can be derived rather than listed.
 const queryPageRequestMessageV1 = "shared.v1.QueryPageRequestV1"
@@ -31,7 +31,7 @@ const queryPageRequestMessageV1 = "shared.v1.QueryPageRequestV1"
 // selector fields after chain_id and the RPC digest, so its registry row is a
 // variant list keyed by method literal. A variant list is only as good as the
 // answer to "is this all of them?", and before this test there were three
-// independent answers - the proto files, the handlers, and §16.2-§16.4 - with
+// independent answers - the proto files, the handlers, and the written query rules - with
 // nothing comparing any two of them.
 //
 // The proto descriptors are the right side to derive from: a new paginated Query
@@ -67,7 +67,7 @@ func TestQuerySelectorRegistryVariantsMatchTheProductionSchema(t *testing.T) {
 	spec, registered := shared.DomainSpecFor(shared.DomainQuerySelectorV1)
 	require.True(t, registered)
 	require.Equal(t, []string{"chain_id", "rpc_method_digest"}, spec.Fields,
-		"the fixed head is frozen by §16.1; the per-RPC tail is the variant")
+		"the fixed head is frozen; the per-RPC tail is the variant")
 	require.Equal(t, "rpc_method_digest", spec.Discriminator)
 	require.Len(t, spec.Variants, len(shared.QueryPageSelectorSchemaV1))
 

@@ -25,7 +25,7 @@ func collectRoleFaultByTaskKeys(t *testing.T, f *fixture) []types.RoleFaultByTas
 }
 
 // TestRoleFaultByTaskIndexIsRebuiltFromExportedPrimaries covers the derived
-// direction §6.6's fault_summary_hash depends on. RoleFaultState is keyed by
+// direction the fault_summary_hash depends on. RoleFaultState is keyed by
 // fault_id alone, so before this index existed there was no bounded way to read
 // one task's fault vector inside a settlement transition. The index is derived,
 // so it is deliberately not on the genesis wire: the round trip below is what
@@ -129,7 +129,7 @@ func TestRoleFaultByTaskIndexDisagreementFailsExport(t *testing.T) {
 }
 
 // TestRoleFaultPruneDeletesTheByTaskIndexRow is the deletion half of the
-// contract: §6.6 licenses dropping RoleFaultState and its SlashSummary after
+// contract: the protocol licenses dropping RoleFaultState and its SlashSummary after
 // record_retention_blocks, and the derived index has to go with them or the next
 // export fails on an orphan row.
 func TestRoleFaultPruneDeletesTheByTaskIndexRow(t *testing.T) {

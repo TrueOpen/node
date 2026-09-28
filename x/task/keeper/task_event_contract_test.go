@@ -35,7 +35,7 @@ import (
 //
 // TestEmitWorkerAssignmentFinalizedEvent below replaces the deleted
 // TestEmitAssignmentFinalizedEvent: EventAssignmentFinalized became
-// EventWorkerAssignmentFinalized (§5.11 code 11) and TaskAssignment became
+// EventWorkerAssignmentFinalized (event code 11) and TaskAssignment became
 // TaskAssignmentState keyed by task_id alone with winner_worker.
 
 func TestEmitWorkerAssignmentFinalizedEvent(t *testing.T) {
@@ -57,7 +57,7 @@ func TestEmitWorkerAssignmentFinalizedEvent(t *testing.T) {
 	require.Equal(t, want, lastTypedEvent(t, f.ctx, want))
 }
 
-// §5.11 code 20 `deadline_swept` carries the §5.9 DeadlineKindV1 numbers and the
+// Event code 20 `deadline_swept` carries the frozen DeadlineKindV1 numbers and the
 // optional session_id / task_id oneof branches, never a second deadline enum.
 func TestEmitDeadlineSweptEventCarriesFrozenKind(t *testing.T) {
 	f := initInternalFixture(t)

@@ -27,10 +27,10 @@
     "service signature included in the receipt preimage"
   ],
   "schema": "trueopen.task.infer_receipt.v2",
-  "source": "§5.1",
+  "source": "Infer receipt wire contract",
   "vectors": [
     {
-      "contract_section": "§5.1",
+      "contract_section": "Infer receipt wire contract",
       "digest_hex": "3e3ba35e0267a39132f78d57d0e7ec20adf3d6a10f65936ac81b4036480cd2d0",
       "domain": "TRUEOPEN_INFER_RECEIPT_V2",
       "fields": [

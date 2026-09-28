@@ -121,8 +121,8 @@ func TestModelSupportDeactivationResumesAcrossBlocksAndGenesis(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestFreezeClearsInFlightRecheckInsteadOfRejecting exercises keeper_接口契约
-// §10.0.4 rule 7: a governance status change into FROZEN/DELISTED wins over a
+// TestFreezeClearsInFlightRecheckInsteadOfRejecting exercises the rule that a
+// governance status change into FROZEN/DELISTED wins over a
 // not-yet-effective threshold recheck. It must clear the pending recheck index
 // entry, the model's pending fields and any in-flight recheck cursor, then
 // enqueue the deactivation sweep, rather than reject the status change.
@@ -162,7 +162,7 @@ func TestFreezeClearsInFlightRecheckInsteadOfRejecting(t *testing.T) {
 }
 
 // TestFreezeSkipsDeactivateCursorWithNoSupportRows covers the case where a
-// model has no ModelSupportState row at all: keeper_接口契约 §10.0.4 rule 7
+// model has no ModelSupportState row at all: the status change
 // skips creating the cursor and completes the status write directly.
 func TestFreezeSkipsDeactivateCursorWithNoSupportRows(t *testing.T) {
 	f := initFixture(t)

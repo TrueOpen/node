@@ -370,7 +370,7 @@ func (q *queryServer) TaskFailureClass(ctx context.Context, req *types.QueryTask
 	return &types.QueryTaskFailureClassResponse{Failure: failure}, nil
 }
 
-// The separate taskID argument is gone with X-16: the store key and the proto
+// The separate taskID argument is gone: the store key and the proto
 // task_id are the same 32 bytes now, so the store lookups and the scope checks
 // below cannot be pointed at two different tasks by a caller that renders one of
 // them differently.
@@ -434,7 +434,7 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 }
 
 // dataUnavailableReportsPageDigests names this RPC's two ordered selector fields
-// - task_id then verify_round, per §16.2's request field order - and hands them
+// - task_id then verify_round, per the request field order - and hands them
 // to the one shared producer.
 //
 // It cannot use decodeAddressPairQueryPageToken above: this query's primary key is

@@ -54,7 +54,7 @@ func TestBeaconPaths(t *testing.T) {
 	require.NoError(t, f2.keeper.InitGenesis(f2.ctx, *types.DefaultGenesis()))
 	proposer := bytes.Repeat([]byte{0x42}, 20)
 	// The verification public key may only come from the on-chain VRF registry
-	// (the sampling protocol), so the proposer's operator must
+	// so the proposer's operator must
 	// have an active public key first, otherwise the whole block is rejected.
 	operator := hubAddress(t, 0x42)
 	registeredPubkey := vrfPubkey(0x9A)
@@ -74,7 +74,7 @@ func TestBeaconPaths(t *testing.T) {
 		require.Len(t, proof, 64)
 		require.Len(t, randomness, 32)
 		require.Equal(t, registeredPubkey, pubkey,
-			"the beacon must be verified with the active VRF public key registered on chain, not the consensus public key (DOC-021)")
+			"the beacon must be verified with the active VRF public key registered on chain, not the consensus public key")
 		observedInput = append([]byte(nil), input...)
 		return nil
 	})
@@ -107,7 +107,7 @@ func TestBeaconPaths(t *testing.T) {
 	require.Error(t, err)
 
 	// A proposer with no registered VRF public key is always rejected, with no
-	// fallback to the consensus public key (§3.1 admission).
+	// fallback to the consensus public key.
 	_, err = f2.keeper.ValidateBeaconCarrier(
 		beaconWriteContext(f2.ctx, 3, beaconTestBlockHash("verified-3")),
 		verifiedBeaconCarrier(3, "33", "cc", proposer), proposer, hubAddress(t, 0x43), verifier,

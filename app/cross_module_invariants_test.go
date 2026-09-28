@@ -68,7 +68,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 	ctx = ctx.WithChainID("builder-duty-invariant")
 	taskID := bytes.Repeat([]byte{0x81}, tasktypes.Hash32Len)
 	sessionID := bytes.Repeat([]byte{0x82}, tasktypes.Hash32Len)
-	// taskKey is the Task-side store key (raw 32 bytes since X-16). taskHex is the
+	// taskKey is the Task-side store key (raw 32 bytes). taskHex is the
 	// SAME id in the spelling Hub uses, and it is load-bearing twice over: it is a
 	// hash preimage component of responsibility_id (serviceKeyResponsibilityID hashes
 	// the hex text, so feeding it raw bytes would derive a different id and the Hub
@@ -93,7 +93,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 	// that same edit has to move a constant whose provenance is the contract.
 	require.Equal(t, "9152865c416c8632dcd9756f2161c6348319ca073dcc73f478f9b7a49140e188",
 		hex.EncodeToString(selectedHash),
-		"TRUEOPEN_SELECTED_TASK_BUILDERS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the data-structure contract §6.5 and the §1.4 domain registry")
+		"TRUEOPEN_SELECTED_TASK_BUILDERS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the selected-builders layout and the domain registry")
 	require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, taskKey, tasktypes.TaskCoreState{
 		TaskId: taskID, SessionId: sessionID,
 		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED,
@@ -144,7 +144,7 @@ func TestBuilderDutyResponsibilitiesFollowTaskOwnedLifecycle(t *testing.T) {
 	openVerifyIDs := setResponsibilities(hubtypes.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_OPEN_VERIFY_BUILDER, 10)
 	require.Equal(t, "4cbbda58e9112bb22b2b6de78cbc7e88c87dc8f3513b612c8e18c9e6a21c50d6",
 		hex.EncodeToString(openVerifyIDs[0]),
-		"TRUEOPEN_SERVICE_KEY_RESPONSIBILITY_ID_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_SERVICE_KEY_RESPONSIBILITY_ID_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	require.NoError(t, application.ensureBuilderDutyResponsibilities(ctx))
 	require.NoError(t, application.TaskKeeper.WriteVerifierAssignment(
 		ctx, tasktypes.NewVerifyRoundKey(taskKey, tasktypes.VerifyRoundV1),

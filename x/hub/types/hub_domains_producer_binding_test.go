@@ -115,7 +115,7 @@ func TestHubDomainFixtureMatchesProductionHelpers(t *testing.T) {
 	// model_registration_hash_test.go said so in a comment - so no other
 	// implementation could reproduce the digest without reading Go.
 	//
-	// Publishing it is also what exposed the §4.4 flattening inside
+	// Publishing it is also what exposed the repeated-group flattening inside
 	// CanonicalEvidenceSchemaTypedFrameV1: writing evidence_schema out as a frame
 	// made the spliced count and elements visible, and the assertions below now
 	// pin the repaired shape.
@@ -129,7 +129,7 @@ func TestHubDomainFixtureMatchesProductionHelpers(t *testing.T) {
 		require.Len(t, metrics.Fields, 6, "MetricSpec is one recursive frame, not six flattened scalars")
 		evidenceSchema := hubNestedFrame(t, profile, 13, "evidence_schema")
 		require.Len(t, evidenceSchema.Fields, 2,
-			"NESTED_V1(EvidenceSchemaV1) has exactly the message's two proto fields: schema_version and the required_infer_evidence list as one §4.4 REPEATED_V1 position")
+			"NESTED_V1(EvidenceSchemaV1) has exactly the message's two proto fields: schema_version and the required_infer_evidence list as one REPEATED_V1 position")
 
 		requirementFields := hubNestedNamedRepeatedFields(t, evidenceSchema, 1, "required_infer_evidence")
 		require.Len(t, requirementFields, 2,

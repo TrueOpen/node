@@ -89,7 +89,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// chain id.
 	require.Equal(t, "32cb1bb5c82be3571be96f77094d984e1dbb0cf1daed351fe1e56d1e18905d80",
 		hex.EncodeToString(baseHash),
-		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	mutated := base
 	mutated.Batch.MaxBatchCommitItems++
 	mutatedHash, err := TaskParamsHashV1("trueopen-test", 1, mutated)
@@ -174,7 +174,7 @@ func TestTaskParamsHashFramesEvidenceCatalogsAsRepeatedValues(t *testing.T) {
 	require.Equal(t, nilHash, emptyHash)
 }
 
-// flattenedRepeatedTaskParamsHashForTest reproduces the pre-#143 evidence
+// flattenedRepeatedTaskParamsHashForTest reproduces the earlier evidence
 // encoding: the section frame survives, but the repeated element count and the
 // elements are written as siblings of the section's scalars instead of as one
 // REPEATED_V1 frame.
@@ -295,7 +295,7 @@ func walkTaskParamsLeaves(t *testing.T, path string, value reflect.Value, visit 
 
 // flatEvidenceFieldsForTest is EvidenceLimitParamsV1 with both repeated fields
 // written as a loose uint32_be count followed by sibling elements, i.e. without
-// the REPEATED_V1 frame the canonical encoding contract requires. It
+// the REPEATED_V1 frame the canonical encoding requires. It
 // exists only so the tests can
 // show this shape is not what TaskParamsHashV1 commits to.
 func flatEvidenceFieldsForTest(p TaskParamsV1) [][]byte {

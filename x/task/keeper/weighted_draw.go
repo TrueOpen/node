@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	// §4.5: Worker purpose = WORKER_ASSIGNMENT, legal set =
+	// Worker purpose = WORKER_ASSIGNMENT, legal set =
 	// assignment_candidate_set_hash.
 	workerAssignmentPurposeV1 = "WORKER_ASSIGNMENT"
-	// §4.5: Verifier purpose = VERIFIER_SELECTION, legal set =
+	// Verifier purpose = VERIFIER_SELECTION, legal set =
 	// verifier_legal_set_hash. Both purposes go through the *same* executor
 	// below; there is no second sampler.
 	verifierSelectionPurposeV1 = "VERIFIER_SELECTION"
@@ -25,8 +25,8 @@ type weightedDrawResult struct {
 	AcceptedCounter uint64
 }
 
-// drawWeightedCandidate implements the bounded unbiased integer draw from
-// interface contract section 4.5. candidates are always interpreted in slot
+// drawWeightedCandidate implements the bounded unbiased integer draw the
+// protocol defines. candidates are always interpreted in slot
 // order, independent of caller order.
 func drawWeightedCandidate(
 	chainID, purpose string,
@@ -92,13 +92,13 @@ func drawWeightedCandidate(
 	return weightedDrawResult{}, fmt.Errorf("weighted draw exhausted %d attempts", maxAttempts)
 }
 
-// drawWeightedCandidatesWithoutReplacement is the §4.5 Verifier path: draw
+// drawWeightedCandidatesWithoutReplacement is the Verifier path: draw
 // `count` distinct members from the same legal union using the *same* executor
 // as the Worker draw. The counter is carried across selections (checked
 // increment) so the whole selection is one deterministic transcript.
 //
-// The Verifier *semantics* (legal set construction, selected_verifiers_hash) are
-// §10.4 and belong to the verifier assignment lifecycle; only the sampler is shared here so that lifecycle
+// The Verifier *semantics* (legal set construction, selected_verifiers_hash)
+// belong to the verifier assignment lifecycle; only the sampler is shared here so that lifecycle
 // cannot introduce a second one.
 func drawWeightedCandidatesWithoutReplacement(
 	chainID string,

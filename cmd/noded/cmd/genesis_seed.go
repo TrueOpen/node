@@ -282,8 +282,8 @@ func validateGenesisSeed(seed genesisSeed) error {
 	if err := validateGenesisParamsOverride("task_params", seed.TaskParams); err != nil {
 		return err
 	}
-	// Ruling 16: the minimum service deposit has one source,
-	// params.Service.service_bond_min_initial (the API contract field 12).
+	// The minimum service deposit has one source,
+	// params.Service.service_bond_min_initial (field 12).
 	// Seed validation runs offline, so the default params carry the value; the
 	// deleted keeper.MinServiceBond constant was an unregistered duplicate that had
 	// already drifted to half this amount.
@@ -1125,12 +1125,12 @@ func appendMissingModels(hub *hubtypes.GenesisState, bank *banktypes.GenesisStat
 //
 // The per-epoch treasury ledger this used to maintain is gone.
 // TreasuryEpochState / GenesisState.treasury_epochs were deleted with the
-// reward wire (§5.11 replaces the epoch-close summary with codes 80/81 and
+// reward wire (event codes 80/81 replace the epoch-close summary and
 // TreasuryState now carries only balance + treasury_version), so the seed can
 // no longer pre-build epoch inflow rows, maintenance_rate_ppm or rule_version.
 // Treasury runtime tests must assert that the seeded
 // balance equals the sum of the registration fees actually moved and that the
-// §9.6c governance receipts stay empty at genesis.
+// governance receipts stay empty at genesis.
 func recordGenesisRegistrationFee(
 	hub *hubtypes.GenesisState,
 	bank *banktypes.GenesisState,

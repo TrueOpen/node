@@ -7,7 +7,7 @@ import (
 )
 
 // ResultReceiptRefsHash commits only the membership of the threshold cluster:
-// who was in it and which receipt each member opened. the API contract
+// who was in it and which receipt each member opened. The protocol
 // keeps the judgment and the derived count out of this digest on purpose —
 // ConsensusClusterHash below carries those — so a Query that only needs to prove
 // "these verifiers formed the cluster" does not have to reveal the verdict.
@@ -44,8 +44,8 @@ func ResultReceiptRefsHash(chainID string, taskID []byte, verifyRound uint32, me
 
 // ConsensusClusterHash commits the cluster membership *and* its judgment: the
 // per-member sample verdict, acceptance height and the checked token count that
-// the fee rule bills against. §10.10a: "the same verdict with a different
-// generated-token count is still not the same cluster", so both fields are inside
+// the fee rule bills against. The same verdict with a different
+// generated-token count is still not the same cluster, so both fields are inside
 // the digest rather than being
 // recomputed by a consumer.
 func ConsensusClusterHash(chainID string, taskID []byte, verifyRound uint32, members []ConsensusClusterMemberV1) ([32]byte, error) {
@@ -119,7 +119,7 @@ func canonicalClusterScope(chainID string, taskID []byte, verifyRound uint32, me
 }
 
 // isExplicitSampleVerdict accepts every judged sample verdict, INCONCLUSIVE
-// included: §10.10a keeps INCONCLUSIVE out of the *task* verdict but it is a
+// included: the protocol keeps INCONCLUSIVE out of the *task* verdict but it is a
 // legitimate cluster key, so excluding it here would silently drop a cluster.
 // Only the unjudged zero value is rejected.
 func isExplicitSampleVerdict(verdict MetricSampleVerdictV1) bool {

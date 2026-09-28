@@ -33,8 +33,8 @@ type fixture struct {
 
 // testServiceBondMinInitial mirrors params.Service.ServiceBondMinInitial.
 //
-// Ruling 16 deleted keeper.MinServiceBond (500_000): it was an unregistered
-// duplicate of the §18.0 field 12 parameter and had drifted from it. Every test
+// keeper.MinServiceBond (500_000) was deleted: it was an unregistered
+// duplicate of the parameter and had drifted from it. Every test
 // that needs "the minimum a service bond may hold" now reads the parameter.
 var testServiceBondMinInitial = func() uint64 {
 	value, err := types.AmountToUint64(types.DefaultHubParams().Service.ServiceBondMinInitial, false)
@@ -110,7 +110,7 @@ func seedRoleFaultForTest(t *testing.T, f *fixture, operator string, duty shared
 		f.ctx, types.NewRoleFaultPruneKey(recordedHeight+params.Service.RecordRetentionBlocks, key),
 	))
 	// Both derived directions, exactly like the production writer: the by-task
-	// index is what a §6.6 fault vector read walks.
+	// index is what a task fault vector read walks.
 	require.NoError(t, f.keeper.RoleFaultByTaskIndex.Set(
 		f.ctx, types.NewRoleFaultByTaskKey(state.TaskId, key),
 	))

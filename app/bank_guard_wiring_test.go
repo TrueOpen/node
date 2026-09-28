@@ -6,7 +6,7 @@ package app
 //
 //	x/gov      -> GovernedGovBankKeeper       (fee_burn_policy = NO_USDC_BURN_V1)
 //	x/staking  -> GovernedStakingBankKeeper
-//	hl x/core  -> bridge.GuardedBankKeeper    (the bridge protocol)
+//	hl x/core  -> bridge.GuardedBankKeeper
 //	hl x/warp  -> bridge.GuardedBankKeeper
 //
 // All four were silently unwired: depinject.BindInterface compares against its

@@ -21,8 +21,8 @@ func (k Keeper) initBridgeGenesis(ctx context.Context, genState types.GenesisSta
 	genesis := genState.Bridge
 	// schema_version 0 is the one shape that means "this chain has no bridge":
 	// the whole section is absent. Phase 0 production Genesis must configure one
-	// because business_denom can only originate at the bridge, but that is #163's
-	// acceptance gate — here a chain without the section simply writes no bridge
+	// because business_denom can only originate at the bridge, but that is a
+	// production Genesis acceptance gate — here a chain without the section simply writes no bridge
 	// rows rather than failing a document that never claimed to have a bridge.
 	if genesis.SchemaVersion == 0 && len(genesis.Route.UsdcRouteId) == 0 {
 		if len(genState.ValidatorBridgeSigners) != 0 {
@@ -259,8 +259,8 @@ func bridgeBootstrapGenesisFromState(bootstrap types.BridgeBootstrapState) types
 	return genesis
 }
 
-// exportBridgeGenesis reproduces the imported document. §5.2 is explicit that
-// the three cumulative supply counters travel verbatim: re-deriving
+// exportBridgeGenesis reproduces the imported document. The
+// three cumulative supply counters travel verbatim: re-deriving
 // genesis_allocated from the current supply would silently reclassify every
 // bridged voucher as a genesis allocation and make I-BRIDGE-3 pass on a chain
 // where it should fail.
@@ -347,7 +347,7 @@ func (k Keeper) exportBridgeGenesis(ctx context.Context, genesis *types.GenesisS
 	}
 	genesis.Bridge.Usages = make([]types.BridgeEpochUsageGenesisV1, 0, len(usages))
 	for _, usage := range usages {
-		// §6.6a: only closed epochs are exportable. The current window belongs to
+		// Only closed epochs are exportable. The current window belongs to
 		// the exporting chain's clock, so carrying it would import a usage figure
 		// for an epoch the new chain has not reached.
 		if !usage.Closed {

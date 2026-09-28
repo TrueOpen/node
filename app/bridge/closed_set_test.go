@@ -9,7 +9,7 @@ import (
 	"github.com/TrueOpen/node/app/bridge"
 )
 
-// §3.2 names exactly two callable upstream messages, and §9 lists the rest as
+// Exactly two upstream messages are callable, and the rest are
 // NOT_SUPPORTED with no callable entry point. The closed set is what makes that
 // true on a chain that mounts the upstream modules whole, so the two allowed
 // URLs and the refused ones are both asserted here rather than assumed.
@@ -27,7 +27,7 @@ func TestMsgClosedSetAllowsOnlyTheTwoPublicBridgeMessages(t *testing.T) {
 
 	// Reaching any of these from an ordinary transaction would move the route,
 	// the ISM or the token out from under usdc_route_id and I-BRIDGE-1 without a
-	// chain upgrade (§10.3).
+	// chain upgrade.
 	for _, refused := range []string{
 		"/hyperlane.core.v1.MsgCreateMailbox",
 		"/hyperlane.core.v1.MsgSetMailbox",

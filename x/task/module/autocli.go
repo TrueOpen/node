@@ -13,9 +13,9 @@ import (
 // AutoCLI resolves names at startup and panics on stale entries, so blocked and
 // internal-only methods must not be listed.
 //
-// Selectors are Hash32 values (§1.1: 64-hex on the protobuf/REST boundary), so
+// Selectors are Hash32 values (64-hex on the protobuf/REST boundary), so
 // every positional task/session id is a single hex argument, not the deleted
-// (session_id, task_id) pair (Ruling 23).
+// (session_id, task_id) pair.
 func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 	return &autocliv1.ModuleOptions{
 		Query: &autocliv1.ServiceCommandDescriptor{
@@ -287,7 +287,7 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
-					// §9.4 / §10.14: the single failure and expiry entry point.
+					// The single failure and expiry entry point.
 					// The locator is a four-branch oneof, so it stays a flag.
 					RpcMethod: "SweepDeadline",
 					Use:       "sweep-deadline",

@@ -46,7 +46,7 @@ func (k Keeper) AddVerifierActiveJobIndex(ctx context.Context, verifierAddress s
 
 // RemoveRoleActiveTaskIndexes clears both role indexes of one task. It is driven
 // by the authoritative assignment rows, so it never scans all operators
-// (the data-structure contract: a task holds at most
+// (a task holds at most
 // 1 + selected_verifier_count liabilities).
 func (k Keeper) RemoveRoleActiveTaskIndexes(ctx context.Context, taskID []byte) error {
 	taskKey, err := taskStoreKey(taskID)

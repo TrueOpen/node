@@ -8,8 +8,7 @@ package app
 // implementation without touching app.go's main constructor).
 //
 // There is no compile-time policy switch here any more.
-// the sampling protocol states that the single source of the
-// consensus policy is the committed `BeaconParamsV1.vrf_required_from_height`;
+// The single source of the consensus policy is the committed `BeaconParamsV1.vrf_required_from_height`;
 // a build tag may only add a stricter startup-time configuration assertion (see
 // beacon_wiring_mainnet.go), and must not change the ACCEPT/REJECT decision of
 // PrepareProposal/ProcessProposal.

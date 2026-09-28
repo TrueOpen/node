@@ -13,7 +13,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// Session is §16.2 `QuerySession`: the retained active/idle/closed row. Once the
+// Session is `QuerySession`: the retained active/idle/closed row. Once the
 // history has been collapsed the row is gone and the caller must ask for the
 // terminal summary instead.
 func (q *queryServer) Session(ctx context.Context, req *types.QuerySessionRequest) (*types.QuerySessionResponse, error) {
@@ -37,7 +37,7 @@ func (q *queryServer) Session(ctx context.Context, req *types.QuerySessionReques
 	return &types.QuerySessionResponse{Session: stream}, nil
 }
 
-// SessionNonce is §16.2 `QuerySessionNonce`: a legal address with no state
+// SessionNonce is `QuerySessionNonce`: a legal address with no state
 // returns 0; a malformed address is InvalidArgument, never an empty state.
 func (q *queryServer) SessionNonce(ctx context.Context, req *types.QuerySessionNonceRequest) (*types.QuerySessionNonceResponse, error) {
 	if req == nil {
@@ -57,8 +57,8 @@ func (q *queryServer) SessionNonce(ctx context.Context, req *types.QuerySessionN
 	return &types.QuerySessionNonceResponse{NextSessionNonce: state.NextSessionNonce}, nil
 }
 
-// SessionsByOwner is §16.2 `QuerySessionsByOwner`: it only walks the ACTIVE/IDLE
-// owner index in session_id ascending order. §7 line 2011 forbids CLOSED rows in
+// SessionsByOwner is `QuerySessionsByOwner`: it only walks the ACTIVE/IDLE
+// owner index in session_id ascending order. CLOSED rows are forbidden in
 // that index, so history is never enumerated here.
 func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessionsByOwnerRequest) (*types.QuerySessionsByOwnerResponse, error) {
 	if req == nil {
@@ -120,7 +120,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 		}
 		stream, err := q.k.ReadStream(ctx, key.K2())
 		if err != nil {
-			// §16.1: a stale index row inside a page is an invariant break.
+			// A stale index row inside a page is an invariant break.
 			return nil, status.Errorf(codes.Internal, "session_by_owner index points at missing stream %s", hex32(key.K2()))
 		}
 		if stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
@@ -161,7 +161,7 @@ func (q *queryServer) encodeSessionsByOwnerPageToken(
 	return encodeAddressPairQueryPageToken(rpcDigest, selectorDigest, primaryKey, queryHeight)
 }
 
-// SessionTerminalSummary is §16.2 `QuerySessionTerminalSummary`.
+// SessionTerminalSummary is `QuerySessionTerminalSummary`.
 func (q *queryServer) SessionTerminalSummary(ctx context.Context, req *types.QuerySessionTerminalSummaryRequest) (*types.QuerySessionTerminalSummaryResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
@@ -180,9 +180,9 @@ func (q *queryServer) SessionTerminalSummary(ctx context.Context, req *types.Que
 	return &types.QuerySessionTerminalSummaryResponse{Summary: summary}, nil
 }
 
-// OrderSequence is §16.2 `QueryOrderSequence`: only inside the detail retention
+// OrderSequence is `QueryOrderSequence`: only inside the detail retention
 // window. After the history is folded into `sequence_root` the row is NotFound;
-// §16.2 forbids faking a membership proof out of the root.
+// faking a membership proof out of the root is forbidden.
 func (q *queryServer) OrderSequence(ctx context.Context, req *types.QueryOrderSequenceRequest) (*types.QueryOrderSequenceResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")

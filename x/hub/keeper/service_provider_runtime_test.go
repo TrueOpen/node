@@ -65,21 +65,21 @@ func TestCurrentServiceAddressInvariantRejectsCrossParticipantReuse(t *testing.T
 	require.ErrorContains(t, f.keeper.EnsureCurrentServiceAddressIndexInvariant(f.ctx), "is claimed by")
 }
 
-// TestTopUpServiceEnforcesBondFloorWhenReturningFromExit covers the A-12/A-20
-// composition: UNBONDING still owns its identity and may cancel the exit only at
+// TestTopUpServiceEnforcesBondFloorWhenReturningFromExit covers the bond-floor and
+// identity-release composition: UNBONDING still owns its identity and may cancel the exit only at
 // the initial floor; EXITED has released that identity and must re-register with
 // a new service-key proof, also at the initial floor.
 //
 // The test also pins the scope of the guard, which is the part that is a
-// judgement call rather than a transcription of §10.0c step 3:
+// judgement call rather than a transcription of the stake rule:
 //
 //   - a top-up that re-admits the node (EXITED *and* UNBONDING, i.e. the two
 //     statuses whose flip to REGISTERED this branch performs) must satisfy the
 //     floor. UNBONDING is included deliberately: pending_unbonding_total is
-//     outside the candidate/reward weight per §10.0c step 5, so funds still in
+//     outside the candidate/reward weight, so funds still in
 //     flight cannot stand in for active_bond.
 //   - a top-up that does *not* re-admit the node must stay ungated. A slash can
-//     leave a still-REGISTERED bond below the floor, and §10.0c never requires a
+//     leave a still-REGISTERED bond below the floor, and the protocol never requires a
 //     slashed operator to restore the whole floor before it may add anything.
 func TestTopUpServiceEnforcesBondFloorWhenReturningFromExit(t *testing.T) {
 	f := initFixture(t)
@@ -155,7 +155,7 @@ func TestTopUpServiceEnforcesBondFloorWhenReturningFromExit(t *testing.T) {
 
 	// (3) Top-up no longer revives an EXITED bond because no current service key
 	// exists. Re-registration is the returning node's first stake and applies the
-	// §10.0c step 3 floor.
+	// initial stake floor.
 	f.bank.seedAccount(operator.Address, 1)
 	_, err = server.StakeService(withdrawCtx, &types.MsgStakeService{
 		OperatorAddress: operator.Address, Action: topUpServiceAction(1),
@@ -176,7 +176,7 @@ func TestTopUpServiceEnforcesBondFloorWhenReturningFromExit(t *testing.T) {
 	require.Zero(t, stillExited.ActiveBond)
 
 	// (4) A return that meets the floor is still accepted - the guard is a floor,
-	// not a ban on returning (the data-structure contract).
+	// not a ban on returning.
 	f.bank.seedAccount(operator.Address, testServiceBondMinInitial)
 	returnProof = serviceRegistrationProofBytes(chainID, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operator.Address, returnKey.PubKey)
 	returned, err := server.StakeService(withdrawCtx, &types.MsgStakeService{

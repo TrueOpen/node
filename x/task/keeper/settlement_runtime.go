@@ -38,7 +38,7 @@ type settlementInputs struct {
 }
 
 // BuildSettlementFacts derives every non-amount settlement field from
-// authoritative state (the API contract step 5). It is a pure function:
+// authoritative state. It is a pure function:
 // Query preview, the Tx path, the deadline runner and Genesis validation all call
 // this one implementation, and success here authorizes nothing — no state write
 // and no fund movement.
@@ -80,7 +80,7 @@ func (k Keeper) BuildSettlementFacts(
 	return facts, settlementID[:], nil
 }
 
-// derivePaidRoles builds the (duty, operator) vector the facts commit to. §10.10a
+// derivePaidRoles builds the (duty, operator) vector the facts commit to. Settlement
 // requires the tuple to be unique and sorted by (duty, operator bytes); only the
 // worker that actually produced the billed receipt and the round-1 cluster
 // members are paid roles.
@@ -132,7 +132,7 @@ func (k Keeper) derivePaidRoles(inputs settlementInputs) ([]types.PaidRoleV1, er
 	return sorted, nil
 }
 
-// BuildSettlementPlan applies the single frozen fee rule of §10.10a. Every step
+// BuildSettlementPlan applies the single frozen settlement fee rule. Every step
 // is checked and the closing identity
 //
 //	refund = apply_start_reserved - sum(net) - sum(maintenance) - sum(gas)
@@ -140,7 +140,7 @@ func (k Keeper) derivePaidRoles(inputs settlementInputs) ([]types.PaidRoleV1, er
 // must hold exactly with no underflow, so a plan that does not conserve the
 // escrow cannot be built at all. The left-hand side is TaskBudgetState's
 // reserved_amount at apply start, not original_reserved_amount: gas receipts only
-// draw down tx_fee_reserve_remaining (§10.10b), so the two normally agree, but a
+// draw down tx_fee_reserve_remaining, so the two normally agree, but a
 // task that already disbursed part of its escrow must settle against what is
 // actually still held.
 func (k Keeper) BuildSettlementPlan(
@@ -202,9 +202,8 @@ func (k Keeper) BuildSettlementPlan(
 	if !ok {
 		return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("worker maintenance overflows")
 	}
-	// §10.10c requires every term checked. maintenance <= gross holds only while
-	// maintenance_rate_bps_snapshot <= 10000 (the API contract:4995); an
-	// out-of-range
+	// Every term must be checked. maintenance <= gross holds only while
+	// maintenance_rate_bps_snapshot <= 10000; an out-of-range
 	// snapshot would wrap this subtraction into a near-2^64 net and hand the
 	// plan an amount the escrow can never cover.
 	if workerMaintenance > workerPayableGross {
@@ -309,7 +308,7 @@ func (k Keeper) BuildSettlementPlan(
 }
 
 // EffectiveResultSelectedCount is the frozen slot count the verifier share is
-// divided by. §10.10a divides the round's verify total by the *selected* count,
+// divided by. Settlement divides the round's verify total by the *selected* count,
 // not by the cluster size, so absent and minority slots forfeit their share and
 // the remainder is never redistributed.
 func (i settlementInputs) EffectiveResultSelectedCount() uint32 {

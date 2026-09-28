@@ -185,7 +185,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if err := k.ModelSupport.Set(ctx, types.NewModelSupportKey(state.OperatorAddress, state.ModelId), state); err != nil {
 			return err
 		}
-		// P1-11: index rebuild has exactly one implementation shared with the
+		// Index rebuild has exactly one implementation shared with the
 		// runtime. The previous inline block wrote the by-profile/by-operator
 		// projections only for declared rows (so an undeclared row became
 		// invisible to every operator-scoped scan), always wrote the expiry index
@@ -319,7 +319,7 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		return fmt.Errorf("role fault genesis: %w", err)
 	}
 	// No jail/tombstone import: jail_count, normal_action_count_since_jail and
-	// the TOMBSTONED status ride on ServiceBondState (the data-structure contract)
+	// the TOMBSTONED status ride on ServiceBondState
 	// and are imported with genState.ServiceBonds above.
 	if err := k.Treasury.Set(ctx, genState.Treasury); err != nil {
 		return err

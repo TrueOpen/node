@@ -46,8 +46,7 @@ func TestTaskQueryCapsRejectMissingHubProjection(t *testing.T) {
 	require.Equal(t, codes.Internal, status.Code(err))
 }
 
-// the API contract: limit=0 uses the default, a non-zero limit above
-// the cap is
+// limit=0 uses the default, a non-zero limit above the cap is
 // rejected rather than silently clamped, and an over-long page token is rejected.
 func TestResolveQueryPage(t *testing.T) {
 	caps := taskQueryCaps{pageLimit: 17, pageTokenSize: 23, responseSize: 1024}
@@ -67,7 +66,7 @@ func TestResolveQueryPage(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-// §16.1: a malformed selector is InvalidArgument, never an empty result.
+// A malformed selector is InvalidArgument, never an empty result.
 func TestRequireQueryHash32RejectsShortIDs(t *testing.T) {
 	_, err := requireQueryHash32("task_id", nil)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -75,7 +74,7 @@ func TestRequireQueryHash32RejectsShortIDs(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	key, err := requireQueryHash32("task_id", bytes.Repeat([]byte{0xab}, types.Hash32Len))
 	require.NoError(t, err)
-	// The accepted selector is the raw 32-byte store key since X-16, not the
+	// The accepted selector is the raw 32-byte store key, not the
 	// 64-char lowercase-hex rendering the assertion used to pin.
 	require.Len(t, key, types.Hash32Len)
 }

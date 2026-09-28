@@ -68,7 +68,7 @@ func mulDivFloorUint64(left, right, denominator uint64) (uint64, bool) {
 	return quotient, true
 }
 
-// AcceptedTaskOrderOpeningHash freezes §10.1's canonical_order_light_fields, the
+// AcceptedTaskOrderOpeningHash freezes canonical_order_light_fields, the
 // only field set of TRUEOPEN_ORDER_OPENING_V1. It exists so a challenger can reopen
 // the non-amount facts and the input commitment of an accepted order from
 // retained state alone, which forces two exclusions:
@@ -76,7 +76,7 @@ func mulDivFloorUint64(left, right, denominator uint64) (uint64, bool) {
 //   - SignedOrderV1.user_signature is never part of the preimage. It is a
 //     Msg-only envelope field that is never persisted, so a signature-bound
 //     commitment would not be recomputable at any height, not merely after the
-//     §5.14 challenge-retention cleanup.
+//     challenge-retention cleanup.
 //   - the amount fields (numbers 14-21) stay out. accepted_task_hash already
 //     commits the whole order including every amount; this digest only has a
 //     reason to exist as the narrower non-amount projection.
@@ -124,10 +124,9 @@ func TaskBuilderRank(seed [32]byte, builderAddress string) ([32]byte, error) {
 
 // canonicalTaskOrderFields enumerates the thirty TRUEOPEN_TASK_ORDER_V1 preimage
 // fields in proto field-number order. Two of the thirty look like exceptions to
-// the §1.2 typed-encoding table and are not; both are frozen, both are mirrored
+// the typed-encoding table and are not; both are frozen, both are mirrored
 // by nexus and cortex, and both are pinned by golden vectors in
-// testdata/task_domains_v1.json. See the task order hashing contract
-// sections 4.4-4.5.
+// testdata/task_domains_v1.json.
 //
 //  1. THE EIGHT Amount FIELDS (14-21) FRAME DECIMAL TEXT, NOT u64_be.
 //     shared.Amount is `{ string atomic_units = 1 }`, so the nested-message rule
@@ -190,7 +189,7 @@ func canonicalTaskOrderFields(order TaskOrderV3) ([]shared.CanonicalFieldV1, err
 	return fields, nil
 }
 
-// canonicalOrderLightFields enumerates the 20 §10.1 light fields in TaskOrderV3
+// canonicalOrderLightFields enumerates the 20 light fields in TaskOrderV3
 // field-number ascending order: numbers 2-12, generation_params_digest in place
 // of number 13, then numbers 18-25. Every framing choice mirrors
 // canonicalTaskOrderFields above so the two projections of the same message can

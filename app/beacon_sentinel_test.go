@@ -52,8 +52,8 @@ func TestBeaconSentinelRoundTrip(t *testing.T) {
 	require.NotNil(t, got)
 
 	// Compare every user-set field bit-identical; if new fields land in
-	// BeaconCarrier proto, extend this test — the frozen list in the design
-	// doc §8 will pick up the drift.
+	// BeaconCarrier proto, extend this test so the frozen field list picks up
+	// the drift.
 	require.Equal(t, carrier.Height, got.Height)
 	require.Equal(t, carrier.RandomnessHex, got.RandomnessHex)
 	require.Equal(t, carrier.ProofHex, got.ProofHex)
@@ -63,7 +63,7 @@ func TestBeaconSentinelRoundTrip(t *testing.T) {
 }
 
 func TestBeaconSentinelMagicLayoutIsFrozen(t *testing.T) {
-	// The magic prefix layout is a Spec §14.6 freeze. This test catches any
+	// The magic prefix layout is frozen. This test catches any
 	// accidental drift (silent whitespace, case, or length change).
 	require.Len(t, BeaconSentinelMagicPrefix, BeaconSentinelMagicLen,
 		"magic prefix constant must be exactly 16 bytes")

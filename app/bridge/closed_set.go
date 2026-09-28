@@ -10,7 +10,7 @@ import (
 )
 
 // ProcessMessageTypeURL and RemoteTransferTypeURL are the entire public Msg
-// surface of the bridge (the bridge protocol). They are
+// surface of the bridge. They are
 // the upstream type URLs verbatim: Node registers no wrapper Msg, so an SDK or
 // relayer built against the pinned release talks to this chain unchanged.
 const (
@@ -18,7 +18,7 @@ const (
 	RemoteTransferTypeURL = "/hyperlane.warp.v1.MsgRemoteTransfer"
 )
 
-// hyperlaneServicePrefixes are the four upstream proto packages §3.1 enables.
+// hyperlaneServicePrefixes are the four enabled upstream proto packages.
 // Everything under them is Hyperlane's public Msg surface, and everything in
 // that surface except the two URLs above is closed in Phase 0.
 var hyperlaneServicePrefixes = []string{
@@ -28,14 +28,14 @@ var hyperlaneServicePrefixes = []string{
 	"/hyperlane.warp.v1.",
 }
 
-// MsgClosedSet is the §3.2 / §9 closed set, installed as the BaseApp circuit
+// MsgClosedSet is the bridge Msg closed set, installed as the BaseApp circuit
 // breaker so it is consulted for every message before its handler runs.
 //
 // The create / set / enroll / unroll / ownership / ISM / validator-announce
 // messages are not merely discouraged: reaching MsgSetMailbox, MsgSetToken or
 // MsgEnrollRemoteRouter from an ordinary transaction would let a signer move the
 // route out from under usdc_route_id and I-BRIDGE-1 without a chain upgrade.
-// They remain reachable only through Genesis and the §4.3/§7 governance actions.
+// They remain reachable only through Genesis and the bridge governance actions.
 type MsgClosedSet struct {
 	// inner is consulted for non-Hyperlane messages so installing this breaker
 	// does not silently disable another module's own circuit.

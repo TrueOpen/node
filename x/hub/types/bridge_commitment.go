@@ -20,23 +20,23 @@ const (
 
 const (
 	// EVMAddressLen is the raw width of every EVM-side address in the route and
-	// the manifest, and of a bridge signer identity (§2.1, §4.1).
+	// the manifest, and of a bridge signer identity.
 	EVMAddressLen = shared.EVMAddressBytes
 	// HyperlaneIDLen is the raw width of an upstream HexAddress — the Mailbox,
 	// Synthetic token and ISM identifiers. util.HEX_ADDRESS_LENGTH is 32; see
 	// RequireHyperlaneID for why this is not the 20 the prose claims.
 	HyperlaneIDLen = 32
-	// BridgeSignerPoPSignatureLen is the R||S||V PoP transport width (§4.1).
+	// BridgeSignerPoPSignatureLen is the R||S||V PoP transport width.
 	BridgeSignerPoPSignatureLen = shared.RecoverableSecp256k1SignatureBytes
-	// MinBridgeSignerCount is the §4.1 floor: below four signers Phase 0 does not
+	// MinBridgeSignerCount is the admission floor: below four signers Phase 0 does not
 	// open the bridge at all, whatever the threshold formula would return.
 	MinBridgeSignerCount = 4
 )
 
-// BridgeThresholdV1 is the §4.2 threshold ceil(2n/3), fixed as the integer
+// BridgeThresholdV1 is the threshold ceil(2n/3), fixed as the integer
 // expression (2n+2)/3 so every implementation lands on the same value without a
 // float or a rounding mode. The n >= 4 floor is deliberately *not* enforced
-// here: §10.2 publishes the formula as a total function and the admission gates
+// here: the formula is a total function and the admission gates
 // (Genesis, cutover, guard) own the floor, so a caller cannot accidentally get a
 // threshold for a set the bridge must refuse to run on.
 func BridgeThresholdV1(signerCount uint32) (uint32, error) {
@@ -46,7 +46,7 @@ func BridgeThresholdV1(signerCount uint32) (uint32, error) {
 	return uint32((2*uint64(signerCount) + 2) / 3), nil
 }
 
-// RequireBridgeSignerCount is the §4.1 admission floor that BridgeThresholdV1
+// RequireBridgeSignerCount is the admission floor that BridgeThresholdV1
 // leaves to its callers.
 func RequireBridgeSignerCount(signerCount uint32) error {
 	if signerCount < MinBridgeSignerCount {
@@ -62,7 +62,7 @@ func requireBytesLen(field string, value []byte, want int) ([]byte, error) {
 	return append([]byte(nil), value...), nil
 }
 
-// RequireEVMAddress accepts exactly 20 raw bytes. Per §4.1 these values are EVM
+// RequireEVMAddress accepts exactly 20 raw bytes. These values are EVM
 // identities owned by upstream fields; they are never decoded as TrueOpen accounts
 // and never cross the bech32 boundary in the other direction.
 func RequireEVMAddress(field string, value []byte) ([]byte, error) {
@@ -71,14 +71,12 @@ func RequireEVMAddress(field string, value []byte) ([]byte, error) {
 
 // RequireHyperlaneID accepts exactly one raw upstream HexAddress.
 //
-// the bridge protocol rows 9-10 and
-// the data-structure contract describe these as "the raw 20 bytes of
-// the upstream HexAddress", but util.HEX_ADDRESS_LENGTH in the pinned
-// hyperlane-cosmos@v1.1.0 is 32, and §10.1a's own published manifest vector
+// These identifiers were once described as the raw 20 bytes of the upstream
+// HexAddress, but util.HEX_ADDRESS_LENGTH in the pinned
+// hyperlane-cosmos@v1.1.0 is 32, and the published manifest vector
 // encodes local_ism_id as 32 bytes. A 20-byte identifier could never equal the
 // upstream Mailbox, token or ISM ID the guard compares against, so the stated
 // width is the stale part and "raw upstream HexAddress" is the binding intent.
-// Registered as DOC-012.
 func RequireHyperlaneID(field string, value []byte) ([]byte, error) {
 	return requireBytesLen(field, value, HyperlaneIDLen)
 }
@@ -94,9 +92,9 @@ func requireBridgeText(field, value string) ([]byte, error) {
 	return []byte(value), nil
 }
 
-// bridgeAddressBytes is the §1.4 rule-4 address encoding: every Address field in
+// bridgeAddressBytes is the canonical address encoding: every Address field in
 // a bridge preimage contributes its canonical codec bytes, never its bech32
-// text. The §10.1a manifest vector encodes local_owner as its raw 20 bytes,
+// text. The published manifest vector encodes local_owner as its raw 20 bytes,
 // which is what this reproduces.
 func bridgeAddressBytes(field, value string) ([]byte, error) {
 	if value == "" {
@@ -113,7 +111,7 @@ func bridgeAddressBytes(field, value string) ([]byte, error) {
 	return raw, nil
 }
 
-// canonicalBridgeRouteFields returns the ten identity fields of §2.1 in their
+// canonicalBridgeRouteFields returns the ten route identity fields in their
 // frozen order, already validated. usdc_route_id is not among them: it is what
 // they derive.
 func canonicalBridgeRouteFields(route BridgeRouteV1) ([][]byte, error) {
@@ -142,7 +140,7 @@ func canonicalBridgeRouteFields(route BridgeRouteV1) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// §2.1 row 11: local_origin_denom is the upstream HypToken.origin_denom and
+	// local_origin_denom is the upstream HypToken.origin_denom and
 	// must be byte-equal to business_denom. Two spellings of the same asset are
 	// two assets as far as the conservation identity is concerned.
 	if route.LocalOriginDenom != route.BusinessDenom {
@@ -164,12 +162,12 @@ func canonicalBridgeRouteFields(route BridgeRouteV1) ([][]byte, error) {
 	}, nil
 }
 
-// USDCRouteID derives the §2.1 route identity. The eleven fields are the whole
+// USDCRouteID derives the route identity. The eleven fields are the whole
 // definition of "which asset is business_denom": any one of them changing is a
 // different route and therefore a chain upgrade, never a governance edit.
 //
 // The local Hyperlane identifiers are length-checked only for non-emptiness
-// here so the published §10.1 golden — which uses 20-byte placeholders and is
+// here so the published route golden — which uses 20-byte placeholders and is
 // explicitly not any real network's values — still reproduces byte for byte.
 // Genesis applies the real upstream width through RequireHyperlaneID.
 func USDCRouteID(chainID string, route BridgeRouteV1) ([32]byte, error) {
@@ -209,7 +207,7 @@ func CanonicalBridgeRouteFrameV1(chainID string, route BridgeRouteV1) (shared.Ca
 	return shared.FlatCanonicalFrameV1(fields...), nil
 }
 
-// BridgeSignerSetHash is the I-BRIDGE-1 projection (§4.2). The guard recomputes
+// BridgeSignerSetHash is the I-BRIDGE-1 projection. The guard recomputes
 // it from upstream Mailbox/default-ISM rows and from the Validator bridge signer
 // table and requires both — plus the confirmed EVM hash — to agree, so the
 // ordering rule below is what makes those three independently-derived sets
@@ -249,7 +247,7 @@ func BridgeSignerSetHash(chainID string, threshold, signerCount uint32, signers 
 	return [32]byte(digest), nil
 }
 
-// BridgeSignerPoPDigest is the §4.1 proof-of-possession preimage. key_version is
+// BridgeSignerPoPDigest is the proof-of-possession preimage. key_version is
 // inside it so a rotation cannot replay the previous version's signature.
 func BridgeSignerPoPDigest(chainID, operatorAddress string, signerRaw20 []byte, keyVersion uint64) ([32]byte, error) {
 	chain, err := requireBridgeText("chain_id", chainID)
@@ -277,7 +275,7 @@ func BridgeSignerPoPDigest(chainID, operatorAddress string, signerRaw20 []byte, 
 }
 
 // VerifyBridgeSignerPoP proves the registered bridge key is usable by the party
-// registering it. §4.1 is explicit that it grants no TrueOpen account authority:
+// registering it. It explicitly grants no TrueOpen account authority:
 // the recovered value is compared to the declared EVM identity and discarded.
 func VerifyBridgeSignerPoP(chainID, operatorAddress string, signerRaw20, popSignature []byte, keyVersion uint64) error {
 	digest, err := BridgeSignerPoPDigest(chainID, operatorAddress, signerRaw20, keyVersion)
@@ -294,7 +292,7 @@ func VerifyBridgeSignerPoP(chainID, operatorAddress string, signerRaw20, popSign
 	return nil
 }
 
-// BridgeDeploymentManifestHash is the §8 manifest commitment: a required nested
+// BridgeDeploymentManifestHash is the deployment manifest commitment: a required nested
 // frame over fields 1..23 under chain_id. Mainnet approval and every cutover
 // reference this digest, so the release literals, the agent/relayer ordering and
 // every address/hash width are checked before hashing rather than after.
@@ -419,10 +417,10 @@ func canonicalBridgeDeploymentManifestFrame(chainID string, manifest BridgeDeplo
 		).Build(), nil
 }
 
-// requireBridgeFinality enforces the §8 pairing: FINALIZED_RPC carries no
+// requireBridgeFinality enforces the finality pairing: FINALIZED_RPC carries no
 // parameter, a checkpoint policy must name a positive approved version, and no
-// other source is admissible. §6.3 puts the whole security ceiling of the bridge
-// on every agent running the identical policy, so an unspecified source is not a
+// other source is admissible. The whole security ceiling of the bridge
+// rests on every agent running the identical policy, so an unspecified source is not a
 // default — it is an unanswerable question.
 func requireBridgeFinality(source BridgeOriginFinalitySourceV1, parameter uint64) error {
 	switch source {
@@ -491,7 +489,7 @@ func canonicalBridgeRelayersFrame(relayers []string) (shared.CanonicalFrameV1, e
 }
 
 // BridgeInflightManifestHash commits the outbound queue a cutover has to drain
-// before it may be confirmed (§4.3). The manifest is only well-formed after the
+// before it may be confirmed. The manifest is only well-formed after the
 // freeze height, when canonical inbound is already zero, so every item must be
 // OUTBOUND; confirm-time additionally requires every disposition to be
 // DELIVERED_OLD_ISM, which is the caller's gate rather than a hashing rule.

@@ -26,7 +26,7 @@ const (
 	taskOrderAccountHRP        = "trueopen"
 )
 
-// TaskOrderEIP712Digest contains the three public §6.5/§6.6 conformance
+// TaskOrderEIP712Digest contains the three public conformance
 // checkpoints. HashStruct is the EIP-712 TaskOrder message hash.
 type TaskOrderEIP712Digest struct {
 	DomainSeparator [32]byte
@@ -158,7 +158,7 @@ func VerifySignedOrderV2EIP712WithAccountPublicKey(
 
 // VerifySignedOrderV2EIP712WithAddress verifies a SignedOrderV2 against an
 // explicit raw 20-byte expected address. Handlers with an auth account should
-// prefer the public-key variant so both §4.3 comparisons are enforced.
+// prefer the public-key variant so both signer comparisons are enforced.
 func VerifySignedOrderV2EIP712WithAddress(
 	evmChainID uint64,
 	businessDenom string,

@@ -16,7 +16,7 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// queryPageFixturePath holds the language-independent vectors for the two §16.1
+// queryPageFixturePath holds the language-independent vectors for the two
 // page-token domains, TRUEOPEN_QUERY_RPC_V1 and TRUEOPEN_QUERY_SELECTOR_V1.
 //
 // Neither domain enters consensus state, and that is exactly why they needed
@@ -118,7 +118,7 @@ func (f queryPageField) encode(t *testing.T, where string) []byte {
 	case "bytes":
 		return queryPageHex(t, where, f.Hex)
 	case "address":
-		// Frames the address codec bytes, never the Bech32 text (Ruling 24). The
+		// Frames the address codec bytes, never the Bech32 text. The
 		// Bech32 column is a self-check: a non-Go implementation validates its own
 		// decoder here instead of discovering a broken one as a digest mismatch.
 		raw := queryPageHex(t, where, f.Hex)
@@ -528,6 +528,6 @@ func regenerateQueryPageFixture(t *testing.T, fixture queryPageFixture) {
 	encoded, err := json.MarshalIndent(fixture, "", "  ")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(queryPageFixturePath, append(encoded, '\n'), 0o644))
-	t.Fatalf("regenerated %s; unset %s and review the diff against §16.1 before committing",
+	t.Fatalf("regenerated %s; unset %s and review the diff against the page-token rules before committing",
 		queryPageFixturePath, queryPageRegenEnv)
 }

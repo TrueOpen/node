@@ -93,7 +93,7 @@ type ModuleInputs struct {
 	// keeper fixture, still wires; ValidateBridgeUpstream reports its absence
 	// rather than silently passing.
 	BridgeUpstream types.BridgeUpstream `optional:"true"`
-	// VrfPoPVerifier supplies §9.3a's ECVRF possession check. Hub declares the
+	// VrfPoPVerifier supplies the ECVRF key possession check. Hub declares the
 	// interface and app wiring supplies the curve implementation, the same split
 	// the beacon path uses, so the keeper never carries a second copy of the
 	// suite. Optional for the same reason as BridgeUpstream: direct keeper

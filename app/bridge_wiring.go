@@ -19,11 +19,9 @@ import (
 // HyperlaneBankKeepers is what the two upstream Hyperlane modules receive
 // instead of the raw bank keeper.
 //
-// the bridge protocol makes the warp module the only
-// legal mint/burn authority for business_denom, and observes that a Cosmos
-// Minter grant is not scoped to a denom. Interposing here is what turns that
-// open grant into the closed set the
-// contract requires, and it is also where the §7 guard and the §5.2 conservation
+// The warp module is the only legal mint/burn authority for business_denom,
+// and a Cosmos Minter grant is not scoped to a denom. Interposing here is what
+// turns that open grant into the required closed set, and it is also where the bridge guard and the conservation
 // identity run — inside the upstream handler's own context, so a refusal leaves
 // no mint, no usage and no supply movement behind.
 // ProvideGuardedBankKeeper returns the concrete guard. The two upstream
@@ -47,12 +45,12 @@ var StakingBankKeeperBinding = bindGuardedInterface[stakingtypes.BankKeeper, Gov
 
 // ProvideBridgeUpstream hands the Hub the read-only projection of the Hyperlane
 // objects its route guard compares against. Supplying it here is what keeps
-// x/hub free of any Hyperlane import (the bridge protocol).
+// x/hub free of any Hyperlane import.
 func ProvideBridgeUpstream(core *hlcorekeeper.Keeper, warp hlwarpkeeper.Keeper) hubtypes.BridgeUpstream {
 	return appbridge.NewUpstreamAdapter(core, warp)
 }
 
-// ProvideVrfPoPVerifier supplies §9.3a's ECVRF possession check to the Hub
+// ProvideVrfPoPVerifier supplies the ECVRF key possession check to the Hub
 // module, mirroring how the beacon path receives its verifier: the curve suite
 // lives in app/ante and the keeper only holds the interface. Without this
 // provider RegisterVrfKey is permanently FailedPrecondition, which is exactly

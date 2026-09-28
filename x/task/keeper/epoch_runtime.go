@@ -118,7 +118,7 @@ func (k Keeper) firstDueEpochTaskSummary(ctx context.Context, currentHeight uint
 	}
 	// This queue's primary_id is an epoch, not a Hash32. Big-endian is the ordered
 	// byte spelling of it, exactly as the zero-padded decimal string was the
-	// ordered text spelling; §5.9 only compares primary_id between items that
+	// ordered text spelling; the ordering rule only compares primary_id between items that
 	// already tie on deadline_height and kind_priority, and every EndBlock queue
 	// carries a distinct priority, so this component never decides on its own.
 	return deadlineQueueHead{deadline: key.K1(), primaryID: shared.Uint64BE(key.K2())}, true, nil
@@ -303,7 +303,7 @@ func (k Keeper) processEpochTaskSummaryStep(ctx context.Context, epoch, schedule
 // epochTaskSummaryValidTask is the verdict/finality-only half of the
 // support_candidate predicate: a task counts as valid once its own settlement
 // outcome is clean, independently of what the challenge window later did to it.
-// The interface contract does not spell out "valid task" for
+// The protocol does not spell out "valid task" for
 // EpochTaskSummary.valid_task_count, so this is the Node-side definition -
 // deliberately the same three terms taskTerminalSummaryDraft uses minus the
 // challenge term, so that support_candidate remains a strict subset of it and

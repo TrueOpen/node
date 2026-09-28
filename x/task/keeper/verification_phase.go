@@ -63,7 +63,7 @@ func (k Keeper) startRevealPhaseAtomic(
 		sdk.WrapSDKContext(cacheCtx), taskKey, loadedAssignment, trigger,
 	)
 	if errors.Is(err, errCommitDeadlineFailureWriterUnavailable) {
-		// This sentinel is a deferred transition, not a failed one. The §10.5
+		// This sentinel is a deferred transition, not a failed one. The
 		// availability aggregates for the round are already in the cache and must
 		// survive: they are the retained evidence a later settlement spends. Only
 		// the VERIFY_FAILED / REFUNDED write is missing, so commit what the
@@ -159,10 +159,10 @@ func (k Keeper) startRevealPhase(
 		if !commitDeadlineReached(height, assignment.CommitDeadlineHeight) {
 			return false, errorsmod.Wrap(types.ErrInvalidOpenVerify, "commit deadline has not been reached")
 		}
-		// §10.5 closes the round's availability aggregates at the deadline itself,
+		// The protocol closes the round's availability aggregates at the deadline itself,
 		// at any accepted-commit count, and that write is deliberately inert: only
 		// aggregate_hash/count/status, never a Hub fault, a Builder counter or a
-		// slash. The economic effect is spent later, in §5.5's single
+		// slash. The economic effect is spent later, in the single
 		// settlement/finality transaction. So it belongs ahead of the thin-round
 		// sentinel below, which would otherwise silently drop the availability
 		// evidence exactly on the rounds that produced the most of it.
@@ -187,17 +187,17 @@ func (k Keeper) startRevealPhase(
 			return false, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 		}
 		if facts.AcceptedCommitCount < threshold {
-			// §10.7 sends a thin round to VERIFY_FAILED / REFUNDED, never to
+			// A thin round goes to VERIFY_FAILED / REFUNDED, never to
 			// REVEALING. The sentinel is a deferral, not a dead end: the caller
 			// closes the round, BuildVerificationDeadlineFacts has already stamped
 			// it VERIFY_FAILED / INSUFFICIENT_VERIFIER, and MsgSettleTask performs
-			// the terminal transition per's single settlement/finality
-			// runner. What §10.7 additionally asks for inline here — a
+			// the terminal transition in the single settlement/finality
+			// runner. What the protocol additionally asks for inline here — a
 			// TaskFailureClassState carrying classification_source = DEADLINE — is
 			// deliberately not written: the settlement runner produces that row
-			// under SETTLEMENT, and §10.12 gives evidence_digest exactly one
+			// under SETTLEMENT, and the protocol gives evidence_digest exactly one
 			// production point. Which side owns it is a contract question, not a
-			// local one; K-BLOCK-16 is closed and is no longer the reason.
+			// local one.
 			return false, errCommitDeadlineFailureWriterUnavailable
 		}
 	}

@@ -289,7 +289,7 @@ func (k Keeper) collectRoundSamples(
 			return nil, fmt.Errorf("selected verifier %d: %w", index, err)
 		}
 		// count_j = finite_count + missing_compared_count, checked and capped by the
-		// budget's frozen max_output_tokens (§10.9 step 3).
+		// budget's frozen max_output_tokens.
 		count, overflow := checkedHeightAdd(uint64(receipt.MetricSummary.FiniteCount), uint64(receipt.MetricSummary.MissingComparedCount))
 		if overflow || count > budget.MaxOutputTokens {
 			return nil, fmt.Errorf("selected verifier %d generated token count is out of range", index)

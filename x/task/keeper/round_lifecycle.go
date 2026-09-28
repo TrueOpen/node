@@ -220,8 +220,7 @@ func (k Keeper) closeRoundOneSummary(
 		// straight to finalization — but the core status still has to move. Skipping
 		// it left verification_status parked on COMMITTING/REVEALING for a round that
 		// is already closed, which is exactly the "already FINAL but still pending"
-		// shape §16.1
-		// forbids a Query from showing. The mapping is the same one the settlement
+		// shape a Query must never show. The mapping is the same one the settlement
 		// path applies a moment later, so this only moves the write earlier.
 		if err := k.updateCoreAfterRoundClose(ctx, taskKey, result.Verdict); err != nil {
 			return err

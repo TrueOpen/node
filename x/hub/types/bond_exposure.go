@@ -18,11 +18,11 @@ import (
 // reservation, which is a consensus-relevant divergence.
 //
 // Authority:
-//   - the data-structure contract: available_bond = active_bond - reserved_liability
-//   - the API contract: handraise/proposal accepted only when
+//   - available_bond = active_bond - reserved_liability
+//   - handraise/proposal accepted only when
 //     available_bond >= min_stake and available_bond >= required_task_liability;
 //     unstake may only consume bond that is not reserved.
-//   - the data-structure contract: support_vote_weight uses effective_active_bond
+//   - support_vote_weight uses effective_active_bond
 //     (i.e. it deliberately does NOT subtract reserved liability).
 //
 // Every caller must use these functions instead of recomputing the arithmetic
@@ -47,7 +47,7 @@ func SlashByFraction(amount, numerator, denominator uint64) uint64 {
 // EffectiveActiveBond returns the bond amount that is already in force for the
 // given epoch. A top-up only takes effect at effective_bond_epoch, so earlier
 // epochs must keep reading the frozen previous amount; this is what makes
-// "a bond top-up takes effect in the next epoch" (§10.0c) observable without a
+// "a bond top-up takes effect in the next epoch" observable without a
 // second stored history row.
 func EffectiveActiveBond(bond ServiceBondState, currentEpoch uint64) uint64 {
 	if currentEpoch < bond.EffectiveBondEpoch {
@@ -58,7 +58,7 @@ func EffectiveActiveBond(bond ServiceBondState, currentEpoch uint64) uint64 {
 
 // AvailableBond is the effective bond that is not already committed to an open
 // task-liability reservation. It is the single quantity that candidate
-// eligibility and unstake gating must both consult (§B.1.3).
+// eligibility and unstake gating must both consult.
 //
 // Reserved liability may legitimately exceed the effective bond immediately
 // after a slash lowered active_bond while reservations were still open, so the

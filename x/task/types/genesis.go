@@ -9,7 +9,7 @@ import (
 )
 
 // Hash32Len is the byte length of every Hash32 identifier and digest in this
-// module (task_id, session_id, commit_key and every §1.2 digest). Store key
+// module (task_id, session_id, commit_key and every canonical digest). Store key
 // components carry these raw bytes through shared.Hash32KeyCodec; the
 // lowercase 64-hex rendering survives only at explicit text boundaries.
 const Hash32Len = shared.Hash32KeySize
@@ -18,9 +18,9 @@ const Hash32Len = shared.Hash32KeySize
 //
 // The pre-unblock default also seeded StateVersionState,
 // StoreMigrationState and the default TimeoutBucketState. All three messages are
-// deleted — there is no migration surface (§1.2 fresh genesis) and versioned
+// deleted — there is no migration surface (fresh genesis) and versioned
 // parameter buckets live in x/hub, which this module now only references
-// through TaskBucketRefState (§2.4/§6.7). Nothing replaces them here.
+// through TaskBucketRefState. Nothing replaces them here.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{Params: DefaultTaskParams()}
 }
@@ -159,12 +159,12 @@ func validateSessionRows(gs GenesisState) error {
 // validateTaskCores replaces the pre-unblock task status / task worker checks.
 //
 // TODO(task core migration): TaskStatusState and TaskWorkerState are deleted; the six
-// sub-states are inline fields of TaskCoreState (§6.6). Two semantics were lost
+// sub-states are inline fields of TaskCoreState. Two semantics were lost
 // with them and must come back on this row:
 //   - the winner Worker address is no longer on any core row (it moved to
 //     TaskAssignmentState.winner_worker), so the "task worker references missing
 //     task assignment" cross check is gone;
-//   - §6.6 declares the six sub-states monotonic and mutually constrained
+//   - the six sub-states are monotonic and mutually constrained
 //     (e.g. receipt_status RECEIPT_ACCEPTED requires task_phase >=
 //     RECEIPT_COMMITTED). Only per-field enum membership is checked here.
 func validateTaskCores(states []TaskCoreState) (map[string]TaskCoreState, error) {
@@ -247,7 +247,7 @@ func validateTaskCores(states []TaskCoreState) (map[string]TaskCoreState, error)
 //
 // TODO(accepted order authority): the accepted order envelope no longer lives on this row, so
 // every envelope-derived genesis assertion is gone and must be restored against
-// TaskCoreState + the §5.13 task-id derivation:
+// TaskCoreState + the task-id derivation:
 //   - task_id == DeriveTaskIDFromRawSession(session_id, order_sequence);
 //   - order_digest == sha256(order_envelope) and accepted_order_opening_hash ==
 //     AcceptedTaskOrderOpeningHash(order, assignment.generation_params_digest);
@@ -311,29 +311,27 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 	return assignments, nil
 }
 
-// validateTaskBudgets keeps the §5.3 funds-conservation shape check.
+// validateTaskBudgets keeps the funds-conservation shape check.
 //
 // The remaining sub-accounts are exactly FOUR: assignment_priority_fee,
 // tx_fee_reserve, infer_fee_cap and verify_fee_cap. maintenance_fee_cap_remaining
 // and refund_remaining are deleted; gas_reimbursed_total is a cumulative total,
 // not a remaining balance, so it stays out of the sum.
 //
-// TODO(settlement conservation): §5.3 asks for the full conservation invariant
+// TODO(settlement conservation): the protocol asks for the full conservation invariant
 // (original_reserved_amount == spent + refunded + remaining across the four
 // sub-accounts + gas_reimbursed_total). The terminal zero-balance assertion is
-// enforced below. The old blocker citation was stale — K-BLOCK-16 is closed and
-// TaskSettlementState is now a stored row with Genesis field 71 — but the
-// identity still cannot be re-derived here: the API contract writes
-// it against
+// enforced below. TaskSettlementState is now a stored row with Genesis field 71, but the
+// identity still cannot be re-derived here: the protocol writes it against
 // `apply_start_reserved_amount`, and neither that term nor a gas reimbursement
 // total is carried on TaskSettlementState. Re-deriving it from the terms that
-// are present would assert a different equation than the one the contract
+// are present would assert a different equation than the one the protocol
 // froze, so this stays open on the two missing fields rather than on a blocker.
 //
 // TODO(parameter bucket authority): reference_bucket_key / reference_bucket_version /
 // timeout_bucket_key / timeout_bucket_version and the
 // reference_fee_floor <= reference_fee_ceiling bound left this row; the bucket
-// refs are now TaskBucketRefState (§6.7) and the fee window belongs to the
+// refs are now TaskBucketRefState and the fee window belongs to the
 // x/hub reference bucket. fee_rule_version below is their only successor.
 func validateTaskBudgets(states []TaskBudgetState, assignments map[string]TaskAssignmentState, cores map[string]TaskCoreState) error {
 	budgets := map[string]struct{}{}
@@ -385,8 +383,7 @@ func validateTaskBudgets(states []TaskBudgetState, assignments map[string]TaskAs
 				return fmt.Errorf("task budget %s %s: %w", tid, field.name, err)
 			}
 		}
-		// the API contract:4995 pins `bps<=10000` on the frozen fee params, and
-		// §10.10c
+		// The protocol pins `bps<=10000` on the frozen fee params and
 		// derives maintenance/verify shares by mulDiv against 10000. An import above
 		// the bound makes maintenance exceed its gross, which is the one subtraction
 		// the settlement identity cannot absorb.
@@ -414,15 +411,15 @@ func validateTaskBudgets(states []TaskBudgetState, assignments map[string]TaskAs
 // validateAssignmentCandidateSets keeps the header-level commitment equality.
 //
 // TODO(candidate fact migration): AssignmentCandidateSetState.candidates[] and the
-// AssignmentCandidate message are deleted (§4.2 moves the frozen facts to
+// AssignmentCandidate message are deleted (the frozen facts moved to
 // TaskCandidateFactState keyed by (task_id, stage, slot)). Everything the
 // pre-unblock validator asserted per candidate is therefore gone and must be
 // re-asserted against task_candidate_facts:
 //   - canonical ascending worker order with no duplicate worker;
 //   - 0 < candidate_weight <= MaxAssignmentCandidateWeight and a non-overflowing
-//     total weight (§4.5 needs totalWeight > 0 or the chain stalls);
+//     total weight (the weighted draw needs totalWeight > 0 or the chain stalls);
 //   - active_bond_snapshot >= min_stake_snapshot > 0,
-//     performance_score_snapshot_ppm <= 1_000_000 (Ruling 21 pins 1_000_000),
+//     performance_score_snapshot_ppm <= 1_000_000,
 //     performance_method_version != 0,
 //     0 < candidate_jail_factor_snapshot_ppm <= 1_000_000,
 //     bond_version_snapshot != 0, support_version_snapshot != 0;
@@ -489,10 +486,10 @@ func validateAssignmentCandidateSets(states []AssignmentCandidateSetState, assig
 // accepted_item_hash == infer_receipt_hash, and token_count / work_unit > 0.
 // receipt_mode, service_signature, the two commit roots, batch_log_root and
 // accepted_item_hash no longer exist on this row; token_count / work_unit moved
-// to the SETTLEMENT_BILL evidence leaf (Ruling 32), so metering is committed, not
+// to the SETTLEMENT_BILL evidence leaf, so metering is committed, not
 // validated here. evidence_commitment_count vs
 // len(required_evidence_commitments) and the evidence_commitments_hash
-// derivation itself are #89 (U-2), not checked here.
+// derivation itself are not checked here.
 func validateInferReceipts(states []InferReceiptState, assignments map[string]TaskAssignmentState, budgets []TaskBudgetState, maxOutputMMRLeaves uint64) error {
 	seen := map[string]struct{}{}
 	budgetByTask := make(map[string]TaskBudgetState, len(budgets))
@@ -599,7 +596,7 @@ func validateWorkerEvidenceReceipts(states []WorkerEvidenceReceiptState, inferRe
 
 // validateVerifierAssignments keeps the deadline ordering checks.
 //
-// VerifierCandidateSetState is deleted; VerifierCandidateWindowState (§4.4) is
+// VerifierCandidateSetState is deleted; VerifierCandidateWindowState is
 // its replacement and the Keeper Init/Export layer performs the cross-row
 // source/window/member/hash validation. The sample-seed surface is gone too:
 // sample_seed_status / sample_seed_ready_height / formal_verifier_set (the
@@ -1078,7 +1075,7 @@ func isGenesisVerifyRound(round uint32) bool {
 
 // validateVerifierRoundRows validates the commit / result / reveal rows.
 //
-// Keys are commit_key now (§10.9), not (session_id, task_id, verify_round,
+// Keys are commit_key now, not (session_id, task_id, verify_round,
 // verifier_operator_address); result receipts and full result reveals are keyed by
 // the same commit_key and are therefore checked against the commit row.
 //

@@ -24,7 +24,7 @@ import (
 // paramsFixturePath holds the Wire cross-language vectors for Hub and Task
 // parameter roots.
 //
-// The leaf order is not this file's opinion. §1.2 fixes it:
+// The leaf order is not this file's opinion. The canonical encoding fixes it:
 // a nested message frames its fields recursively in proto field-number ascending
 // order. So the fixture's nested fields[] are generated from the PROTO DESCRIPTOR,
 // while the digest comes from x/task/types/params.go. The two paths are
@@ -101,9 +101,9 @@ type paramsReplayCase struct {
 	DigestHex string `json:"digest_hex"`
 }
 
-// encode applies the §1.2 typed encoders. A "frame" is both NESTED_V1 and
+// encode applies the canonical typed encoders. A "frame" is both NESTED_V1 and
 // REPEATED_V1: the difference is that a repeated frame's first field is the
-// element count, which §4.4 puts inside the frame rather than beside it, so no
+// element count, which REPEATED_V1 puts inside the frame rather than beside it, so no
 // separate fixture type is needed or wanted.
 func (f paramsField) encode(t *testing.T, where string) []byte {
 	t.Helper()
@@ -191,7 +191,7 @@ func TestParamsFixtureGoldenVectors(t *testing.T) {
 			require.Equal(t, vector.ParamsVersion, *vector.Fields[1].Value)
 			require.Equal(t, "params", vector.Fields[2].Name)
 			require.Equal(t, "frame", vector.Fields[2].Type,
-				"the params body is ONE nested position; a run of raw leaves here would be the §4.4 promotion this domain was fixed for")
+				"the params body is ONE nested position; a run of raw leaves here would be the repeated-group promotion this domain was fixed for")
 
 			fields := vector.encodeFields(t)
 			require.Equal(t, vector.PreimageHex, hex.EncodeToString(vector.preimage(fields)))
@@ -208,7 +208,7 @@ func TestParamsFixtureGoldenVectors(t *testing.T) {
 // the proto descriptor and requires the fixture to be exactly that, name for name
 // and type for type.
 //
-// This is what replaces "write the 116 leaves out twice". §1.2 says the order is
+// This is what replaces "write the 116 leaves out twice". The canonical encoding says the order is
 // proto field-number ascending, the descriptor is that statement, and neither
 // side of the comparison is the params encoder under test.
 func TestParamsFixtureNestedOrderMatchesProtoFieldNumbers(t *testing.T) {
@@ -250,8 +250,8 @@ func TestParamsFixtureMatchesProductionHelpers(t *testing.T) {
 // really independent.
 //
 // It swaps the values of two adjacent same-width scalar leaves inside the params
-// tree - the mutation an encoder-class binding is blind to, and the one issue
-// #141 Track A batch 1 found TRUEOPEN_UNBONDING_ID_V1 exposed to. Re-framing the
+// tree - the mutation an encoder-class binding is blind to, and the one
+// TRUEOPEN_UNBONDING_ID_V1 was once found exposed to. Re-framing the
 // mutated fixture must move the digest, and the producer, fed the same tree by
 // name, must land on the mutated digest too. If either side were derived from the
 // other, one of the two requirements below would be unsatisfiable.
@@ -406,7 +406,7 @@ func paramsFieldsFromMessage(t *testing.T, descriptor protoreflect.MessageDescri
 		name := string(field.Name())
 		if field.IsList() {
 			list := message.Get(field).List()
-			// §4.4: REPEATED_V1 puts u32_be(n) inside the frame, ahead of the
+			// REPEATED_V1 puts u32_be(n) inside the frame, ahead of the
 			// elements, so the count is a nested field and not a sibling of the list.
 			elements := make([]paramsField, 0, list.Len()+1)
 			count := uint64(list.Len())
@@ -446,7 +446,7 @@ func paramsScalarOrMessageField(t *testing.T, field protoreflect.FieldDescriptor
 		text := value.String()
 		return paramsField{Name: name, Type: "string", UTF8: &text}
 	default:
-		t.Fatalf("%s has proto kind %s, which §1.2 does not encode in a params tree", name, field.Kind())
+		t.Fatalf("%s has proto kind %s, which the canonical encoding does not support in a params tree", name, field.Kind())
 		return paramsField{}
 	}
 }
@@ -487,7 +487,7 @@ func paramsDynamicFromFields(t *testing.T, descriptor protoreflect.MessageDescri
 		message.Set(field, paramsValueFromField(t, field, published, nil, child))
 	}
 	require.Len(t, seen, descriptor.Fields().Len(),
-		"%s must publish every declared field of %s; §1.2 frames all of them, including the ones holding proto3 defaults",
+		"%s must publish every declared field of %s; the canonical encoding frames all of them, including the ones holding proto3 defaults",
 		where, descriptor.FullName())
 	return message
 }
@@ -523,7 +523,7 @@ func paramsValueFromField(t *testing.T, field protoreflect.FieldDescriptor, publ
 		require.NotNil(t, published.UTF8)
 		return protoreflect.ValueOfString(*published.UTF8)
 	default:
-		t.Fatalf("%s has proto kind %s, which §1.2 does not encode in a params tree", where, field.Kind())
+		t.Fatalf("%s has proto kind %s, which the canonical encoding does not support in a params tree", where, field.Kind())
 		return protoreflect.Value{}
 	}
 }
@@ -673,7 +673,7 @@ func regenerateParamsFixture(t *testing.T, fixture paramsFixture) {
 	encoded, err := json.MarshalIndent(fixture, "", "  ")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(paramsFixturePath, append(encoded, '\n'), 0o644))
-	t.Fatalf("regenerated %s; unset %s and review the diff against §18.0 before committing",
+	t.Fatalf("regenerated %s; unset %s and review the diff before committing",
 		paramsFixturePath, paramsRegenEnv)
 }
 
@@ -733,7 +733,7 @@ func paramsSyntheticScalar(t *testing.T, field protoreflect.FieldDescriptor, cou
 		}
 		return protoreflect.ValueOfString("v" + strconv.Itoa(seq))
 	default:
-		t.Fatalf("%s has proto kind %s, which §1.2 does not encode in a params tree", field.FullName(), field.Kind())
+		t.Fatalf("%s has proto kind %s, which the canonical encoding does not support in a params tree", field.FullName(), field.Kind())
 		return protoreflect.Value{}
 	}
 }

@@ -13,7 +13,7 @@ import (
 )
 
 // These are var, not const, because a domain may only be resolved through the
-// single registry in x/shared/types/domain_registry.go (§1.4 rule 1) and a
+// single registry in x/shared/types/domain_registry.go and a
 // const initializer cannot call a function.
 var (
 	serviceKeyRotationDomain = shared.MustDomain(shared.DomainServiceKeyRotationV1)
@@ -74,8 +74,8 @@ func (m msgServer) RotateServiceKey(ctx context.Context, msg *types.MsgRotateSer
 		return nil, err
 	}
 	nextNonce := current.AuthorizationNonce + 1
-	// Ruling 17: operator_address enters a consensus preimage as address codec
-	// bytes, never as its bech32 text (the node context document).
+	// operator_address enters a consensus preimage as address codec
+	// bytes, never as its bech32 text.
 	digest, err := serviceKeyRotationDigest(
 		sdkCtx.ChainID(), msg.ParticipantType, operatorBytes, msg.NewServicePubkey,
 		current.AuthorizationNonce, nextNonce,
@@ -159,11 +159,11 @@ func (m msgServer) RevokeServiceKey(ctx context.Context, msg *types.MsgRevokeSer
 		// sides disagree and any chain that ever revoked a key exports a genesis
 		// it can no longer import -- the same defect that was fixed for jail.
 		// The operator -> profiles fan-out is bounded by
-		// max_supported_profiles_per_operator (the data-structure contract),
+		// max_supported_profiles_per_operator,
 		// so doing it in
 		// this transaction is safe.
 		//
-		// CONTRACT-GAP: §6.1 lists support_window expiry, bond below min_stake,
+		// CONTRACT-GAP: the protocol lists support_window expiry, bond below min_stake,
 		// unbonding, jail/tombstone and profile freeze as the invalidation
 		// paths, but omits service-key revocation even though the eligibility
 		// predicate keys on ServiceKeyStatus. The reason argument is inert

@@ -12,7 +12,7 @@ import (
 )
 
 // TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent pins the reporting
-// contract for the one withdraw shape A-14 questions: a live unbonding row whose
+// contract for one edge-case withdraw shape: a live unbonding row whose
 // remaining amount is already zero because a slash consumed all of it.
 //
 // Such a row cannot be produced by the slash path - slashServiceUnbondingQueue
@@ -24,10 +24,10 @@ import (
 //
 // The two facts asserted here are the ones an indexer depends on:
 //
-//   - no §5.11 code 103 event fires, because no funds moved. The emission is
+//   - no code 103 event fires, because no funds moved. The emission is
 //     gated on withdrawn_amount > 0 (service_bond_runtime.go:342).
 //   - the response is still APPLIED with withdrawn_items == 1, because state
-//     genuinely advanced: §10.0c withdraw step 6 deletes the row and writes the
+//     genuinely advanced: the withdraw deletes the row and writes the
 //     exact-replay receipt unconditionally. NOOP is this module's "no write, no
 //     event" answer (service_bond_runtime.go:277 for an empty batch, :220 for a
 //     receipt replay); reporting it here would deny a store mutation the client
@@ -112,7 +112,7 @@ func TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent(t *testing.T) {
 	require.Equal(t, uint32(1), slashedResponse.WithdrawnItems,
 		"withdrawn_items counts rows retired, not rows that paid out")
 	require.Equal(t, eventsBefore, len(hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceUnbondingWithdrawn{})),
-		"§5.11 code 103 reports a fund movement; a zero-amount withdraw must stay silent")
+		"event code 103 reports a fund movement; a zero-amount withdraw must stay silent")
 	require.Equal(t, operatorBefore, f.bank.accountBalance(operator.Address))
 	require.Equal(t, moduleBefore, f.bank.moduleBalance(types.ServiceBondModuleName))
 
@@ -167,8 +167,8 @@ func TestWithdrawFullySlashedUnbondingIsAppliedWithoutEvent(t *testing.T) {
 	require.Equal(t, operatorBefore+testServiceBondMinInitial, f.bank.accountBalance(operator.Address))
 }
 
-// TestUnbondingSlashEmitsNoStakeChangedEvent guards the other half of A-14: an
-// unbonding-queue slash must not report itself as a §5.11 code 6
+// TestUnbondingSlashEmitsNoStakeChangedEvent guards the other half of that edge case: an
+// unbonding-queue slash must not report itself as a code 6
 // service_stake_changed.
 //
 // Code 6 is the stake/top-up fact, and the two producers left

@@ -14,8 +14,8 @@ import (
 // is not — endblocker.go's retireVerifierRowToFallbackDeadline, the SOURCE_FROZEN
 // branch, and the empty-union branch. Halting FinalizeBlock is only defensible
 // there because the height half of that guard, AssignmentDeadlineHeight <=
-// HandraiseCloseHeight, cannot be produced by any accepted parameter set. Issue
-// #153 is what happens when a runtime-normal condition raises an invariant
+// HandraiseCloseHeight, cannot be produced by any accepted parameter set. A chain halt
+// is what happens when a runtime-normal condition raises an invariant
 // instead, so the classification these three depend on is worth pinning.
 //
 // Two independent checks establish it, and both must keep holding:

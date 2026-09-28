@@ -17,7 +17,7 @@ func vrfPubkey(fill byte) []byte {
 }
 
 // TestActivateDueVrfKeysRetiresTheIteratedRow covers the three index-removal
-// paths of §9.3a step 6. The sweep runs on every epoch boundary, so a row it
+// paths of VRF key activation. The sweep runs on every epoch boundary, so a row it
 // fails to retire is re-visited for the life of the chain; each case below is
 // written against a row whose activation epoch is strictly older than the epoch
 // being swept, which is exactly the shape a removal keyed by (epoch, operator)

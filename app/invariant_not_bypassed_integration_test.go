@@ -29,7 +29,7 @@ func TestInvariantRegistryIsCompleteAndUnbypassable(t *testing.T) {
 		hubNames[check.Name] = true
 	}
 	// Hub no longer registers a store-schema invariant: fresh genesis removed the
-	// Hub StateVersion/StoreMigrations collections entirely (the node context document).
+	// Hub StateVersion/StoreMigrations collections entirely.
 	// The cross-index invariants below are part of the current schema contract.
 	for _, name := range []string{
 		hubkeeper.InvariantRewardsEarnings,
@@ -47,8 +47,8 @@ func TestInvariantRegistryIsCompleteAndUnbypassable(t *testing.T) {
 		taskNames[check.Name] = true
 	}
 	// The task "store_schema_current" invariant is gone with
-	// the StateVersion / StoreMigrations wire (fresh genesis, the node context document
-	// §1.2 has no schema history to invariant-check). Re-add it here only if a
+	// the StateVersion / StoreMigrations wire (fresh genesis, so there is no
+	// schema history to invariant-check). Re-add it here only if a
 	// migration surface is ever reintroduced.
 	for _, name := range []string{taskkeeper.InvariantEscrowReserved} {
 		require.Truef(t, taskNames[name], "missing task invariant %s", name)

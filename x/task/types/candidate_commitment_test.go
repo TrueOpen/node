@@ -40,7 +40,7 @@ func TestAssignmentCandidateSetHashFramesEachFact(t *testing.T) {
 	// applied to both. The frozen hex is the value that cannot follow such an edit.
 	require.Equal(t, "e103d372ca7f23a8cb40ae2a15dc63b8d3c7d686d55a8e81473a388b75e8884f",
 		hex.EncodeToString(digest[:]),
-		"TRUEOPEN_ASSIGNMENT_LEGAL_SET_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_ASSIGNMENT_LEGAL_SET_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	operator, err := CanonicalOperatorAddressBytes("operator_address", fact.OperatorAddress)
 	require.NoError(t, err)
 	factFields := [][]byte{

@@ -52,7 +52,7 @@ func TestBeaconReplayAcrossThreeAppsIsDeterministic(t *testing.T) {
 
 	// One proposer VRF keypair. In production this is the validator's
 	// on-disk config/vrf_key.json, registered on chain via
-	// MsgRegisterVrfKey (the sampling protocol); we
+	// MsgRegisterVrfKey; we
 	// synthesize a fresh one so the test is hermetic.
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)

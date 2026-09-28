@@ -557,15 +557,15 @@ func TestEmergencyFreezeVotesRejectPreHash32PageTokens(t *testing.T) {
 	// what a page token minted by an earlier binary actually carries.
 	require.Equal(t, "e2be1d98d6619599d0458fc0169bba65a625970128e6aabad802c1711b91956f",
 		hex.EncodeToString(rpcDigest),
-		"TRUEOPEN_QUERY_RPC_V1 over /hub.v1.Query/EmergencyFreezeVotes is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_QUERY_RPC_V1 over /hub.v1.Query/EmergencyFreezeVotes is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	require.Equal(t, "5894dba9f4813262668fb946ab6e2dc1655124305c986ceb812f280795a583ff",
 		hex.EncodeToString(selectorDigest),
-		"TRUEOPEN_QUERY_SELECTOR_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_QUERY_SELECTOR_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	// The selector above binds signal_id, so pinning the selector without pinning
 	// the id it commits to would leave half the preimage unanchored.
 	require.Equal(t, "8b7c5c02b2c67c1b6a159207585c73314b16930c944e7c18334d84c2fdf494ca",
 		hex.EncodeToString(signalID),
-		"TRUEOPEN_FREEZE_SIGNAL_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_FREEZE_SIGNAL_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	legacyToken, err := shared.EncodePageTokenV1(rpcDigest, selectorDigest, legacyPrimaryKey, uint64(sdkCtx.BlockHeight()))
 	require.NoError(t, err)
 

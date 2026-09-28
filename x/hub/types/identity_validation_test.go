@@ -109,14 +109,14 @@ func TestHubStrictSignatureVerifiesRegisteredPubKey(t *testing.T) {
 }
 
 // The three identity digests each have their own registered domain
-// (the API contract) and are built with H_FIELDS_V1, so moving a
+// and are built with H_FIELDS_V1, so moving a
 // separator across a field boundary can never produce the same digest and no
 // two actions can share one preimage.
 func TestHubServiceAuthorizationBytesAreDomainSeparatedAndLengthFramed(t *testing.T) {
 	cortex := shared.EnumBE(uint32(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX))
 	pubkey := bytes.Repeat([]byte{0xab}, 33)
 
-	// TRUEOPEN_SERVICE_KEY_ROTATION_V1, §10.0c1.
+	// TRUEOPEN_SERVICE_KEY_ROTATION_V1.
 	rotation := func(chainID, operator string) []byte {
 		return shared.CanonicalHashBytes(
 			shared.MustDomain(shared.DomainServiceKeyRotationV1),
@@ -127,14 +127,14 @@ func TestHubServiceAuthorizationBytesAreDomainSeparatedAndLengthFramed(t *testin
 	rotationA := rotation("chain|segment", "operator")
 	rotationB := rotation("chain", "segment|operator")
 
-	// TRUEOPEN_SERVICE_REGISTRATION_V1, §10.0c step 1. Node binds participant_type
+	// TRUEOPEN_SERVICE_REGISTRATION_V1. Node binds participant_type
 	// after chain_id so Cortex and Builder registration stop sharing one preimage.
 	registration := shared.CanonicalHashBytes(
 		shared.MustDomain(shared.DomainServiceRegistrationV1),
 		[]byte("chain|segment"), cortex, []byte("operator"), pubkey, shared.Uint64BE(1),
 	)
 
-	// TRUEOPEN_SERVICE_DESCRIPTOR_V1, §9.6b. This preimage carries no chain_id and
+	// TRUEOPEN_SERVICE_DESCRIPTOR_V1. This preimage carries no chain_id and
 	// frames an absent tls_pubkey_hash as an empty field.
 	descriptor := shared.CanonicalHashBytes(
 		shared.MustDomain(shared.DomainServiceDescriptorV1),

@@ -69,7 +69,7 @@ func (internalStubHubKeeper) GetCandidatePoolLayout(context.Context, []byte) (ui
 //     class from accepted deadline state and takes no caller-supplied reason.
 //  3. TestNormalizeUserChallengeKind covered normalizeUserChallengeKind: empty
 //     defaults to USER_REVALIDATION and a leading space is rejected. The whole
-//     challenge Msg surface is 0 in V1 (K-BLOCK-03/04), so no public path exists.
+//     challenge Msg surface is 0 in V1, so no public path exists.
 //  4. TestFrozenVerifyDeadlineHeightUsesAssignmentBucketVersion covered
 //     frozenVerifyDeadlineHeight: the verify deadline is derived from the timeout
 //     bucket *version frozen on the assignment*, and a version that does not exist
@@ -118,7 +118,7 @@ func (internalStubHubKeeper) ApplyTaskRoleFault(_ context.Context, fact hubtypes
 }
 
 // stubAppliedRoleFault mirrors the shape the real Hub returns: a deterministic
-// Hash32 fault_id over the identity fields, so a stubbed §6.6 fault vector is
+// Hash32 fault_id over the identity fields, so a stubbed fault vector is
 // stable, unique per (task, operator, fault_type) and non-zero.
 func stubAppliedRoleFault(fact hubtypes.TaskRoleFaultFact) hubtypes.RoleFaultState {
 	faultID := sha256.Sum256(append(append([]byte(nil), fact.TaskID...),
@@ -263,4 +263,4 @@ func initInternalFixtureWithHub(t *testing.T, hub types.HubKeeper) *internalFixt
 // TestOrderSequenceConsumeAndFinalize ->
 // TestTaskBudgetIsSoleLedgerAndFullRefundIsIdempotent). The deleted versions
 // built StreamState/OrderSequenceState with string session_id / task_id and the
-// deleted TaskAssignment alias, which Ruling 23 removed.
+// deleted TaskAssignment alias, which keying by task_id alone removed.

@@ -30,7 +30,7 @@ func (k Keeper) WithVrfPoPVerifier(verifier VrfPoPVerifier) Keeper {
 	return k
 }
 
-// RegisterVrfKey implements §9.3a. It registers or rotates the validator's
+// RegisterVrfKey registers or rotates the validator's
 // independent VRF key; the new key never takes effect in the current epoch.
 //
 // The deferral is the point: the beacon for the current epoch is already being
@@ -154,7 +154,7 @@ func (k Keeper) requireKnownValidator(ctx sdk.Context, operator string, operator
 	if err != nil {
 		return fmt.Errorf("validator snapshot is unavailable: %w", err)
 	}
-	// §9.3a step 1: the signer is the stable operator, so the snapshot is asked
+	// The signer is the stable operator, so the snapshot is asked
 	// for exactly that identity rather than for a separate consensus address.
 	if _, found, err := k.validatorSnapshots.GetValidatorSnapshotMemberBySigner(ctx, snapshot, operator); err != nil {
 		return fmt.Errorf("validator lookup failed: %w", err)
@@ -165,7 +165,7 @@ func (k Keeper) requireKnownValidator(ctx sdk.Context, operator string, operator
 	return nil
 }
 
-// ActivateDueVrfKeys performs §9.3a step 6 at the epoch boundary: in ascending
+// ActivateDueVrfKeys performs VRF key activation at the epoch boundary: in ascending
 // operator order the old active key is retired to history and the pending key is
 // promoted. A failure aborts the block rather than leaving half the set rotated,
 // because a partially rotated validator set would verify next epoch's beacons

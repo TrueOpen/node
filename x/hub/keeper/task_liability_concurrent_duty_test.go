@@ -22,8 +22,8 @@ import (
 // halted consensus: the verifier assignment path reserves inside EndBlocker, so
 // the rejection surfaced as a FinalizeBlock error rather than a task failure
 // (devnet stopped at height 1011 with "current service bond does not match or
-// cover the frozen liability fact"). §B.1.3 only states the inequality
-// "available_bond >= required_task_liability", which is what this pins.
+// cover the frozen liability fact"). The rule is only the inequality
+// available_bond >= required_task_liability, which is what this pins.
 func TestFrozenTaskLiabilityAdmitsConcurrentDuties(t *testing.T) {
 	f, identity, first := seedJailAdmissionLiabilityFixture(t, 11)
 	address := sdk.MustAccAddressFromBech32(identity.Address)

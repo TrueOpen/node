@@ -18,8 +18,8 @@ import (
 // just admitted, the task fails late and feeds the operator another fault.
 //
 // It is also the only writer of the jail-clear counter — closeTaskLiabilityReservation's
-// RELEASED branch calls AdvanceJailClearCounter — so the API contract
-// §10.0c's "jail_clear_normal_action_count normal business actions -> jail_count
+// RELEASED branch calls AdvanceJailClearCounter — so the
+// rule "jail_clear_normal_action_count normal business actions -> jail_count
 // -1" is unreachable
 // unless a jailed operator can reserve here. Rejecting jail_count 1/2 makes the
 // first jail permanent.
@@ -207,7 +207,7 @@ func seedJailAdmissionLiabilityFixture(t *testing.T, salt int) (*fixture, hubTes
 	}
 }
 
-// §10.9 lists "declared support matches the task's model/profile", "the assigned
+// The activation rule lists "declared support matches the task's model/profile", "the assigned
 // duty's capability is true" and "the support row is still fresh" as conditions
 // for activation, not as validity requirements on the fact.
 //
@@ -255,8 +255,8 @@ func TestTaskSupportCompletionSkipsUnmetConditionsInsteadOfFailingSettlement(t *
 	require.Equal(t, types.ModelSupportActivationNone, after.ActivationKind)
 	require.NotEqual(t, before.SupportFreshUntilEpoch, after.SupportFreshUntilEpoch)
 
-	// A genuinely broken fact is still an error: the RELEASED liability §10.9
-	// step 6 requires is the caller's own precondition, not an activation filter.
+	// A genuinely broken fact is still an error: the RELEASED liability that
+	// activation requires is the caller's own precondition, not an activation filter.
 	corrupt := fact
 	corrupt.TaskID = []byte(hubHash("support-skip-no-such-task"))
 	require.Error(t, f.keeper.RecordTaskSupportCompletion(f.ctx, corrupt))

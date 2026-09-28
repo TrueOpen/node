@@ -82,17 +82,17 @@ func (k Keeper) syncCandidateSlotMembershipForEpoch(ctx context.Context, operato
 	return k.allocateCandidateSlot(ctx, operatorAddress, operatorBytes, eligibilityEpoch, height, params.CandidatePool.CandidateSlotHardCapacity)
 }
 
-// retryCandidateSlotRelease re-runs the §3.3 release predicate for whatever slot
+// retryCandidateSlotRelease re-runs the release predicate for whatever slot
 // the operator still holds, without touching membership or bumping
 // candidate_source_revision.
 //
-// §3.3 line 225 names four clearing points that must each re-run the *same*
+// There are four clearing points that must each re-run the *same*
 // release judgment inside the same transaction: active_task_refs reaching zero,
 // the operator's last ActiveLiability turning terminal, a pending
-// fault/slash/unbonding hold being lifted, and §3.4's snapshot_ref_count
+// fault/slash/unbonding hold being lifted, and the snapshot_ref_count
 // reaching zero. Points 1 and 4 live in ReleaseCandidateSlotTaskRef and
 // removeCandidateSnapshotMember. Points 2 and 3 call this helper: those paths do
-// NOT change global membership (Ruling 29), so they must not go through
+// NOT change global membership, so they must not go through
 // syncCandidateSlotMembership — but a RETIRING slot may only have been blocked
 // by the condition they just cleared, and "just write that the counter reached zero
 // and wait for the next exit request or a standalone full-table scan" is exactly
@@ -122,10 +122,10 @@ func (k Keeper) retryCandidateSlotRelease(ctx context.Context, operatorAddress s
 	return k.tryReleaseCandidateSlot(ctx, current, height)
 }
 
-// syncCandidateSlotMembershipOnBondExit is the Ruling 29 conditional keep for the
-// two ServiceBond exit paths. A partial unstake or a top-up leaves all five §3.3
-// predicate items unchanged, so it must not touch the slot or bump
-// candidate_source_revision (§3.4 line 231). Only entering or completing full
+// syncCandidateSlotMembershipOnBondExit is the conditional keep for the
+// two ServiceBond exit paths. A partial unstake or a top-up leaves all five
+// membership predicate items unchanged, so it must not touch the slot or bump
+// candidate_source_revision. Only entering or completing full
 // exit — the fifth predicate item — may.
 func (k Keeper) syncCandidateSlotMembershipOnBondExit(ctx context.Context, operatorAddress string, bond types.ServiceBondState, height uint64) error {
 	params, err := k.Params.Get(ctx)

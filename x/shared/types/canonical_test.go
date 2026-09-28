@@ -88,7 +88,7 @@ func TestDecodeCanonicalFrameRejectsMalformedInput(t *testing.T) {
 
 // TestSection6LimitsAreDistinctConstants guards the one thing a reader is most
 // likely to "tidy up": 65535 and 65534 are two different
-// the canonical encoding contract rules, not a
+// canonical encoding rules, not a
 // typo, and the field cap and the preimage cap are 32 MiB and 64 MiB rather than
 // one number used twice.
 func TestSection6LimitsAreDistinctConstants(t *testing.T) {
@@ -350,7 +350,7 @@ func TestPayloadFrameV1EnforcesSection6Limits(t *testing.T) {
 	_, err = shared.PayloadFrameV1("TRUEOPEN_TEST_PAYLOAD_V1", oversize)
 	require.ErrorContains(t, err, "payload exceeds 33554432 bytes")
 
-	// §6's 64 MiB total-preimage rule is deliberately NOT enforced in
+	// The 64 MiB total-preimage rule is deliberately NOT enforced in
 	// PayloadFrameV1: the two caps above already hold every reachable total below
 	// it, so a check there would be a branch no test could turn red. This
 	// assertion is what makes that reasoning fail loudly if either cap is raised.
@@ -358,7 +358,7 @@ func TestPayloadFrameV1EnforcesSection6Limits(t *testing.T) {
 		uint64(len("TRUEOPEN_FRAME_V1")+4+shared.MaxCanonicalDomainBytesV1+8)+shared.MaxCanonicalFieldBytesV1)
 }
 
-// TestDecodeCanonicalFrameBytesBoundsBeforeAllocating covers the §6 bounds that
+// TestDecodeCanonicalFrameBytesBoundsBeforeAllocating covers the framing bounds that
 // DecodeCanonicalFrameBytes must apply before it reserves the result slice.
 // fieldCount is the caller's claim about the buffer, not a fact about it, so
 // every one of these inputs used to reserve capacity first and check later.
@@ -385,7 +385,7 @@ func TestDecodeCanonicalFrameBytesBoundsBeforeAllocating(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, [][]byte{[]byte("ab"), []byte("cd")}, decoded)
 
-	// maxFieldBytes above the §6 single-value cap is rejected rather than clamped.
+	// maxFieldBytes above the single-value cap is rejected rather than clamped.
 	_, err = shared.DecodeCanonicalFrameBytes(twoFields, 2, shared.MaxCanonicalFieldBytesV1+1)
 	require.ErrorContains(t, err, "canonical field limit 33554433 exceeds 33554432 bytes")
 	_, err = shared.DecodeCanonicalFrameBytes(twoFields, 2, shared.MaxCanonicalFieldBytesV1)
@@ -447,8 +447,7 @@ func TestDecodeCanonicalFrameBytesReportsTheLimitBeforeTheTruncation(t *testing.
 }
 
 // TestOptionalFrameV1KeepsAbsentAndPresentDistinct pins the
-// the canonical encoding contract
-// requirement that absent, present-empty and present-zero are three different
+// canonical encoding requirement that absent, present-empty and present-zero are three different
 // preimages. Empty values of different schema types remain distinct when their
 // enclosing oneof uses different field-number tags.
 func TestOptionalFrameV1KeepsAbsentAndPresentDistinct(t *testing.T) {

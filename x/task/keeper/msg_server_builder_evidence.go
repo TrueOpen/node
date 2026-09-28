@@ -58,7 +58,7 @@ func (k Keeper) requireCanonicalTaskAddress(name, address string) error {
 	return nil
 }
 
-// publicBuilderObjectiveEvidence is the MsgSubmitBuilderEvidence half of §5.5.
+// publicBuilderObjectiveEvidence is the MsgSubmitBuilderEvidence half of Builder fault evidence.
 //
 // tag 2 and tag 3 are public first-application entry points: the submitter
 // proves the fault with signed Bus bytes, and Task authority is the only thing

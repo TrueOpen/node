@@ -40,12 +40,12 @@ var (
 var (
 	ErrActiveSupportReindexRequired = errors.Register(ModuleName, 1147, "active support reindex required")
 	ErrInvalidSupportBatch          = errors.Register(ModuleName, 1148, "invalid support confirmation batch")
-	// ErrHubParamsVersionMismatch is the FailedPrecondition of
-	// the API contract: MsgUpdateHubParams.expected_version must equal the
+	// ErrHubParamsVersionMismatch is the FailedPrecondition
+	// for the rule that MsgUpdateHubParams.expected_version must equal the
 	// stored HubParamsMetaState.params_version.
 	ErrHubParamsVersionMismatch = errors.Register(ModuleName, 1149, "hub params expected_version does not match current version")
 	// ErrHubParamsGenesisOnly rejects an update that would change a field
-	// the API contract marks genesis-only.
+	// marked genesis-only.
 	ErrHubParamsGenesisOnly    = errors.Register(ModuleName, 1150, "hub params field is genesis-only")
 	ErrDeadlineNotReached      = errors.Register(ModuleName, 1151, "deadline not reached")
 	ErrPendingResponsibility   = errors.Register(ModuleName, 1152, "participant has pending responsibilities")

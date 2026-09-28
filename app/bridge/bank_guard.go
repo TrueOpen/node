@@ -1,6 +1,6 @@
 // Package bridge holds the TrueOpen-owned wiring that turns the pinned upstream
-// Hyperlane modules into the single canonical USDC path
-// (the bridge protocol). It contains no copy of Hyperlane
+// Hyperlane modules into the single canonical USDC path.
+// It contains no copy of Hyperlane
 // proto, state, handler or ISM verification logic: everything here either
 // constrains what the upstream modules may do, or observes what they did.
 package bridge
@@ -30,17 +30,15 @@ type BankKeeper interface {
 
 // GuardedBankKeeper is the only bank keeper the Hyperlane modules ever see.
 //
-// the bridge protocol makes the warp module the sole
-// legal source of business_denom mint and burn, and notes that Cosmos module
-// permissions are not denom-scoped — a module holding Minter may mint
-// anything. Interposing here
-// turns that open permission into a closed set, and makes the mint/burn call the
-// place where the §7.3 guard, the §7.2 epoch limit and the §5.2 conservation
+// The warp module is the sole legal source of business_denom mint and burn,
+// and Cosmos module permissions are not denom-scoped — a module holding Minter
+// may mint anything. Interposing here turns that open permission into a closed set, and makes the mint/burn call the
+// place where the inbound/outbound guard, the epoch limit and the conservation
 // identity are enforced, all inside the upstream handler's own context so a
 // rejection leaves zero writes.
 //
 // Placing the guard at the ledger rather than around the Msg handler is the one
-// intentional divergence from §3.2's decorator sketch: it is strictly harder to
+// intentional divergence from a Msg-decorator design: it is strictly harder to
 // bypass, because no upstream code path can reach business_denom without passing
 // through MintCoins/BurnCoins.
 type GuardedBankKeeper struct {
@@ -76,19 +74,19 @@ func (g GuardedBankKeeper) MintCoins(ctx context.Context, moduleName string, amt
 }
 
 // BurnCoins is the only outbound path and the only legal burn of
-// business_denom anywhere on the chain: §5.1 routes every business-side
-// forfeiture to the treasury instead.
+// business_denom anywhere on the chain: every business-side
+// forfeiture is routed to the treasury instead.
 func (g GuardedBankKeeper) BurnCoins(ctx context.Context, moduleName string, amt sdk.Coins) error {
 	return g.bracket(ctx, hubkeeper.BridgeOutbound, moduleName, amt, g.inner.BurnCoins)
 }
 
-// bracket runs the §3.2 order around one ledger call: guard, then the upstream
+// bracket runs the fixed order around one ledger call: guard, then the upstream
 // move, then the supply-delta assertion and the accounting.
 //
 // The supply is read on both sides rather than assumed, because the assertion is
 // the only thing that ties this module's counters to what the ledger actually
 // did. Every refusal happens in the first step, so a rejected transfer never
-// mints and rolls back, which §7.3 forbids outright.
+// mints and rolls back, which is forbidden outright.
 func (g GuardedBankKeeper) bracket(
 	ctx context.Context,
 	direction hubkeeper.BridgeDirection,

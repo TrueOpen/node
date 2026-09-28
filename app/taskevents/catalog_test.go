@@ -48,7 +48,7 @@ func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-// TestProtocolEventCodeRegistryIsFullyCovered pins the §5.11 invariant that
+// TestProtocolEventCodeRegistryIsFullyCovered pins the invariant that
 // shared.v1.ProtocolEventCodeV1 is the single event code registry and that
 // the two typed payload oneofs partition every active code exactly: each has
 // exactly one payload, in exactly one of the two module-owned oneofs, and the
@@ -135,8 +135,8 @@ func TestUnregisteredDutyDoesNotCreateMisroutedTarget(t *testing.T) {
 	require.Equal(t, shared.EventRole_EVENT_ROLE_VERIFIER, dutyEventRole(shared.Duty_DUTY_VERIFIER))
 }
 
-// assertCodeMatchesOneofField checks both halves of the §5.11 payload
-// contract: the oneof field name spells the code, and the field number equals
+// assertCodeMatchesOneofField checks both halves of the event payload
+// rule: the oneof field name spells the code, and the field number equals
 // the code value.
 func assertCodeMatchesOneofField(t *testing.T, code shared.ProtocolEventCodeV1, fieldName string, fieldNumber int32) {
 	t.Helper()

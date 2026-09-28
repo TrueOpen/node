@@ -132,7 +132,7 @@ func (k Keeper) freezeWorkerCandidateFact(
 	}, nil
 }
 
-// isParentModelOpenForProfile is the §10.1 step 7 parent-model gate: the parent
+// isParentModelOpenForProfile is the parent-model gate: the parent
 // model must be REGISTERED or ACTIVE. FROZEN / EMERGENCY_FROZEN / DELISTED all
 // reject new MsgSubmitWorkerHandraises.
 func isParentModelOpenForProfile(status hubtypes.ModelProfileStatus) bool {

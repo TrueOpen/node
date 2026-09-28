@@ -14,7 +14,7 @@ import (
 )
 
 // bridgeGenesisFixture builds a consistent bridge section: four signers with
-// real PoPs (the §4.1 floor), a signer-set hash that is the projection of those
+// real PoPs (the floor), a signer-set hash that is the projection of those
 // rows, and limits inside the registered hard max.
 func bridgeGenesisFixture(t *testing.T, chainID string) (types.BridgeGenesisV1, []types.ValidatorBridgeSignerState) {
 	t.Helper()
@@ -107,7 +107,7 @@ func TestBridgeGenesisBindsCanonicalDenomAndInitialSupply(t *testing.T) {
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *validExport))
 }
 
-// the data-structure contract requires every bridge row and the upstream module
+// Every bridge row and the upstream module
 // state to survive one export/import round trip with the same app hash and the
 // same next-block behaviour. This is the module half of that: the exported
 // document must be byte-identical to what was imported, and must re-import into
@@ -173,7 +173,7 @@ func TestBridgeBootstrapAddressesStoreRawBytesAndRoundTrip(t *testing.T) {
 	require.True(t, proto.Equal(&exported.Bridge.Bootstrap, &reexported.Bridge.Bootstrap))
 }
 
-// §5.2 is explicit that export must not mistake the current supply for a new
+// Export must not mistake the current supply for a new
 // genesis allocation. A chain that bridged funds in and then exports must carry
 // the three counters verbatim, so the importing chain still knows none of its
 // supply was allocated outside the bridge.
@@ -198,7 +198,7 @@ func TestBridgeGenesisExportKeepsCumulativeCountersVerbatim(t *testing.T) {
 	require.Zero(t, allocated, "bridged supply must never be reclassified as a genesis allocation")
 
 	// The current, still-open usage window belongs to this chain's clock and is
-	// not exportable state (§6.6a).
+	// not exportable state.
 	require.Empty(t, exported.Bridge.Usages)
 }
 
@@ -229,7 +229,7 @@ func TestBridgeGenesisRejectsAnInconsistentSignerProjection(t *testing.T) {
 	require.ErrorContains(t, f.keeper.InitGenesis(f.ctx, *genesis), "PoP")
 }
 
-// §2.1: the route id is the hash of its own eleven fields, so a document that
+// The route id is the hash of its own eleven fields, so a document that
 // carries a stale id after editing the route must not start.
 func TestBridgeGenesisRejectsARouteThatDoesNotHashToItsOwnID(t *testing.T) {
 	f := initFixture(t)
@@ -240,7 +240,7 @@ func TestBridgeGenesisRejectsARouteThatDoesNotHashToItsOwnID(t *testing.T) {
 	require.ErrorContains(t, f.keeper.InitGenesis(f.ctx, *genesis), "usdc_route_id")
 
 	// The upstream identifiers must be real HexAddresses or the guard could never
-	// match them against the live Mailbox and token (DOC-012).
+	// match them against the live Mailbox and token.
 	genesis = hubGenesisWithBridge(t, chainID)
 	genesis.Bridge.Route.LocalMailboxId = bytes.Repeat([]byte{0x04}, 20)
 	routeID, err := types.USDCRouteID(chainID, genesis.Bridge.Route)
@@ -249,7 +249,7 @@ func TestBridgeGenesisRejectsARouteThatDoesNotHashToItsOwnID(t *testing.T) {
 	require.ErrorContains(t, f.keeper.InitGenesis(f.ctx, *genesis), "local_mailbox_id")
 }
 
-// §7.2: a limit of zero does not mean "unlimited"; it would remove the only cap
+// A limit of zero does not mean "unlimited"; it would remove the only cap
 // on what a stolen signer threshold can mint.
 func TestBridgeGenesisRejectsZeroAndOversizedLimits(t *testing.T) {
 	f := initFixture(t)
@@ -266,7 +266,7 @@ func TestBridgeGenesisRejectsZeroAndOversizedLimits(t *testing.T) {
 	require.ErrorContains(t, f.keeper.InitGenesis(f.ctx, *genesis), "exceeds bridge_limit_hard_max")
 }
 
-// §5.3: the bootstrap binding fields are all-or-nothing, and CONSUMED keeps its
+// The bootstrap binding fields are all-or-nothing, and CONSUMED keeps its
 // height. A partially bound ARMED bootstrap would let an arbitrary first message
 // take the fee exemption.
 func TestBridgeGenesisRejectsAPartiallyBoundBootstrap(t *testing.T) {

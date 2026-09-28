@@ -13,12 +13,12 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// BridgeStatus is the §7.5 read-only join. Every field comes from the same query
+// BridgeStatus is the read-only join. Every field comes from the same query
 // height, and the three invariants are *recomputed* rather than read back from a
 // cached flag: a status that reported "ok" from a stored boolean would be exactly
 // the reassurance an operator must not be given.
 //
-// §7.5 also forbids dressing a missing object up as a healthy zero value, so a
+// The status query also must not dress a missing object up as a healthy zero value, so a
 // chain without a bridge answers FailedPrecondition instead of an empty view.
 func (q queryServer) BridgeStatus(ctx context.Context, req *types.QueryBridgeStatusRequest) (*types.QueryBridgeStatusResponse, error) {
 	if req == nil {

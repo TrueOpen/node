@@ -89,7 +89,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 	if err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
-	// §B.1.3: "Unstake may only use unreserved bond". Reading raw active_bond here (the
+	// Unstake may only use unreserved bond. Reading raw active_bond here (the
 	// previous behaviour) let an operator unstake bond that open task-liability
 	// reservations were already relying on, and disagreed with the candidate
 	// eligibility reading of the same quantity.
@@ -120,7 +120,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 		return types.ServiceBondState{}, types.UnbondingState{}, fmt.Errorf("service bond version overflow")
 	}
 	bond.BondVersion++
-	// Ruling 18/9: single normalization point, before and after the debit. Before, so
+	// Single normalization point, before and after the debit. Before, so
 	// the epoch invariant holds against the pre-debit active_bond; after, so
 	// effective_active_bond can never exceed the post-debit one. The inline
 	// one-directional clamp this replaces could only lower the snapshot and
@@ -173,7 +173,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 	if err := k.UnbondingByOperatorStatusIndex.Set(ctx, types.NewUnbondingByOperatorStatusKey(operatorAddress, unbonding.Status, matureHeight, idKey)); err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
 	}
-	// Ruling 29 conditional keep: only a full exit changes the §3.3 membership
+	// Only a full exit changes the membership
 	// predicate; a partial unstake must not bump candidate_source_revision.
 	if err := k.syncCandidateSlotMembershipOnBondExit(ctx, operatorAddress, bond, height); err != nil {
 		return types.ServiceBondState{}, types.UnbondingState{}, err
@@ -311,12 +311,12 @@ func (k Keeper) withdrawServiceUnbondingRows(ctx context.Context, chainID, opera
 	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return WithdrawServiceUnbondedResult{}, err
 	}
-	// Ruling 29 conditional keep: withdrawal only changes membership when it
+	// Withdrawal only changes membership when it
 	// completes the exit (ACTIVE_BOND==0 && PENDING==0 -> EXITED).
 	if err := k.syncCandidateSlotMembershipOnBondExit(ctx, operatorAddress, bond, height); err != nil {
 		return WithdrawServiceUnbondedResult{}, err
 	}
-	// §3.3 line 225 clearing point 3: withdrawal removed unbonding rows, so a
+	// Clearing point 3: withdrawal removed unbonding rows, so a
 	// pending unbonding slash hold may just have been lifted. Re-run the release
 	// judgment in this same transaction.
 	if err := k.retryCandidateSlotRelease(ctx, operatorAddress, height); err != nil {
@@ -404,7 +404,7 @@ func (k Keeper) requireServiceUnbondingWithdrawable(ctx context.Context, operato
 	if pending {
 		return errorsmod.Wrap(types.ErrPendingResponsibility, "service unbonding cannot be withdrawn while responsibilities are pending")
 	}
-	// §10.0c step 3 also freezes withdrawal while any task liability is open;
+	// Withdrawal is also frozen while any task liability is open;
 	// that fact now lives on the participant counter rather than on a
 	// TASK_LIABILITY responsibility row.
 	node, err := k.GetCortexNodeState(ctx, operatorAddress)
@@ -476,12 +476,12 @@ func (k Keeper) serviceUnbondingsForOperator(ctx context.Context, operatorAddres
 }
 
 // RequiredServiceBondForProfile is min_stake(profile), the single bond
-// requirement §6.4 attaches to a profile ("active_bond >= min_stake(profile)").
+// requirement attached to a profile (active_bond >= min_stake(profile)).
 //
 // It used to additionally floor the value at a hardcoded MinServiceBond of
 // 500_000, which was a duplicate of params.Service.ServiceBondMinInitial and
 // had already drifted from it (the params default is 1_000_000). The global
-// floor only gates the first MsgStakeService (§10.0c step 3) and is read from
+// floor only gates the first MsgStakeService and is read from
 // params in prepareRegisterService; it is not a second per-profile minimum.
 // This also matches the Task-side definition in
 // x/task/keeper/candidate_eligibility.go.
@@ -494,7 +494,7 @@ func (k Keeper) deactivateDeclaredSupports(ctx context.Context, operatorAddress,
 }
 
 // suspendDeclaredSupportsForJail is deactivateDeclaredSupports' non-terminal
-// counterpart: it discharges the same §6.1 genesis invariant on every declared
+// counterpart: it discharges the same genesis invariant on every declared
 // row, but keeps the declaration itself so the operator stays a Worker candidate
 // at the reduced candidate_jail_factor and can walk jail_count back to 0. See
 // suspendModelSupportForJail for why the declaration must survive.
@@ -513,7 +513,7 @@ func (k Keeper) suspendDeclaredSupportsForJail(ctx context.Context, operatorAddr
 
 // collectDeclaredSupports materialises the operator's declared rows before any
 // of them is mutated. The scan is bounded by
-// params.Support.MaxSupportedProfilesPerOperator (§6.1), unlike the
+// params.Support.MaxSupportedProfilesPerOperator, unlike the
 // profile->operators direction.
 func (k Keeper) collectDeclaredSupports(ctx context.Context, operatorAddress string) ([]types.ModelSupportState, error) {
 	iter, err := k.ModelSupportByOperatorIndex.Iterate(ctx, collections.NewPrefixedPairRange[string, shared.Hash32Key](strings.TrimSpace(operatorAddress)))
@@ -581,9 +581,8 @@ func unwithdrawnServiceUnbondingAmount(state types.UnbondingState) (uint64, erro
 	return state.Amount - state.SlashAppliedAmount, nil
 }
 
-// Ruling 17/24: operatorBytes is the address codec bytes required by
-// the API contract,
-// not the Bech32 text. §1.4 gives TRUEOPEN_UNBONDING_ID_V1 one preimage shared by
+// operatorBytes is the address codec bytes, not the Bech32 text. The domain
+// registry gives TRUEOPEN_UNBONDING_ID_V1 one preimage shared by
 // service and Builder unbonding, so the caller must always pass codec bytes.
 func serviceUnbondingID(chainID string, participantType shared.ParticipantType, operatorBytes []byte, bondVersion, amount, requestHeight, matureHeight uint64) ([]byte, error) {
 	return shared.NewCanonicalHashBuilderV1(unbondingIDDomain).Raw(
@@ -597,8 +596,8 @@ func serviceUnbondingID(chainID string, participantType shared.ParticipantType, 
 	).Sum()
 }
 
-// Ruling 17/24: the receipt digest frames the operator as address codec bytes
-// (the API contract). It is a Keeper method purely so the single canonical decoder
+// The receipt digest frames the operator as address codec bytes.
+// It is a Keeper method purely so the single canonical decoder
 // (requireCanonicalAddress) stays the only bech32 -> bytes path in the module; a
 // second local decoder would be a second way to disagree about the preimage.
 func (k Keeper) unbondingReceiptHash(chainID string, receipt types.UnbondingReceiptState) ([]byte, error) {

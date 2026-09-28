@@ -12,7 +12,7 @@ import (
 )
 
 // The Hub declares VrfPoPVerifier and refuses to register a VRF key when nothing
-// supplies it, so §9.3a is only actually reachable if app wiring provides one.
+// supplies it, so VRF key registration is only actually reachable if app wiring provides one.
 // Without this provider RegisterVrfKey is permanently FailedPrecondition and the
 // whole rotation path is dead code that still compiles.
 func TestVrfPoPVerifierIsProvidedAndVerifies(t *testing.T) {

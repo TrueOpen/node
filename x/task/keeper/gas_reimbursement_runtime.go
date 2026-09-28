@@ -82,7 +82,7 @@ func (k Keeper) ApplyTaskGasReimbursementIntents(
 	if _, _, err := k.canonicalAddress("fee_payer", feePayer); err != nil {
 		return err
 	}
-	// §10.10b computes ONE Tx-level reimbursable pool and then splits it:
+	// Gas reimbursement computes ONE Tx-level reimbursable pool and then splits it:
 	//
 	//   necessary_fee = ceil_div_u128(gas_basis * num / den)   -- one ceil, u128
 	//   pool          = min(actual_fee_paid, necessary_fee, per_tx_cap)
@@ -122,7 +122,7 @@ func (k Keeper) ApplyTaskGasReimbursementIntents(
 		}
 		// CONTRACT-GAP: necessary_fee and per_tx_cap are Tx-level terms but both
 		// are frozen per Task, so a batch spanning two Tasks has two candidate
-		// values and §10.10b does not say which one governs. The minimum is taken
+		// values and the protocol does not say which one governs. The minimum is taken
 		// because it is the only choice that cannot over-reimburse under either
 		// reading; a single-Task batch — the only shape Phase 0 actually produces —
 		// is unaffected either way.

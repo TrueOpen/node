@@ -12,9 +12,9 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// deadlineKindPriority is the *only* copy of the the API contract table
-// (lines 970-984). It backs the single same-height ordering rule
-// `deadline_height, kind_priority, primary_id` from §5.9 line 964, which both
+// deadlineKindPriority is the *only* copy of the protocol's kind_priority
+// table. It backs the single same-height ordering rule
+// `deadline_height, kind_priority, primary_id`, which both
 // MsgSweepDeadline and EndBlock use. Value 0 (UNSPECIFIED) has no priority and
 // is rejected before any state read.
 //
@@ -46,9 +46,8 @@ var deadlineKindPriority = map[types.DeadlineKindV1]uint32{
 	types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
 }
 
-// DeadlineKindPriority resolves the frozen §5.9 kind_priority. Unknown values
-// are rejected (§5.9 line 968: "an unknown value is rejected before any state is
-// read").
+// DeadlineKindPriority resolves the frozen kind_priority. Unknown values
+// are rejected before any state is read.
 func DeadlineKindPriority(kind types.DeadlineKindV1) (uint32, error) {
 	priority, ok := deadlineKindPriority[kind]
 	if !ok {
@@ -70,11 +69,11 @@ type deadlineWorkItem struct {
 	DeadlineHeight uint64
 	Kind           types.DeadlineKindV1
 	// PrimaryID is the canonical store key of the primary object (task_id,
-	// challenge_id, request_id or session_id) — the §5.9 `primary_id` tiebreak.
+	// challenge_id, request_id or session_id) — the `primary_id` tiebreak.
 	PrimaryID string
 }
 
-// SortDeadlineWorkItems implements the single §5.9 line 964 ordering rule
+// SortDeadlineWorkItems implements the single ordering rule
 // `deadline_height, kind_priority, primary_id`. It is deliberately the only
 // comparator in this module: any second ordering would let a proposer pick a
 // different sweep order than EndBlock.
@@ -100,13 +99,13 @@ func SortDeadlineWorkItems(items []deadlineWorkItem) error {
 	return nil
 }
 
-// SweepDeadline is the single public failure/expiry entry point (§9.4, §10.14).
+// SweepDeadline is the single public failure/expiry entry point.
 // V1 registers no MsgFailSettle and no second MsgSessionSweep.
 func (m msgServer) SweepDeadline(ctx context.Context, req *types.MsgSweepDeadline) (*types.MsgSweepDeadlineResponse, error) {
 	if req == nil || req.Locator == nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "locator is required")
 	}
-	// submitter_address is the Cosmos signer / gas payer only. §5.9 line 964: it
+	// submitter_address is the Cosmos signer / gas payer only. It
 	// never enters the locator digest or any business state.
 	if _, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
@@ -157,7 +156,7 @@ func (m msgServer) sweepDeadline(ctx context.Context, req *types.MsgSweepDeadlin
 		}
 		return sweepDeadlineResponse(visited, advanced), nil
 
-	// 4. SessionLifecycleLocator — §10.0b1 line 2332: shares the session
+	// 4. SessionLifecycleLocator — shares the session
 	// lifecycle function with EndBlock.
 	case *types.DeadlineLocatorV1_SessionLifecycle:
 		if locator.SessionLifecycle == nil {
@@ -214,7 +213,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 			},
 		)
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:
-		// The locator carries only (task_id, kind) by design — §10.14's table
+		// The locator carries only (task_id, kind) by design — the protocol
 		// assigns VERIFY_OPEN to TaskDeadlineLocator. The height is not missing,
 		// it is derived: handleExpiredVerifyOpenDeadline already picks the round
 		// off TaskRoundSummary and reads assignment_deadline_height from the
@@ -268,9 +267,8 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:
 		return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "TASK_FINALITY has no independent Phase 0 transition")
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:
-		// §10.14's table: EVIDENCE_CLEANUP "hits the §10.16 EvidenceCleanupIndex and
-		// shares the same bounded cursor executor with EndBlock". The cleanup height is
-		// the same
+		// EVIDENCE_CLEANUP hits the EvidenceCleanupIndex and shares the same
+		// bounded cursor executor with EndBlock. The cleanup height is the same
 		// derivation ApplySettlementPlan used when it scheduled the row —
 		// task_finality_height + max_evidence_retention_blocks — so the locator
 		// does not need to carry it.
@@ -361,7 +359,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 		return nil, err
 	}
 	if visited == 0 {
-		// §10.14 rule 5: nothing due for this kind at this height.
+		// Nothing due for this kind at this height.
 		return nil, errorsmod.Wrapf(types.ErrInvalidTaskStatus, "no due %s row at height %d", locator.DeadlineKind, currentHeight)
 	}
 	return sweepDeadlineResponse(visited, advanced), nil

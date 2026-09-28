@@ -33,7 +33,7 @@ func (d BridgeDirection) String() string {
 // BridgeTransferContext is everything the guard needs about one transfer that
 // the mint/burn choke point can observe. message_id and the counterparty are
 // carried for the event only; no protocol decision is taken on them, because
-// message uniqueness is the upstream delivered marker's job (§6.1) and TrueOpen
+// message uniqueness is the upstream delivered marker's job and TrueOpen
 // must not build a second de-duplication table.
 type BridgeTransferContext struct {
 	Direction BridgeDirection
@@ -45,14 +45,14 @@ type BridgeTransferContext struct {
 	Counterpart string
 	// DestinationRecipient is the raw EVM-side recipient of an outbound
 	// transfer. It is upstream-owned bytes and is never decoded as a TrueOpen
-	// account (§4.1's explicit 0x exception).
+	// account (the explicit 0x exception).
 	DestinationRecipient []byte
 }
 
-// PrepareBridgeTransfer is the pre-ledger half of the §3.2 guard: everything
+// PrepareBridgeTransfer is the pre-ledger half of the guard: everything
 // that can refuse a transfer runs here, before any coin moves.
 //
-// §7.3 is explicit that a refusal must be zero-write and must not mint first and
+// A refusal must be zero-write and must not mint first and
 // roll back, so the denom closed set, the freeze/lifecycle state, I-BRIDGE-1 and
 // the epoch limit are all decided before the upstream handler touches the
 // ledger. Nothing in this half writes state.
@@ -68,7 +68,7 @@ func (k Keeper) PrepareBridgeTransfer(ctx context.Context, transfer BridgeTransf
 		}
 		return zero, err
 	}
-	// §5.1: only business_denom moves through the bridge. Cosmos module
+	// Only business_denom moves through the bridge. Cosmos module
 	// permissions are not denom-scoped, so this is the denom closed set the
 	// contract requires the handler layer to apply.
 	if transfer.Denom != route.BusinessDenom {
@@ -214,8 +214,8 @@ func (k Keeper) businessDenomSupply(ctx context.Context, denom string) uint64 {
 	return coin.Amount.Uint64()
 }
 
-// requireBridgeOperable is the §7.3 fail-closed set that does not depend on the
-// amount: lifecycle, freeze and the I-BRIDGE-1 signer agreement. §4.1's n >= 4
+// requireBridgeOperable is the fail-closed set that does not depend on the
+// amount: lifecycle, freeze and the I-BRIDGE-1 signer agreement. the n >= 4
 // floor is folded in because a set that small must not move funds at all.
 func (k Keeper) requireBridgeOperable(ctx context.Context) error {
 	control, err := k.BridgeControl.Get(ctx)
@@ -264,7 +264,7 @@ func (k Keeper) requireBridgeOperable(ctx context.Context) error {
 	return nil
 }
 
-// BridgeSignerProjectionHash recomputes §4.2's projection from the current
+// BridgeSignerProjectionHash recomputes the projection from the current
 // Validator bridge signer table.
 func (k Keeper) BridgeSignerProjectionHash(ctx context.Context) ([32]byte, error) {
 	signers, err := k.exportValidatorBridgeSigners(ctx)
@@ -281,7 +281,7 @@ func (k Keeper) currentBridgeEpoch(ctx context.Context) (uint64, error) {
 	}
 	// The epoch length is read, not defaulted. Substituting DefaultEpochLengthBlocks
 	// on a read failure would place the transfer in a usage window computed from a
-	// length no other consumer uses, so the §7.2 limit would be charged against the
+	// length no other consumer uses, so the limit would be charged against the
 	// wrong epoch while EndBlocker rolled the real one.
 	epochLength, err := k.epochLengthBlocks(ctx)
 	if err != nil {
@@ -290,7 +290,7 @@ func (k Keeper) currentBridgeEpoch(ctx context.Context) (uint64, error) {
 	return epochForHeight(uint64(sdkCtx.BlockHeight()), epochLength), nil
 }
 
-// chargeBridgeEpochUsage applies §7.2. The whole transfer is rejected when it
+// chargeBridgeEpochUsage applies the epoch limit. The whole transfer is rejected when it
 // would cross the limit: partial execution is explicitly forbidden, because a
 // half-filled inbound would mint less than the message says and break the
 // two-sided accounting the conservation identity depends on.
@@ -353,7 +353,7 @@ func (k Keeper) checkBridgeEpochUsage(ctx context.Context, epoch uint64, transfe
 	return usage, nil
 }
 
-// accrueBridgeSupply updates the two cumulative counters §5.2 persists. They are
+// accrueBridgeSupply updates the two persisted cumulative counters. They are
 // never re-derived from the current supply: that is what keeps genesis_allocated
 // meaningful and makes I-BRIDGE-3 a checkable fact rather than a claim.
 func (k Keeper) accrueBridgeSupply(ctx context.Context, transfer BridgeTransferContext) (minted, burned uint64, err error) {
@@ -423,7 +423,7 @@ func (k Keeper) emitBridgeTransferEvent(
 }
 
 // consumeBridgeBootstrapIfBound flips the one-shot ARMED bootstrap to CONSUMED
-// in the same transition as the mint it paid for (§5.3). The transition is
+// in the same transition as the mint it paid for. The transition is
 // one-way: once CONSUMED, no later message can re-arm it, so the fee exemption
 // cannot become a standing relayer privilege.
 func (k Keeper) consumeBridgeBootstrapIfBound(ctx context.Context, route types.BridgeRouteState, transfer BridgeTransferContext) (bool, error) {
@@ -453,8 +453,8 @@ func (k Keeper) consumeBridgeBootstrapIfBound(ctx context.Context, route types.B
 }
 
 // BridgeBootstrapMatches reports whether one inbound transfer is exactly the
-// Genesis-bound bootstrap message. Every binding field must match; §7.4 is
-// explicit that a near-miss is charged the ordinary fee rather than being waved
+// Genesis-bound bootstrap message. Every binding field must match; a near-miss
+// is charged the ordinary fee rather than being waved
 // through.
 func BridgeBootstrapMatches(bootstrap types.BridgeBootstrapState, route types.BridgeRouteState, messageID []byte, recipient string, amount uint64) bool {
 	return bridgeBootstrapMatches(bootstrap, route, BridgeTransferContext{

@@ -12,7 +12,7 @@ import (
 )
 
 // digestMemberAddress builds a member whose raw bytes are a fill pattern, so the
-// §9.6c ascending order is the fill order and the test can state it directly.
+// ascending member order is the fill order and the test can state it directly.
 func digestMemberAddress(fill byte) string {
 	address, err := bech32.ConvertAndEncode("trueopen", bytes.Repeat([]byte{fill}, 20))
 	if err != nil {
@@ -71,7 +71,7 @@ func TestReplaceBuilderSetActionDigestSeparatesAdjacentUint64Fields(t *testing.T
 	require.NotEqual(t, baseDigest, other)
 }
 
-// TestReplaceBuilderSetMemberBytesRejectsUnsortedMembers pins the §9.6c ordering
+// TestReplaceBuilderSetMemberBytesRejectsUnsortedMembers pins the member ordering
 // rule at the digest boundary rather than only in the Keeper: the same member set
 // submitted in two orders must not be able to mint two digests, because the
 // snapshot the activation installs is sorted either way.

@@ -66,16 +66,16 @@ type Keeper struct {
 	DailySupport                        collections.Map[types.DailySupportKey, types.DailySupportState]
 	DailySupportExpiryIndex             collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
 
-	// ---- Global epoch stable-slot CandidatePool (the data-structure contract) ----
+	// ---- Global epoch stable-slot CandidatePool ----
 	//
-	// One pool per epoch shared by every profile and duty. The PR #88
+	// One pool per epoch shared by every profile and duty. The earlier
 	// per-(model, profile_version, duty) collections
 	// (CandidatePoolCurrent/Dirty/Overflow plus the inline-candidate-vector
 	// snapshot) are deleted, not migrated.
 	//
-	// OperatorCandidateSlot is derived state: §3.3 line "OperatorCandidateSlotState
-	// is the only reverse index of CandidateSlotCurrentState; Genesis rebuilds it from
-	// the primary table and checks (operator,slot,slot_version) in both directions".
+	// OperatorCandidateSlot is derived state: OperatorCandidateSlotState is the
+	// only reverse index of CandidateSlotCurrentState; Genesis rebuilds it from the
+	// primary table and checks (operator,slot,slot_version) in both directions.
 	// It must therefore NOT be exported in
 	// GenesisState (hub/v1/genesis.proto lists it under the "Derived state is
 	// NOT exported" block) and InitGenesis must rebuild it from
@@ -97,7 +97,7 @@ type Keeper struct {
 	CandidatePoolPruneIndex        collections.KeySet[types.CandidatePoolPruneIndexKeyTriple]
 	CandidateSlotBindingPruneIndex collections.KeySet[types.CandidateSlotBindingPruneIndexKeyTriple]
 
-	// Two singletons (§3.2): the build diagnosis a new build overwrites, and the
+	// Two singletons: the build diagnosis a new build overwrites, and the
 	// pointer to the unique ACTIVE snapshot.
 	CandidatePoolBuildStatus collections.Item[types.CandidatePoolBuildStatusState]
 	CurrentCandidatePool     collections.Item[types.CurrentCandidatePoolState]
@@ -252,7 +252,7 @@ func NewKeeper(
 	// cannot drift apart (A-15a).
 	serviceKeyResponsibilityKeyCodec := collections.TripleKeyCodec(collections.Int32Key, addressStringKeyCodec, shared.Hash32KeyCodec)
 
-	// Global CandidatePool key codecs (the data-structure contract). slot is uint32
+	// Global CandidatePool key codecs. slot is uint32
 	// and slot_version uint64, so the binding key is not a string pair; Hash32 key
 	// components (snapshot_id, task_id) are lowercase 64-hex strings.
 	candidateSlotBindingKeyCodec := collections.PairKeyCodec(collections.Uint32Key, collections.Uint64Key)

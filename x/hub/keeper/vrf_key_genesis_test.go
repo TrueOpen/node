@@ -1,6 +1,6 @@
 package keeper_test
 
-// §9.3a Genesis import/export tests for the VRF registry.
+// Genesis import/export tests for the VRF registry.
 //
 // The core property pinned here is "the genesis can start a chain": when a
 // production genesis sets vrf_required_from_height to 1, the very first block
@@ -45,8 +45,8 @@ func genesisWithVrfKeys(t *testing.T) (gs types.GenesisState, active, rotating s
 	return gs, active, rotating
 }
 
-// TestVrfKeyGenesisBootsAValidatorThatCanProposeImmediately covers genesis protocol
-// §4 "Genesis writes VrfKeyState(effective_from_epoch=0) for every entry": right
+// TestVrfKeyGenesisBootsAValidatorThatCanProposeImmediately covers the rule
+// that Genesis writes VrfKeyState(effective_from_epoch=0) for every entry: right
 // after the import, the verification public key already resolves at height 1.
 func TestVrfKeyGenesisBootsAValidatorThatCanProposeImmediately(t *testing.T) {
 	f := initFixture(t)

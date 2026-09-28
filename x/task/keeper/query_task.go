@@ -14,7 +14,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// Task is §16.2 `QueryTask`: a read-only composite over the active Task state.
+// Task is `QueryTask`: a read-only composite over the active Task state.
 // TaskCoreState is the only primary of the six sub-statuses, so the bundle is
 // assembled from it plus the two optional projections.
 func (q *queryServer) Task(ctx context.Context, req *types.QueryTaskRequest) (*types.QueryTaskResponse, error) {
@@ -123,7 +123,7 @@ func (q *queryServer) EpochTaskSummary(ctx context.Context, req *types.QueryEpoc
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
-// TaskStage is §16.2 `QueryTaskStage`: the stage and next-deadline projection.
+// TaskStage is `QueryTaskStage`: the stage and next-deadline projection.
 // The six statuses come from TaskCore only; a missing required sub-state is
 // Internal, never a default value.
 func (q *queryServer) TaskStage(ctx context.Context, req *types.QueryTaskStageRequest) (*types.QueryTaskStageResponse, error) {
@@ -167,7 +167,7 @@ func (q *queryServer) TaskStage(ctx context.Context, req *types.QueryTaskStageRe
 }
 
 // nextTaskDeadline derives the single next deadline from the authoritative phase.
-// It uses the §5.9 DeadlineKindV1 numbers, never a query-only copy of the enum.
+// It uses the frozen DeadlineKindV1 numbers, never a query-only copy of the enum.
 //
 // The phase alone does not name the pending deadline. EndBlock consumes a queue
 // row as soon as current_height >= deadline_height, and three of those handlers
@@ -179,8 +179,8 @@ func (q *queryServer) TaskStage(ctx context.Context, req *types.QueryTaskStageRe
 // COMMITTING or REVEALING while the only row still queued for the task is
 // VERIFY_FINAL. Each branch below reports a height only while that height is
 // still in the future and otherwise falls through to the row the sweeper
-// actually holds, because a consumed height reads as a permanently stuck task
-// (issue 156). The two Worker branches need no such guard: their sweep always
+// actually holds, because a consumed height reads as a permanently stuck task.
+// The two Worker branches need no such guard: their sweep always
 // transitions the phase, so an overdue height there lasts a single block.
 func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKey, core types.TaskCoreState) (types.DeadlineKindV1, uint64, bool, error) {
 	height, err := currentBlockHeight(ctx)
@@ -263,9 +263,8 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 		// consume, and consuming it fails the task — after which this switch is
 		// unreachable because the status is VERIFY_FAILED. The only window this
 		// branch covers is the blocks between the deadline height and that sweep,
-		// where the pending mark is already spent. §16.2 requires the two
-		// next-deadline fields to be absent rather than
-		// defaulted, so absent is the honest answer; a consumed height is not.
+		// where the pending mark is already spent. The two next-deadline fields
+		// must be absent rather than defaulted, so absent is the honest answer; a consumed height is not.
 		return 0, 0, false, nil
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,
 		types.VerificationStatus_VERIFICATION_STATUS_COMMITTING,
@@ -422,7 +421,7 @@ func verificationStatusRequiresAssignment(status types.VerificationStatus) bool 
 	}
 }
 
-// TaskAssignment is §16.2 `QueryTaskAssignment`. §16.2 requires that while the
+// TaskAssignment is `QueryTaskAssignment`. While the
 // draw is pending the three winner fields are *absent*, not defaulted, and that
 // the internal ref-release flag stays hidden.
 func (q *queryServer) TaskAssignment(ctx context.Context, req *types.QueryTaskAssignmentRequest) (*types.QueryTaskAssignmentResponse, error) {
@@ -487,9 +486,9 @@ func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmen
 	return view
 }
 
-// AssignmentRandomness is §16.4 `QueryAssignmentRandomness`: the frozen height,
+// AssignmentRandomness is `QueryAssignmentRandomness`: the frozen height,
 // beacon and draw digest only. field 7 projects `winner_draw_digest`, whose sole
-// producer is the §10.2 `TRUEOPEN_WINNER_DRAW_V1` preimage.
+// producer is the `TRUEOPEN_WINNER_DRAW_V1` preimage.
 func (q *queryServer) AssignmentRandomness(ctx context.Context, req *types.QueryAssignmentRandomnessRequest) (*types.QueryAssignmentRandomnessResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
@@ -543,7 +542,7 @@ func (q *queryServer) AssignmentRandomness(ctx context.Context, req *types.Query
 	return &types.QueryAssignmentRandomnessResponse{Randomness: view}, nil
 }
 
-// TaskBudget is §16.2 `QueryTaskBudget`: the single authoritative ledger row. A
+// TaskBudget is `QueryTaskBudget`: the single authoritative ledger row. A
 // broken amount is Internal, never a partial view.
 func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudgetRequest) (*types.QueryTaskBudgetResponse, error) {
 	if req == nil {
@@ -566,7 +565,7 @@ func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudget
 	return &types.QueryTaskBudgetResponse{Budget: budget}, nil
 }
 
-// TaskBuilders is §16.2 `QueryTaskBuilders`. The three body states are frozen:
+// TaskBuilders is `QueryTaskBuilders`. The three body states are frozen:
 //
 //   - ACTIVE  -> exactly `builders_per_task` members; an empty array with ACTIVE
 //     is an invariant break (`Internal`), *never* an empty page;
@@ -576,7 +575,7 @@ func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudget
 //   - missing -> NotFound.
 //
 // If the body is present but `selected_task_builders_hash` cannot be recomputed
-// from the resident members, that is `Internal` (§6.5 lines 1135-1147).
+// from the resident members, that is `Internal`.
 func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuildersRequest) (*types.QueryTaskBuildersResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")

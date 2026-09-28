@@ -39,7 +39,7 @@ func (k Keeper) applyDataUnavailableBuilderFaults(ctx context.Context, core type
 		return errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
 	// A Task that never finalized an OPEN_VERIFY stage has no data-ready
-	// attestation bitmap, and §5.5 charges only Builders inside that bitmap. The
+	// attestation bitmap, and the fault rules charge only Builders inside that bitmap. The
 	// absent row is therefore an empty attester set, not a broken invariant: a
 	// Worker self-rescue and a Task that failed before OPEN_VERIFY both settle
 	// through here and must charge nobody.

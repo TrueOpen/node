@@ -37,9 +37,9 @@ type participantIdentityState struct {
 	CurrentDescriptorVersion uint64
 	UpdatedHeight            uint64
 
-	// Online-duty counters required by §10.0c1 / §B.1.2: a rotation is only
+	// Online-duty counters: a service-key rotation is only
 	// accepted while all three are zero. They live on the participant primary
-	// row (§6.4 CortexNodeState / §6.5 BuilderState), not in a second store.
+	// row (CortexNodeState / BuilderState), not in a second store.
 	ActiveTaskLiabilityCount       uint32
 	PendingStageDutyCount          uint32
 	PendingEvidenceSubmissionCount uint32
@@ -769,7 +769,7 @@ func (k Keeper) ReserveServiceKeyResponsibility(ctx context.Context, responsibil
 	if responsibility.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_BUS_OBJECTIVE_EVIDENCE {
 		return fmt.Errorf("BUS_OBJECTIVE_EVIDENCE responsibilities must use the typed acquire method")
 	}
-	// §B.1.2 derives every authorization nonce inside this module -- register mints
+	// Every authorization nonce is derived inside this module -- register mints
 	// 1 and rotation is the only checked +1 -- so the caller has no legitimate value
 	// to offer here. Rejecting instead of overwriting keeps a caller that snapshots
 	// a stale generation from being silently rewritten into an exact replay.
@@ -1161,9 +1161,9 @@ func (k Keeper) removeServiceDescriptorIfPresent(ctx context.Context, participan
 	return err
 }
 
-// ensureServiceKeyCanChange is the §10.0c1 / §B.1.2 rotation gate: one prefix
+// ensureServiceKeyCanChange is the rotation gate: one prefix
 // scan on int32(participant_type) plus the three zero-counter checks the
-// contract names explicitly. The predecessor had to scan a second, legacy
+// protocol names explicitly. The predecessor had to scan a second, legacy
 // "CORTEX" string prefix as well, because back then a participant could reach
 // the store under two spellings; A-15a removed the spelling axis from the key
 // entirely, so one scan is now exhaustive by construction.

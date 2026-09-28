@@ -11,18 +11,18 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// This catalog mirrors the API contract through the single
+// This catalog mirrors the protocol event codes through the single
 // shared.v1.ProtocolEventCodeV1 registry. Blocked challenge and runner-level
 // summary events remain absent; adding a payload requires a frozen registry row
 // and the one-to-one catalog tests below.
 
-// classifyTypedEvent maps one committed typed event onto its §5.11 code and
+// classifyTypedEvent maps one committed typed event onto its event code and
 // the stream envelope that owns its payload. The envelope choice is forced by
 // the wire: TaskEvent carries task.v1.TaskProtocolEventPayloadV1 and
 // ProtocolEvent carries hub.v1.ProtocolEventPayloadV1.
 func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	switch event := payload.(type) {
-	// ---- Task-owned §5.11 payloads (TaskEvent envelope) ----
+	// ---- Task-owned payloads (TaskEvent envelope) ----
 	case *tasktypes.EventSessionCreated:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_CREATED,
 			eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)
@@ -42,7 +42,7 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_INFER_RECEIPT_ACCEPTED,
 			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)
 	case *tasktypes.EventVerifierAssignmentFinalized:
-		// §5.11 code 13 carries selected_verifiers_hash only, so no per-verifier
+		// Event code 13 carries selected_verifiers_hash only, so no per-verifier
 		// target can be derived from the payload.
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_ASSIGNMENT_FINALIZED)
 	case *tasktypes.EventDataUnavailableReported:
@@ -59,7 +59,7 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 			eventTargets(shared.EventRole_EVENT_ROLE_VERIFIER, event.GetVerifier())...)
 	case *tasktypes.EventTaskSettled:
 		// Emitted only once final settlement facts exist, which is now a live path:
-		// K-BLOCK-16 closed and TaskSettlementState is stored. The row is what
+		// TaskSettlementState is now stored. The row is what
 		// keeps a stream from silently dropping a committed code 19.
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_TASK_SETTLED)
 	case *tasktypes.EventDeadlineSwept:
@@ -74,7 +74,7 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	case *tasktypes.EventCommitDeadlineClosed:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_COMMIT_DEADLINE_CLOSED)
 	case *tasktypes.EventVerifierHandraisesAccepted:
-		// §5.11 code 34's proposer may be a Builder or a Worker and the payload
+		// Event code 34's proposer may be a Builder or a Worker and the payload
 		// does not say which, so the target uses the deliberately unnarrowed
 		// EVENT_ROLE_OPERATOR rather than guessing.
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_HANDRAISES_ACCEPTED,
@@ -93,7 +93,7 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_EVIDENCE_ACCEPTED,
 			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorkerOperatorAddress())...)
 
-	// ---- Hub-owned §5.11 payloads (ProtocolEvent envelope) ----
+	// ---- Hub-owned payloads (ProtocolEvent envelope) ----
 	case *hubtypes.EventModelProfileRegistered:
 		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_MODEL_PROFILE_REGISTERED,
 			eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetProposer())...)
@@ -188,8 +188,7 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 		// model_id is a profile locator, not an account, so it is not a target.
 		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_PROFILE_REFERENCE_PRICE_UPDATED)
 
-	// ---- Bridge payloads (codes 120-127). The Bridge runtime itself is #164;
-	// these rows only keep the §5.11 registry partition closed so a committed
+	// ---- Bridge payloads (codes 120-127). These rows only keep the event code registry partition closed so a committed
 	// Bridge event can never be dropped by the stream classifier. ----
 	case *hubtypes.EventBridgeInboundProcessed:
 		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BRIDGE_INBOUND_PROCESSED,
@@ -215,13 +214,13 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	}
 }
 
-// sessionScopedPayload is implemented by every §5.11 payload that carries a
+// sessionScopedPayload is implemented by every event payload that carries a
 // session_id. Codes 34 and 111 do not.
 type sessionScopedPayload interface {
 	GetSessionId() []byte
 }
 
-// taskScopedPayload is implemented by every §5.11 payload that carries a
+// taskScopedPayload is implemented by every event payload that carries a
 // task_id. Code 111 does not.
 type taskScopedPayload interface {
 	GetTaskId() []byte
@@ -281,7 +280,7 @@ func dutyEventRole(duty shared.Duty) shared.EventRole {
 	}
 }
 
-// consensusAddressBech32 renders the raw ConsensusAddressBytes of §5.11 code 96
+// consensusAddressBech32 renders the raw ConsensusAddressBytes of event code 96
 // with the app's sealed trueopenvalcons prefix so the target matches the address a
 // validator operator subscribes with.
 func consensusAddressBech32(value []byte) string {

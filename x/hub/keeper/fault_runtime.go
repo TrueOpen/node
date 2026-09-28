@@ -16,9 +16,8 @@ import (
 )
 
 // Jail and tombstone are operator-global and live only on ServiceBondState
-// (`jail_count` / `normal_action_count_since_jail` / `status`), per
-// the data-structure contract and the API contract ("no
-// second TombstoneState is read"). The previous duty-scoped Jail/Tombstone
+// (`jail_count` / `normal_action_count_since_jail` / `status`); no
+// second TombstoneState is read. The previous duty-scoped Jail/Tombstone
 // collections were a
 // second source of truth for the same facts and are no longer read or written
 // here. Duty attribution survives in RoleFaultState.duty and in the event 51
@@ -48,7 +47,7 @@ type roleFaultApplyResult struct {
 	Slash      uint64
 	Unfilled   uint64
 	// State is the authoritative RoleFaultState this call left in the Store,
-	// including the jail_delta Hub itself decided. Task needs it because §6.6's
+	// including the jail_delta Hub itself decided. Task needs it because the
 	// fault_summary_hash frames jail_delta and status, so the caller cannot
 	// reconstruct the committed vector from the fact it submitted.
 	State types.RoleFaultState
@@ -67,7 +66,7 @@ func (k Keeper) recordRoleFaultState(ctx context.Context, state types.RoleFaultS
 		return false, err
 	}
 	// The by-task direction is written in the same transition as the primary so
-	// the §6.6 fault vector for a task is always readable in bounded work; the
+	// the fault vector for a task is always readable in bounded work; the
 	// prune path deletes both together.
 	if err := k.RoleFaultByTaskIndex.Set(ctx, types.NewRoleFaultByTaskKey(state.TaskId, key)); err != nil {
 		return false, err
@@ -84,7 +83,7 @@ func (k Keeper) recordRoleFaultState(ctx context.Context, state types.RoleFaultS
 // closes the liability, moves slash custody and advances jail/tombstone state.
 //
 // It returns the applied RoleFaultState because Hub is the only side that knows
-// jail_delta and status, and §6.6's fault_summary_hash - which Task must close
+// jail_delta and status, and the fault_summary_hash - which Task must close
 // into settlement_facts_hash - frames both. Returning the row is what lets Task
 // commit the fault vector without ever recomputing Hub's decisions.
 func (k Keeper) ApplyTaskRoleFault(ctx context.Context, fact types.TaskRoleFaultFact) (types.RoleFaultState, error) {
@@ -318,7 +317,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 }
 
 // IncJail raises the operator-global jail_count by one. duty is used only for
-// event attribution; the counter itself is not duty-scoped (Ruling 11).
+// event attribution; the counter itself is not duty-scoped.
 func (k Keeper) IncJail(ctx context.Context, operatorAddress, duty string, height uint64) (ServiceJailSnapshot, bool, error) {
 	return k.incJail(ctx, operatorAddress, duty, height, types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_OBJECTIVE_FAULT)
 }
@@ -373,7 +372,7 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	if err := k.WriteServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress), bond); err != nil {
 		return ServiceJailSnapshot{}, false, err
 	}
-	// the data-structure contract lists jail and tombstone together, both as a path
+	// Jail and tombstone are listed together, both as a path
 	// that invalidates support and as a mutation that must go through the single
 	// applyModelSupportMutation entry point: the support aggregates and the
 	// ModelSupportByModelIndex / ModelSupportExpiryIndex rows have to be updated
@@ -385,8 +384,8 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	// not re-import.
 	//
 	// The operator->profiles direction is capped by
-	// params.Support.MaxSupportedProfilesPerOperator (§6.1), so unlike the
-	// profile->operators fan-out that P0-3 made asynchronous this scan is bounded
+	// params.Support.MaxSupportedProfilesPerOperator, so unlike the
+	// profile->operators fan-out, which is asynchronous, this scan is bounded
 	// and safe to run inside the jailing transaction.
 	//
 	// Only the terminal branch ends the declarations. Running the full
@@ -394,15 +393,15 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 	// it wiped declared_support, the joint filter of
 	// the candidate selection contract admits candidates on a declared
 	// support, and requireSupportScope refuses to re-declare while JAILED — so
-	// §10.0c's jail_clear_normal_action_count normal actions could never be
+	// the jail_clear_normal_action_count normal actions could never be
 	// performed and jail_count could never come back down. The graduated
 	// candidate_jail_factor (the parameter table[hard boundary]: 1 -> 500000,
 	// 2 -> 250000) is the
 	// penalty the ladder is supposed to apply; exclusion belongs to the tombstone
-	// step alone. suspendDeclaredSupportsForJail still discharges the §6.1 genesis
+	// step alone. suspendDeclaredSupportsForJail still discharges the genesis
 	// invariant that motivated deactivating here in the first place.
 	//
-	// reason: §9.6b registers no JAILED lifecycle reason and none may be invented
+	// reason: the protocol registers no JAILED lifecycle reason and none may be invented
 	// here. TOMBSTONED is the closest existing value — it is the same
 	// operator-global fault escalation and the terminal step of the very counter
 	// being raised here. It is also inert: DeactivateModelSupport ignores reason
@@ -431,7 +430,7 @@ func (k Keeper) incJail(ctx context.Context, operatorAddress, duty string, heigh
 }
 
 // AdvanceJailClearCounter records one completed protocol-assigned duty without
-// a fault. §10.0c clears one jail_count every
+// a fault. One jail_count is cleared every
 // params.Service.JailClearNormalActionCount such actions. The only production
 // caller is the RELEASED branch of closeTaskLiabilityReservation; the SLASHED
 // branch must never reach here.
@@ -565,9 +564,8 @@ func serviceJailSnapshot(bond types.ServiceBondState, duty string) ServiceJailSn
 // pool-ejection threshold".
 // It deliberately does NOT report jail_count 1/2: those are demotions carried by
 // candidate_jail_factor (500000/250000 ppm), not exclusions, and treating them as
-// exclusions strands the recovery path — the API contract only
-// decrements
-// jail_count on the normal actions an excluded operator can never perform.
+// exclusions strands the recovery path — the protocol only
+// decrements jail_count on the normal actions an excluded operator can never perform.
 //
 // incJail already writes TOMBSTONED when the count reaches the threshold, so the
 // count test only matters when the two can disagree: a genesis import, or a
@@ -652,7 +650,7 @@ func eventLifecycleReasonForFault(faultType string) types.EventLifecycleReason {
 	}
 }
 
-// emitFaultRecordedEvent is §5.11 code 50. session_id is optional Hash32, so a
+// emitFaultRecordedEvent emits protocol event code 50. session_id is optional Hash32, so a
 // non-hash debug session scope is reported as absent rather than coerced.
 func emitFaultRecordedEvent(ctx context.Context, state types.RoleFaultState, sessionID string) {
 	event := &types.EventFaultRecorded{
@@ -672,7 +670,7 @@ func emitFaultRecordedEvent(ctx context.Context, state types.RoleFaultState, ses
 	mustEmitHubEvent(ctx, event)
 }
 
-// emitRoleSlashedEvent is §5.11 code 52.
+// emitRoleSlashedEvent emits protocol event code 52.
 func emitRoleSlashedEvent(ctx context.Context, duty shared.Duty, operatorAddress string, faultID []byte, slash ApplyServiceSlashResult, faultType string) {
 	mustEmitHubEvent(ctx, &types.EventRoleSlashed{
 		Duty:           duty,

@@ -12,8 +12,8 @@ import (
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
-// BootstrapFeeExemption implements the bridge protocol,
-// and nothing more.
+// BootstrapFeeExemption implements the bridge bootstrap fee exemption, and
+// nothing more.
 //
 // A shared testnet or mainnet starts with zero business_denom supply while
 // business_denom is also the only fee denom, so the very first inbound transfer
@@ -22,7 +22,7 @@ import (
 // with a zero fee. Every other gate still runs: signature, sequence, gas meter,
 // ISM, and the whole inbound guard.
 //
-// §7.4 and §9 are explicit that this must never become a standing privilege, so
+// This must never become a standing privilege, so
 // the match is all-or-nothing and the ARMED -> CONSUMED flip (performed by the
 // guard, in the same transition as the mint it paid for) is one-way.
 type BootstrapFeeExemption struct {
@@ -83,7 +83,7 @@ func (b BootstrapFeeExemption) IsExempt(ctx sdk.Context, tx sdk.Tx) bool {
 }
 
 // feePayerAddress is the account the fee would be taken from: an explicit
-// granter when one is set, otherwise the first signer. §5.3 binds the exemption
+// granter when one is set, otherwise the first signer. The exemption is bound
 // to that account, not merely to whoever relayed the message.
 func feePayerAddress(feeTx sdk.FeeTx) string {
 	if granter := feeTx.FeeGranter(); len(granter) != 0 {

@@ -15,8 +15,7 @@ import (
 const CompactSecp256k1SignatureBytes = 64
 
 // SignatureSchemeSecp256k1 is the only accepted signature_scheme literal.
-// The task specification §7.3 requires it to be byte-for-byte lowercase ASCII
-// "secp256k1" and
+// The protocol requires it to be byte-for-byte lowercase ASCII "secp256k1" and
 // rejects aliases and case variants, so comparisons must be exact equality
 // against this constant, never a case-folded or trimmed match.
 const SignatureSchemeSecp256k1 = "secp256k1"

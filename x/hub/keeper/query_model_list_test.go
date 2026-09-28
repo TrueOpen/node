@@ -34,7 +34,7 @@ func TestAllHubModelIDQueriesRejectUnsafeIDs(t *testing.T) {
 		require.Equal(t, codes.InvalidArgument, status.Code(err), modelID)
 		_, err = queryServer.Profile(f.ctx, &types.QueryProfileRequest{ModelId: modelID, ProfileVersion: 1})
 		require.Equal(t, codes.InvalidArgument, status.Code(err), modelID)
-		// ModelProfile (the deleted §16.3 alias) and ModelCapability (renamed to
+		// ModelProfile (the deleted alias) and ModelCapability (renamed to
 		// the profile-scoped ProfileCapability) are gone; ProfileCapability is
 		// the surviving node-level capability query and must reject the same IDs.
 		_, err = queryServer.ModelCapability(f.ctx, &types.QueryModelCapabilityRequest{OperatorAddress: hubAddress(t, 240), ModelId: modelID})
@@ -136,7 +136,7 @@ func TestQueryModelListsGatewayContract(t *testing.T) {
 func TestModelAndProfileStatusTransitionsWritePrimaryState(t *testing.T) {
 	f := initFixture(t)
 	// SetProfileStatus used to re-run the registration min_stake clamp against
-	// params.Service.ServiceBondMinInitial (Ruling 16) and so needed the params row.
+	// params.Service.ServiceBondMinInitial and so needed the params row.
 	// It no longer does — that clamp is registration admission only, because
 	// min_stake is fixed at registration while the floor is a live parameter — but
 	// the fixture stays genesis-initialized so this test exercises a realistic

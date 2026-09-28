@@ -39,7 +39,7 @@ func DeriveSessionID(ownerAddressBytes []byte, nonce uint64) ([]byte, error) {
 }
 
 // hash32StoreKey is the single admission gate between a raw proto Hash32 field
-// and a store key: it enforces §0.1's fixed 32-byte width and returns the bytes
+// and a store key: it enforces the fixed 32-byte width and returns the bytes
 // unchanged. types.Hash32KeyCodec re-checks the width when it encodes, but the
 // check belongs here too — this is where the error can still name the offending
 // field and carry the caller's sentinel (ErrInvalidTaskID / ErrInvalidSessionID)
@@ -93,9 +93,9 @@ func (k Keeper) closeStreamPendingTask(ctx context.Context, sessionID []byte) er
 	if err != nil {
 		return err
 	}
-	// P2-08 ②: closing an in-flight task must never resurrect a terminal stream.
-	// §6.2 line 851 makes open_pending_count != 0 impossible outside ACTIVE, and
-	// §10.0b1 line 2340 allows reactivation from IDLE only, so the status is left
+	// Closing an in-flight task must never resurrect a terminal stream.
+	// open_pending_count != 0 is impossible outside ACTIVE, and the lifecycle
+	// allows reactivation from IDLE only, so the status is left
 	// exactly as stored instead of being forced to ACTIVE.
 	if stream.Status != types.SessionStatus_SESSION_STATUS_ACTIVE {
 		return errorsmod.Wrapf(types.ErrInvariantBroken,

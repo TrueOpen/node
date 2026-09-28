@@ -36,7 +36,7 @@ func newGenesisSeedTestDescriptor(kind, uri, protocolVersion string) *genesisSee
 }
 
 // genesisSeedTestServiceBondMinInitial mirrors params.Service.ServiceBondMinInitial.
-// Ruling 16 deleted the duplicated keeper.MinServiceBond constant (500_000) and made
+// The duplicated keeper.MinServiceBond constant (500_000) was deleted, making
 // params the only floor, so seeded bonds and profile min_stake must use this value.
 var genesisSeedTestServiceBondMinInitial = func() uint64 {
 	value, err := hubtypes.AmountToUint64(hubtypes.DefaultHubParams().Service.ServiceBondMinInitial, false)
@@ -355,8 +355,8 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.NoError(t, applyTaskParamsOverride(cdc, &taskParams, seed.TaskParams))
 	// Localnet runs with FAST_BLOCKS at roughly one second per block, where the
 	// former 8-block commit and reveal windows were under two seconds of wall
-	// clock. A cortex paused on a breakpoint missed them every time, and Ruling 4
-	// makes a Verifier miss an immediate jail, so debugging the node reliably
+	// clock. A cortex paused on a breakpoint missed them every time, and a missed
+	// Verifier deadline is an immediate jail, so debugging the node reliably
 	// jailed it.
 	//
 	// Every fault x/task can raise is a missed deadline — worker_infer_

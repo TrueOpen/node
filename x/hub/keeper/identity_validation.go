@@ -42,7 +42,7 @@ func participantTypeName(participantType shared.ParticipantType) (string, error)
 }
 
 // participantTypeFromName is the strict inverse of participantTypeName. It
-// accepts exactly the two §9.6b enum names; the previous implementation also
+// accepts exactly the two registered enum names; the previous implementation also
 // accepted a legacy "CORTEX" alias for the same enum value, which meant one
 // participant had two spellings inside consensus keys.
 func participantTypeFromName(value string) (shared.ParticipantType, error) {

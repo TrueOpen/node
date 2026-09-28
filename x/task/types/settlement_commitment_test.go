@@ -15,8 +15,7 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-// settlementVectorFile is the Wire v0.3 `round_settlement_v1` fixture. Per
-// DOC-001 the published registry projection of
+// settlementVectorFile is the Wire v0.3 `round_settlement_v1` fixture. The published registry projection of
 // TRUEOPEN_SETTLEMENT_FACTS_V1 is stale (it still lists the deleted
 // registered_full_result_refs_hash), so this vector — not registry/v1/domains.json
 // — is the authority for the settlement preimages.
@@ -78,8 +77,7 @@ func TestSettlementBillHashMatchesWireVector(t *testing.T) {
 	require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
 }
 
-// The 13-field nested frame is the whole point of this vector: DOC-001 records
-// that the registry still projects a 14th field that Wire v0.3 deleted, so a
+// The 13-field nested frame is the whole point of this vector: the registry still projects a 14th field that Wire v0.3 deleted, so a
 // producer that re-adds it has to fail here.
 func TestSettlementFactsHashMatchesWireVector(t *testing.T) {
 	vector := loadSettlementVector(t, "settlement_facts_v1")
@@ -190,7 +188,7 @@ func TestTaskSettlementIDAcceptsOnlyRegisteredSettlementRounds(t *testing.T) {
 
 // SettlementPlanHash is the terminal commitment of BuildSettlementPlan: it
 // carries the payout vector, the embedded gas array and the three balances. The
-// vector's own amounts also close the §10.10a conservation identity
+// vector's own amounts also close the settlement conservation identity
 // (90 + 10 + 12 + 20 + 50 == 182), so this pins the shape and the arithmetic the
 // plan builder has to reproduce.
 func TestSettlementPlanHashMatchesWireVector(t *testing.T) {

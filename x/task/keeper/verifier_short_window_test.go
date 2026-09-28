@@ -14,7 +14,7 @@ import (
 
 // A handraise window that closes short of selected_verifier_count is something a
 // live network does on its own — a two-cortex devnet where one node takes the
-// Worker duty leaves exactly one Verifier. The task specification 04 §5 calls that
+// Worker duty leaves exactly one Verifier. The protocol calls that
 // a dispatch
 // failure. Treating it as ErrInvariantBroken aborted FinalizeBlock and stopped
 // consensus, so these tests pin the boundary: short = task failure, over the

@@ -33,7 +33,7 @@ func TestTaskStageAddedBitmapHashFramesEachSlot(t *testing.T) {
 	// only value here that a reorder cannot bring along.
 	require.Equal(t, "9b80359ae6b71e67ac4d805f714066c135678f14dc98b7b940059d31b9c5c621",
 		hex.EncodeToString(digest[:]),
-		"TRUEOPEN_TASK_STAGE_ADDED_BITMAP_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the §1.4 domain registry")
+		"TRUEOPEN_TASK_STAGE_ADDED_BITMAP_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	expected := shared.CanonicalHashBytes(
 		shared.MustDomain(shared.DomainTaskStageAddedBitmapV1),
 		[]byte("trueopen-test"), taskID,

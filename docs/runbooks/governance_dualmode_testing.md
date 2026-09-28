@@ -15,9 +15,9 @@
 > 2026-09-17: the old L2 §2.3–2.4 and the old L3 were written around "builders
 > vote weighted by bond"; after main landed Phase 0 builders have no
 > bond, the implementation was deleted, and those scenarios no longer exist.
-> 2026-09-18: after checking against monorepo governance protocol v0.5, **the
-> custom tally function was removed entirely** (§2, "no TrueOpen custom tally is
-> added"), and the phase gate went with it; L1 now pins the three denominator
+> 2026-09-18: after checking against the governance rules, **the
+> custom tally function was removed entirely** (no TrueOpen custom tally is
+> added), and the phase gate went with it; L1 now pins the three denominator
 > boundaries of the SDK default tally instead.
 > Both times the material was removed rather than rewritten — keeping it would
 > mislead.
@@ -42,7 +42,7 @@ What is covered:
 - **The three denominator boundaries of the SDK default tally**: abstain is
   outside the threshold denominator and inside the veto denominator; jailing
   empties the numerator without shrinking the quorum denominator; only unbonding
-  truly leaves the denominator (the MUST in governance protocol §2)
+  truly leaves the denominator (a MUST of the governance rules)
 - Mixed proposals rejected at submission, wired into the real ante chain
 
 ### Checking that the tests themselves are load-bearing (negative controls)
@@ -65,8 +65,8 @@ go test ./app/ -run TestProposalDomainGuardIsWiredIntoApp   # expect FAIL (repor
 
 Remember to revert afterwards. All four have been reproduced in practice.
 
-> **This chain supplies no custom tally function** (governance protocol §2, "no
-> TrueOpen custom tally is added"). So the denominator tests in L1 exercise the
+> **This chain supplies no custom tally function** (no TrueOpen custom tally is
+> added). So the denominator tests in L1 exercise the
 > SDK's own implementation, and act as an **upgrade tripwire**: an SDK upgrade
 > that moves a denominator fails here, rather than quietly changing governance
 > outcomes in production.
@@ -188,7 +188,7 @@ nd query staking params  -o json | jq -r '.params.bond_denom'            # ubond
 
 Both are pinned by `validatePhase0Params` (`x/hub/types/params.go:349,357`), so
 Phase 1 cannot be constructed on localnet. A Phase 1 builder electorate is to be
-introduced by a protocol upgrade per governance protocol §9, and this runbook
+introduced by a protocol upgrade, and this runbook
 will need a matching section when that happens.
 
 ---

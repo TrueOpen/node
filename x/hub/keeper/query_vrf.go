@@ -11,7 +11,7 @@ import (
 	"github.com/TrueOpen/node/x/hub/types"
 )
 
-// VrfKey projects one validator's VRF key row (§9.3a). The raw private key never
+// VrfKey projects one validator's VRF key row. The raw private key never
 // exists in any state, message or query, so the view is the two public points
 // plus the epochs they are authoritative in.
 func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) (*types.QueryVrfKeyResponse, error) {
@@ -31,7 +31,7 @@ func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) 
 	}
 	if err := types.ValidateVrfKeyState(state); err != nil {
 		// A stored row that cannot be validated is a broken invariant, not an
-		// empty answer; §16.1 forbids dressing it up as a normal zero value.
+		// empty answer; it must not be dressed up as a normal zero value.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	response := &types.QueryVrfKeyResponse{
@@ -50,9 +50,8 @@ func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) 
 	return response, nil
 }
 
-// ValidatorBridgeSigner projects one validator's current bridge signer row
-// (the bridge protocol). The PoP signature is stored but not
-// returned: it is
+// ValidatorBridgeSigner projects one validator's current bridge signer row.
+// The PoP signature is stored but not returned: it is
 // recomputable from the row plus chain_id, and returning it would invite
 // consumers to re-verify possession out of band instead of trusting the
 // registration that already did.

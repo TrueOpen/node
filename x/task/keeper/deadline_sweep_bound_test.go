@@ -48,7 +48,7 @@ func taskKeyFromByte(b byte) types.TaskKey {
 	return bytes.Repeat([]byte{b}, types.Hash32Len)
 }
 
-// P1-07 regression. Before the fix, sweepExpiredTaskDeadlines' predecessor only
+// Regression test. Before the fix, sweepExpiredTaskDeadlines' predecessor only
 // counted rows whose primary actually advanced, and the EndBlock fair-share limit
 // is one item per queue per turn. A single row that always came back
 // "recoverable" therefore kept the counter at zero, the per-block bound never
@@ -98,7 +98,7 @@ func TestDeadlineSweepChargesVisitedItemsForPoisonRows(t *testing.T) {
 	require.Equal(t, dueRows, remaining)
 }
 
-// A provably stale row is counted *and* deleted (§4.6 line 713), so the index
+// A provably stale row is counted *and* deleted, so the index
 // self-heals instead of accumulating orphans.
 func TestDeadlineSweepDeletesStaleRows(t *testing.T) {
 	f := initInternalFixture(t)
@@ -115,8 +115,8 @@ func TestDeadlineSweepDeletesStaleRows(t *testing.T) {
 	require.False(t, has, "a stale deadline index row must be deleted")
 }
 
-// Rows whose deadline height is still in the future are never visited (§7 line
-// 2021: EndBlock only processes height >= deadline_height).
+// Rows whose deadline height is still in the future are never visited
+// (EndBlock only processes height >= deadline_height).
 func TestDeadlineSweepSkipsFutureRows(t *testing.T) {
 	f := initInternalFixture(t)
 	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.InferDeadlineIndex, taskKeyFromByte(0x11), 500))
@@ -187,7 +187,7 @@ func TestEndBlockDeadlineByteBudgetIsSharedAcrossQueues(t *testing.T) {
 	require.True(t, inferExists, "changing queues must not reset the serialized-byte budget")
 }
 
-// §5.9: all twelve Wire v0.3 kind_priority values, and only those, resolve.
+// All twelve Wire v0.3 kind_priority values, and only those, resolve.
 func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 	expected := map[types.DeadlineKindV1]uint32{
 		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
@@ -208,7 +208,7 @@ func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 		got, err := DeadlineKindPriority(kind)
 		require.NoError(t, err)
 		require.Equal(t, priority, got, "kind %d", int32(kind))
-		require.Equal(t, endBlockQueuePriority(priority), endBlockDeadlinePriority(kind), "EndBlock must consume §5.9 kind_priority")
+		require.Equal(t, endBlockQueuePriority(priority), endBlockDeadlinePriority(kind), "EndBlock must consume the frozen kind_priority")
 	}
 	_, err := DeadlineKindPriority(types.DeadlineKindV1_DEADLINE_KIND_V1_UNSPECIFIED)
 	require.Error(t, err, "UNSPECIFIED must be rejected before any state read")
@@ -216,7 +216,7 @@ func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 	require.Error(t, err)
 }
 
-// §5.9 line 964: the single same-height ordering rule is
+// The single same-height ordering rule is
 // (deadline_height, kind_priority, primary_id).
 func TestSortDeadlineWorkItemsUsesTheSingleOrderingRule(t *testing.T) {
 	items := []deadlineWorkItem{

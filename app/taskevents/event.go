@@ -17,10 +17,10 @@ import (
 type eventKind uint8
 
 const (
-	// eventKindTask carries a §5.11 code whose typed payload lives in the
+	// eventKindTask carries an event code whose typed payload lives in the
 	// Task-owned task.v1.TaskProtocolEventPayloadV1 oneof.
 	eventKindTask eventKind = iota + 1
-	// eventKindProtocol carries a §5.11 code whose typed payload lives in the
+	// eventKindProtocol carries an event code whose typed payload lives in the
 	// Hub-owned hub.v1.ProtocolEventPayloadV1 oneof.
 	eventKindProtocol
 	eventKindCheckpoint

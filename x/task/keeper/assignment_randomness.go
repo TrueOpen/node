@@ -14,10 +14,10 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// processExpiredAssignmentRandomness is the WORKER_ASSIGNMENT (§10.2) sweep.
+// processExpiredAssignmentRandomness is the WORKER_ASSIGNMENT sweep.
 // Every visited index row charges the budget, including rows whose beacon is not
-// published yet (§4.5 line 709: "when the beacon is missing, stay pending and
-// consume this block's visited budget").
+// published yet: when the beacon is missing, the row stays pending and still
+// consumes this block's visited budget.
 func (k Keeper) processExpiredAssignmentRandomness(ctx context.Context, currentHeight, maxPerBlock uint64) (uint64, error) {
 	return k.sweepExpiredTaskDeadlines(ctx, k.AssignmentRandomnessIndex, currentHeight, maxPerBlock,
 		func(ctx context.Context, taskID types.TaskKey, deadline uint64) (deadlineSweepOutcome, uint64, error) {
@@ -34,7 +34,7 @@ type assignmentWinnerComputation struct {
 	Counter    uint64
 }
 
-// finalizeAssignmentRandomness is the single §10.2 executor shared by EndBlock
+// finalizeAssignmentRandomness is the single assignment executor shared by EndBlock
 // and MsgSweepDeadline(TaskDeadlineLocator{WORKER_ASSIGNMENT}).
 func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.TaskKey, deadline, currentHeight uint64) (deadlineSweepOutcome, uint64, error) {
 	core, found, rowBytes, err := k.loadSweepTaskCore(ctx, taskID)
@@ -84,11 +84,11 @@ func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.T
 	switch {
 	case err == nil:
 	case errors.Is(err, types.ErrBeaconNotFound):
-		// §4.5: stay pending, but the visited budget is already charged by the
+		// Stay pending, but the visited budget is already charged by the
 		// caller. The index row survives so the next block retries.
 		return deadlineSweepPending, rowBytes, nil
 	case errors.Is(err, errEmptyAssignmentLegalSet):
-		// §10.1 line 2652: an empty / unusable legal set is a deterministic
+		// An empty / unusable legal set is a deterministic
 		// order failure, not an invariant error.
 		if err := k.failAssignmentRandomness(ctx, core, assignment, currentHeight,
 			types.AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET); err != nil {
@@ -99,7 +99,7 @@ func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.T
 		}
 		return deadlineSweepAdvanced, rowBytes, nil
 	default:
-		// §4.5: attempts exhausted or a broken commitment is an invariant error
+		// Attempts exhausted or a broken commitment is an invariant error
 		// and the task stays pending. It is *not* swallowed as "recoverable".
 		return deadlineSweepPending, rowBytes, err
 	}
@@ -188,7 +188,7 @@ func (k Keeper) computeAssignmentWinner(
 	}, nil
 }
 
-// commitAssignmentWinner performs the §10.2 atomic write set.
+// commitAssignmentWinner performs the assignment's atomic write set.
 func (k Keeper) commitAssignmentWinner(
 	ctx context.Context,
 	computation assignmentWinnerComputation,
@@ -199,10 +199,10 @@ func (k Keeper) commitAssignmentWinner(
 	if err != nil {
 		return err
 	}
-	// §10.2 lines 2798-2809: the liability reservation must succeed *before*
+	// The liability reservation must succeed *before*
 	// WORKER_ASSIGNED is written.
 	if err := k.reserveWinnerTaskLiability(ctx, computation, currentHeight, candidateWeightPpmMax); err != nil {
-		// §10.2 line 2808: a failed precheck goes down the deterministic
+		// A failed precheck goes down the deterministic
 		// ASSIGN_TIMEOUT / refund path; it never redraws.
 		return k.failAssignmentRandomness(ctx, computation.Core, computation.Assignment, currentHeight,
 			types.AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE)
@@ -305,7 +305,7 @@ func (k Keeper) reserveWinnerTaskLiability(
 	return err
 }
 
-// failAssignmentRandomness is the §10.2 "winner unavailable" deterministic path.
+// failAssignmentRandomness is the "winner unavailable" deterministic path.
 func (k Keeper) failAssignmentRandomness(
 	ctx context.Context,
 	core types.TaskCoreState,
@@ -321,7 +321,7 @@ func (k Keeper) failAssignmentRandomness(
 	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}
-	// The §10.2 "winner cannot serve" failure path sets assignment_status =
+	// The "winner cannot serve" failure path sets assignment_status =
 	// ASSIGN_TIMEOUT. The
 	// infer and verify-open timeouts already set their own sub-state before the
 	// shared terminal writer; leaving this one at RANDOMNESS_PENDING made the row
