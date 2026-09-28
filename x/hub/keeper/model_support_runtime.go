@@ -279,7 +279,17 @@ func (k Keeper) recordTaskSupportCompletion(ctx context.Context, fact types.Task
 		return nil
 	}
 	if fact.Duty == shared.DutyWorker {
-		if err := k.recordRewardCompetitionSample(ctx, fact, currentEpoch, params); err != nil {
+		// The reward competition sample must land in the epoch that is actually
+		// executing, not the (possibly already-closed) epoch fact.Height falls
+		// in: a task whose rounds closed near an epoch boundary can settle one
+		// or more epochs later, and RewardCompetitionEpoch refuses to accept a
+		// sample once its own epoch has closed. currentEpoch above answers a
+		// different question -- was support still fresh as of when the task
+		// itself finished -- and keeps that historical meaning for the scope,
+		// staleness and P30-cutoff checks; only the reward sample's target
+		// epoch needs to be "whichever epoch is open right now".
+		executionEpoch := epochForHeight(uint64(sdk.UnwrapSDKContext(ctx).BlockHeight()), params.Epoch.EpochLengthBlocks)
+		if err := k.recordRewardCompetitionSample(ctx, fact, executionEpoch, params); err != nil {
 			return err
 		}
 	}
