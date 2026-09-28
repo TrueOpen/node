@@ -24,7 +24,22 @@ func TestModelSupportCandidateGateUsesModelStatusAndNarrowSuspensionExceptions(t
 	}{
 		{name: "active model with active support", modelStatus: hubtypes.ModelStatusActive, support: active, bondStatus: hubtypes.ServiceBondStatusActive, want: true},
 		{name: "registered cold start", modelStatus: hubtypes.ModelStatusRegistered, support: inactive, bondStatus: hubtypes.ServiceBondStatusActive, want: true},
-		{name: "inactive support without suspension", modelStatus: hubtypes.ModelStatusActive, support: inactive, bondStatus: hubtypes.ServiceBondStatusActive},
+		{name: "declared but never activated", modelStatus: hubtypes.ModelStatusActive, support: func() hubtypes.ModelSupportSnapshot {
+			s := inactive
+			s.ActivationKind = hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_NONE
+			return s
+		}(), bondStatus: hubtypes.ServiceBondStatusActive, want: true},
+		{name: "previously activated, now inactive without suspension", modelStatus: hubtypes.ModelStatusActive, support: func() hubtypes.ModelSupportSnapshot {
+			s := inactive
+			s.ActivationKind = hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_VERIFIER_ASSIGNED_VALID
+			return s
+		}(), bondStatus: hubtypes.ServiceBondStatusActive},
+		{name: "inactive support with unspecified activation kind", modelStatus: hubtypes.ModelStatusActive, support: inactive, bondStatus: hubtypes.ServiceBondStatusActive},
+		{name: "never activated on a frozen model", modelStatus: hubtypes.ModelStatusFrozen, support: func() hubtypes.ModelSupportSnapshot {
+			s := inactive
+			s.ActivationKind = hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_NONE
+			return s
+		}(), bondStatus: hubtypes.ServiceBondStatusActive},
 		{name: "frozen model", modelStatus: hubtypes.ModelStatusFrozen, support: active, bondStatus: hubtypes.ServiceBondStatusActive},
 		{name: "missing declaration", modelStatus: hubtypes.ModelStatusActive, support: hubtypes.ModelSupportSnapshot{SupportActive: true}, bondStatus: hubtypes.ServiceBondStatusActive},
 		{name: "active support with suspension marker", modelStatus: hubtypes.ModelStatusActive, support: func() hubtypes.ModelSupportSnapshot {
