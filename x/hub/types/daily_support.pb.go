@@ -24,7 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// DailySupportState is one operator/epoch support heartbeat row (wire storage model 6.1).
+// DailySupportState is one operator/epoch support heartbeat row.
 type DailySupportState struct {
 	Epoch               uint64 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	OperatorAddress     string `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`

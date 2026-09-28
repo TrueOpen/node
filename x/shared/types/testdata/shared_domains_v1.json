@@ -1,6 +1,6 @@
 {
   "schema": "trueopen.shared.domains.v1",
-  "source": "Domain registry rows for the listed domains; producers live in x/shared/types and are shared by the Hub and Task modules, so the vectors are owned here rather than by either caller",
+  "source": "Public wire conformance vectors in testdata/v1/shared/shared_domains_v1.json",
   "notes": [
     "Every vector is H_FIELDS_V1: preimage = u64_be(len(domain)) || domain || for each field u64_be(len(field)) || field; digest = SHA256(preimage).",
     "Field encoding: string = strict UTF-8 bytes; bytes = raw bytes; uint32/uint64 = 4/8-byte big-endian; enum = uint32 big-endian.",

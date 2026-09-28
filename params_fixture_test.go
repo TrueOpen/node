@@ -223,14 +223,7 @@ func TestParamsFixtureNestedOrderMatchesProtoFieldNumbers(t *testing.T) {
 
 			accounts := paramsCountLeaves(vector.Fields[2])
 			require.NotNil(t, vector.Leaves, "%s must publish its leaf accounting", vector.Name)
-			if published, known := wireLeafAccountingMismatch[vector.Name]; known {
-				// The digest, preimage, tamper and replay columns are still
-				// asserted against wire's bytes; only this summary is off.
-				require.Equal(t, published, *vector.Leaves,
-					"%s: wire's leaf_accounting changed; if it now matches the tree, drop the wireLeafAccountingMismatch entry", vector.Name)
-			} else {
-				require.Equal(t, *vector.Leaves, accounts)
-			}
+			require.Equal(t, *vector.Leaves, accounts)
 			require.Positive(t, accounts.Repeated, "both params messages carry repeated fields")
 			require.Positive(t, accounts.Submessages)
 		})
@@ -533,16 +526,6 @@ func paramsValueFromField(t *testing.T, field protoreflect.FieldDescriptor, publ
 		t.Fatalf("%s has proto kind %s, which the canonical encoding does not support in a params tree", where, field.Kind())
 		return protoreflect.Value{}
 	}
-}
-
-// wireLeafAccountingMismatch records a published leaf_accounting that does not
-// match its own field tree. Wire's hub_params_v2 vector declares 138 scalars and
-// 34 submessages, but its tree holds 137 scalars and 32 submessages (the same
-// +1/+2 offset every release since v0.3.0; task_params_v1 matches). The entry
-// pins the published values exactly, so a wire fix fails this test and the
-// entry is removed rather than silently outliving the bug.
-var wireLeafAccountingMismatch = map[string]paramsLeafAccounts{
-	"hub_params_v2": {Submessages: 34, Repeated: 4, Scalars: 138},
 }
 
 func paramsCountLeaves(frame paramsField) paramsLeafAccounts {

@@ -129,8 +129,7 @@ type MsgClient interface {
 	SubmitFreezeSignal(ctx context.Context, in *MsgSubmitFreezeSignal, opts ...grpc.CallOption) (*MsgSubmitFreezeSignalResponse, error)
 	// EmergencyFreezeVote records one validator ballot.
 	EmergencyFreezeVote(ctx context.Context, in *MsgEmergencyFreezeVote, opts ...grpc.CallOption) (*MsgEmergencyFreezeVoteResponse, error)
-	// UpdateTimeoutBucket moved here from task.v1.Msg: the wire storage model
-	// this contract names the Hub governance handler the only writer of parameter bucket
+	// UpdateTimeoutBucket moved here from task.v1.Msg: this contract names the Hub governance handler the only writer of parameter bucket
 	// versions, and x/task only reference-counts them.
 	// UpdateTimeoutBucket executes the UpdateTimeoutBucket operation.
 	UpdateTimeoutBucket(ctx context.Context, in *MsgUpdateTimeoutBucket, opts ...grpc.CallOption) (*MsgUpdateTimeoutBucketResponse, error)
@@ -375,8 +374,7 @@ type MsgServer interface {
 	SubmitFreezeSignal(context.Context, *MsgSubmitFreezeSignal) (*MsgSubmitFreezeSignalResponse, error)
 	// EmergencyFreezeVote records one validator ballot.
 	EmergencyFreezeVote(context.Context, *MsgEmergencyFreezeVote) (*MsgEmergencyFreezeVoteResponse, error)
-	// UpdateTimeoutBucket moved here from task.v1.Msg: the wire storage model
-	// this contract names the Hub governance handler the only writer of parameter bucket
+	// UpdateTimeoutBucket moved here from task.v1.Msg: this contract names the Hub governance handler the only writer of parameter bucket
 	// versions, and x/task only reference-counts them.
 	// UpdateTimeoutBucket executes the UpdateTimeoutBucket operation.
 	UpdateTimeoutBucket(context.Context, *MsgUpdateTimeoutBucket) (*MsgUpdateTimeoutBucketResponse, error)

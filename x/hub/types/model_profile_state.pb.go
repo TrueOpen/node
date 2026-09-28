@@ -149,7 +149,7 @@ func (ProfileStatusSource) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_ef2a17f60d08b8e7, []int{2}
 }
 
-// ModelState is one registered model primary row (wire storage model 6.3).
+// ModelState is one registered model primary row.
 type ModelState struct {
 	ModelId         []byte             `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	ProposerAddress string             `protobuf:"bytes,2,opt,name=proposer_address,json=proposerAddress,proto3" json:"proposer_address,omitempty"`

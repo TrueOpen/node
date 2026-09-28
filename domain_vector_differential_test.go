@@ -691,7 +691,7 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	shared.DomainBridgeDeploymentManifestV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
 	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V2":     "Wire testdata/v1/task/builder_confirmation_v1.json",
 	shared.DomainInferReceiptV3:                    "Wire testdata/v1/task/infer_receipt_v3.json",
-	shared.DomainModelIDV1:                         "Wire testdata/v1/hub/model_id_v1.json",
+	shared.DomainModelIDV1:                         "Wire testdata/v1/hub/model_id_v1.json, bound to DeriveModelIDV1 by TestModelIDMatchesWireVectors",
 	"TRUEOPEN_OUTPUT_STREAM_HEADER_V1":             "Wire testdata/v1/task/output_stream_header_v1.json",
 	"TRUEOPEN_PREFILL_TOKEN_METRIC_LEAF_V3":        "Wire testdata/v1/task/metric_leaf_v3.json",
 	"TRUEOPEN_PREFILL_VERIFIER_TOPK_V1":            "Wire testdata/v1/task/verifier_value_leaf_v1.json",

@@ -63,14 +63,17 @@ type queryPageVector struct {
 	// RPCMethod is the method literal every vector here is about, spelled once as
 	// a typed input rather than parsed back out of fields[]. For the RPC domain it
 	// is also the framed value of fields[0].
-	RPCMethod   string               `json:"rpc_method"`
-	ChainID     string               `json:"chain_id,omitempty"`
-	Fields      []queryPageField     `json:"fields"`
-	PreimageHex string               `json:"preimage_hex"`
-	DigestHex   string               `json:"digest_hex"`
-	Tamper      []queryPageTamper    `json:"tamper"`
-	Replay      []queryPageReplay    `json:"replay,omitempty"`
-	Reject      []queryPageRejection `json:"reject,omitempty"`
+	RPCMethod   string           `json:"rpc_method"`
+	ChainID     string           `json:"chain_id,omitempty"`
+	Fields      []queryPageField `json:"fields"`
+	PreimageHex string           `json:"preimage_hex"`
+	// PreimageSize is the published byte length of the decoded preimage_hex,
+	// when the vector states it.
+	PreimageSize *int                 `json:"preimage_size_bytes,omitempty"`
+	DigestHex    string               `json:"digest_hex"`
+	Tamper       []queryPageTamper    `json:"tamper"`
+	Replay       []queryPageReplay    `json:"replay,omitempty"`
+	Reject       []queryPageRejection `json:"reject,omitempty"`
 }
 
 type queryPageField struct {
@@ -193,7 +196,11 @@ func TestQueryPageFixtureGoldenVectors(t *testing.T) {
 				"%s is about %q, which is not a registered paginated Query RPC", vector.Name, vector.RPCMethod)
 
 			fields := vector.encodeFields(t)
-			require.Equal(t, vector.PreimageHex, hex.EncodeToString(vector.preimage(fields)))
+			preimage := vector.preimage(fields)
+			require.Equal(t, vector.PreimageHex, hex.EncodeToString(preimage))
+			if vector.PreimageSize != nil {
+				require.Equal(t, *vector.PreimageSize, len(preimage), "%s: preimage_size_bytes", vector.Name)
+			}
 			require.Equal(t, vector.DigestHex, vector.digestOf(fields))
 			require.Len(t, vector.DigestHex, 64)
 		})
