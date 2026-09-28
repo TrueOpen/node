@@ -41,15 +41,26 @@ const (
 )
 
 type genesisSeed struct {
-	Version           uint64                `json:"version"`
-	NodeConfig        genesisSeedNodeConfig `json:"node_config"`
-	AccountBalance    uint64                `json:"account_balance"`
-	SupportUntilEpoch uint64                `json:"support_until_epoch"`
-	HubParams         json.RawMessage       `json:"hub_params"`
-	TaskParams        json.RawMessage       `json:"task_params"`
-	Builders          []genesisSeedBuilder  `json:"builders"`
-	CortexNodes       []genesisSeedCortex   `json:"cortex_nodes"`
-	Models            []genesisSeedModel    `json:"models"`
+	Version           uint64                     `json:"version"`
+	NodeConfig        genesisSeedNodeConfig      `json:"node_config"`
+	AccountBalance    uint64                     `json:"account_balance"`
+	SupportUntilEpoch uint64                     `json:"support_until_epoch"`
+	HubParams         json.RawMessage            `json:"hub_params"`
+	TaskParams        json.RawMessage            `json:"task_params"`
+	Builders          []genesisSeedBuilder       `json:"builders"`
+	CortexNodes       []genesisSeedCortex        `json:"cortex_nodes"`
+	Models            []genesisSeedModel         `json:"models"`
+	FaucetAccounts    []genesisSeedFaucetAccount `json:"faucet_accounts"`
+}
+
+// genesisSeedFaucetAccount funds a devnet/localnet-only address with its own
+// balance, independent of account_balance. It exists for addresses that are
+// not a Builder, Cortex node or model proposer -- a faucet that ordinary
+// users draw test funds from -- so it needs a balance of its own rather than
+// the uniform operational float every other seeded identity gets.
+type genesisSeedFaucetAccount struct {
+	Address string `json:"address"`
+	Balance uint64 `json:"balance"`
 }
 
 // NodeConfig is consumed by localnet tooling and is deliberately not projected
@@ -618,6 +629,16 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 	}
 	if err := ensureGenesisAccountsFunded(&auth, &bank, fundingAddresses, businessDenom, seed.AccountBalance); err != nil {
 		return nil, err
+	}
+	for _, faucet := range seed.FaucetAccounts {
+		if faucet.Balance == 0 {
+			return nil, fmt.Errorf("faucet account %s balance must be positive", faucet.Address)
+		}
+		if err := ensureGenesisAccountsFunded(
+			&auth, &bank, map[string]struct{}{faucet.Address: {}}, businessDenom, faucet.Balance,
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, builder := range newBuilders {

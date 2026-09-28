@@ -198,6 +198,48 @@ func TestGenesisSeedLeavesUnlistedSectionsEmpty(t *testing.T) {
 	require.Empty(t, auth.Accounts)
 }
 
+func TestGenesisSeedFaucetAccountIsFundedIndependentlyOfAccountBalance(t *testing.T) {
+	identity := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	const faucetBalance = uint64(1_000_000_000_000)
+	seed := genesisSeed{
+		Version:        genesisSeedVersion,
+		AccountBalance: 1,
+		FaucetAccounts: []genesisSeedFaucetAccount{
+			{Address: identity.address, Balance: faucetBalance},
+		},
+	}
+
+	updated, err := applyGenesisSeed(cdc, raw, seed)
+	require.NoError(t, err)
+	_, bank, _ := decodeGenesisSeedDocument(t, cdc, updated)
+	require.Equal(t, faucetBalance, genesisBalanceAmount(bank, identity.address))
+}
+
+func TestGenesisSeedRejectsFaucetAccountWithZeroBalance(t *testing.T) {
+	identity := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	seed := genesisSeed{
+		Version: genesisSeedVersion,
+		FaucetAccounts: []genesisSeedFaucetAccount{
+			{Address: identity.address, Balance: 0},
+		},
+	}
+
+	_, err := applyGenesisSeed(cdc, raw, seed)
+	require.Error(t, err)
+}
+
 func TestGenesisSeedCortexDescriptorIsOptionalButAtomic(t *testing.T) {
 	node := newGenesisSeedTestIdentity()
 	operator := newGenesisSeedTestIdentity()
@@ -548,6 +590,10 @@ func TestLocalnetGenesisSeedAppliesRunnableModelSupportState(t *testing.T) {
 		bank,
 		authtypes.NewModuleAddress(hubtypes.TreasuryModuleName).String(),
 	))
+	require.NotEmpty(t, seed.FaucetAccounts)
+	for _, faucet := range seed.FaucetAccounts {
+		require.Equal(t, faucet.Balance, genesisBalanceAmount(bank, faucet.Address))
+	}
 }
 
 func TestGenesisSeedParameterOverridesRejectUnknownFields(t *testing.T) {

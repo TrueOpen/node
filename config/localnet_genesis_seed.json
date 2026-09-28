@@ -572,5 +572,11 @@
         "reject_union_js_p99_min": 200000
       }
     }
+  ],
+  "faucet_accounts": [
+    {
+      "address": "trueopen1pveu8re8vr7u3l7cgvgal4fcmf0pkygektmq28",
+      "balance": 1000000000000000
+    }
   ]
 }
