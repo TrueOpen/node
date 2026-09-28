@@ -323,8 +323,8 @@ noded tx gov submit-proposal proposal.json \
 
 > ⛔ **Governance cannot set a model to `ACTIVE`.** `ACTIVE` is derived solely
 > from support statistics, and the chain rejects it outright
-> (`x/hub/keeper/msg_server_registry.go:28`, reporting `ACTIVE status is derived
-> from active profile support and cannot be set by governance`); the protocol
+> (`x/hub/keeper/msg_server_registry.go`, reporting `ACTIVE status is derived
+> from model support and cannot be set by governance`); the protocol
 > forbids governance from setting ACTIVE directly. **Listing a model is not a governance action** — it is activated
 > automatically by a threshold once nodes declare support.
 >
@@ -351,22 +351,22 @@ and must match the target status, or the chain reports `does not match reason`.
     {
       "@type": "/hub.v1.MsgSetModelStatus",
       "authority": "trueopen10d07y265gmmuvt4z0w9aw880jnsr700jc0zupp",
-      "model_id": "<target model id, e.g. llama3-8b>",
+      "model_id": "<target model ID: 64 lowercase hex characters>",
       "new_status": "MODEL_PROFILE_STATUS_FROZEN",
       "reason_code": "GOVERNANCE_REASON_FREEZE"
     }
   ],
   "deposit": "10000000uusdc",
-  "title": "Freeze model llama3-8b",
-  "summary": "Following community assessment, freeze model llama3-8b to stop it accepting new tasks."
+  "title": "Freeze model",
+  "summary": "Following community assessment, freeze the specified model to stop it accepting new tasks."
 }
 ```
 
 Field notes:
 - `authority`: **must** be the governance address
   `trueopen10d07y265gmmuvt4z0w9aw880jnsr700jc0zupp`, or execution fails.
-- `model_id`: the model to act on (check it exists and see its current status
-  with `noded query hub models`).
+- `model_id`: the model's lowercase 64-hex Hash32 ID, as returned by a model
+  query. Check it exists and see its current status with `noded query hub models`.
 - `new_status`: see the table above. `MODEL_PROFILE_STATUS_ACTIVE` is rejected
   outright.
 - `reason_code`: see the table above; it must be paired with `new_status`.
@@ -379,23 +379,24 @@ Field notes:
 >     {
 >       "@type": "/hub.v1.MsgSetProfileStatus",
 >       "authority": "trueopen10d07y265gmmuvt4z0w9aw880jnsr700jc0zupp",
->       "model_id": "<target model id>",
+>       "model_id": "<target model ID: 64 lowercase hex characters>",
 >       "profile_version": 1,
 >       "new_status": "MODEL_PROFILE_STATUS_DELISTED",
 >       "reason_code": "GOVERNANCE_REASON_DELIST"
 >     }
 >   ],
 >   "deposit": "10000000uusdc",
->   "title": "Delist profile v1 of llama3-8b",
->   "summary": "Delist profile version 1 of model llama3-8b."
+>   "title": "Delist profile v1",
+>   "summary": "Delist profile version 1 of the specified model."
 > }
 > ```
 
-> **Note**: a status set by governance has source `SOURCE_GOVERNANCE` and is not
-> overwritten by the automatic support-activation mechanism
-> (`SOURCE_AUTO_SUPPORT`); see §13. Conversely, unfreezing back to `REGISTERED`
-> hands the status back to automatic derivation — if aggregated support is still
-> above the threshold, `ACTIVE` is re-derived within the same transaction.
+> **Note**: a model status set by governance has source `SOURCE_GOVERNANCE` and
+> is not overwritten by automatic support activation (`SOURCE_AUTO_SUPPORT`);
+> see §13. Unfreezing a model back to `REGISTERED` hands its status back to
+> automatic derivation: if aggregated model support still meets the threshold,
+> `ACTIVE` is re-derived in the same transaction. Profile status remains under
+> governance control; a profile status change does not recalculate model status.
 >
 > ⚠️ **Do not put model/profile status messages in the same proposal as anything
 > else**: this chain rejects mixed proposals in the ante handler (see §12), so
@@ -440,22 +441,21 @@ not be confused:
 
 | Dimension | On-chain governance (x/gov) | Automatic model support activation (a business mechanism) |
 |---|---|---|
-| Trigger | A proposal + a fixed voting period + turnout/pass-rate tallying | The status switches automatically once the **eligible stake share** supporting that profile reaches a threshold |
-| Threshold semantics | quorum/threshold (shares of votes cast / of the network, tallied at period end) | `ActiveSupportStake / eligible support stake ≥ active_support_stake_ratio` (currently 2/3) and supporter count ≥ `active_supporter_min_count` |
+| Trigger | A proposal + a fixed voting period + turnout/pass-rate tallying | The model status switches when its active support stake and supporter count meet the configured thresholds |
+| Threshold semantics | quorum/threshold (shares of votes cast / of the network, tallied at period end) | `model.active_support_stake ≥ model.support_min_stake × active_support_stake_multiple` (default 2) and `model.active_supporter_count ≥ active_supporter_min_count` (default 2) |
 | Status source | `SOURCE_GOVERNANCE` (set manually by governance) | `SOURCE_AUTO_SUPPORT` (automatic, by support) |
-| Applies to | Parameters, manual model listing/delisting, governance's own parameters | Automatic ACTIVE / fallback for models and profiles |
+| Applies to | Parameters, manual model and profile status changes, governance's own parameters | Automatic ACTIVE / fallback for models; profile status is not derived from support |
 | Wired in by this work | Yes (x/gov) | Already present in hub business logic |
 
 There is also a `SOURCE_EMERGENCY` (emergency freeze) path. **None of the three
 overrides another**: statuses set by governance or by an emergency are not
 rewritten by the automatic support mechanism.
 
-> If the business wants something like "list/delist a model the instant supporting
-> stake reaches 10% of the network" — an **immediate threshold trigger** — that
-> belongs to the **parameter semantics of the automatic support mechanism**
-> (tuning `active_support_stake_ratio_*` and friends), or needs dedicated new
-> logic on the Keeper side. It is **not** something x/gov's general governance can
-> express. The semantics need to be agreed with the Keeper side.
+> The current automatic activation threshold is an absolute multiple of the
+> model's `support_min_stake`, plus a minimum supporter count. A rule such as
+> "activate when supporters hold 10% of the network's eligible stake" needs
+> dedicated Keeper logic; neither the current support parameters nor x/gov's
+> proposal tally expresses that ratio.
 
 ---
 

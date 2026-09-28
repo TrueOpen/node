@@ -242,7 +242,7 @@ governance branch.
 | **`→ ACTIVE`** | `FAILED` — governance cannot set ACTIVE |
 | **`→ EMERGENCY_FROZEN`** | `FAILED` — reserved for the validators' emergency-freeze quorum |
 | **reason not paired with the target status** | `FAILED` |
-| `MsgSetProfileStatus` freezing the only active profile | `PASSED`, and the parent model falls back from `ACTIVE` to `REGISTERED` automatically |
+| `MsgSetProfileStatus` freezing a registered profile | `PASSED`; the profile becomes `FROZEN`, while the parent model's support-derived status is unchanged |
 
 ### Parameters and expedited proposals
 
