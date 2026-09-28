@@ -5,10 +5,10 @@
     "\"producer\" names the unexported keeper function the vector is executed against. The digest below is what that function returns when fed this vector's own inputs, not only what re-framing fields[] reproduces; a field swap inside the producer therefore fails here even when the swapped fields share an encoder.",
     "Regenerate with TRUEOPEN_REGEN_FIXTURES=1; the run rewrites the expectations and then fails on purpose so the consensus diff must be reviewed before it is committed.",
     "TRUEOPEN_UNBONDING_ID_V1 has no vector here on purpose. Its golden lives in x/hub/types/testdata/hub_domains_v1.json and stays the single copy; the executable binding to keeper.serviceUnbondingID reads that file rather than restating its seven fields, because two copies of one frozen preimage can disagree.",
-    "Vectors for domains removed in Wire v0.3.0 were deleted from this file in the same revision that removed the domains, so it is no longer a byte copy of the upstream node fixture; source_path still records where the retained vectors came from."
+    "This wire-authored fixture retains active domain vectors and removes retired domains; its hashes are reviewed in this repository."
   ],
   "schema": "trueopen.hub.keeper-domains.v1",
-  "source": "Domain registry rows for the listed domains; producers live in x/hub/keeper and are unexported, so the binding test is an internal (package keeper) test",
+  "source": "Public wire conformance vectors in testdata/v1/hub/hub_keeper_domains_v1.json",
   "vectors": [
     {
       "contract_section": "Public wire fixture testdata/v1/hub/hub_keeper_domains_v1.json",
@@ -248,6 +248,7 @@
       "framing": "H_FIELDS_V1",
       "name": "freeze_signal_v1",
       "preimage_hex": "0000000000000019545255454f50454e5f465245455a455f5349474e414c5f56310000000000000012747275656f70656e2d666978747572652d310000000000000020555555555555555555555555555555555555555555555555555555555555555500000000000000040000000500000000000000080000000000000029000000000000000800000000000d6d80000000000000000800000000000d6fd800000000000000040000000700000000000000209e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e",
+      "preimage_size_bytes": 211,
       "producer": "freezeSignalID"
     },
     {

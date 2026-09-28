@@ -73,6 +73,12 @@ func (k Keeper) RegisterModelProfileState(
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
 
+	// Like the min_stake clamp, this current-parameter check runs only after the
+	// receipt lookup so an identical replay still returns its original receipt.
+	// The URI is checked for syntax only and stored byte for byte; it is never fetched.
+	if err := types.ValidateManifestURI(projection.ManifestUri, params.Model.MaxManifestUriBytes); err != nil {
+		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, fmt.Errorf("manifest_uri is invalid: %w", err)
+	}
 	model, exists, err := k.loadModel(ctx, projection.ModelId)
 	if err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
@@ -190,6 +196,7 @@ func profileStateFromProjection(proposer string, p shared.ModelProfileProjection
 		ModelId: p.ModelId, ProfileVersion: p.ProfileVersion,
 		ManifestHash: append([]byte(nil), p.ManifestHash...), TokenizerHash: append([]byte(nil), p.TokenizerHash...),
 		RuntimeClass: p.RuntimeClass, RequiredTopK: p.RequiredTopK, TaskTypes: append([]shared.TaskType(nil), p.TaskTypes...),
+		ManifestUri:    p.ManifestUri,
 		GenerationType: p.GenerationType, ResourceTier: p.ResourceTier, MinStake: minStake,
 		ChallengeOpenWindowBlocks: p.ChallengeOpenWindowBlocks, VerificationProfile: p.VerificationProfile,
 		VerificationThresholds: p.VerificationThresholds, BatchVerification: p.BatchVerification,
@@ -207,7 +214,7 @@ func profileStateFromProjection(proposer string, p shared.ModelProfileProjection
 
 func profileProjectionFromState(s types.ProfileState, model types.ModelState) shared.ModelProfileProjection {
 	return shared.ModelProfileProjection{
-		ModelId: s.ModelId, ProfileVersion: s.ProfileVersion, ManifestHash: s.ManifestHash,
+		ModelId: s.ModelId, ProfileVersion: s.ProfileVersion, ManifestHash: s.ManifestHash, ManifestUri: s.ManifestUri,
 		TokenizerHash: s.TokenizerHash, RuntimeClass: s.RuntimeClass, RequiredTopK: s.RequiredTopK,
 		TaskTypes: s.TaskTypes, GenerationType: s.GenerationType, ResourceTier: s.ResourceTier,
 		ChallengeOpenWindowBlocks: s.ChallengeOpenWindowBlocks, VerificationProfile: s.VerificationProfile,

@@ -24,7 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// ServiceBondState is the single operator-global service bond row, including the operator-global jail counters (wire storage model 6.4).
+// ServiceBondState is the single operator-global service bond row, including the operator-global jail counters.
 type ServiceBondState struct {
 	OperatorAddress            string            `protobuf:"bytes,1,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
 	ActiveBond                 uint64            `protobuf:"varint,2,opt,name=active_bond,json=activeBond,proto3" json:"active_bond,omitempty"`

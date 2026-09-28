@@ -71,6 +71,7 @@ func DefaultHubParams() HubParamsV2 {
 			MaxResolverVersionBytes:      64,
 			MaxRepoIdBytes:               255,
 			MaxRepoTypeBytes:             32,
+			MaxManifestUriBytes:          2048,
 		},
 		CandidatePool: CandidatePoolParamsV1{
 			CandidateSlotHardCapacity:                 4096,
@@ -312,7 +313,7 @@ func validateModelParams(p ModelParamsV1) error {
 	if p.MaxSupportedToolCallParsers == 0 || p.MaxSupportedReasoningParsers == 0 ||
 		p.MaxParserNameBytes == 0 || p.MaxProviderBytes == 0 || p.MaxSourceUriBytes == 0 ||
 		p.MaxRevisionBytes == 0 || p.MaxResolverVersionBytes == 0 || p.MaxRepoIdBytes == 0 ||
-		p.MaxRepoTypeBytes == 0 ||
+		p.MaxRepoTypeBytes == 0 || p.MaxManifestUriBytes == 0 ||
 		uint64(len(p.SupportedToolCallParsers)) > uint64(p.MaxSupportedToolCallParsers) ||
 		uint64(len(p.SupportedReasoningParsers)) > uint64(p.MaxSupportedReasoningParsers) {
 		return fmt.Errorf("model parameters are invalid")
@@ -674,7 +675,7 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.Uint32BE(p.Model.MaxParserNameBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxProviderBytes)),
 			hubParamsScalar(shared.Uint32BE(p.Model.MaxSourceUriBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxRevisionBytes)),
 			hubParamsScalar(shared.Uint32BE(p.Model.MaxResolverVersionBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxRepoIdBytes)),
-			hubParamsScalar(shared.Uint32BE(p.Model.MaxRepoTypeBytes)),
+			hubParamsScalar(shared.Uint32BE(p.Model.MaxRepoTypeBytes)), hubParamsScalar(shared.Uint32BE(p.Model.MaxManifestUriBytes)),
 		),
 	}
 }
@@ -709,7 +710,8 @@ func GenesisOnlyHubParamsChanged(current, next HubParamsV2) (GenesisOnlyHubParam
 		current.Model.MaxRevisionBytes != next.Model.MaxRevisionBytes ||
 		current.Model.MaxResolverVersionBytes != next.Model.MaxResolverVersionBytes ||
 		current.Model.MaxRepoIdBytes != next.Model.MaxRepoIdBytes ||
-		current.Model.MaxRepoTypeBytes != next.Model.MaxRepoTypeBytes:
+		current.Model.MaxRepoTypeBytes != next.Model.MaxRepoTypeBytes ||
+		current.Model.MaxManifestUriBytes != next.Model.MaxManifestUriBytes:
 		return GenesisOnlyHubParamsField{Name: "model.validation_limits"}, true
 	case current.CandidatePool.CandidateSlotHardCapacity != next.CandidatePool.CandidateSlotHardCapacity ||
 		current.CandidatePool.CandidateBitmapSegmentBytes != next.CandidatePool.CandidateBitmapSegmentBytes:

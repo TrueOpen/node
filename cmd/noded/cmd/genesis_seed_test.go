@@ -171,6 +171,14 @@ func TestApplyGenesisSeedBuildsRunnableStateAndIsIdempotent(t *testing.T) {
 	require.Equal(t, seededHub, reappliedHub)
 	require.Equal(t, seededBank, reappliedBank)
 	require.Equal(t, seededAuth, reappliedAuth)
+	require.Len(t, seededHub.Profiles, 1)
+	require.Equal(t, seed.Models[0].Profile.ManifestURI, seededHub.Profiles[0].ManifestUri)
+
+	// A seeded profile goes through the same manifest_uri syntax check as
+	// MsgRegisterModelProfile.
+	seed.Models[0].Profile.ManifestURI = "http://models.trueopen.example/m.json"
+	_, err = applyGenesisSeed(cdc, rawGenesis, seed)
+	require.ErrorContains(t, err, "manifest_uri")
 }
 
 func TestGenesisSeedLeavesUnlistedSectionsEmpty(t *testing.T) {
@@ -572,7 +580,8 @@ func newGenesisSeedTestModel(proposer string) genesisSeedModel {
 		Profile: genesisSeedProfile{
 			ChallengeOpenWindow: hubtypes.ProfileChallengeOpenWindowMinBlocks,
 			GenerationType:      "SAMPLED", ManifestHash: nonZeroHash,
-			MinStake: genesisSeedCoin{Amount: genesisSeedTestServiceBondMinInitial, Denom: hubtypes.DefaultBusinessDenom},
+			ManifestURI: "https://models.trueopen.example/manifests/golden-model/v1.json",
+			MinStake:    genesisSeedCoin{Amount: genesisSeedTestServiceBondMinInitial, Denom: hubtypes.DefaultBusinessDenom},
 			Source: shared.SourceRefV1{
 				Provider: "HUGGINGFACE", RepoId: "trueopen/golden-model", RepoType: "model",
 				ResolverVersion: "HF_RESOLVER_V1", Revision: "0123456789abcdef0123456789abcdef01234567",
