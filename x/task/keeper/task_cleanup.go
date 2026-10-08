@@ -504,6 +504,14 @@ func (k Keeper) cleanupResponsibilities(ctx context.Context, taskKey types.TaskK
 	if err := k.removeTaskDeadlineIndexes(ctx, taskKey, assignment); err != nil {
 		return taskCleanupStepResult{}, err
 	}
+	// Closed liability receipts are only kept so the task can be audited while
+	// it exists. Nothing else deletes them, so drop them here one row per step;
+	// leaving them behind would grow state forever once the task is compacted.
+	if deleted, err := k.hubKeeper.DeleteOneClosedTaskLiability(ctx, hex.EncodeToString(taskKey)); err != nil {
+		return taskCleanupStepResult{}, err
+	} else if deleted {
+		return taskCleanupStepResult{visited: 1, deleted: 1}, nil
+	}
 	advanceTaskCleanupPhase(cursor)
 	return taskCleanupStepResult{visited: 1}, nil
 }
