@@ -28,7 +28,6 @@ const (
 	DefaultObjectiveForgerySlashBps          = uint32(300)
 	DefaultMinTaskLiability                  = uint64(15_000)
 	DefaultOrderValueBucketBoundary          = uint64(1)
-	DefaultEVMChainID                        = uint64(31_337)
 	DefaultBusinessDenom                     = "uusdc"
 	MaxBeaconRetentionBlocks                 = uint64(31_536_000)
 	MaxBeaconCheckpointIntervalBlocks        = uint64(1_000_000)
@@ -193,7 +192,6 @@ func DefaultHubParams() HubParamsV2 {
 			MinFeePerGasDenominator: 1,
 			FeeBypassTypeUrls:       nil,
 			MaxBypassGasPerBlock:    10_000_000,
-			EvmChainId:              DefaultEVMChainID,
 		},
 		Bridge: BridgeParamsV1{
 			BridgeLimitHardMax:               AmountFromUint64(1_000_000_000_000),
@@ -404,9 +402,6 @@ func validatePhase0Params(p Phase0ParamsV1) error {
 	}
 	if p.FeePolicyVersion == 0 || p.MinFeePerGasDenominator == 0 || p.MaxBypassGasPerBlock == 0 {
 		return fmt.Errorf("Phase 0 fee policy is invalid")
-	}
-	if p.EvmChainId == 0 || p.EvmChainId > uint64(math.MaxInt64) {
-		return fmt.Errorf("evm_chain_id must be in 1..%d", int64(math.MaxInt64))
 	}
 	if !sort.StringsAreSorted(p.FeeBypassTypeUrls) {
 		return fmt.Errorf("fee_bypass_type_urls must be strictly sorted")
@@ -662,7 +657,6 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.BoolByte(p.Phase0.NativeTokenEnabled)), hubParamsAmount(p.Phase0.EpochBlockReward), hubParamsScalar(shared.Uint64BE(p.Phase0.FeePolicyVersion)),
 			hubParamsScalar(shared.Uint64BE(p.Phase0.MinFeePerGasNumerator)), hubParamsScalar(shared.Uint64BE(p.Phase0.MinFeePerGasDenominator)),
 			hubParamsRepeated(hubParamsStrings(p.Phase0.FeeBypassTypeUrls)), hubParamsScalar(shared.Uint64BE(p.Phase0.MaxBypassGasPerBlock)),
-			hubParamsScalar(shared.Uint64BE(p.Phase0.EvmChainId)),
 		),
 		hubParamsMessage(
 			hubParamsAmount(p.Bridge.BridgeLimitHardMax), hubParamsAmount(p.Bridge.InitialInboundLimitPerEpoch), hubParamsAmount(p.Bridge.InitialOutboundLimitPerEpoch),

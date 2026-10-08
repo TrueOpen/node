@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
 	"testing"
 
 	dcrsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -53,6 +54,7 @@ func TestVerifySignedOrderV2EIP712WithAccountOrAddress(t *testing.T) {
 	signature := append(append([]byte(nil), compact[1:]...), compact[0])
 	signedOrder := SignedOrderV2{
 		Order: order, SignatureScheme: SignatureSchemeEIP712, UserSignature: signature,
+		SignatureChainId: 424242,
 	}
 	accountKey := testEIP712AccountPublicKey{
 		typeName: EthSecp256k1PublicKeyType,
@@ -60,34 +62,54 @@ func TestVerifySignedOrderV2EIP712WithAccountOrAddress(t *testing.T) {
 	}
 	expectedAddress, err := canonicalTaskOrderEIP712User(order.UserAddress)
 	require.NoError(t, err)
-	require.NoError(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424242, "uusdc", signedOrder, taskHash[:], accountKey))
-	require.NoError(t, VerifySignedOrderV2EIP712WithAddress(424242, "uusdc", signedOrder, taskHash[:], expectedAddress))
+	require.NoError(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, taskHash[:], accountKey))
+	require.NoError(t, VerifySignedOrderV2EIP712WithAddress("uusdc", signedOrder, taskHash[:], expectedAddress))
 
 	t.Run("wrong task hash", func(t *testing.T) {
 		wrong := append([]byte(nil), taskHash[:]...)
 		wrong[0] ^= 1
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424242, "uusdc", signedOrder, wrong, accountKey), "task_hash")
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, wrong, accountKey), "task_hash")
 	})
-	t.Run("wrong domain chain", func(t *testing.T) {
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424243, "uusdc", signedOrder, taskHash[:], accountKey), "recovered signer")
+	t.Run("carried chain id differs from the signed one", func(t *testing.T) {
+		changed := signedOrder
+		changed.SignatureChainId = 424243
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "recovered signer")
+	})
+	t.Run("out of range chain id", func(t *testing.T) {
+		for _, id := range []uint64{0, uint64(math.MaxInt64) + 1} {
+			changed := signedOrder
+			changed.SignatureChainId = id
+			require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "signature_chain_id")
+		}
+	})
+	t.Run("wallet network chain id", func(t *testing.T) {
+		// A wallet signs under whatever network is active, so any in-range id
+		// the signer carried must verify.
+		walletDigest, err := BuildTaskOrderEIP712Digest(1, "uusdc", order, taskHash[:])
+		require.NoError(t, err)
+		walletCompact := dcrecdsa.SignCompact(privateKey, walletDigest.SigningDigest[:], false)
+		walletOrder := signedOrder
+		walletOrder.SignatureChainId = 1
+		walletOrder.UserSignature = append(append([]byte(nil), walletCompact[1:]...), walletCompact[0])
+		require.NoError(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", walletOrder, taskHash[:], accountKey))
 	})
 	t.Run("wrong business denom", func(t *testing.T) {
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424242, "utrueopen", signedOrder, taskHash[:], accountKey), "recovered signer")
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("utrueopen", signedOrder, taskHash[:], accountKey), "recovered signer")
 	})
 	t.Run("wrong scheme", func(t *testing.T) {
 		changed := signedOrder
 		changed.SignatureScheme = "secp256k1"
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424242, "uusdc", changed, taskHash[:], accountKey), "signature_scheme")
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "signature_scheme")
 	})
 	t.Run("wrong public key type", func(t *testing.T) {
 		changed := accountKey
 		changed.typeName = "secp256k1"
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey(424242, "uusdc", signedOrder, taskHash[:], changed), "public key type")
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, taskHash[:], changed), "public key type")
 	})
 	t.Run("wrong expected address", func(t *testing.T) {
 		wrong := append([]byte(nil), expectedAddress...)
 		wrong[0] ^= 1
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAddress(424242, "uusdc", signedOrder, taskHash[:], wrong), "expected user address")
+		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAddress("uusdc", signedOrder, taskHash[:], wrong), "expected user address")
 	})
 }
 

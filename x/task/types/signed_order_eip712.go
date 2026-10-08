@@ -54,14 +54,19 @@ type EIP712RecoveredSigner struct {
 // taskHash is explicit because the public EIP-712 conformance vector treats it
 // as an opaque bytes32. VerifySignedOrderV2EIP712* additionally recomputes it
 // from the complete TaskOrderV3 before accepting a signature.
+//
+// signatureChainID is the domain chainId the signer chose, not a chain
+// parameter: a browser wallet signs under its active network. Cross-chain
+// isolation comes from order.ChainId, which sits inside the signed message and
+// which the verifier takes from its own chain.
 func BuildTaskOrderEIP712Digest(
-	evmChainID uint64,
+	signatureChainID uint64,
 	businessDenom string,
 	order TaskOrderV3,
 	taskHash []byte,
 ) (TaskOrderEIP712Digest, error) {
-	if evmChainID == 0 || evmChainID > uint64(math.MaxInt64) {
-		return TaskOrderEIP712Digest{}, fmt.Errorf("evm_chain_id must be in 1..%d", int64(math.MaxInt64))
+	if signatureChainID == 0 || signatureChainID > uint64(math.MaxInt64) {
+		return TaskOrderEIP712Digest{}, fmt.Errorf("signature_chain_id must be in 1..%d", int64(math.MaxInt64))
 	}
 	if businessDenom == "" || businessDenom != strings.TrimSpace(businessDenom) || !utf8.ValidString(businessDenom) {
 		return TaskOrderEIP712Digest{}, fmt.Errorf("business_denom must be non-empty canonical UTF-8")
@@ -84,7 +89,7 @@ func BuildTaskOrderEIP712Digest(
 		domainTypeHash[:],
 		eip712StringWord(TaskOrderEIP712DomainName),
 		eip712StringWord(TaskOrderEIP712DomainVersion),
-		eip712Uint64Word(evmChainID),
+		eip712Uint64Word(signatureChainID),
 	)
 
 	messageTypeHash := eip712Keccak256([]byte(taskOrderEIP712MessageType))
@@ -134,7 +139,6 @@ func RecoverEIP712Signer(signingDigest, signature []byte) (EIP712RecoveredSigner
 // VerifySignedOrderV2EIP712WithAccountPublicKey verifies a SignedOrderV2
 // against the immutable public key already stored on the user's auth account.
 func VerifySignedOrderV2EIP712WithAccountPublicKey(
-	evmChainID uint64,
 	businessDenom string,
 	signedOrder SignedOrderV2,
 	taskHash []byte,
@@ -151,7 +155,7 @@ func VerifySignedOrderV2EIP712WithAccountPublicKey(
 		return fmt.Errorf("user account public key: %w", err)
 	}
 	return verifySignedOrderV2EIP712(
-		evmChainID, businessDenom, signedOrder, taskHash,
+		businessDenom, signedOrder, taskHash,
 		publicKey.SerializeCompressed(), nil,
 	)
 }
@@ -160,7 +164,6 @@ func VerifySignedOrderV2EIP712WithAccountPublicKey(
 // explicit raw 20-byte expected address. Handlers with an auth account should
 // prefer the public-key variant so both signer comparisons are enforced.
 func VerifySignedOrderV2EIP712WithAddress(
-	evmChainID uint64,
 	businessDenom string,
 	signedOrder SignedOrderV2,
 	taskHash, expectedAddress []byte,
@@ -169,13 +172,12 @@ func VerifySignedOrderV2EIP712WithAddress(
 		return fmt.Errorf("expected user address must be 20 bytes")
 	}
 	return verifySignedOrderV2EIP712(
-		evmChainID, businessDenom, signedOrder, taskHash,
+		businessDenom, signedOrder, taskHash,
 		nil, append([]byte(nil), expectedAddress...),
 	)
 }
 
 func verifySignedOrderV2EIP712(
-	evmChainID uint64,
 	businessDenom string,
 	signedOrder SignedOrderV2,
 	taskHash, expectedPublicKey, expectedAddress []byte,
@@ -190,7 +192,7 @@ func verifySignedOrderV2EIP712(
 	if len(taskHash) != Hash32Len || !bytes.Equal(recomputedTaskHash[:], taskHash) {
 		return fmt.Errorf("task_hash does not match TaskOrderV3")
 	}
-	digest, err := BuildTaskOrderEIP712Digest(evmChainID, businessDenom, signedOrder.Order, taskHash)
+	digest, err := BuildTaskOrderEIP712Digest(signedOrder.SignatureChainId, businessDenom, signedOrder.Order, taskHash)
 	if err != nil {
 		return err
 	}

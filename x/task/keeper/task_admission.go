@@ -84,7 +84,7 @@ func (k Keeper) admitSignedWorkerOrder(
 		return fmt.Errorf("signed order is outside its admission height range")
 	}
 	hubParams := k.hubKeeper.GetHubParams(sdkCtx)
-	if hubParams.EVMChainID == 0 || hubParams.BusinessDenom == "" || hubParams.AssignmentBuilderProposalWindowBlocks == 0 {
+	if hubParams.BusinessDenom == "" || hubParams.AssignmentBuilderProposalWindowBlocks == 0 {
 		return fmt.Errorf("Hub admission parameters are unavailable")
 	}
 	windowClose, overflow := checkedHeightAdd(order.EarliestSubmitHeight, hubParams.AssignmentBuilderProposalWindowBlocks)
@@ -112,7 +112,7 @@ func (k Keeper) admitSignedWorkerOrder(
 		return fmt.Errorf("user account public key is required before order admission")
 	}
 	if err := types.VerifySignedOrderV2EIP712WithAccountPublicKey(
-		hubParams.EVMChainID, hubParams.BusinessDenom, *scope.signed, scope.ref.TaskHash, account.GetPubKey(),
+		hubParams.BusinessDenom, *scope.signed, scope.ref.TaskHash, account.GetPubKey(),
 	); err != nil {
 		return fmt.Errorf("signed order authorization: %w", err)
 	}

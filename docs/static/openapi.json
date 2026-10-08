@@ -1486,11 +1486,6 @@
         "epoch_block_reward": {
           "$ref": "#/definitions/shared.v1.Amount"
         },
-        "evm_chain_id": {
-          "description": "Numeric EIP-712 chain ID. It is independent from the Cosmos chain-id.",
-          "format": "uint64",
-          "type": "string"
-        },
         "fee_bypass_type_urls": {
           "items": {
             "type": "string"
@@ -1581,6 +1576,7 @@
           "type": "string"
         },
         "min_stake": {
+          "description": "Amount only, in hub.v1 Params phase0.business_denom. Registration accepts\nModelProfileProjection.min_stake only as a Coin of that denomination and\nstores its amount here; a projection rebuilt from this row writes the\nCoin back with the current business_denom.",
           "format": "uint64",
           "type": "string"
         },
@@ -1620,6 +1616,7 @@
           "type": "string"
         },
         "registration_fee_paid": {
+          "description": "Amount only, in hub.v1 Params phase0.business_denom: the\nModelProfileProjection.registration_fee this registration paid. It equals\nParams treasury.model_profile_registration_fee for the first profile of a\nmodel and treasury.profile_version_update_fee for a later version.",
           "format": "uint64",
           "type": "string"
         },
@@ -3109,7 +3106,7 @@
       "type": "string"
     },
     "shared.v1.ParserRefV1": {
-      "description": "ParserRefV1 selects one governance-approved parser specification.\nThe zero value is the sole representation of an absent parser.",
+      "description": "ParserRefV1 selects one governance-approved parser specification.\nThe zero value is the sole representation of an absent parser. In the\ncanonical projection an absent parser is written as {} and a present one as\n{\"name\": ..., \"version\": ...}; see\ntestdata/v1/hub/model_registration_chain_v1.json.",
       "properties": {
         "name": {
           "type": "string"

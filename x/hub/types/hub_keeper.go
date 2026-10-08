@@ -43,7 +43,6 @@ type HubParamsSnapshot struct {
 	MaxQueryResponseBytes                 uint64
 	MaxEndblockVisitedItemsTotal          uint32
 	BusinessDenom                         string
-	EVMChainID                            uint64
 }
 
 type EndBlockBudgetSnapshot struct {

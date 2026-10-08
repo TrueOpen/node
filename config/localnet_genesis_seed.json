@@ -196,8 +196,7 @@
       "min_fee_per_gas_numerator": "1",
       "min_fee_per_gas_denominator": "1",
       "fee_bypass_type_urls": [],
-      "max_bypass_gas_per_block": "10000000",
-      "evm_chain_id": "31337"
+      "max_bypass_gas_per_block": "10000000"
     },
     "bridge": {
       "bridge_limit_hard_max": {
