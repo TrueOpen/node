@@ -62,6 +62,8 @@ func (app *App) wireBeaconHooks(logger log.Logger, nodeHome string, vrfKeyRequir
 	// PreBlocker chains to the module-manager's PreBlocker (upgrade module,
 	// etc.). The pre-existing PreBlocker on BaseApp is the one wired by
 	// runtime.App during depinject; we compose it with the beacon step.
+	// The inherited PreBlocker runs before the beacon write; see
+	// newBeaconPreBlocker for why.
 	inheritedPreBlocker := app.App.BaseApp.PreBlocker()
 	beaconPreBlocker := NewBeaconPreBlocker(app.HubKeeper, stakingLookup, verifier,
 		func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {

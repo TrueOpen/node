@@ -10,6 +10,7 @@ import (
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
+	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 
 	hlcorekeeper "github.com/bcp-innovations/hyperlane-cosmos/x/core/keeper"
 	hlwarpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
@@ -83,6 +84,7 @@ type App struct {
 	DistrKeeper    distrkeeper.Keeper
 	GovKeeper      *govkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
+	UpgradeKeeper  *upgradekeeper.Keeper
 
 	// simulation manager
 	sm                 *module.SimulationManager
@@ -188,6 +190,7 @@ func New(
 		&app.DistrKeeper,
 		&app.GovKeeper,
 		&app.SlashingKeeper,
+		&app.UpgradeKeeper,
 		&app.HubKeeper,
 		&app.TaskKeeper,
 		&bridgeCore,
@@ -228,6 +231,10 @@ func New(
 	// latest store is deferred until every wrapper is installed, because that
 	// operation seals BaseApp.
 	if err := app.Load(false); err != nil {
+		panic(err)
+	}
+
+	if err := app.registerUpgrades(app.plannedUpgrades()); err != nil {
 		panic(err)
 	}
 
@@ -332,8 +339,8 @@ var registerEthereumAccountEncodingOnSDKGlobalCodec = sync.OnceFunc(func() {
 })
 
 // EnsureLoadedStoreSchemas rejects Task stores that do not match the exact
-// schema supported by this binary. Hub uses a fresh-genesis-only contract and
-// intentionally has no migration/version compatibility state.
+// schema supported by this binary. Hub has no store-schema marker to check;
+// its layout changes are carried by module migrations instead.
 func (app *App) EnsureLoadedStoreSchemas() error {
 	// The chain-id is load-bearing, not decoration: cross-module invariants
 	// recompute frozen commitments whose preimage covers it (Builder duty

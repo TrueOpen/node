@@ -12,7 +12,10 @@ import (
 	slashingmodulev1 "cosmossdk.io/api/cosmos/slashing/module/v1"
 	stakingmodulev1 "cosmossdk.io/api/cosmos/staking/module/v1"
 	txconfigv1 "cosmossdk.io/api/cosmos/tx/config/v1"
+	upgrademodulev1 "cosmossdk.io/api/cosmos/upgrade/module/v1"
 	"cosmossdk.io/depinject/appconfig"
+	_ "cosmossdk.io/x/upgrade" // import for side-effects
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	_ "github.com/TrueOpen/node/x/hub/module"
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
 	_ "github.com/TrueOpen/node/x/task/module"
@@ -137,8 +140,11 @@ var (
 				Name: runtime.ModuleName,
 				Config: appconfig.WrapAny(&runtimev1alpha1.Module{
 					AppName: Name,
-					// NOTE: upgrade module is required to be prioritized
+					// The upgrade module must run first: at an upgrade height it halts
+					// the old binary or runs the migrations before any other module
+					// touches state.
 					PreBlockers: []string{
+						upgradetypes.ModuleName,
 						authtypes.ModuleName,
 					},
 					// During begin block slashing happens after distr.BeginBlocker so that
@@ -161,6 +167,9 @@ var (
 					// properly initialized with tokens from genesis accounts.
 					// NOTE: The genutils module must also occur after auth so that it can access the params from auth.
 					InitGenesis: []string{
+						// x/upgrade has no genesis state; it is listed because the
+						// module manager requires every module to be ordered.
+						upgradetypes.ModuleName,
 						consensustypes.ModuleName,
 						authtypes.ModuleName,
 						banktypes.ModuleName,
@@ -212,6 +221,12 @@ var (
 			{
 				Name:   govtypes.ModuleName,
 				Config: appconfig.WrapAny(&govmodulev1.Module{}),
+			},
+			{
+				// Authority defaults to the x/gov module account, so only a passed
+				// governance proposal can schedule or cancel an upgrade.
+				Name:   upgradetypes.ModuleName,
+				Config: appconfig.WrapAny(&upgrademodulev1.Module{}),
 			},
 			{
 				Name:   "tx",

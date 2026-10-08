@@ -57,13 +57,24 @@ func newBeaconPreBlocker(
 	innerPreBlocker sdk.PreBlocker,
 ) sdk.PreBlocker {
 	return func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+		// The inner pre-blocker runs first because it includes the upgrade
+		// module: at an upgrade height it halts the old binary or runs the
+		// store migrations, and the beacon write must land on the migrated
+		// state rather than on the previous layout.
+		response := &sdk.ResponsePreBlock{}
+		if innerPreBlocker != nil {
+			inner, err := innerPreBlocker(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			if inner != nil {
+				response = inner
+			}
+		}
 		if err := writeVerifiedBeacon(ctx, keeper, staking, verifier, req); err != nil {
 			return nil, err
 		}
-		if innerPreBlocker != nil {
-			return innerPreBlocker(ctx, req)
-		}
-		return &sdk.ResponsePreBlock{}, nil
+		return response, nil
 	}
 }
 

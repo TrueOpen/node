@@ -33,10 +33,6 @@ func TestRegisterInvariantsExposesEveryKeeperCheck(t *testing.T) {
 	require.Len(t, registry.routes, len((keeper.Keeper{}).InvariantChecks()))
 }
 
-func TestConsensusVersionRequiresFreshV5Store(t *testing.T) {
-	require.Equal(t, uint64(2), (AppModule{}).ConsensusVersion())
-}
-
 func TestRegisterLegacyAminoCodecUsesFrozenModelLifecycleNames(t *testing.T) {
 	cdc := codec.NewLegacyAmino()
 	(AppModule{}).RegisterLegacyAminoCodec(cdc)

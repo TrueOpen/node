@@ -79,6 +79,9 @@ func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	}
 	types.RegisterMsgServer(registrar, keeper.NewMsgServerImpl(am.keeper, am.msgServerDeps))
 	types.RegisterQueryServer(registrar, keeper.NewQueryServerImpl(am.keeper))
+	if cfg, ok := registrar.(migrationRegistrar); ok {
+		return registerMigrations(cfg, migrations(am.keeper))
+	}
 	return nil
 }
 

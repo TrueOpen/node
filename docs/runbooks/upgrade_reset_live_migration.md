@@ -157,6 +157,33 @@ Past the downgrade window there is no rollback: the rest of the network has
 already forked onto the new chain, and the only way out is a forward fix through
 the emergency path.
 
+## Adding an upgrade
+
+The upgrade module is wired from genesis: it runs first in the pre-blockers,
+its authority is the x/gov module account, and its store key is created with
+the chain. A state-breaking change ships in one binary release as follows:
+
+1. Bump `ConsensusVersion` of every module whose state layout or rules change,
+   and add the matching entry to `migrations()` in that module's
+   `module/migrations.go`. The entry keyed `N` moves state from version `N` to
+   `N+1`. A unit test fails if the registered set does not cover exactly the
+   range from the genesis version to the current version.
+2. Add an `upgrade` entry to `plannedUpgrades()` in `app/upgrades.go`. Its name
+   is the plan name governance proposes. Use `storeUpgrades` only when a new
+   store key is added, renamed or deleted; a new key prefix inside an existing
+   module store needs no entry. Use `afterMigrations` for work that is not a
+   per-module migration, such as writing the default of a parameter added by
+   the upgrade.
+3. Rehearse on a local chain before proposing: the old binary must halt at the
+   plan height, the new binary must apply the upgrade, and in-flight tasks must
+   settle by their original deadlines.
+
+The upgrade pre-blocker runs before the beacon is written, so migrations always
+see the previous layout and the beacon write sees the migrated one.
+
+The upgrade module refuses a handler that is registered before the plan height,
+so a binary containing a handler must not be started ahead of the halt.
+
 ## Live migration
 
 For a mainnet incident — misdirected funds, a consensus fork, a payload
@@ -241,7 +268,10 @@ After any path:
 - `InitGenesis` rebuilds derived indexes and refcounts and runs the cross-module
   invariants in both directions.
 - Export writes the chain id; continuation resumes at export height plus one.
-- The store schema is a fresh V1 at version 1; no older debug data is migrated.
+- The store schema is a fresh V1 at genesis; no older debug data is migrated.
+- The upgrade module is wired from genesis, with x/gov as its authority; Hub and
+  Task register migrations through their `ConsensusVersion`, and the registry
+  is empty until the first post-genesis change.
 - Module account balances, settlement and finality state, rewards, beacon state
   and cleanup state all have export, init and restart coverage.
 - Any future schema bump must ship an explicit migration handler or an explicit

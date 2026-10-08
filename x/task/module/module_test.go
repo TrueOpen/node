@@ -40,10 +40,6 @@ func TestRegisterInvariantsExposesEveryKeeperCheck(t *testing.T) {
 	require.Len(t, registry.routes, len((keeper.Keeper{}).InvariantChecks()))
 }
 
-func TestConsensusVersionRequiresFreshV4Store(t *testing.T) {
-	require.Equal(t, uint64(3), (AppModule{}).ConsensusVersion())
-}
-
 func (r *recordingServiceRegistrar) RegisterService(desc *grpc.ServiceDesc, _ interface{}) {
 	if r.services == nil {
 		r.services = make(map[string]*grpc.ServiceDesc)

@@ -212,3 +212,38 @@ func TestPreBlockerBubblesUpKeeperPersistError(t *testing.T) {
 	})
 	require.Error(t, err, "keeper persist failure must surface as PreBlocker error")
 }
+
+// The inner pre-blocker carries the upgrade module, which may migrate state at
+// an upgrade height; the beacon must be written after it, never before.
+func TestPreBlockerRunsInnerBeforeBeaconWrite(t *testing.T) {
+	keeper := &persistingKeeper{realCryptoKeeper: realCryptoKeeper{input: []byte("x"), required: false}}
+	var placeholderSeenByInner bool
+	inner := func(_ sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+		placeholderSeenByInner = keeper.placeholderPersisted != nil
+		return &sdk.ResponsePreBlock{ConsensusParamsChanged: true}, nil
+	}
+	handler := newBeaconPreBlocker(keeper, &fakeOperatorLookup{operator: proposalTestOperator}, nodeante.NewVRFVerifier(), inner)
+
+	response, err := handler(preBlockerCtx(), &abci.RequestFinalizeBlock{
+		Height: 42, Txs: [][]byte{[]byte("business-tx-only")},
+	})
+	require.NoError(t, err)
+	require.False(t, placeholderSeenByInner, "beacon must not be written before the inner pre-blocker")
+	require.NotNil(t, keeper.placeholderPersisted)
+	require.True(t, response.ConsensusParamsChanged, "inner response must be returned")
+}
+
+func TestPreBlockerInnerFailureSkipsBeaconWrite(t *testing.T) {
+	keeper := &persistingKeeper{realCryptoKeeper: realCryptoKeeper{input: []byte("x"), required: false}}
+	innerErr := errors.New("upgrade handler failed")
+	inner := func(_ sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+		return nil, innerErr
+	}
+	handler := newBeaconPreBlocker(keeper, &fakeOperatorLookup{operator: proposalTestOperator}, nodeante.NewVRFVerifier(), inner)
+
+	_, err := handler(preBlockerCtx(), &abci.RequestFinalizeBlock{
+		Height: 42, Txs: [][]byte{[]byte("business-tx-only")},
+	})
+	require.ErrorIs(t, err, innerErr)
+	require.Nil(t, keeper.placeholderPersisted)
+}
