@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"context"
+	"encoding/hex"
 	"testing"
 
 	"cosmossdk.io/collections"
@@ -185,4 +187,52 @@ func TestTaskTerminalSummaryHashCommitsEveryField(t *testing.T) {
 	changed, err := f.keeper.taskTerminalSummaryHash(f.ctx, state)
 	require.NoError(t, err)
 	require.NotEqual(t, base, changed)
+}
+
+// closedReceiptHubStub reports a fixed number of closed liability receipts and
+// counts how many cleanup deleted.
+type closedReceiptHubStub struct {
+	internalStubHubKeeper
+	remaining int
+	deletedID []string
+}
+
+func (s *closedReceiptHubStub) DeleteOneClosedTaskLiability(_ context.Context, taskID string) (bool, error) {
+	if s.remaining == 0 {
+		return false, nil
+	}
+	s.remaining--
+	s.deletedID = append(s.deletedID, taskID)
+	return true, nil
+}
+
+func TestTaskCleanupResponsibilitiesDeletesClosedLiabilityReceipts(t *testing.T) {
+	hub := &closedReceiptHubStub{remaining: 2}
+	f := initInternalFixtureWithHub(t, hub)
+	taskID := bytes32(0x71)
+	taskKey := types.NewTaskKey(taskID)
+	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{TaskId: taskID}))
+	require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
+		TaskId: taskID, CandidatePoolRefReleased: true,
+	}))
+	require.NoError(t, f.keeper.StoreTaskBuilderSelection(f.ctx, taskKey, types.TaskBuilderSelectionState{
+		TaskId: taskID, BuilderSetRefReleased: true,
+		BodyStatus: shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED,
+	}))
+	cursor := types.TaskCleanupCursorState{
+		TaskId: taskID, Phase: types.TaskCleanupPhase_TASK_CLEANUP_PHASE_ACTIVE_INDEXES_AND_LIABILITIES,
+	}
+
+	// One receipt per step; the phase must not advance while receipts remain.
+	for i := 0; i < 2; i++ {
+		step, err := f.keeper.cleanupResponsibilities(f.ctx, taskKey, &cursor)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), step.deleted)
+		require.Equal(t, types.TaskCleanupPhase_TASK_CLEANUP_PHASE_ACTIVE_INDEXES_AND_LIABILITIES, cursor.Phase)
+	}
+	step, err := f.keeper.cleanupResponsibilities(f.ctx, taskKey, &cursor)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), step.deleted)
+	require.NotEqual(t, types.TaskCleanupPhase_TASK_CLEANUP_PHASE_ACTIVE_INDEXES_AND_LIABILITIES, cursor.Phase)
+	require.Equal(t, []string{hex.EncodeToString(taskID), hex.EncodeToString(taskID)}, hub.deletedID)
 }
