@@ -406,4 +406,28 @@ func TestCrossModuleReferencesRejectOrphanSettlementAndLiability(t *testing.T) {
 		))
 		require.ErrorContains(t, application.EnsureCrossModuleReferences(ctx), "references missing task")
 	})
+
+	// A closed receipt outlives its task: cleanup compacts the task, the terminal
+	// summary is pruned later, and nothing deletes the receipt. A node restarted
+	// after that must still load.
+	for _, status := range []hubtypes.LiabilityStatus{
+		hubtypes.TaskLiabilityStatusReleased, hubtypes.TaskLiabilityStatusSlashed,
+	} {
+		t.Run("closed receipt without a task is accepted/"+status.String(), func(t *testing.T) {
+			application := bootAppMinimal(t)
+			ctx := application.NewContextLegacy(true, cmtproto.Header{Height: application.LastBlockHeight() + 1})
+			taskID := bytes.Repeat([]byte{0x43}, 32)
+			operator := sdk.AccAddress(bytes.Repeat([]byte{0x44}, 20)).String()
+			require.NoError(t, application.HubKeeper.WriteTaskLiabilityValue(ctx,
+				hubtypes.NewTaskLiabilityReservationKey(taskID, shared.DutyWorker, operator),
+				hubtypes.TaskLiabilityReservationState{
+					SchemaVersion: 1, TaskId: taskID, OperatorAddress: operator, Duty: shared.DutyWorker,
+					BondVersion: 1, CapabilityVersion: 1, ReservedAmount: 1,
+					Status:                  status,
+					CandidatePoolSnapshotId: bytes.Repeat([]byte{0x45}, 32), SlotVersion: 1,
+				},
+			))
+			require.NoError(t, application.EnsureCrossModuleReferences(ctx))
+		})
+	}
 }

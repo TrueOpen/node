@@ -756,10 +756,19 @@ func (app *App) ensureTaskLiabilityReferences(ctx context.Context) error {
 			if !errors.Is(coreErr, collections.ErrNotFound) {
 				return coreErr
 			}
-			if _, summaryErr := app.TaskKeeper.ReadTaskTerminalSummary(ctx, taskKey); summaryErr != nil {
-				return fmt.Errorf("task liability %s/%s references missing task", taskHex, liability.OperatorAddress)
+			_, summaryErr := app.TaskKeeper.ReadTaskTerminalSummary(ctx, taskKey)
+			if summaryErr == nil {
+				continue
 			}
-			continue
+			// A RELEASED or SLASHED row is only a retained receipt. Task cleanup
+			// compacts the task and the terminal summary is later pruned, while nothing
+			// deletes these receipts, so a long-running chain legitimately holds closed
+			// rows whose task is gone. Only a row that still reserves liability must
+			// have a task behind it.
+			if liability.Status != hubtypes.TaskLiabilityStatusReserved && errors.Is(summaryErr, collections.ErrNotFound) {
+				continue
+			}
+			return fmt.Errorf("task liability %s/%s references missing task", taskHex, liability.OperatorAddress)
 		}
 		if !bytes.Equal(core.TaskId, liability.TaskId) {
 			return fmt.Errorf("task liability %s primary scope mismatch", taskHex)
