@@ -381,7 +381,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// reward audit). Four hours puts those at five days, which outlives a
 	// debugging session; an hour would put them at thirty.
 	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
-	require.Equal(t, uint64(5), hubParams.Epoch.DeltaWBlocks)
+	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
 	require.Equal(t, uint64(5), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
 	require.Equal(t, uint64(5), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	// Freshness is epoch-based now; daily_support_window_blocks is gone.

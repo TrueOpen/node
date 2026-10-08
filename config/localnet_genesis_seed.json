@@ -64,7 +64,7 @@
     },
     "epoch": {
       "epoch_length_blocks": "14400",
-      "delta_w_blocks": "5",
+      "delta_w_blocks": "1",
       "delta_m_blocks": "100"
     },
     "freeze": {
