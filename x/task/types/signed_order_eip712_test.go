@@ -180,3 +180,34 @@ func subtractBigEndian(output, left, right []byte) {
 		output[index] = byte(value)
 	}
 }
+
+// TestTaskOrderWalletNetworkVector replays the published wire case
+// task_order_wallet_network_signature_chain_id: the same order signed under
+// domain chainId 1 recovers the account address from the digest built with
+// chainId 1, and the identical signature recovers someone else under any other
+// chainId. The vector's task hash is an opaque bytes32, so this checks the
+// digest and signer recovery rather than the full order verification.
+func TestTaskOrderWalletNetworkVector(t *testing.T) {
+	const (
+		walletSigningDigest = "b9d13496bda748365bb8f173bb6d33d45737e7a45a68b3f6336ca84043d0cc54"
+		walletSignature     = "86995a5ba6c5bfdaa5b99def5761f9d0adf6ea19d5c49669f4fd1736004e9f0e4630e482885790cc528f9df3ac37bac68b1d90bba3739aa6082a656c1a5e31131b"
+		walletRecovered     = "1a642f0e3c3af545e7acbd38b07251b3990914f1"
+	)
+	order := accountSigningVectorOrder(t)
+	taskHash := mustDecodeEIP712Hex(t, accountSigningVectorTaskHash)
+	signature := mustDecodeEIP712Hex(t, walletSignature)
+
+	digest, err := BuildTaskOrderEIP712Digest(1, "uusdc", order, taskHash)
+	require.NoError(t, err)
+	require.Equal(t, walletSigningDigest, hex.EncodeToString(digest.SigningDigest[:]))
+	recovered, err := RecoverEIP712Signer(digest.SigningDigest[:], signature)
+	require.NoError(t, err)
+	require.Equal(t, walletRecovered, hex.EncodeToString(recovered.Address))
+
+	other, err := BuildTaskOrderEIP712Digest(424242, "uusdc", order, taskHash)
+	require.NoError(t, err)
+	otherRecovered, err := RecoverEIP712Signer(other.SigningDigest[:], signature)
+	if err == nil {
+		require.NotEqual(t, walletRecovered, hex.EncodeToString(otherRecovered.Address))
+	}
+}
