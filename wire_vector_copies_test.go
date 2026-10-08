@@ -64,7 +64,9 @@ func TestWireVectorCopiesAreReleaseBytes(t *testing.T) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".json") || path.Base(filepath.Dir(p)) != "testdata" {
+		// path.Base only understands "/", so normalise first: on Windows
+		// filepath.Dir returns backslashes and every fixture would be skipped.
+		if !strings.HasSuffix(p, ".json") || path.Base(filepath.ToSlash(filepath.Dir(p))) != "testdata" {
 			return nil
 		}
 		slashed := filepath.ToSlash(p)
