@@ -37,6 +37,13 @@ const (
 	genesisSeedVersion       = uint64(1)
 	defaultGenesisSeedHeight = uint64(1)
 	defaultSupportUntilEpoch = uint64(10_000)
+
+	// seededSignedBlocksWindow is how many recent blocks the downtime check looks at.
+	// The SDK default of 100 was sized for blocks several seconds apart; at about
+	// 1.2 to 1.4 seconds a validator that is down for little more than a minute
+	// misses half of them and is jailed, so a routine restart or a short network
+	// drop would jail it. 5000 blocks keeps the tolerance at roughly fifty minutes.
+	seededSignedBlocksWindow = int64(5000)
 	defaultBuilderSetID      = "genesis-1"
 )
 
@@ -806,6 +813,7 @@ func applySDKGenesisParams(cdc codec.Codec, appState map[string]json.RawMessage,
 	if err := cdc.UnmarshalJSON(appState[slashingtypes.ModuleName], &slashing); err != nil {
 		return fmt.Errorf("decode slashing genesis: %w", err)
 	}
+	slashing.Params.SignedBlocksWindow = seededSignedBlocksWindow
 	slashing.Params.SlashFractionDoubleSign = sdkmath.LegacyZeroDec()
 	slashing.Params.SlashFractionDowntime = sdkmath.LegacyZeroDec()
 	if err := slashingtypes.ValidateGenesis(slashing); err != nil {

@@ -154,6 +154,7 @@ func TestApplyGenesisSeedBuildsRunnableStateAndIsIdempotent(t *testing.T) {
 	require.True(t, seededGov.Params.BurnVoteVeto)
 	require.True(t, seededSlashing.Params.SlashFractionDoubleSign.IsZero())
 	require.True(t, seededSlashing.Params.SlashFractionDowntime.IsZero())
+	require.Equal(t, int64(5000), seededSlashing.Params.SignedBlocksWindow)
 	assertGenesisSeedState(
 		t, seededHub, seededBank, seededAuth, builders[0].address,
 		cortexOperators[0].address, expectedAddresses, accountBalance,
@@ -382,8 +383,8 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// debugging session; an hour would put them at thirty.
 	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
 	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
-	require.Equal(t, uint64(5), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
-	require.Equal(t, uint64(5), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
+	require.Equal(t, uint64(4), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
+	require.Equal(t, uint64(4), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	// Freshness is epoch-based now; daily_support_window_blocks is gone.
 	//
 	// A rolling epoch also switches support expiry on, and support_fresh_until is
@@ -475,12 +476,12 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// without that assertion a bad horizon here would only surface as a panic
 	// inside the lifecycle integration tests. These windows are the debug chain's
 	// only; DefaultTaskParams is untouched.
-	require.Equal(t, uint64(300), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(3000), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
 	require.Equal(t, uint64(100000), taskParams.Deadlines.CommitWindowBlocks)
 	require.Equal(t, uint64(100000), taskParams.Deadlines.RevealWindowBlocks)
 	require.Equal(t, uint64(200200), taskParams.Deadlines.CollectionWindowBlocks)
 	require.Equal(t, uint64(20), taskParams.Deadlines.SettleMarginBlocks)
-	require.Equal(t, uint64(30), taskParams.Deadlines.SelfRescueMarginBlocks)
+	require.Equal(t, uint64(15), taskParams.Deadlines.SelfRescueMarginBlocks)
 	require.NoError(t, tasktypes.ValidateVerifyOpenClock(
 		taskParams.Deadlines,
 		hubParams.Epoch.DeltaWBlocks,
