@@ -89,7 +89,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, receipt.TaskId, worker, req.SubmitterAddress); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSignature, err.Error())
 	}
-	params, err := m.k.Params.Get(ctx)
+	params, err := m.k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return nil, err
 	}

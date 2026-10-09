@@ -113,6 +113,14 @@ var (
 	ParamsKey     = collections.NewPrefix("p_task")
 	ParamsMetaKey = MustVersionedStorePrefix("params_meta", CurrentStoreSchemaVersion)
 
+	// Params versioning. A governance update only takes effect for work that starts
+	// after it, so every Task and Session remembers the params version it was
+	// created under and reads its values from the history instead of the live row.
+	ParamsHistoryKey        = MustVersionedStorePrefix("params_history", CurrentStoreSchemaVersion)
+	LegacyParamsVersionKey  = MustVersionedStorePrefix("legacy_params_version", CurrentStoreSchemaVersion)
+	TaskParamsVersionKey    = MustVersionedStorePrefix("task_params_version", CurrentStoreSchemaVersion)
+	SessionParamsVersionKey = MustVersionedStorePrefix("session_params_version", CurrentStoreSchemaVersion)
+
 	// ---- Session / Order ----
 	SessionNonceKey                     = MustVersionedStorePrefix("session_nonce", CurrentStoreSchemaVersion)
 	StreamStateKey                      = MustVersionedStorePrefix("stream_state", CurrentStoreSchemaVersion)

@@ -25,7 +25,7 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 		}
 		return err
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return err
 	}

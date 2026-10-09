@@ -283,6 +283,9 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err := k.TaskCore.Set(ctx, taskKey, core); err != nil {
 		return err
 	}
+	if err := k.PinTaskParams(ctx, taskKey); err != nil {
+		return err
+	}
 	if err := k.WriteTaskAssignment(ctx, taskKey, assignment); err != nil {
 		return err
 	}

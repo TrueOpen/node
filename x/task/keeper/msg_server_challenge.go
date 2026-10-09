@@ -72,7 +72,7 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 	if err != nil || budget.BudgetStatus != types.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task budget is not reserved")
 	}
-	params, err := m.k.Params.Get(ctx)
+	params, err := m.k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return nil, err
 	}

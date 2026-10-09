@@ -42,6 +42,15 @@ type Keeper struct {
 	Params     collections.Item[types.TaskParamsV1]
 	ParamsMeta collections.Item[types.TaskParamsMetaState]
 
+	// Params versioning (see params_versions.go). ParamsHistory keeps the params of
+	// every version that a later update replaced, LegacyParamsVersion names the
+	// version that Tasks and Sessions created before versioning existed run under,
+	// and the two pointer maps record the version each live row was created under.
+	ParamsHistory        collections.Map[uint64, types.TaskParamsV1]
+	LegacyParamsVersion  collections.Item[uint64]
+	TaskParamsVersion    collections.Map[types.TaskKey, uint64]
+	SessionParamsVersion collections.Map[types.SessionKey, uint64]
+
 	// ---- Session / Order ----
 	//
 	// Model A: a session never holds funds. SessionEscrow is deleted; TaskBudget is
@@ -214,6 +223,11 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 
 		Params:     collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.TaskParamsV1](cdc)),
 		ParamsMeta: collections.NewItem(sb, types.ParamsMetaKey, "params_meta", codec.CollValue[types.TaskParamsMetaState](cdc)),
+
+		ParamsHistory:        collections.NewMap(sb, types.ParamsHistoryKey, "params_history", collections.Uint64Key, codec.CollValue[types.TaskParamsV1](cdc)),
+		LegacyParamsVersion:  collections.NewItem(sb, types.LegacyParamsVersionKey, "legacy_params_version", collections.Uint64Value),
+		TaskParamsVersion:    collections.NewMap(sb, types.TaskParamsVersionKey, "task_params_version", types.Hash32KeyCodec, collections.Uint64Value),
+		SessionParamsVersion: collections.NewMap(sb, types.SessionParamsVersionKey, "session_params_version", types.Hash32KeyCodec, collections.Uint64Value),
 
 		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", types.AddrKeyCodec, codec.CollValue[internaltypes.SessionNonceStoreState](cdc)),
 		Stream:                           collections.NewMap(sb, types.StreamStateKey, "stream_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.StreamStoreState](cdc)),

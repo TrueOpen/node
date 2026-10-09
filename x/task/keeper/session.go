@@ -155,7 +155,7 @@ func (k Keeper) refreshSessionLifecycleIndex(ctx context.Context, stream types.S
 	if stream.OpenPendingCount != 0 || stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
 		return nil
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (k Keeper) refreshSessionLifecycleIndex(ctx context.Context, stream types.S
 // stored last_active_height. Both actions are attempted because a reactivation
 // may cross the ACTIVE/IDLE boundary.
 func (k Keeper) removeSessionLifecycleIndexes(ctx context.Context, sessionKey types.SessionKey, lastActiveHeight uint64) error {
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return err
 	}

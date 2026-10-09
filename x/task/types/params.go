@@ -632,36 +632,21 @@ func GenesisOnlyTaskParamsChanged(current, next TaskParamsV1) (string, bool) {
 	}
 }
 
-// RuntimeImmutableTaskParamsChanged rejects live changes whose values are not
-// frozen into every affected Task or Session row yet.
+// RuntimeImmutableTaskParamsChanged rejects live changes of the values that one
+// running process consumes across many blocks and that therefore cannot be frozen
+// per Task or Session. Everything else a Task or Session reads is frozen when it
+// is created (ParamsForTask, ParamsForSession), so a change only takes effect for
+// work that starts after it.
+//
+// The EpochTaskSummary budgets are the exception: a summary accumulates over
+// several blocks, and lowering a budget below what the summary already holds would
+// leave it unfinishable.
 func RuntimeImmutableTaskParamsChanged(current, next TaskParamsV1) (string, bool) {
-	currentSession := current.Session
-	nextSession := next.Session
-	currentSession.AnchorFreshnessWindowBlocks = 0
-	nextSession.AnchorFreshnessWindowBlocks = 0
-	currentEvidence := current.Evidence
-	nextEvidence := next.Evidence
-	currentEvidence.MaxOutputMmrLeaves = 0
-	currentEvidence.MinOutputStreamFrameBytes = 0
-	currentEvidence.MaxWorkerEvidenceBytesV1 = 0
-	nextEvidence.MaxOutputMmrLeaves = 0
-	nextEvidence.MinOutputStreamFrameBytes = 0
-	nextEvidence.MaxWorkerEvidenceBytesV1 = 0
 	switch {
-	case !currentSession.Equal(nextSession):
-		return "session", true
-	case !current.Deadlines.Equal(next.Deadlines):
-		return "deadlines", true
-	case !current.Proposals.Equal(next.Proposals):
-		return "proposals", true
-	case !current.Weights.Equal(next.Weights):
-		return "weights", true
-	case !current.Verification.Equal(next.Verification):
-		return "verification", true
-	case !currentEvidence.Equal(nextEvidence):
-		return "evidence", true
-	case !current.Cleanup.Equal(next.Cleanup):
-		return "cleanup", true
+	case current.Cleanup.MaxEpochTaskSummarySupportCandidates != next.Cleanup.MaxEpochTaskSummarySupportCandidates:
+		return "cleanup.max_epoch_task_summary_support_candidates", true
+	case current.Cleanup.MaxEpochTaskSummaryBytes != next.Cleanup.MaxEpochTaskSummaryBytes:
+		return "cleanup.max_epoch_task_summary_bytes", true
 	default:
 		return "", false
 	}

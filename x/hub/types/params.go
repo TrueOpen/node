@@ -716,6 +716,8 @@ func GenesisOnlyHubParamsChanged(current, next HubParamsV2) (GenesisOnlyHubParam
 	case !reflect.DeepEqual(current.Reward.OrderValueBucketBoundaries, next.Reward.OrderValueBucketBoundaries) ||
 		current.Reward.RewardAuditRetentionEpochs != next.Reward.RewardAuditRetentionEpochs:
 		return GenesisOnlyHubParamsField{Name: "reward.geometry_or_retention"}, true
+	case current.Builder.BuilderFaultRetentionBlocks != next.Builder.BuilderFaultRetentionBlocks:
+		return GenesisOnlyHubParamsField{Name: "builder.fault_retention"}, true
 	case !current.Price.Equal(next.Price):
 		return GenesisOnlyHubParamsField{Name: "price"}, true
 	case current.Beacon.BeaconCheckpointIntervalBlocks != next.Beacon.BeaconCheckpointIntervalBlocks ||

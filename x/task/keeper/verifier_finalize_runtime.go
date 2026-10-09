@@ -341,7 +341,7 @@ func (k Keeper) finalizeVerifierLegalSetAtHeight(
 		!bytes.Equal(union.CandidatePoolHash, window.CandidatePoolHash) {
 		return false, 0, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "verifier legal-set scope is inconsistent")
 	}
-	params, err := k.Params.Get(cache)
+	params, err := k.ParamsForTask(cache, taskKey)
 	if err != nil {
 		return false, 0, rowBytes, err
 	}

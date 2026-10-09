@@ -204,7 +204,7 @@ func (k Keeper) startRevealPhase(
 
 	var revealDeadline uint64
 	if assignment.VerifyRound == types.VerifyRoundV1 {
-		params, err := k.Params.Get(ctx)
+		params, err := k.ParamsForTask(ctx, taskKey)
 		if err != nil {
 			return false, err
 		}

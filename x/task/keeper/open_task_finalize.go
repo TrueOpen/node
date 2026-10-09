@@ -26,7 +26,7 @@ func (k Keeper) finalizeOpenTaskCandidateUnion(ctx context.Context, taskKey type
 		union.UnionCount == 0 || finalizeHeight < union.WindowCloseHeight || len(union.UnionBitmapHash) != types.Hash32Len {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "worker union is not ready to finalize")
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return err
 	}

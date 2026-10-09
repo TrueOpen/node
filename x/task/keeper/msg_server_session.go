@@ -94,6 +94,10 @@ func (m *msgServer) UpdateTaskParams(ctx context.Context, req *types.MsgUpdateTa
 	}
 	cacheCtx, commit := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
+	// Rows created under the version being replaced keep reading it from the history.
+	if err := m.k.archiveParamsForUpdate(cache, meta.ParamsVersion, current); err != nil {
+		return nil, err
+	}
 	if err := m.k.Params.Set(cache, req.Params); err != nil {
 		return nil, err
 	}
@@ -182,6 +186,11 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 		LastActiveHeight: height,
 		Status:           types.SessionStatus_SESSION_STATUS_ACTIVE,
 	}
+	// Pinned before the first lifecycle index row is written: that row's key is
+	// computed from this session's own TTLs.
+	if err := m.k.PinSessionParams(ctx, sessionKey); err != nil {
+		return nil, err
+	}
 	if err := m.k.setStreamState(ctx, stream); err != nil {
 		return nil, err
 	}
@@ -239,7 +248,7 @@ func (m *msgServer) cancelOrder(ctx context.Context, req *types.MsgCancelOrder) 
 	if stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
 		return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "closed session cannot cancel an order")
 	}
-	params, err := m.k.Params.Get(ctx)
+	params, err := m.k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return nil, err
 	}

@@ -270,8 +270,9 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 		// EVIDENCE_CLEANUP hits the EvidenceCleanupIndex and shares the same
 		// bounded cursor executor with EndBlock. The cleanup height is the same
 		// derivation ApplySettlementPlan used when it scheduled the row —
-		// task_finality_height + max_evidence_retention_blocks — so the locator
-		// does not need to carry it.
+		// task_finality_height + the task's evidence retention snapshot — so the
+		// locator does not need to carry it, and a governance change of the live
+		// retention cannot make the row unreachable.
 		core, loadErr := k.TaskCore.Get(ctx, taskKey)
 		if loadErr != nil {
 			return nil, loadErr
@@ -283,7 +284,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 		if loadErr != nil {
 			return nil, loadErr
 		}
-		cleanupHeight, overflow := checkedHeightAdd(core.GetTaskFinalityHeight(), params.Evidence.MaxEvidenceRetentionBlocks)
+		cleanupHeight, overflow := checkedHeightAdd(core.GetTaskFinalityHeight(), core.EvidenceRetentionBlocksSnapshot)
 		if overflow {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "evidence cleanup height overflows")
 		}
@@ -313,7 +314,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 		if loadErr != nil || summary.XRoundsClosedHeight == nil {
 			return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task rounds are not finalized")
 		}
-		params, loadErr := k.Params.Get(ctx)
+		params, loadErr := k.ParamsForTask(ctx, taskKey)
 		if loadErr != nil {
 			return nil, loadErr
 		}
