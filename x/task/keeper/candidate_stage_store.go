@@ -130,9 +130,17 @@ func (k Keeper) exportTaskCandidateFacts(ctx context.Context) ([]types.TaskCandi
 }
 
 func (k Keeper) builderStageProposalToStore(state types.BuilderStageProposalState) (internaltypes.BuilderStageProposalStoreState, error) {
-	address, _, err := k.canonicalAddress("proposal operator", state.ProposerOperator)
-	if err != nil {
-		return internaltypes.BuilderStageProposalStoreState{}, err
+	// An empty proposer is a real state, not a missing field: a proposal sent after
+	// the Builder window (Worker fallback) or by the winner Worker (verifier
+	// self-rescue) has no Builder behind it, and the replay checks insist it stays
+	// empty. Only a non-empty operator has to be a canonical address.
+	var address []byte
+	if state.ProposerOperator != "" {
+		var err error
+		address, _, err = k.canonicalAddress("proposal operator", state.ProposerOperator)
+		if err != nil {
+			return internaltypes.BuilderStageProposalStoreState{}, err
+		}
 	}
 	return internaltypes.BuilderStageProposalStoreState{
 		SchemaVersion:        state.SchemaVersion,
@@ -147,9 +155,13 @@ func (k Keeper) builderStageProposalToStore(state types.BuilderStageProposalStat
 }
 
 func (k Keeper) ProjectBuilderStageProposalStore(stored internaltypes.BuilderStageProposalStoreState) (types.BuilderStageProposalState, error) {
-	address, err := k.sessionAddressFromStore("proposal operator", stored.ProposerOperator)
-	if err != nil {
-		return types.BuilderStageProposalState{}, err
+	var address string
+	if len(stored.ProposerOperator) != 0 {
+		var err error
+		address, err = k.sessionAddressFromStore("proposal operator", stored.ProposerOperator)
+		if err != nil {
+			return types.BuilderStageProposalState{}, err
+		}
 	}
 	if stored.Stage == 0 {
 		return types.BuilderStageProposalState{}, fmt.Errorf("stored proposal stage is unspecified")

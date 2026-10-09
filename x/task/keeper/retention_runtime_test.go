@@ -186,3 +186,31 @@ func TestTaskTerminalSummaryHashCommitsEveryField(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, base, changed)
 }
+
+// A proposal submitted after the Builder window (Worker fallback) or by the
+// winner Worker (verifier self-rescue) has no Builder behind it, so its retained
+// proposer is empty. The store must keep that, not refuse the whole transaction.
+func TestBuilderStageProposalStoresEmptyProposerOperator(t *testing.T) {
+	f := initInternalFixture(t)
+	taskID := bytes32(0x81)
+	taskKey := types.NewTaskKey(taskID)
+	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK
+	digest := bytes32(0x82)
+	key := types.NewBuilderStageProposalKey(taskKey, stage, digest)
+
+	require.NoError(t, f.keeper.WriteBuilderStageProposal(f.ctx, key, types.BuilderStageProposalState{
+		SchemaVersion: 1, TaskId: taskID, Stage: stage, ProposalDigest: digest,
+	}))
+	got, err := f.keeper.BuilderStageProposal.Get(f.ctx, key)
+	require.NoError(t, err)
+	projected, err := f.keeper.ProjectBuilderStageProposalStore(got)
+	require.NoError(t, err)
+	require.Empty(t, projected.ProposerOperator)
+
+	t.Run("a malformed operator is still refused", func(t *testing.T) {
+		bad := bytes32(0x83)
+		err := f.keeper.WriteBuilderStageProposal(f.ctx, types.NewBuilderStageProposalKey(taskKey, stage, bad),
+			types.BuilderStageProposalState{SchemaVersion: 1, TaskId: taskID, Stage: stage, ProposalDigest: bad, ProposerOperator: "not-an-address"})
+		require.Error(t, err)
+	})
+}
