@@ -384,7 +384,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
 	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
 	require.Equal(t, uint64(4), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
-	require.Equal(t, uint64(4), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
+	require.Equal(t, uint64(20), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	// Freshness is epoch-based now; daily_support_window_blocks is gone.
 	//
 	// A rolling epoch also switches support expiry on, and support_fresh_until is

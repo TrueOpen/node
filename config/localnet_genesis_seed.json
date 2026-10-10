@@ -20,7 +20,7 @@
       "builders_per_task": 3,
       "builder_set_update_lead_blocks": "100",
       "assignment_builder_proposal_window_blocks": "4",
-      "open_verify_builder_proposal_window_blocks": "4",
+      "open_verify_builder_proposal_window_blocks": "20",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
@@ -561,8 +561,8 @@
         "verification_profile_id": 1
       },
       "verification_thresholds": {
-        "pass_abs_logprob_diff_p95_max": 100000,
-        "pass_abs_logprob_diff_p99_max": 200000,
+        "pass_abs_logprob_diff_p95_max": 150000,
+        "pass_abs_logprob_diff_p99_max": 300000,
         "pass_max_missing_compared_count": 0,
         "pass_mean_abs_logprob_diff_max": 50000,
         "pass_min_finite_count": 16,

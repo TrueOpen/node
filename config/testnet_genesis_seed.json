@@ -20,7 +20,7 @@
       "builders_per_task": 3,
       "builder_set_update_lead_blocks": "100",
       "assignment_builder_proposal_window_blocks": "4",
-      "open_verify_builder_proposal_window_blocks": "4",
+      "open_verify_builder_proposal_window_blocks": "20",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
