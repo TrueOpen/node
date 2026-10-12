@@ -20,7 +20,7 @@
       "builders_per_task": 3,
       "builder_set_update_lead_blocks": "100",
       "assignment_builder_proposal_window_blocks": "4",
-      "open_verify_builder_proposal_window_blocks": "20",
+      "open_verify_builder_proposal_window_blocks": "60",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
@@ -474,9 +474,9 @@
         "pass_min_sample_pass_ratio_bps": 0,
         "reject_min_sample_reject_ratio_bps": 0
       },
-      "challenge_open_window_blocks": 1800,
+      "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0x5e5ba51f4cdf26c2cf761023366e31281034e2260119dc8500efc9ad25bd6731",
+      "manifest_hash": "0xaf33b6bff9564f80ce4b88e0b13a5b4892a2dc5955be7a5672123810a34cce8a",
       "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/testnet/registered/1-Qwen%3AQwen3.8-27B-FP8/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
@@ -519,9 +519,9 @@
       ],
       "timeout_bootstrap_profile": {
         "bootstrap_valid_until_epoch": 1000,
-        "commit_timeout_bootstrap_blocks": 30,
-        "infer_timeout_bootstrap_blocks": 300,
-        "verify_timeout_bootstrap_blocks": 100
+        "commit_timeout_bootstrap_blocks": 20,
+        "infer_timeout_bootstrap_blocks": 100,
+        "verify_timeout_bootstrap_blocks": 50
       },
       "tokenizer_hash": "0x99c90d1dced7bb464b9affb50af2c377fe6e8d9363b5b71a27658db1b7182ace",
       "verification_profile": {
