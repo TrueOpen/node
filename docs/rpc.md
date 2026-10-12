@@ -81,14 +81,14 @@ In OpenAPI the two are distinguishable:
 ```jsonc
 // registered 32-byte identifier
 { "type": "string", "format": "trueopen-hash32",
-  "pattern": "^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64 }
+  "pattern": "^0x[0-9a-f]{64}$", "minLength": 66, "maxLength": 66 }
 
 // opaque blob
 { "type": "string", "format": "byte" }
 ```
 
 On input the REST layer accepts hex for a `trueopen-hash32` field and rejects
-anything that is not canonical lower-case hex of exactly 32 bytes. For `byte`
+anything that is not the canonical `0x`-prefixed lower-case hex of exactly 32 bytes. For `byte`
 fields it accepts the standard or URL-safe Base64 alphabet, padded or unpadded,
 and always emits the canonical padded standard-alphabet form.
 

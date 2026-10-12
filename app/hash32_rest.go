@@ -27,6 +27,9 @@ import (
 
 const hash32Bytes = 32
 
+// hash32TextPrefix prefixes every client-facing Hash32 hex projection.
+const hash32TextPrefix = "0x"
+
 type hash32RESTHandler struct {
 	gateway   *runtime.ServeMux
 	routes    []restRoute
@@ -434,12 +437,12 @@ func rewriteRESTQuery(route *restRoute, rawQuery string) (string, error) {
 }
 
 func decodeCanonicalHash32Hex(name, encoded string) ([]byte, error) {
-	if len(encoded) != hash32Bytes*2 || strings.ToLower(encoded) != encoded {
-		return nil, fmt.Errorf("%s must be canonical lowercase 64-hex Hash32", name)
+	if len(encoded) != len(hash32TextPrefix)+hash32Bytes*2 || !strings.HasPrefix(encoded, hash32TextPrefix) || strings.ToLower(encoded) != encoded {
+		return nil, fmt.Errorf("%s must be canonical 0x-prefixed lowercase 64-hex Hash32", name)
 	}
-	raw, err := hex.DecodeString(encoded)
-	if err != nil || len(raw) != hash32Bytes || hex.EncodeToString(raw) != encoded {
-		return nil, fmt.Errorf("%s must be canonical lowercase 64-hex Hash32", name)
+	raw, err := hex.DecodeString(strings.TrimPrefix(encoded, hash32TextPrefix))
+	if err != nil || len(raw) != hash32Bytes || hash32TextPrefix+hex.EncodeToString(raw) != encoded {
+		return nil, fmt.Errorf("%s must be canonical 0x-prefixed lowercase 64-hex Hash32", name)
 	}
 	return raw, nil
 }
@@ -597,7 +600,7 @@ func transformRESTBytes(field protoreflect.FieldDescriptor, value any) (any, err
 		if err != nil || len(raw) != hash32Bytes {
 			return nil, fmt.Errorf("%s is not a raw 32-byte Hash32", field.FullName())
 		}
-		return hex.EncodeToString(raw), nil
+		return hash32TextPrefix + hex.EncodeToString(raw), nil
 	case shared.RESTBytesEncoding_REST_BYTES_ENCODING_PROTOJSON_BASE64:
 		raw, err := decodeRESTBytes(encoded)
 		if err != nil {

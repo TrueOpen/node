@@ -127,7 +127,7 @@ func writePublicAPIIntroduction(b *strings.Builder, rpcCount int) {
 	fmt.Fprintf(b, "> Scope: %d registered `hub.v1` and `task.v1` Msg/Query RPCs.\n\n", rpcCount)
 	b.WriteString("## 1. Client contract\n\n")
 	b.WriteString("- Query methods are available through their full gRPC method names and the listed REST GET paths. Msg methods must be signed and broadcast as Cosmos SDK transactions.\n")
-	b.WriteString("- Client-facing Hash32 values use canonical lowercase 64-hex. TrueOpen Query REST selectors and JSON responses use that form directly; Msg/SDK adapters decode it to raw32 before protobuf transaction or gRPC transport. The outer Cosmos `tx_bytes` and explicitly classified non-Hash32 bytes remain base64; Store values remain raw bytes.\n")
+	b.WriteString("- Client-facing Hash32 values use canonical 0x-prefixed lowercase 64-hex. TrueOpen Query REST selectors and JSON responses use that form directly; Msg/SDK adapters decode it to raw32 before protobuf transaction or gRPC transport. The outer Cosmos `tx_bytes` and explicitly classified non-Hash32 bytes remain base64; Store values remain raw bytes.\n")
 	b.WriteString("- TrueOpen account and operator addresses must be canonical Bech32. Cosmos account signatures authorize and pay for transactions; protocol service signatures use the operator's sole current on-chain service binding.\n")
 	b.WriteString("- Queries read one committed height. Opaque `PageTokenV1` values are bound to the RPC, chain, selectors, canonical last primary key, and query height; do not decode, alter, or replay them across requests.\n")
 	b.WriteString("- `InvalidArgument` means the selector, enum, address, limit, or page token is invalid. `NotFound` means the exact authoritative row is absent. `FailedPrecondition` means the row exists but its lifecycle does not permit that view. `Internal` indicates inconsistent committed state.\n")
@@ -539,9 +539,9 @@ func fieldType(field protoreflect.FieldDescriptor) string {
 		switch {
 		case present && encoding == shared.RESTBytesEncoding_REST_BYTES_ENCODING_HASH32_LOWER_HEX:
 			if field.HasPresence() {
-				typ = "optional `Hash32` / omitted when absent; lowercase 64-hex client value when present (raw 32-byte protobuf)"
+				typ = "optional `Hash32` / omitted when absent; 0x-prefixed lowercase 64-hex client value when present (raw 32-byte protobuf)"
 			} else {
-				typ = "`Hash32` / lowercase 64-hex client value (raw 32-byte protobuf)"
+				typ = "`Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf)"
 			}
 		case present && encoding == shared.RESTBytesEncoding_REST_BYTES_ENCODING_PROTOJSON_BASE64:
 			typ = "`bytes` / base64 string"
@@ -621,12 +621,12 @@ func describeField(message protoreflect.MessageDescriptor, path fieldPath, reque
 	}
 	encoding, hasRESTEncoding, _ := shared.RESTBytesEncodingOption(field)
 	if hasRESTEncoding && encoding == shared.RESTBytesEncoding_REST_BYTES_ENCODING_HASH32_LOWER_HEX {
-		validation := "Client REST/DTO values require exactly 64 lowercase hex characters with no 0x prefix or whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes."
+		validation := "Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes."
 		if field.HasPresence() {
 			validation += " Absence is represented only by field omission; explicit null and present empty bytes are rejected."
 		}
 		return meaning,
-			"Read the canonical lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32.",
+			"Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32.",
 			validation
 	}
 	if strings.HasSuffix(fullMessage, ".MsgSettle") {

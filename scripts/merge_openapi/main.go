@@ -346,9 +346,9 @@ func applyRESTBytesSchema(schema map[string]any, field protoreflect.FieldDescrip
 	switch encoding {
 	case shared.RESTBytesEncoding_REST_BYTES_ENCODING_HASH32_LOWER_HEX:
 		target["format"] = "trueopen-hash32"
-		target["pattern"] = "^[0-9a-f]{64}$"
-		target["minLength"] = float64(64)
-		target["maxLength"] = float64(64)
+		target["pattern"] = "^0x[0-9a-f]{64}$"
+		target["minLength"] = float64(66)
+		target["maxLength"] = float64(66)
 	case shared.RESTBytesEncoding_REST_BYTES_ENCODING_PROTOJSON_BASE64:
 		target["format"] = "byte"
 		delete(target, "pattern")

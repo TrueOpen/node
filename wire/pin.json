@@ -12,8 +12,8 @@
     "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.4.1-0.20261008074448-8a4d726fffef",
-  "release_commit": "8a4d726fffefefbbbf49535d2b9acb0f7d237fae",
+  "release_tag": "v0.4.1-0.20261012085101-62f00fe00d9f",
+  "release_commit": "62f00fe00d9f3ce97bf355215076ef2eee1f049f",
   "descriptor": {
     "path": "wire/wire.binpb",
     "bytes": 1092225,

@@ -408,7 +408,7 @@ func (app *App) SimulationManager() *module.SimulationManager {
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	// The protobuf binary and Store representation of Hash32 stays raw bytes.
-	// Human-facing TrueOpen REST routes use canonical lowercase 64-hex while all
+	// Human-facing TrueOpen REST routes use canonical 0x-prefixed lowercase 64-hex while all
 	// explicitly classified non-Hash32 bytes retain protobuf JSON base64.
 	apiSvr.Router.PathPrefix("/TrueOpen/").Handler(newHash32RESTHandler(apiSvr.GRPCGatewayRouter))
 	// register swagger API in app.go so that other applications can override easily

@@ -68,9 +68,9 @@
         "block_hash": {
           "description": "block_hash is the committed header hash at this exact height.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "height": {
@@ -80,9 +80,9 @@
         "proof_digest": {
           "description": "proof_digest is SHA256(raw proof bytes) for proposer_vrf_v1 entries. The\nraw proof exists only while the proposal is verified and is never stored\nor exported. It is absent/omitted for dev-only placeholder entries;\npresent-empty and all-zero values are invalid.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "proposer_consensus_address": {
@@ -185,9 +185,9 @@
         },
         "bootstrap_message_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "bootstrap_mode": {
@@ -198,9 +198,9 @@
         },
         "bootstrap_route_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "business_denom": {
@@ -213,9 +213,9 @@
         },
         "confirmed_evm_signer_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "cumulative_bridge_burned": {
@@ -243,16 +243,16 @@
         },
         "deployment_manifest_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evm_confirmation_block_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evm_confirmation_block_number": {
@@ -271,9 +271,9 @@
         },
         "inflight_manifest_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "inflight_message_count": {
@@ -294,16 +294,16 @@
         },
         "local_ism_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "local_mailbox_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "local_origin_denom": {
@@ -311,16 +311,16 @@
         },
         "local_signer_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "local_warp_token_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "origin_decimals": {
@@ -366,9 +366,9 @@
         },
         "usdc_route_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -446,9 +446,9 @@
         },
         "builder_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "builder_set_id": {
@@ -522,9 +522,9 @@
       "properties": {
         "binding_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "candidate_slot": {
@@ -604,9 +604,9 @@
       "properties": {
         "active_bitmap_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "active_count": {
@@ -627,16 +627,16 @@
         },
         "member_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "pool_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "pruned_height": {
@@ -653,9 +653,9 @@
         },
         "snapshot_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "status": {
@@ -767,16 +767,16 @@
         "signature_digest": {
           "description": "SHA256(raw_signature_64), retained as a 32-byte audit/exact-replay fingerprint.\nThe 64-byte signature was verified before initial live acceptance and is not retained.\nThis digest is not authorization state and never enters a signing/business digest;\nreplay compares it only to identify the same previously accepted signature.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "supported_models_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -830,9 +830,9 @@
         },
         "freeze_signal_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "validator_consensus_address": {
@@ -975,9 +975,9 @@
         },
         "freeze_signal_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "included_failure_class_counts": {
@@ -989,16 +989,16 @@
         },
         "included_failure_task_refs_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -1030,9 +1030,9 @@
         },
         "validator_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "validator_snapshot_height": {
@@ -1064,9 +1064,9 @@
       "properties": {
         "params_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "params_version": {
@@ -1147,9 +1147,9 @@
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "operator_address": {
@@ -1257,9 +1257,9 @@
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "pending_effective_height": {
@@ -1348,9 +1348,9 @@
         },
         "first_support_task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "last_refresh_height": {
@@ -1359,16 +1359,16 @@
         },
         "last_refresh_task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "operator_address": {
@@ -1437,9 +1437,9 @@
       "properties": {
         "bucket_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "bucket_key": {
@@ -1566,9 +1566,9 @@
         },
         "manifest_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "manifest_uri": {
@@ -1582,9 +1582,9 @@
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "previous_profile_version": {
@@ -1610,9 +1610,9 @@
         },
         "registration_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "registration_fee_paid": {
@@ -1633,9 +1633,9 @@
         },
         "schema_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "source": {
@@ -1658,9 +1658,9 @@
         },
         "tokenizer_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "tool_call_parser": {
@@ -2136,9 +2136,9 @@
         },
         "order_value_bucket_boundaries_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "order_value_hist": {
@@ -2181,9 +2181,9 @@
         },
         "audit_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "completed_height": {
@@ -2200,9 +2200,9 @@
         },
         "folded_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "mark_count": {
@@ -2307,9 +2307,9 @@
         },
         "evidence_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "fault_class": {
@@ -2317,9 +2317,9 @@
         },
         "fault_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "jail_delta": {
@@ -2335,9 +2335,9 @@
         },
         "slash_summary_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "status": {
@@ -2345,9 +2345,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -2434,9 +2434,9 @@
       "properties": {
         "descriptor_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "descriptor_version": {
@@ -2489,9 +2489,9 @@
         },
         "tls_pubkey_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "uri": {
@@ -2677,17 +2677,17 @@
         },
         "slash_summary_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "source_id": {
           "description": "Raw Hash32 in both namespaces: the fault_id for ROLE_FAULT, the\nchallenge_id for CHALLENGE_EFFECT. Never a hex projection.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "source_kind": {
@@ -2695,9 +2695,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "unbonding_debit": {
@@ -2872,9 +2872,9 @@
         },
         "unbonding_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -2985,9 +2985,9 @@
           "description": "Raw Hash32 model identifiers in strictly ascending byte order.\nEvery model appears at most once; composite model/profile strings are invalid.",
           "items": {
             "format": "trueopen-hash32",
-            "maxLength": 64,
-            "minLength": 64,
-            "pattern": "^[0-9a-f]{64}$",
+            "maxLength": 66,
+            "minLength": 66,
+            "pattern": "^0x[0-9a-f]{64}$",
             "type": "string"
           },
           "type": "array"
@@ -3291,9 +3291,9 @@
         },
         "evidence_schema_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "include_generated_special_tokens": {
@@ -3404,9 +3404,9 @@
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -3415,9 +3415,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_phase": {
@@ -3447,9 +3447,9 @@
       "properties": {
         "assignment_candidate_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "assignment_randomness_height": {
@@ -3458,23 +3458,23 @@
         },
         "beacon_proof_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "beacon_randomness": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_confirm_height": {
@@ -3483,9 +3483,9 @@
         },
         "winner_draw_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_worker": {
@@ -3534,9 +3534,9 @@
       "properties": {
         "aggregate_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "builder_operator_address": {
@@ -3559,9 +3559,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "threshold_reached_height": {
@@ -3597,9 +3597,9 @@
         "report_digest": {
           "description": "Absent when this slot filed no valid report by the commit deadline. Never\npresent-but-empty: an empty Hash32 has no REST spelling and is not a value.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -3713,9 +3713,9 @@
       "properties": {
         "commit_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "commit_height": {
@@ -3724,24 +3724,24 @@
         },
         "commit_key": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "commit_signing_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "signature_digest": {
           "description": "SHA256(raw_signature_64), retained as a 32-byte audit/exact-replay fingerprint.\nThe 64-byte signature was verified before initial live acceptance and is not retained.\nThis digest is not authorization state and never enters a signing/business digest;\nreplay compares it only to identify the same previously accepted signature.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "status": {
@@ -3749,9 +3749,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_operator_address": {
@@ -3760,9 +3760,9 @@
         "verifier_value_root": {
           "description": "Filled when the accepted result opens the V3 commit; absent beforehand.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -3787,9 +3787,9 @@
       "properties": {
         "report_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "report_height": {
@@ -3802,9 +3802,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "unavailable_task_builder_bitmap": {
@@ -3863,9 +3863,9 @@
         },
         "receipt_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "retained_support_candidate_count": {
@@ -3878,9 +3878,9 @@
         },
         "source_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "start_height": {
@@ -3911,9 +3911,9 @@
         },
         "evidence_hash_or_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evidence_kind": {
@@ -4040,9 +4040,9 @@
       "properties": {
         "ciphertext_output_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evidence_commitment_count": {
@@ -4051,9 +4051,9 @@
         },
         "evidence_commitments_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "expiry_height": {
@@ -4066,37 +4066,37 @@
         },
         "generation_params_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_receipt_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_receipt_signing_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "output_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "output_key_commitment": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "output_leaf_count": {
@@ -4121,16 +4121,16 @@
         "signature_digest": {
           "description": "SHA256(raw_signature_64), retained as a 32-byte audit/exact-replay fingerprint.\nThe 64-byte signature was verified before initial live acceptance and is not retained.\nThis digest is not authorization state and never enters a signing/business digest;\nreplay compares it only to identify the same previously accepted signature.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_worker": {
@@ -4138,16 +4138,16 @@
         },
         "worker_token_key_commitment": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "worker_value_key_commitment": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -4216,9 +4216,9 @@
         },
         "session_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "status": {
@@ -4226,9 +4226,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -4544,16 +4544,16 @@
         },
         "evidence_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "fault_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -4597,16 +4597,16 @@
         },
         "aggregate_proof_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "commit_key": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "metric_leaf_count": {
@@ -4615,9 +4615,9 @@
         },
         "metric_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "metric_summary": {
@@ -4625,30 +4625,30 @@
         },
         "metric_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "result_payload_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "result_receipt_signing_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "salt": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "selected_verifier_index": {
@@ -4658,30 +4658,30 @@
         "signature_digest": {
           "description": "SHA256(raw_signature_64), retained as a 32-byte audit/exact-replay fingerprint.\nThe 64-byte signature was verified before initial live acceptance and is not retained.\nThis digest is not authorization state and never enters a signing/business digest;\nreplay compares it only to identify the same previously accepted signature.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_evidence_bundle_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_evidence_key_commitment": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_evidence_manifest_size_bytes": {
@@ -4693,9 +4693,9 @@
         },
         "verifier_value_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -4815,16 +4815,16 @@
         },
         "sequence_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "session_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settled_count": {
@@ -4846,9 +4846,9 @@
         },
         "consensus_cluster_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "effective_verify_round": {
@@ -4857,9 +4857,9 @@
         },
         "evidence_schema_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "failure_class": {
@@ -4867,9 +4867,9 @@
         },
         "fault_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "fee_rule_version": {
@@ -4882,16 +4882,16 @@
         },
         "generation_params_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_receipt_ref_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "judgment_function_version": {
@@ -4906,16 +4906,16 @@
         },
         "paid_roles_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_execution_snapshot_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "recomputed_verdict": {
@@ -4923,16 +4923,16 @@
         },
         "result_receipt_refs_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_bill_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_duty_builder_operator": {
@@ -4944,9 +4944,9 @@
         },
         "settlement_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_height": {
@@ -4955,30 +4955,30 @@
         },
         "settlement_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_round_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "work_unit": {
@@ -5008,9 +5008,9 @@
         },
         "gas_reimbursements_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "generated_token_count": {
@@ -5028,37 +5028,37 @@
         },
         "settlement_bill_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_round_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_payouts": {
@@ -5118,9 +5118,9 @@
         },
         "session_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "status": {
@@ -5159,9 +5159,9 @@
         },
         "assignment_candidate_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "assignment_fail_reason": {
@@ -5176,16 +5176,16 @@
         },
         "candidate_pool_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "candidate_pool_snapshot_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "canonical_encoding_version": {
@@ -5193,17 +5193,17 @@
         },
         "evidence_schema_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "generation_params_digest": {
           "description": "Immutable assignment fact. Worker, Verifier and settlement consumers copy\nthis value through unchanged and never recompute it from current defaults.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_deadline_height": {
@@ -5222,9 +5222,9 @@
         },
         "profile_execution_snapshot_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "result_reveal_missing_slash_bps": {
@@ -5233,9 +5233,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_confirm_height": {
@@ -5244,9 +5244,9 @@
         },
         "winner_draw_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_worker": {
@@ -5309,9 +5309,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "tx_fee_reserve_remaining": {
@@ -5348,9 +5348,9 @@
         },
         "builder_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "builder_set_id": {
@@ -5375,23 +5375,23 @@
         "selected_task_builders_hash": {
           "description": "Ordered-member commitment; retained after pruning.",
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "session_anchor_block_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -5462,9 +5462,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "visited_count": {
@@ -5490,16 +5490,16 @@
       "properties": {
         "accepted_input_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "accepted_order_opening_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "accepted_payload_mode": {
@@ -5507,9 +5507,9 @@
         },
         "accepted_task_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "assignment_status": {
@@ -5533,9 +5533,9 @@
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "objective_forgery_slash_bps_snapshot": {
@@ -5559,9 +5559,9 @@
         },
         "session_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_status": {
@@ -5573,9 +5573,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_phase": {
@@ -5666,9 +5666,9 @@
         },
         "evidence_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "failure_class": {
@@ -5679,16 +5679,16 @@
         },
         "infer_receipt_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -5701,23 +5701,23 @@
         },
         "settlement_facts_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_id_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "superseded_by_verify_round": {
@@ -5730,9 +5730,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -5810,16 +5810,16 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "tx_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -5830,9 +5830,9 @@
       "properties": {
         "params_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "params_version": {
@@ -5975,23 +5975,23 @@
         },
         "round1_facts_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_effect_root_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_facts_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_outcome": {
@@ -6007,16 +6007,16 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_round_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_value_evidence_close_height": {
@@ -6050,9 +6050,9 @@
         },
         "gas_reimbursements_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "generated_token_count": {
@@ -6061,9 +6061,9 @@
         },
         "infer_receipt_ref_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "maintenance_fee": {
@@ -6077,9 +6077,9 @@
         },
         "settlement_bill_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_facts_cutoff_height": {
@@ -6088,9 +6088,9 @@
         },
         "settlement_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_height": {
@@ -6099,16 +6099,16 @@
         },
         "settlement_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_plan_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_finality_height": {
@@ -6117,16 +6117,16 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_round_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verdict": {
@@ -6186,9 +6186,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_phase": {
@@ -6209,16 +6209,16 @@
       "properties": {
         "assignment_candidate_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "builder_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "builder_set_id": {
@@ -6230,9 +6230,9 @@
         },
         "candidate_pool_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "candidate_pool_ref_released": {
@@ -6240,9 +6240,9 @@
         },
         "candidate_pool_snapshot_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "compacted_height": {
@@ -6262,9 +6262,9 @@
         },
         "fault_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "finality_status": {
@@ -6276,23 +6276,23 @@
         },
         "generation_params_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_receipt_ref_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "model_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "order_sequence": {
@@ -6301,9 +6301,9 @@
         },
         "profile_execution_snapshot_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "profile_version": {
@@ -6312,30 +6312,30 @@
         },
         "round1_facts_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round1_selected_verifiers_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_facts_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_funding_resolution_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round2_outcome": {
@@ -6343,37 +6343,37 @@
         },
         "round2_selected_verifiers_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_effect_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "selected_task_builders_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "session_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_bill_hash_or_zero32": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_facts_cutoff_height": {
@@ -6382,9 +6382,9 @@
         },
         "settlement_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_height": {
@@ -6393,16 +6393,16 @@
         },
         "settlement_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_plan_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "settlement_status": {
@@ -6410,9 +6410,9 @@
         },
         "summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_finality_height": {
@@ -6421,23 +6421,23 @@
         },
         "task_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_round_summary_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_type": {
@@ -6512,9 +6512,9 @@
         },
         "consensus_cluster_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "failure_class": {
@@ -6522,16 +6522,16 @@
         },
         "funding_lock_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "funding_resolution_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "generated_token_count": {
@@ -6540,16 +6540,16 @@
         },
         "generation_params_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "infer_receipt_ref": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "opener_address": {
@@ -6557,9 +6557,9 @@
         },
         "prev_round_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "prev_round_verdict": {
@@ -6567,16 +6567,16 @@
         },
         "profile_execution_snapshot_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "result_receipt_refs_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_close_deadline_height": {
@@ -6589,30 +6589,30 @@
         },
         "round_effect_plan_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_effect_root": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_facts_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "round_open_height": {
@@ -6624,16 +6624,16 @@
         },
         "task_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verdict": {
@@ -6692,16 +6692,16 @@
         },
         "selected_verifiers_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "selection_randomness_beacon": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "selection_randomness_height": {
@@ -6710,16 +6710,16 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_candidate_window_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_handraise_count": {
@@ -6728,9 +6728,9 @@
         },
         "verifier_legal_set_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_deadline_height": {
@@ -6768,16 +6768,16 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_window_rank": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -6800,16 +6800,16 @@
         },
         "candidate_pool_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "candidate_pool_snapshot_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "eligibility_frozen_height": {
@@ -6834,9 +6834,9 @@
         },
         "infer_receipt_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "schema_version": {
@@ -6852,23 +6852,23 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_window_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verifier_window_source_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "verify_round": {
@@ -6877,9 +6877,9 @@
         },
         "window_randomness_beacon": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "window_randomness_height": {
@@ -6945,16 +6945,16 @@
         },
         "accepted_infer_receipt_hash": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evidence_digest": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evidence_kind": {
@@ -6962,9 +6962,9 @@
         },
         "fault_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "schema_version": {
@@ -6977,9 +6977,9 @@
         },
         "task_id": {
           "format": "trueopen-hash32",
-          "maxLength": 64,
-          "minLength": 64,
-          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "worker_operator_address": {
@@ -7258,10 +7258,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "snapshot_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7293,10 +7293,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "snapshot_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7335,10 +7335,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "snapshot_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7574,10 +7574,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "freeze_signal_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7625,10 +7625,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "fault_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7660,10 +7660,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "freeze_signal_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7695,10 +7695,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "model_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -7767,10 +7767,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "model_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7808,10 +7808,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "model_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7849,10 +7849,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "model_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -7948,10 +7948,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "model_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -8453,10 +8453,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "session_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8488,10 +8488,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "session_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -8530,10 +8530,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "session_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8643,10 +8643,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8678,10 +8678,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8713,10 +8713,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8748,10 +8748,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8783,10 +8783,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -8831,10 +8831,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8866,10 +8866,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -8901,10 +8901,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -8949,10 +8949,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9007,10 +9007,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9050,10 +9050,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9101,10 +9101,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -9136,10 +9136,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9184,10 +9184,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -9219,10 +9219,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -9254,10 +9254,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           }
@@ -9289,10 +9289,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9331,10 +9331,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9373,10 +9373,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9428,10 +9428,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
@@ -9471,10 +9471,10 @@
           {
             "format": "trueopen-hash32",
             "in": "path",
-            "maxLength": 64,
-            "minLength": 64,
+            "maxLength": 66,
+            "minLength": 66,
             "name": "task_id",
-            "pattern": "^[0-9a-f]{64}$",
+            "pattern": "^0x[0-9a-f]{64}$",
             "required": true,
             "type": "string"
           },
