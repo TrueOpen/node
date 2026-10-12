@@ -358,7 +358,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// chain, so its hash, challenge window, bootstrap timeouts and pass limits
 	// are pinned to it; a seed edit that drifts from it no longer matches the
 	// registry manifest.
-	require.Equal(t, "0xc1fe900741ce7ef81469e481999cc99ac3392496bdecfd4beb1e31599f47f0bf", model.Profile.ManifestHash)
+	require.Equal(t, "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023", model.Profile.ManifestHash)
 	require.Equal(t, uint64(100), model.Profile.ChallengeOpenWindow)
 	require.Equal(t, uint32(20), model.Profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(100), model.Profile.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks)

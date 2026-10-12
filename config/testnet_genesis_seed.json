@@ -476,7 +476,7 @@
       },
       "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0xaf33b6bff9564f80ce4b88e0b13a5b4892a2dc5955be7a5672123810a34cce8a",
+      "manifest_hash": "0x65c50f9ea8d1df20f48499e27c6abbdd4f62867925d58aa3cfa1c58b549d1b8f",
       "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/testnet/registered/1-Qwen%3AQwen3.8-27B-FP8/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
