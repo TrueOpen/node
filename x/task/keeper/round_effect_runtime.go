@@ -36,7 +36,7 @@ func (k Keeper) freezeRoundEconomicEffects(
 	if err != nil || funding.XClosedHeight != nil || funding.XRoundOutcome != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "challenge funding is not open")
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return err
 	}

@@ -136,7 +136,7 @@ func (k Keeper) ensureOrderBudgetTerminal(ctx context.Context, state types.Order
 }
 
 func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.SessionKey, currentHeight uint64, remaining *uint64) (bool, error) {
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return false, err
 	}
@@ -256,6 +256,9 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 		return false, err
 	}
 	if err := k.Stream.Remove(ctx, sessionKey); err != nil {
+		return false, err
+	}
+	if err := k.UnpinSessionParams(ctx, sessionKey); err != nil {
 		return false, err
 	}
 	if err := k.SessionHistoryPruneCursor.Remove(ctx, sessionKey); err != nil && !errors.Is(err, collections.ErrNotFound) {

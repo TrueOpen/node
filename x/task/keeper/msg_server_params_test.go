@@ -58,15 +58,14 @@ func TestUpdateTaskParamsRejectsStaleVersionWithoutWrites(t *testing.T) {
 	require.Equal(t, before, after)
 }
 
-func TestUpdateTaskParamsRejectsFieldsThatCanReinterpretActiveTasks(t *testing.T) {
+func TestUpdateTaskParamsRejectsEpochSummaryBudgetChanges(t *testing.T) {
 	f := initInternalFixture(t)
 	authority, err := f.keeper.addressCodec.BytesToString(f.keeper.authority)
 	require.NoError(t, err)
 	before, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	next := before
-	next.Deadlines.RevealWindowBlocks++
-	next.Deadlines.CollectionWindowBlocks++
+	next.Cleanup.MaxEpochTaskSummaryBytes++
 
 	_, err = NewMsgServerImpl(f.keeper).UpdateTaskParams(f.ctx, &types.MsgUpdateTaskParams{
 		ExpectedVersion: 0,

@@ -397,11 +397,22 @@ func TestTaskParamsUpdateClassifiers(t *testing.T) {
 	require.True(t, changed)
 	require.Equal(t, "weights.selected_verifier_count", field)
 
+	// Windows, TTLs and caps are frozen per Task and Session, so they are free to
+	// change; only the EpochTaskSummary budgets, which one process accumulates over
+	// several blocks, stay fixed.
 	next = current
 	next.Deadlines.RevealWindowBlocks++
+	next.Session.SessionIdleTtlBlocks++
+	next.Proposals.MaxCandidateUnionMembersPerStage++
+	next.Cleanup.TaskTerminalSummaryRetentionBlocks++
+	_, changed = RuntimeImmutableTaskParamsChanged(current, next)
+	require.False(t, changed)
+
+	next = current
+	next.Cleanup.MaxEpochTaskSummaryBytes++
 	group, changed := RuntimeImmutableTaskParamsChanged(current, next)
 	require.True(t, changed)
-	require.Equal(t, "deadlines", group)
+	require.Equal(t, "cleanup.max_epoch_task_summary_bytes", group)
 
 	next = current
 	next.Generation.TopKMax++

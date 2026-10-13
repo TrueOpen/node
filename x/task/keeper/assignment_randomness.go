@@ -74,7 +74,7 @@ func (k Keeper) finalizeAssignmentRandomness(ctx context.Context, taskID types.T
 		return deadlineSweepStale, rowBytes, nil
 	}
 
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForTask(ctx, taskID)
 	if err != nil {
 		return deadlineSweepPending, rowBytes, err
 	}

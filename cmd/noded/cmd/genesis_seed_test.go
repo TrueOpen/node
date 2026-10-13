@@ -154,6 +154,7 @@ func TestApplyGenesisSeedBuildsRunnableStateAndIsIdempotent(t *testing.T) {
 	require.True(t, seededGov.Params.BurnVoteVeto)
 	require.True(t, seededSlashing.Params.SlashFractionDoubleSign.IsZero())
 	require.True(t, seededSlashing.Params.SlashFractionDowntime.IsZero())
+	require.Equal(t, int64(5000), seededSlashing.Params.SignedBlocksWindow)
 	assertGenesisSeedState(
 		t, seededHub, seededBank, seededAuth, builders[0].address,
 		cortexOperators[0].address, expectedAddresses, accountBalance,
@@ -353,6 +354,17 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Equal(t, "uusdc", model.Profile.RegistrationFee.Denom)
 	require.Equal(t, uint64(1_000_000), model.Profile.RegistrationFee.Amount)
 	require.Equal(t, seed.CortexNodes[0].OperatorAddress, model.ProposerAddress)
+	// The dev model profile is the published canonical projection of the dev
+	// chain, so its hash, challenge window, bootstrap timeouts and pass limits
+	// are pinned to it; a seed edit that drifts from it no longer matches the
+	// registry manifest.
+	require.Equal(t, "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023", model.Profile.ManifestHash)
+	require.Equal(t, uint64(100), model.Profile.ChallengeOpenWindow)
+	require.Equal(t, uint32(20), model.Profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks)
+	require.Equal(t, uint32(100), model.Profile.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks)
+	require.Equal(t, uint32(50), model.Profile.TimeoutBootstrapProfile.VerifyTimeoutBootstrapBlocks)
+	require.Equal(t, uint32(100000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
+	require.Equal(t, uint32(200000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
 	operators := make(map[string]struct{}, len(seed.CortexNodes))
 	serviceAddresses := make(map[string]struct{}, len(seed.CortexNodes))
 	for _, cortex := range seed.CortexNodes {
@@ -381,9 +393,9 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// reward audit). Four hours puts those at five days, which outlives a
 	// debugging session; an hour would put them at thirty.
 	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
-	require.Equal(t, uint64(5), hubParams.Epoch.DeltaWBlocks)
-	require.Equal(t, uint64(5), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
-	require.Equal(t, uint64(5), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
+	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
+	require.Equal(t, uint64(4), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
+	require.Equal(t, uint64(60), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	// Freshness is epoch-based now; daily_support_window_blocks is gone.
 	//
 	// A rolling epoch also switches support expiry on, and support_fresh_until is
@@ -475,12 +487,12 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	// without that assertion a bad horizon here would only surface as a panic
 	// inside the lifecycle integration tests. These windows are the debug chain's
 	// only; DefaultTaskParams is untouched.
-	require.Equal(t, uint64(300), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(3000), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
 	require.Equal(t, uint64(100000), taskParams.Deadlines.CommitWindowBlocks)
 	require.Equal(t, uint64(100000), taskParams.Deadlines.RevealWindowBlocks)
 	require.Equal(t, uint64(200200), taskParams.Deadlines.CollectionWindowBlocks)
 	require.Equal(t, uint64(20), taskParams.Deadlines.SettleMarginBlocks)
-	require.Equal(t, uint64(30), taskParams.Deadlines.SelfRescueMarginBlocks)
+	require.Equal(t, uint64(15), taskParams.Deadlines.SelfRescueMarginBlocks)
 	require.NoError(t, tasktypes.ValidateVerifyOpenClock(
 		taskParams.Deadlines,
 		hubParams.Epoch.DeltaWBlocks,
@@ -508,10 +520,15 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	//
 	// The bound below was 36 with the rationale "three minutes at five seconds per
 	// block". FAST_BLOCKS is one second per block, so it was really enforcing
-	// thirty-six seconds. 60 is the same intent restated in the units the debug
-	// chain actually runs at: selection must stay inside a minute.
-	require.LessOrEqual(t, workerSelectionBlocks+verifierSelectionBlocks, uint64(60),
-		"Worker and Verifier selection are mandatory waits on every successful task and must stay inside a minute at FAST_BLOCKS")
+	// thirty-six seconds, and it was later restated as one minute.
+	//
+	// The verifier window is now 60 blocks because the Cortex nodes were measured
+	// raising their hands 12 to 25 seconds after the receipt, past a 4 block
+	// window, which left the union empty and stalled every such task. Verifier
+	// selection is off the path to the first token, so the budget is 90 blocks:
+	// the extra wait only delays verification, never the first output.
+	require.LessOrEqual(t, workerSelectionBlocks+verifierSelectionBlocks, uint64(90),
+		"Worker and Verifier selection are mandatory waits on every successful task and must stay inside a minute and a half at FAST_BLOCKS")
 	require.Equal(t, uint32(16), taskParams.Generation.StopSequenceMaxItems)
 	requireGenesisSeedListsAllParams(t, cdc, &taskParams, seed.TaskParams)
 }

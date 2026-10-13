@@ -25,8 +25,9 @@ type sessionLifecycleResult struct {
 // sessionLifecycleDueHeights recomputes the two candidate due heights of a
 // session from the *stored* stream row.
 //
-// SessionParamsV1 is runtime-immutable, so last_active_height plus the active
-// params always reproduces the exact index key. The sweep still deletes every
+// The params are the ones the session was created under (ParamsForSession), so
+// last_active_height plus them always reproduces the exact index key, even after
+// a governance update changed the live TTLs. The sweep still deletes every
 // visited row before re-arming it so an imported stale row cannot accumulate.
 func sessionLifecycleDueHeights(params types.TaskParamsV1, lastActiveHeight uint64) (uint64, uint64, error) {
 	idleDue, idleOverflow := checkedSessionAddUint64(lastActiveHeight, params.Session.SessionIdleTtlBlocks)
@@ -61,7 +62,7 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 		}
 		return sessionLifecycleResult{}, nil
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return sessionLifecycleResult{}, err
 	}
@@ -222,7 +223,7 @@ func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.
 		}
 		return SessionLifecycleSweepResult{}, err
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return SessionLifecycleSweepResult{}, err
 	}

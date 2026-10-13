@@ -588,7 +588,7 @@ func (k Keeper) removeTaskDeadlineIndexes(ctx context.Context, taskKey types.Tas
 			}
 		}
 		if summary.XSettlementFactsCutoffHeight != nil {
-			params, err := k.Params.Get(ctx)
+			params, err := k.ParamsForTask(ctx, taskKey)
 			if err != nil {
 				return err
 			}
@@ -903,6 +903,7 @@ func (k Keeper) removeCompactedTaskDetails(ctx context.Context, taskKey types.Ta
 		k.TaskBuilderSelection.Remove,
 		k.TaskAssignment.Remove,
 		k.TaskBudget.Remove,
+		k.TaskParamsVersion.Remove,
 		k.TaskCore.Remove,
 	} {
 		if err := remove(ctx, taskKey); err != nil {

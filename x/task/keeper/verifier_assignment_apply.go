@@ -41,7 +41,7 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 	cacheCtx, write := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	taskKey := types.NewTaskKey(taskID)
-	params, err := k.Params.Get(cache)
+	params, err := k.ParamsForTask(cache, taskID)
 	if err != nil {
 		return false, 0, err
 	}

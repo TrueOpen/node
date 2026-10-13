@@ -32,7 +32,7 @@ func TestRewriteHash32RESTPathsFromDescriptorBindings(t *testing.T) {
 	routes, err := buildRESTRoutes(wireTestFiles(t))
 	require.NoError(t, err)
 	raw := bytes.Repeat([]byte{0xab}, hash32Bytes)
-	hexID := strings.Repeat("ab", hash32Bytes)
+	hexID := "0x" + strings.Repeat("ab", hash32Bytes)
 	encoded := base64.URLEncoding.EncodeToString(raw)
 	tests := map[string]string{
 		"/TrueOpen/task/v1/task/" + hexID:                                 "/TrueOpen/task/v1/task/" + encoded,
@@ -54,18 +54,18 @@ func TestRewriteHash32RESTPathsFromDescriptorBindings(t *testing.T) {
 func TestRewriteHash32RESTPathRejectsNonCanonicalHex(t *testing.T) {
 	routes, err := buildRESTRoutes(wireTestFiles(t))
 	require.NoError(t, err)
-	valid := strings.Repeat("ab", hash32Bytes)
+	valid := "0x" + strings.Repeat("ab", hash32Bytes)
 	for _, invalid := range []string{
-		"task-1", " " + valid, valid + " ", strings.ToUpper(valid), "0x" + valid, valid[:62], valid + "ab",
+		"task-1", " " + valid, valid + " ", "0x" + strings.ToUpper(valid[2:]), valid[2:], "0X" + valid[2:], valid[:62], valid + "ab",
 	} {
 		_, _, err := rewriteRESTPath(routes, http.MethodGet, "/TrueOpen/task/v1/task/"+invalid)
-		require.ErrorContains(t, err, "task.v1.QueryTaskRequest.task_id must be canonical lowercase 64-hex Hash32")
+		require.ErrorContains(t, err, "task.v1.QueryTaskRequest.task_id must be canonical 0x-prefixed lowercase 64-hex Hash32")
 	}
 }
 
 func TestHash32RESTHandlerRewritesPathAndDescriptorTypedResponse(t *testing.T) {
 	raw := bytes.Repeat([]byte{0xab}, hash32Bytes)
-	hexID := strings.Repeat("ab", hash32Bytes)
+	hexID := "0x" + strings.Repeat("ab", hash32Bytes)
 	encoded := base64.URLEncoding.EncodeToString(raw)
 	mux := runtime.NewServeMux()
 	pattern := runtime.MustPattern(runtime.NewPattern(
@@ -100,7 +100,7 @@ func TestEncodeRESTJSONWalksNestedRepeatedAndOptionalFields(t *testing.T) {
 	response := wireMessage(t, files, "task.v1.QueryBuilderDataUnavailableResponse")
 	raw := bytes.Repeat([]byte{0x11}, hash32Bytes)
 	base64Hash := base64.StdEncoding.EncodeToString(raw)
-	hexHash := strings.Repeat("11", hash32Bytes)
+	hexHash := "0x" + strings.Repeat("11", hash32Bytes)
 	body := []byte(`{"aggregate":{"task_id":"` + base64Hash + `","report_digests_by_verifier_slot":[{"report_digest":"` + base64Hash + `"},{}],"aggregate_hash":"` + base64Hash + `"}}`)
 
 	encoded, err := encodeRESTJSON(body, response)
@@ -132,7 +132,7 @@ func TestEncodeRESTJSONWalksNestedRepeatedAndOptionalFields(t *testing.T) {
 func TestEncodeRESTJSONResolvesHybridNestedDescriptors(t *testing.T) {
 	raw := bytes.Repeat([]byte{0x22}, hash32Bytes)
 	base64Hash := base64.StdEncoding.EncodeToString(raw)
-	hexHash := strings.Repeat("22", hash32Bytes)
+	hexHash := "0x" + strings.Repeat("22", hash32Bytes)
 
 	treasury, err := resolverMessage(gogoproto.HybridResolver, "hub.v1.QueryTreasuryResponse")
 	require.NoError(t, err)
@@ -290,7 +290,7 @@ func TestHash32RESTEncodingPreservesNodeNexusTaskIDGolden(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0891a5c5704d4dff5671daab9b353f31c86f81ac53cf1b3c4ef5171322c19f50", hex.EncodeToString(taskID[:]))
 
-	decoded, err := decodeCanonicalHash32Hex("session_id", hex.EncodeToString(sessionID))
+	decoded, err := decodeCanonicalHash32Hex("session_id", "0x"+hex.EncodeToString(sessionID))
 	require.NoError(t, err)
 	require.Equal(t, sessionID, decoded)
 	roundTripTaskID, err := tasktypes.DeriveTaskIDFromRawSession(decoded, 42)

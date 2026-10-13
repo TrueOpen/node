@@ -74,7 +74,7 @@ snapshot-keep-recent = 2
 timeout_propose = "3s"
 timeout_prevote = "1s"
 timeout_precommit = "1s"
-timeout_commit = "5s"            # about a 10s block time
+timeout_commit = "1s"            # about a 1.2s to 1.4s block time once consensus and network round trips are added
 
 [p2p]
 laddr = "tcp://0.0.0.0:26656"

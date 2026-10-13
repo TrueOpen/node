@@ -99,6 +99,12 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 		len(core.AcceptedTaskHash) != types.Hash32Len || !bytes.Equal(core.AcceptedTaskHash, existing.TaskHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "worker proposal task scope is unavailable")
 	}
+	// Past this point the caps are compared with state the task froze, so they come
+	// from the params version the task was accepted under, not from the live row.
+	params, err = m.k.ParamsForTask(cache, taskKey)
+	if err != nil {
+		return nil, err
+	}
 	assignment, err := m.k.ReadTaskAssignment(cache, taskKey)
 	if err != nil || !bytes.Equal(assignment.TaskId, existing.TaskId) ||
 		len(assignment.CandidatePoolSnapshotId) != types.Hash32Len || len(assignment.CandidatePoolHash) != types.Hash32Len ||

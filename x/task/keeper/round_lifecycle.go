@@ -399,7 +399,7 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 	if err := k.TaskRoundSummary.Set(ctx, taskKey, summary); err != nil {
 		return err
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return err
 	}

@@ -17,9 +17,9 @@ func (app *App) installBridgeAnteHandler() error {
 		return fmt.Errorf("account ante handler: signing codecs are required")
 	}
 	stockSignatureChecks := ante.NewSigVerificationDecorator(app.AuthKeeper, app.txConfig.SignModeHandler())
-	pathGate := newSignaturePathDecorator(app.HubKeeper)
+	pathGate := newSignaturePathDecorator()
 	strictVerifier := newSignatureVerificationDecorator(
-		app.AuthKeeper, app.HubKeeper, app.txConfig.SignModeHandler(), app.legacyAmino, stockSignatureChecks,
+		app.AuthKeeper, app.txConfig.SignModeHandler(), app.legacyAmino, stockSignatureChecks,
 	)
 	stock := sdk.ChainAnteDecorators(
 		ante.NewSetUpContextDecorator(),

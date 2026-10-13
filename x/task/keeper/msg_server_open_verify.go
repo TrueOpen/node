@@ -112,6 +112,12 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier proposal does not match the frozen task scope")
 	}
 
+	// Past this point the caps are compared with state the task froze, so they come
+	// from the params version the task was accepted under, not from the live row.
+	params, err = m.k.ParamsForTask(cache, taskKey)
+	if err != nil {
+		return nil, err
+	}
 	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY
 	if replay, found, err := m.k.findAcceptedVerifierProposalReplay(
 		cache, taskKey, core, assignment, window, msg.SubmitterAddress,

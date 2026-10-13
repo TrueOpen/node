@@ -28,7 +28,6 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-	hubkeeper "github.com/TrueOpen/node/x/hub/keeper"
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
@@ -46,12 +45,10 @@ type signatureEnvelope struct {
 	web3 *cosmoseip712.ExtensionOptionsWeb3Tx
 }
 
-type trueopenSignaturePathDecorator struct {
-	hub hubkeeper.Keeper
-}
+type trueopenSignaturePathDecorator struct{}
 
-func newSignaturePathDecorator(hub hubkeeper.Keeper) trueopenSignaturePathDecorator {
-	return trueopenSignaturePathDecorator{hub: hub}
+func newSignaturePathDecorator() trueopenSignaturePathDecorator {
+	return trueopenSignaturePathDecorator{}
 }
 
 func (d trueopenSignaturePathDecorator) AnteHandle(
@@ -60,7 +57,7 @@ func (d trueopenSignaturePathDecorator) AnteHandle(
 	simulate bool,
 	next sdk.AnteHandler,
 ) (sdk.Context, error) {
-	if _, err := inspectSignatureEnvelope(tx, simulate, d.hub.GetHubParams(ctx).EVMChainID); err != nil {
+	if _, err := inspectSignatureEnvelope(tx, simulate); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
@@ -68,7 +65,6 @@ func (d trueopenSignaturePathDecorator) AnteHandle(
 
 type trueopenSignatureVerificationDecorator struct {
 	accounts         ante.AccountKeeper
-	hub              hubkeeper.Keeper
 	signModeHandler  *txsigning.HandlerMap
 	amino            *codec.LegacyAmino
 	stockStateChecks ante.SigVerificationDecorator
@@ -76,13 +72,12 @@ type trueopenSignatureVerificationDecorator struct {
 
 func newSignatureVerificationDecorator(
 	accounts ante.AccountKeeper,
-	hub hubkeeper.Keeper,
 	signModeHandler *txsigning.HandlerMap,
 	amino *codec.LegacyAmino,
 	stockStateChecks ante.SigVerificationDecorator,
 ) trueopenSignatureVerificationDecorator {
 	return trueopenSignatureVerificationDecorator{
-		accounts: accounts, hub: hub, signModeHandler: signModeHandler, amino: amino, stockStateChecks: stockStateChecks,
+		accounts: accounts, signModeHandler: signModeHandler, amino: amino, stockStateChecks: stockStateChecks,
 	}
 }
 
@@ -122,7 +117,7 @@ func (d trueopenSignatureVerificationDecorator) verify(ctx sdk.Context, tx sdk.T
 	if err != nil {
 		return err
 	}
-	envelope, err := inspectSignatureEnvelope(tx, false, d.hub.GetHubParams(ctx).EVMChainID)
+	envelope, err := inspectSignatureEnvelope(tx, false)
 	if err != nil {
 		return err
 	}
@@ -197,7 +192,6 @@ func (d trueopenSignatureVerificationDecorator) verify(ctx sdk.Context, tx sdk.T
 func inspectSignatureEnvelope(
 	tx sdk.Tx,
 	simulate bool,
-	expectedEVMChainID uint64,
 ) (signatureEnvelope, error) {
 	extTx, ok := tx.(ante.HasExtensionOptionsTx)
 	if !ok {
@@ -236,11 +230,10 @@ func inspectSignatureEnvelope(
 		if err := web3.Unmarshal(options[0].Value); err != nil {
 			return signatureEnvelope{}, errorsmod.Wrap(sdkerrors.ErrUnknownExtensionOptions, "invalid Web3 extension option")
 		}
-		if expectedEVMChainID != 0 && web3.TypedDataChainID != expectedEVMChainID {
-			return signatureEnvelope{}, errorsmod.Wrapf(
-				sdkerrors.ErrInvalidChainID, "typed_data_chain_id %d does not match committed evm_chain_id %d", web3.TypedDataChainID, expectedEVMChainID,
-			)
-		}
+		// The signer picks the domain chainId (a browser wallet signs under its
+		// active network), so only its range is checked here. Cross-chain replay
+		// is stopped by the chain_id string inside the signed document, which
+		// the verifier rebuilds from its own chain.
 		if web3.TypedDataChainID == 0 || web3.TypedDataChainID > uint64(math.MaxInt64) {
 			return signatureEnvelope{}, errorsmod.Wrap(sdkerrors.ErrInvalidChainID, "typed_data_chain_id is outside the supported range")
 		}

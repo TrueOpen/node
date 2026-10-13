@@ -785,7 +785,7 @@ func (k Keeper) freezeVerifierCandidateFact(
 		!bytes.Equal(assignment.ProfileExecutionSnapshotHash, eligibility.Profile.ExecutionSnapshotHash) {
 		return types.TaskCandidateFactState{}, fmt.Errorf("locked Profile execution snapshot is unavailable: %w", errCandidateNotApplicable)
 	}
-	params, err := k.Params.Get(ctx)
+	params, err := k.ParamsForTask(ctx, types.NewTaskKey(core.TaskId))
 	if err != nil {
 		return types.TaskCandidateFactState{}, err
 	}

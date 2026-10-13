@@ -368,7 +368,7 @@ func (q *queryServer) nextSettlementDeadline(
 	if summary.OpenRoundCount != 0 || summary.XRoundsClosedHeight == nil || summary.GetRoundsClosedHeight() == 0 {
 		return 0, 0, false, errors.New("settling task has no closed-round height")
 	}
-	params, err := q.k.Params.Get(ctx)
+	params, err := q.k.ParamsForTask(ctx, taskKey)
 	if err != nil {
 		return 0, 0, false, err
 	}

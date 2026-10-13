@@ -19,8 +19,8 @@
       "builder_set_cap": 15,
       "builders_per_task": 3,
       "builder_set_update_lead_blocks": "100",
-      "assignment_builder_proposal_window_blocks": "5",
-      "open_verify_builder_proposal_window_blocks": "5",
+      "assignment_builder_proposal_window_blocks": "4",
+      "open_verify_builder_proposal_window_blocks": "60",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
@@ -64,13 +64,13 @@
     },
     "epoch": {
       "epoch_length_blocks": "14400",
-      "delta_w_blocks": "5",
+      "delta_w_blocks": "1",
       "delta_m_blocks": "100"
     },
     "freeze": {
       "freeze_risk_window_blocks": "100",
       "min_freeze_signal_failure_count": 1,
-      "freeze_signal_vote_window_blocks": "100",
+      "freeze_signal_vote_window_blocks": "1800",
       "freeze_signal_detail_retention_blocks": "60480",
       "freeze_signal_summary_retention_blocks": "60480",
       "freeze_failure_index_retention_blocks": "604800",
@@ -140,7 +140,7 @@
       },
       "max_service_bond_effective_items_per_block": 1024,
       "task_liability_order_coverage_bps": 10000,
-      "min_stake_grace_period_blocks": "100"
+      "min_stake_grace_period_blocks": "3000"
     },
     "support": {
       "support_window_epochs": 180,
@@ -196,8 +196,7 @@
       "min_fee_per_gas_numerator": "1",
       "min_fee_per_gas_denominator": "1",
       "fee_bypass_type_urls": [],
-      "max_bypass_gas_per_block": "10000000",
-      "evm_chain_id": "31337"
+      "max_bypass_gas_per_block": "10000000"
     },
     "bridge": {
       "bridge_limit_hard_max": {
@@ -219,7 +218,7 @@
     "schema_version": 1,
     "session": {
       "max_order_sequences_per_active_session": 4096,
-      "session_idle_ttl_blocks": 100,
+      "session_idle_ttl_blocks": 30000,
       "session_close_ttl_blocks": 600000,
       "session_order_retention_blocks": 60480,
       "max_session_history_prune_items_per_block": 256,
@@ -229,12 +228,12 @@
       "cancel_order_min_gas": 50000
     },
     "deadlines": {
-      "verify_open_deadline_blocks": 300,
+      "verify_open_deadline_blocks": 3000,
       "commit_window_blocks": 100000,
       "reveal_window_blocks": 100000,
       "collection_window_blocks": 200200,
       "settle_margin_blocks": 20,
-      "self_rescue_margin_blocks": 30,
+      "self_rescue_margin_blocks": 15,
       "max_deadline_sweep_per_block": 1024
     },
     "proposals": {
@@ -272,7 +271,7 @@
       "evidence_schema_version_supported": [],
       "leaf_ordering_version_supported": [],
       "max_output_mmr_leaves": "65536",
-      "min_output_stream_frame_bytes": 256,
+      "min_output_stream_frame_bytes": 16,
       "max_worker_evidence_bytes_v1": "1048576"
     },
     "cleanup": {
@@ -320,11 +319,11 @@
       },
       "challenge_inconclusive_bond_slash_bps": 0,
       "challenge_fault_slash_bps": 0,
-      "candidate_window_delay_blocks": "1",
-      "handraise_window_blocks": "1",
-      "assignment_delay_blocks": "1",
-      "commit_window_blocks": "20",
-      "reveal_window_blocks": "10",
+      "candidate_window_delay_blocks": "2",
+      "handraise_window_blocks": "5",
+      "assignment_delay_blocks": "2",
+      "commit_window_blocks": "30",
+      "reveal_window_blocks": "20",
       "max_round_effect_items_per_block": 1024
     }
   },
@@ -477,7 +476,7 @@
       },
       "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0xd1173555a1dda1c9808342b40ef405423f9edfed718af57a9d1774b5293f774f",
+      "manifest_hash": "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023",
       "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/registered/1-Qwen%3AQwen3-8B/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
