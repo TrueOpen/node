@@ -65,7 +65,7 @@ func TestMergeDocumentsProjectsRESTBytesByDescriptorIdentity(t *testing.T) {
 	require.NoError(t, mergeDocuments(hub, task, descriptors))
 	parameter := hub["paths"].(map[string]any)["/TrueOpen/hub/v1/fault/{fault_id}"].(map[string]any)["get"].(map[string]any)["parameters"].([]any)[0].(map[string]any)
 	require.Equal(t, "trueopen-hash32", parameter["format"])
-	require.Equal(t, "^[0-9a-f]{64}$", parameter["pattern"])
+	require.Equal(t, "^0x[0-9a-f]{64}$", parameter["pattern"])
 	faultID := hub["definitions"].(map[string]any)["hub.v1.QueryFaultRequest"].(map[string]any)["properties"].(map[string]any)["fault_id"].(map[string]any)
 	require.Equal(t, "trueopen-hash32", faultID["format"])
 	require.Equal(t, "byte", publicKey["format"])
