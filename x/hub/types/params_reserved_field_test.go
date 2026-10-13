@@ -15,7 +15,7 @@ func TestPhase0ParamsDecodeIgnoresRetiredEvmChainID(t *testing.T) {
 	raw, err := want.Marshal()
 	require.NoError(t, err)
 
-	const retiredEvmChainIDTag = 11<<3 | 0                                                // field 11, varint
+	const retiredEvmChainIDTag = 11 << 3                                                  // field 11, varint
 	legacy := append(append([]byte(nil), raw...), retiredEvmChainIDTag, 0xE9, 0xF4, 0x01) // 31337
 
 	var got Phase0ParamsV1
