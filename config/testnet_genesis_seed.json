@@ -476,7 +476,7 @@
       },
       "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0x65c50f9ea8d1df20f48499e27c6abbdd4f62867925d58aa3cfa1c58b549d1b8f",
+      "manifest_hash": "0x8c35c84d9d043464d298a48d8a5cb3fb396a651646a52a31393d045214e2cfd6",
       "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/testnet/registered/1-Qwen%3AQwen3.8-27B-FP8/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
@@ -491,7 +491,7 @@
         "source_uri": "hf://Qwen/Qwen3.8-27B-FP8@017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
       },
       "tool_call_parser": {
-        "name": "qwen3_xml",
+        "name": "qwen3_coder",
         "version": 1
       },
       "reasoning_parser": {
