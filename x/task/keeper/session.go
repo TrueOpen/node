@@ -58,7 +58,7 @@ func hash32StoreKey(field string, value []byte) (types.Hash32Key, error) {
 	return value, nil
 }
 
-func sessionStoreKey(sessionID []byte) (types.SessionKey, error) {
+func sessionStoreKey(sessionID []byte) (types.SessionStoreKey, error) {
 	key, err := hash32StoreKey("session_id", sessionID)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSessionID, err.Error())
@@ -176,7 +176,7 @@ func (k Keeper) refreshSessionLifecycleIndex(ctx context.Context, stream types.S
 // removeSessionLifecycleIndexes deletes both candidate rows derived from the
 // stored last_active_height. Both actions are attempted because a reactivation
 // may cross the ACTIVE/IDLE boundary.
-func (k Keeper) removeSessionLifecycleIndexes(ctx context.Context, sessionKey types.SessionKey, lastActiveHeight uint64) error {
+func (k Keeper) removeSessionLifecycleIndexes(ctx context.Context, sessionKey types.SessionStoreKey, lastActiveHeight uint64) error {
 	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return err

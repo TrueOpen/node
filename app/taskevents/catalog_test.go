@@ -28,7 +28,7 @@ func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
 		want = append(want, code)
 	}
 	want = append(want, 34, 40, 41, 50, 51, 52, 53, 60, 80, 81)
-	for code := 90; code <= 105; code++ {
+	for code := 90; code <= 106; code++ {
 		want = append(want, code)
 	}
 	for code := 109; code <= 113; code++ {
@@ -112,6 +112,21 @@ func TestSessionCreatedTargetsOwnerAccount(t *testing.T) {
 		Role:    shared.EventRole_EVENT_ROLE_USER,
 		Address: "trueopen1owner",
 	}}, event.Targets)
+}
+
+func TestSessionKeyUpdatedIsSessionScopedAndTargetsOwner(t *testing.T) {
+	payload := &tasktypes.EventSessionKeyUpdated{SessionId: eventTestSessionID(), Owner: "trueopen1owner"}
+	event, ok := classifyTypedEvent(payload)
+	require.True(t, ok)
+	require.Equal(t, eventKindTask, event.Kind)
+	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_UPDATED, event.Code)
+	require.Equal(t, eventKindTask, eventCodeOwner(event.Code))
+	require.Equal(t, payload.SessionId, event.SessionID)
+	require.Empty(t, event.TaskID)
+	require.Equal(t, "trueopen1owner", event.Targets[0].Address)
+	envelope := &tasktypes.TaskEvent{}
+	require.True(t, setTaskEventPayload(envelope, payload))
+	require.Equal(t, payload, envelope.Payload.GetSessionKeyUpdated())
 }
 
 func TestWorkerAssignmentFinalizedTargetsWinnerWorker(t *testing.T) {

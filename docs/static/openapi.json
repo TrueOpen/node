@@ -4741,6 +4741,11 @@
           "format": "int64",
           "type": "integer"
         },
+        "max_session_key_blocks": {
+          "description": "Positive deployment-configured limit. Registration and renewal read the\ncurrent effective value, not ParamsForSession; later governance changes do\nnot rewrite an existing grant's expiry. Legacy history may omit this field.",
+          "format": "uint64",
+          "type": "string"
+        },
         "max_session_sweep_per_block": {
           "format": "int64",
           "type": "integer"
@@ -5099,7 +5104,7 @@
       "type": "string"
     },
     "task.v1.StreamState": {
-      "description": "StreamState is one session: sequence counter, owner and in-flight count only\n(key = session_id). Model A: a session never holds a balance; the\nabandoned SessionEscrowState double ledger is deleted, and funds live in the\nuser account and the escrow module account with TaskBudgetState as the only\nper-task ledger.\nStreamState defines the StreamState wire type.",
+      "description": "StreamState is one session: sequence counter, owner, in-flight count and\noptional delegated signing authorization\n(key = session_id). Model A: a session never holds a balance; the\nabandoned SessionEscrowState double ledger is deleted, and funds live in the\nuser account and the escrow module account with TaskBudgetState as the only\nper-task ledger.\nStreamState defines the StreamState wire type.",
       "properties": {
         "last_active_height": {
           "format": "uint64",
@@ -5122,6 +5127,29 @@
           "minLength": 66,
           "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
+        },
+        "session_key": {
+          "description": "Absent means wallet-only. A present value is a nonzero raw20 address,\ndifferent from owner; it is not an account or a transaction authorization.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
+        },
+        "session_key_expiry_height": {
+          "description": "Inclusive last admission/request height. Zero when no key is registered.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "session_key_set_height": {
+          "description": "First registration, different-key replacement or SET after CLEAR records\nthe execution height; same-key renewal/cap changes preserve it. Zero when\nno key is registered. A delegated order's signed anchor height must be at\nleast this height, preventing signatures from a revoked grant reviving.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "session_key_spend_cap": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Cumulative admitted max_fee limit; zero means unlimited, not disabled."
+        },
+        "session_key_spent": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Checked cumulative max_fee, even without a cap. Never reset by rotation,\nrenewal, clearing or refunds. Wallet orders do not increment it."
         },
         "status": {
           "$ref": "#/definitions/task.v1.SessionStatus"

@@ -55,7 +55,7 @@ func TestGenesisV03RoundTripRebuildsDerivedIndexes(t *testing.T) {
 	nonceStore, err := source.keeper.SessionNonce.Get(source.ctx, types.AddrKey(ownerBytes))
 	require.NoError(t, err)
 	require.Equal(t, []byte(ownerBytes), nonceStore.UserAddress)
-	streamStore, err := source.keeper.Stream.Get(source.ctx, types.NewSessionKey(input.Streams[0].SessionId))
+	streamStore, err := source.keeper.Stream.Get(source.ctx, types.NewSessionStoreKey(input.Streams[0].SessionId))
 	require.NoError(t, err)
 	require.Equal(t, []byte(ownerBytes), streamStore.OwnerUserAddress)
 	assignmentStore, err := source.keeper.TaskAssignment.Get(source.ctx, types.NewTaskKey(input.TaskAssignments[0].TaskId))

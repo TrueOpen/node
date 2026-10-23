@@ -167,6 +167,10 @@ func New(
 			),
 		)
 	)
+	sessionKeyConfig, err := SessionKeyConfigFromAppOptions(appOpts)
+	if err != nil {
+		panic(err)
+	}
 	taskEventConfig, err := taskevents.ConfigFromAppOptions(appOpts)
 	if err != nil {
 		panic(err)
@@ -206,6 +210,9 @@ func New(
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 
 	// build app
+	if err := app.TaskKeeper.ConfigureSessionKeyActivation(sessionKeyConfig.ActivationHeight); err != nil {
+		panic(err)
+	}
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 	// Only MsgProcessMessage and MsgRemoteTransfer are callable Hyperlane messages. The circuit
 	// breaker is consulted by the router for every message before its handler

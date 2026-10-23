@@ -42,75 +42,50 @@ func TestTaskOrderEIP712PublicVector(t *testing.T) {
 	require.Equal(t, "1a642f0e3c3af545e7acbd38b07251b3990914f1", hex.EncodeToString(recovered.Address))
 }
 
-func TestVerifySignedOrderV2EIP712WithAccountOrAddress(t *testing.T) {
-	privateKey := dcrsecp256k1.PrivKeyFromBytes(bytes.Repeat([]byte{0x01}, 32))
+func TestRecoverSignedOrderV2EIP712AndAccountKey(t *testing.T) {
+	key := dcrsecp256k1.PrivKeyFromBytes(bytes.Repeat([]byte{1}, 32))
 	order := accountSigningVectorOrder(t)
-	taskHash, err := TaskOrderHash(order)
+	hash, err := TaskOrderHash(order)
 	require.NoError(t, err)
-	digest, err := BuildTaskOrderEIP712Digest(424242, "uusdc", order, taskHash[:])
-	require.NoError(t, err)
-	compact := dcrecdsa.SignCompact(privateKey, digest.SigningDigest[:], false)
-	require.Contains(t, []byte{27, 28}, compact[0])
-	signature := append(append([]byte(nil), compact[1:]...), compact[0])
-	signedOrder := SignedOrderV2{
-		Order: order, SignatureScheme: SignatureSchemeEIP712, UserSignature: signature,
-		SignatureChainId: 424242,
-	}
-	accountKey := testEIP712AccountPublicKey{
-		typeName: EthSecp256k1PublicKeyType,
-		key:      privateKey.PubKey().SerializeCompressed(),
-	}
-	expectedAddress, err := canonicalTaskOrderEIP712User(order.UserAddress)
-	require.NoError(t, err)
-	require.NoError(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, taskHash[:], accountKey))
-	require.NoError(t, VerifySignedOrderV2EIP712WithAddress("uusdc", signedOrder, taskHash[:], expectedAddress))
-
-	t.Run("wrong task hash", func(t *testing.T) {
-		wrong := append([]byte(nil), taskHash[:]...)
-		wrong[0] ^= 1
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, wrong, accountKey), "task_hash")
-	})
-	t.Run("carried chain id differs from the signed one", func(t *testing.T) {
-		changed := signedOrder
-		changed.SignatureChainId = 424243
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "recovered signer")
-	})
-	t.Run("out of range chain id", func(t *testing.T) {
-		for _, id := range []uint64{0, uint64(math.MaxInt64) + 1} {
-			changed := signedOrder
-			changed.SignatureChainId = id
-			require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "signature_chain_id")
-		}
-	})
-	t.Run("wallet network chain id", func(t *testing.T) {
-		// A wallet signs under whatever network is active, so any in-range id
-		// the signer carried must verify.
-		walletDigest, err := BuildTaskOrderEIP712Digest(1, "uusdc", order, taskHash[:])
+	sign := func(chain uint64, denom string) SignedOrderV2 {
+		d, err := BuildTaskOrderEIP712Digest(chain, denom, order, hash[:])
 		require.NoError(t, err)
-		walletCompact := dcrecdsa.SignCompact(privateKey, walletDigest.SigningDigest[:], false)
-		walletOrder := signedOrder
-		walletOrder.SignatureChainId = 1
-		walletOrder.UserSignature = append(append([]byte(nil), walletCompact[1:]...), walletCompact[0])
-		require.NoError(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", walletOrder, taskHash[:], accountKey))
-	})
-	t.Run("wrong business denom", func(t *testing.T) {
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("utrueopen", signedOrder, taskHash[:], accountKey), "recovered signer")
-	})
-	t.Run("wrong scheme", func(t *testing.T) {
-		changed := signedOrder
-		changed.SignatureScheme = "secp256k1"
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", changed, taskHash[:], accountKey), "signature_scheme")
-	})
-	t.Run("wrong public key type", func(t *testing.T) {
-		changed := accountKey
-		changed.typeName = "secp256k1"
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAccountPublicKey("uusdc", signedOrder, taskHash[:], changed), "public key type")
-	})
-	t.Run("wrong expected address", func(t *testing.T) {
-		wrong := append([]byte(nil), expectedAddress...)
-		wrong[0] ^= 1
-		require.ErrorContains(t, VerifySignedOrderV2EIP712WithAddress("uusdc", signedOrder, taskHash[:], wrong), "expected user address")
-	})
+		compact := dcrecdsa.SignCompact(key, d.SigningDigest[:], false)
+		return SignedOrderV2{Order: order, SignatureScheme: SignatureSchemeEIP712, SignatureChainId: chain, UserSignature: append(append([]byte(nil), compact[1:]...), compact[0])}
+	}
+	for _, chain := range []uint64{1, 424242} {
+		signed := sign(chain, "uusdc")
+		recovered, err := RecoverSignedOrderV2EIP712("uusdc", signed, hash[:])
+		require.NoError(t, err)
+		require.Equal(t, key.PubKey().SerializeCompressed(), recovered.PublicKey)
+		wrongHash := bytes.Clone(hash[:])
+		wrongHash[0] ^= 1
+		_, err = RecoverSignedOrderV2EIP712("uusdc", signed, wrongHash)
+		require.ErrorContains(t, err, "task_hash")
+		other, err := RecoverSignedOrderV2EIP712("utrueopen", signed, hash[:])
+		require.NoError(t, err)
+		require.NotEqual(t, recovered.Address, other.Address)
+		signed.SignatureScheme = "secp256k1"
+		_, err = RecoverSignedOrderV2EIP712("uusdc", signed, hash[:])
+		require.ErrorContains(t, err, "signature_scheme")
+	}
+	for _, chain := range []uint64{0, uint64(math.MaxInt64) + 1} {
+		_, err := RecoverSignedOrderV2EIP712("uusdc", SignedOrderV2{Order: order, SignatureScheme: SignatureSchemeEIP712, SignatureChainId: chain}, hash[:])
+		require.ErrorContains(t, err, "signature_chain_id")
+	}
+	account := testEIP712AccountPublicKey{typeName: EthSecp256k1PublicKeyType, key: key.PubKey().SerializeCompressed()}
+	raw, err := TaskOrderAccountPublicKey(account)
+	require.NoError(t, err)
+	require.Equal(t, account.key, raw)
+	_, err = TaskOrderAccountPublicKey(nil)
+	require.Error(t, err)
+	account.typeName = "secp256k1"
+	_, err = TaskOrderAccountPublicKey(account)
+	require.ErrorContains(t, err, "public key type")
+	account.typeName = EthSecp256k1PublicKeyType
+	account.key = make([]byte, 33)
+	_, err = TaskOrderAccountPublicKey(account)
+	require.Error(t, err)
 }
 
 func TestCanonicalEIP712SignatureRejectsAlternateForms(t *testing.T) {

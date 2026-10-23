@@ -815,7 +815,7 @@ func (k Keeper) processEvidenceCleanupEndBlock(ctx context.Context, currentHeigh
 			return processed, err
 		}
 		taskID := types.TaskKey(head.primaryID)
-		var sessionID types.SessionKey
+		var sessionID types.SessionStoreKey
 		if core, err := k.TaskCore.Get(ctx, taskID); err == nil {
 			sessionID = core.SessionId
 		}

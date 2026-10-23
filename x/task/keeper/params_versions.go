@@ -76,7 +76,7 @@ func (k Keeper) ParamsForTask(ctx context.Context, taskKey types.TaskKey) (types
 }
 
 // ParamsForSession returns the params a Session was created under.
-func (k Keeper) ParamsForSession(ctx context.Context, sessionKey types.SessionKey) (types.TaskParamsV1, error) {
+func (k Keeper) ParamsForSession(ctx context.Context, sessionKey types.SessionStoreKey) (types.TaskParamsV1, error) {
 	return k.paramsOfRow(ctx, k.SessionParamsVersion, sessionKey)
 }
 
@@ -94,7 +94,7 @@ func (k Keeper) PinTaskParams(ctx context.Context, taskKey types.TaskKey) error 
 }
 
 // PinSessionParams records the current params version on a Session being created.
-func (k Keeper) PinSessionParams(ctx context.Context, sessionKey types.SessionKey) error {
+func (k Keeper) PinSessionParams(ctx context.Context, sessionKey types.SessionStoreKey) error {
 	return k.pinParamsVersion(ctx, k.SessionParamsVersion, sessionKey)
 }
 
@@ -111,7 +111,7 @@ func (k Keeper) UnpinTaskParams(ctx context.Context, taskKey types.TaskKey) erro
 }
 
 // UnpinSessionParams drops the pointer of a Session that has been compacted away.
-func (k Keeper) UnpinSessionParams(ctx context.Context, sessionKey types.SessionKey) error {
+func (k Keeper) UnpinSessionParams(ctx context.Context, sessionKey types.SessionStoreKey) error {
 	return unpinParamsVersion(ctx, k.SessionParamsVersion, sessionKey)
 }
 

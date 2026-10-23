@@ -42,7 +42,7 @@ func sessionLifecycleDueHeights(params types.TaskParamsV1, lastActiveHeight uint
 // EndBlock and MsgSweepDeadline(SessionLifecycleLocator). The caller has already
 // removed the index row it is reporting, so this function is responsible for
 // re-arming the authoritative row when the transition does not apply.
-func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey types.SessionKey, action types.SessionLifecycleAction, dueHeight, currentHeight uint64) (sessionLifecycleResult, error) {
+func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey types.SessionStoreKey, action types.SessionLifecycleAction, dueHeight, currentHeight uint64) (sessionLifecycleResult, error) {
 	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
@@ -131,7 +131,7 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 // removeSessionByOwnerIndex is the only writer that deletes SessionByOwnerIndex.
 // Before this, nothing in the module ever removed the row, so
 // QuerySessionsByOwner enumerated CLOSED sessions forever.
-func (k Keeper) removeSessionByOwnerIndex(ctx context.Context, owner string, sessionKey types.SessionKey) error {
+func (k Keeper) removeSessionByOwnerIndex(ctx context.Context, owner string, sessionKey types.SessionStoreKey) error {
 	raw, err := k.sessionAddressToStore("session owner index", owner)
 	if err != nil {
 		return err
@@ -165,7 +165,7 @@ func (k Keeper) SweepExpiredSessionLifecycle(ctx context.Context, currentHeight,
 	// iterator's.
 	type dueRow struct {
 		dueHeight  uint64
-		sessionKey types.SessionKey
+		sessionKey types.SessionStoreKey
 		action     types.SessionLifecycleAction
 	}
 	due := make([]dueRow, 0, limit)
@@ -215,7 +215,7 @@ func (k Keeper) SweepExpiredSessionLifecycle(ctx context.Context, currentHeight,
 // SweepSessionLifecycleByID is the ByIDV1 branch of
 // SessionLifecycleLocator. It resolves the due row from the authoritative
 // StreamState instead of scanning the index, so it is O(1).
-func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.SessionKey, currentHeight uint64) (SessionLifecycleSweepResult, error) {
+func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.SessionStoreKey, currentHeight uint64) (SessionLifecycleSweepResult, error) {
 	stream, err := k.ReadStream(ctx, sessionKey)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {

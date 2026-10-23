@@ -26,6 +26,10 @@ func ValidateFrozenSlashBps(bps uint32) error {
 	return nil
 }
 
+// DefaultMaxSessionKeyBlocks is the deployment default for genesis and the
+// first block after activation; it is not a protocol-wide fixed limit.
+const DefaultMaxSessionKeyBlocks = uint64(604_800)
+
 const (
 	DefaultMaxOrderSequencesPerActiveSession           = uint32(4096)
 	DefaultSessionIdleTTLBlocks                        = uint64(100)
@@ -132,6 +136,7 @@ func DefaultTaskParams() TaskParamsV1 {
 			MaxSessionSweepPerBlock:                     DefaultMaxSessionSweepPerBlock,
 			CancelOrderMinGas:                           DefaultCancelOrderMinGas,
 			AnchorFreshnessWindowBlocks:                 DefaultAnchorFreshnessWindowBlocks,
+			MaxSessionKeyBlocks:                         DefaultMaxSessionKeyBlocks,
 		},
 		Deadlines: TaskDeadlineParamsV1{
 			VerifyOpenDeadlineBlocks: DefaultVerifyOpenDeadlineBlocks,
@@ -306,6 +311,9 @@ func validateChallengeParams(p ChallengeParamsV1, selectedVerifierCount uint32) 
 }
 
 func validateSessionParams(p SessionParamsV1) error {
+	if p.MaxSessionKeyBlocks == 0 {
+		return fmt.Errorf("session.max_session_key_blocks must be positive")
+	}
 	if err := positiveUint32("session.max_order_sequences_per_active_session", p.MaxOrderSequencesPerActiveSession, MaxSessionRowsLimit); err != nil {
 		return err
 	}
@@ -637,6 +645,8 @@ func GenesisOnlyTaskParamsChanged(current, next TaskParamsV1) (string, bool) {
 // per Task or Session. Everything else a Task or Session reads is frozen when it
 // is created (ParamsForTask, ParamsForSession), so a change only takes effect for
 // work that starts after it.
+// Session key registration is separately live-bound: its maximum duration is
+// checked only when the owner sets a grant, never retroactively on an old grant.
 //
 // The EpochTaskSummary budgets are the exception: a summary accumulates over
 // several blocks, and lowering a budget below what the summary already holds would
@@ -663,6 +673,10 @@ func RuntimeImmutableTaskParamsChanged(current, next TaskParamsV1) (string, bool
 // gone rather than re-derived.
 func CanonicalTaskParamsTypedFields(p TaskParamsV1) []shared.CanonicalFieldV1 {
 	sections := canonicalTaskParamsSectionFields(p)
+	// Zero identifies the pre-registration schema retained in historical versions.
+	if p.Session.MaxSessionKeyBlocks == 0 {
+		sections[0] = sections[0][:len(sections[0])-1]
+	}
 	fields := make([]shared.CanonicalFieldV1, 0, len(sections)+1)
 	fields = append(fields, shared.RawCanonicalFieldV1(shared.Uint32BE(p.SchemaVersion)))
 	for _, section := range sections {
@@ -711,6 +725,7 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 			shared.Uint32BE(p.Session.MaxSessionSweepPerBlock),
 			shared.Uint64BE(p.Session.CancelOrderMinGas),
 			shared.Uint64BE(p.Session.AnchorFreshnessWindowBlocks),
+			shared.Uint64BE(p.Session.MaxSessionKeyBlocks),
 		),
 		// field 3: TaskDeadlineParamsV1
 		shared.RawCanonicalFieldsV1(
@@ -837,7 +852,7 @@ func canonicalTaskParamsAmountFields(amounts ...shared.Amount) []shared.Canonica
 // TaskParamsHashV1 is the single producer of TaskParamsMetaState.params_hash and
 // of the value echoed by MsgUpdateTaskParamsResponse and event 111.
 func TaskParamsHashV1(chainID string, version uint64, params TaskParamsV1) ([]byte, error) {
-	if err := params.Validate(); err != nil {
+	if err := ValidateHistoricalTaskParams(params); err != nil {
 		return nil, err
 	}
 	body := shared.NewCanonicalFrameBuilderV1().Field(CanonicalTaskParamsTypedFields(params)...).Build()
@@ -855,4 +870,13 @@ func (s TaskParamsMetaState) Validate() error {
 		return fmt.Errorf("params meta params_hash must be 32 bytes")
 	}
 	return nil
+}
+
+// ValidateHistoricalTaskParams accepts an omitted registration limit only in a
+// pre-activation parameter body. New genesis and live updates use Validate.
+func ValidateHistoricalTaskParams(params TaskParamsV1) error {
+	if params.Session.MaxSessionKeyBlocks == 0 {
+		params.Session.MaxSessionKeyBlocks = DefaultMaxSessionKeyBlocks
+	}
+	return params.Validate()
 }

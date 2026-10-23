@@ -9,15 +9,16 @@
     "Linting and compatibility checking of the contract itself are not repeated here. TrueOpen/wire's CI runs buf lint over the whole module and buf breaking against the previous release before an image is ever published.",
     "withheld_packages are present in the image - the same image feeds wire's own lint and compatibility checks - but excluded from generation. release/packages.json in the wire repository is the authority for why.",
     "The descriptor image vendored here is the wire.binpb the release publishes, and its digest is the one release-manifest.json declares for it. Rebuilding it from the tagged tree with the buf version the manifest names reproduces the same bytes, so this pin can be re-verified offline without trusting a download.",
-    "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
+    "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change.",
+    "LOCAL CANDIDATE ONLY: exact unmerged commit for implementation verification; replace with a published release before merging a consumer pin."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.5.0",
-  "release_commit": "ebeeb84f640c035d7761ac818ccf4ab79ae254d2",
+  "release_tag": "v0.5.1-0.20261023023131-602cb1831f37",
+  "release_commit": "602cb1831f377f3d59bbcdde5104b5c9c3f67544",
   "descriptor": {
     "path": "wire/wire.binpb",
-    "bytes": 1092450,
-    "sha256": "ef6b506941477df100b703c9f123dd20ee6728f8fb2bc2abfe4b6bdaca2edcf6"
+    "bytes": 1102844,
+    "sha256": "d0726ab567377a84842f5a273db2ce8b508c86c2a7895aeae49197fd389bd6b4"
   },
   "domain_registry": {
     "path": "registry/v1/domains.json",

@@ -37,14 +37,14 @@ func removeDeadlineIndex(ctx context.Context, set collections.KeySet[types.Deadl
 // Keying by task_id alone makes the session component of the key unused. New production code
 // calls addDeadlineIndex directly with the Task primary.
 
-func (k Keeper) AddEvidenceCleanupIndex(ctx context.Context, _ types.SessionKey, taskID types.TaskKey, deadline uint64) error {
+func (k Keeper) AddEvidenceCleanupIndex(ctx context.Context, _ types.SessionStoreKey, taskID types.TaskKey, deadline uint64) error {
 	return addDeadlineIndex(ctx, k.EvidenceCleanupIndex, taskID, deadline)
 }
 
 // expiredDeadlineFn receives the raw Hash32 keys. A nil sessionID means the
 // TaskCore row is gone, which is the byte-key spelling of the previous ""
 // sentinel; callers must test it with len() rather than bytes.Equal.
-type expiredDeadlineFn func(sessionID types.SessionKey, taskID types.TaskKey, deadline uint64) (bool, error)
+type expiredDeadlineFn func(sessionID types.SessionStoreKey, taskID types.TaskKey, deadline uint64) (bool, error)
 
 // iterateExpiredTaskDeadlines is the read-only walk used by the evidence cleanup
 // cursor. Every bounded *mutating* sweep goes through
@@ -65,7 +65,7 @@ func (k Keeper) iterateExpiredTaskDeadlines(ctx context.Context, set collections
 			return nil
 		}
 		taskID := key.K2()
-		var sessionID types.SessionKey
+		var sessionID types.SessionStoreKey
 		core, err := k.TaskCore.Get(ctx, types.NewTaskKey(taskID))
 		if err == nil {
 			sessionID = core.SessionId

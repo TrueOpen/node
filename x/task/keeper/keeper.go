@@ -29,14 +29,16 @@ import (
 // a second,
 // non-authoritative copy of the session binding to 15 primary and 10 index keys.
 type Keeper struct {
-	storeService          corestore.KVStoreService
-	transientStoreService corestore.TransientStoreService
-	cdc                   codec.Codec
-	addressCodec          address.Codec
-	authority             []byte
-	authKeeper            types.AuthKeeper
-	bankKeeper            types.BankKeeper
-	hubKeeper             types.HubKeeper
+	// Shared across dependency-injected Keeper copies; configured before execution.
+	sessionKeyActivationHeight *uint64
+	storeService               corestore.KVStoreService
+	transientStoreService      corestore.TransientStoreService
+	cdc                        codec.Codec
+	addressCodec               address.Codec
+	authority                  []byte
+	authKeeper                 types.AuthKeeper
+	bankKeeper                 types.BankKeeper
+	hubKeeper                  types.HubKeeper
 
 	Schema     collections.Schema
 	Params     collections.Item[types.TaskParamsV1]
@@ -49,7 +51,7 @@ type Keeper struct {
 	ParamsHistory        collections.Map[uint64, types.TaskParamsV1]
 	LegacyParamsVersion  collections.Item[uint64]
 	TaskParamsVersion    collections.Map[types.TaskKey, uint64]
-	SessionParamsVersion collections.Map[types.SessionKey, uint64]
+	SessionParamsVersion collections.Map[types.SessionStoreKey, uint64]
 
 	// ---- Session / Order ----
 	//
@@ -59,13 +61,13 @@ type Keeper struct {
 	// summary -> deleted pipeline.
 	// SessionNonce uses the owner's canonical address bytes as its store key.
 	SessionNonce                     collections.Map[types.AddrKey, internaltypes.SessionNonceStoreState]
-	Stream                           collections.Map[types.SessionKey, internaltypes.StreamStoreState]
+	Stream                           collections.Map[types.SessionStoreKey, internaltypes.StreamStoreState]
 	SessionByOwnerIndex              collections.KeySet[types.SessionByOwnerKey]
 	SessionLifecycleIndex            collections.KeySet[types.SessionLifecycleIndexKey]
 	OrderSequence                    collections.Map[types.OrderSequenceStateKeyPair, types.OrderSequenceState]
-	SessionHistoryPruneCursor        collections.Map[types.SessionKey, types.SessionHistoryPruneCursorState]
+	SessionHistoryPruneCursor        collections.Map[types.SessionStoreKey, types.SessionHistoryPruneCursorState]
 	SessionHistoryPruneIndex         collections.KeySet[types.SessionHeightIndexKey]
-	SessionTerminalSummary           collections.Map[types.SessionKey, internaltypes.SessionTerminalSummaryStoreState]
+	SessionTerminalSummary           collections.Map[types.SessionStoreKey, internaltypes.SessionTerminalSummaryStoreState]
 	SessionTerminalSummaryPruneIndex collections.KeySet[types.SessionHeightIndexKey]
 	TaskBudget                       collections.Map[types.TaskBudgetKey, types.TaskBudgetState]
 
@@ -213,7 +215,8 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	epochTaskSummaryScheduleKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)
 
 	k := Keeper{
-		storeService: storeService, transientStoreService: transientStoreService,
+		sessionKeyActivationHeight: new(uint64),
+		storeService:               storeService, transientStoreService: transientStoreService,
 		cdc:          cdc,
 		addressCodec: addressCodec,
 		authority:    authority,

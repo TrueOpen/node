@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "4d5994070de40c27bb49fe51d8502093e673f7e5e8fe53625a8bc7588d65b9f7"
+const taskParamsGoldenHashV1 = "94ccf0db1e5271875c8e8bc106135020baee50c9ab928f559ea901e9f76ff4d8"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "32cb1bb5c82be3571be96f77094d984e1dbb0cf1daed351fe1e56d1e18905d80",
+	require.Equal(t, "6ee6ac6144bcbbf22cdc09237b36b0f17d057a37d0dc7339ef0fde4a8449d11a",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	mutated := base
@@ -214,7 +214,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 	require.NoError(t, err)
 	seen := map[string]string{hex.EncodeToString(unmutated): "<unmutated>"}
 	mutations := taskParamsFieldMutations(t)
-	require.Len(t, mutations, 88)
+	require.Len(t, mutations, 89)
 	for path, mutated := range mutations {
 		digest := taskParamsHashUncheckedForTest(t, taskParamsGoldenChainID, 1, mutated)
 		hash := hex.EncodeToString(digest)
@@ -223,7 +223,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 		}
 		seen[hash] = path
 	}
-	require.Len(t, seen, 89)
+	require.Len(t, seen, 90)
 }
 
 func taskParamsHashUncheckedForTest(t *testing.T, chainID string, version uint64, params TaskParamsV1) []byte {
@@ -430,4 +430,18 @@ func TestTaskParamsUpdateClassifiers(t *testing.T) {
 	require.True(t, changed)
 	require.Equal(t, "evidence.max_output_mmr_leaves", field)
 
+}
+
+func TestHistoricalTaskParamsRetainPreActivationCommitment(t *testing.T) {
+	params := DefaultTaskParams()
+	params.Session.MaxSessionKeyBlocks = 0
+	require.Error(t, params.Validate(), "new genesis and live params require a positive limit")
+	require.NoError(t, ValidateHistoricalTaskParams(params))
+	hash, err := TaskParamsHashV1(taskParamsGoldenChainID, 1, params)
+	require.NoError(t, err)
+	require.Equal(t, "4d5994070de40c27bb49fe51d8502093e673f7e5e8fe53625a8bc7588d65b9f7", hex.EncodeToString(hash))
+	genesis := DefaultGenesis()
+	genesis.Params = params
+	require.Error(t, genesis.Validate())
+	require.NoError(t, genesis.ValidateLegacyGenesis())
 }

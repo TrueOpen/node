@@ -31,7 +31,18 @@ func DefaultGenesis() *GenesisState {
 // cross-row and cross-module checks that require collections, Hub snapshots, or
 // recomputed indexes.
 func (gs GenesisState) Validate() error {
-	if err := gs.Params.Validate(); err != nil {
+	return gs.validate(false)
+}
+
+// ValidateLegacyGenesis is restricted to replay before a configured activation.
+func (gs GenesisState) ValidateLegacyGenesis() error { return gs.validate(true) }
+
+func (gs GenesisState) validate(legacy bool) error {
+	validateParams := gs.Params.Validate
+	if legacy {
+		validateParams = func() error { return ValidateHistoricalTaskParams(gs.Params) }
+	}
+	if err := validateParams(); err != nil {
 		return err
 	}
 	if gs.ParamsMeta.ParamsVersion != 0 {
@@ -92,6 +103,9 @@ func validateSessionRows(gs GenesisState) error {
 		}
 		if _, err := requireCanonicalNonEmpty("stream owner_user_address", s.OwnerUserAddress); err != nil {
 			return err
+		}
+		if _, err := NormalizeSessionKeyState(s); err != nil {
+			return fmt.Errorf("stream %s session key: %w", sid, err)
 		}
 		if err := requireEnum("stream status", s.Status, SessionStatus_name); err != nil {
 			return fmt.Errorf("%w for session_id %s", err, sid)
