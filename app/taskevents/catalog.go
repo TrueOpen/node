@@ -26,6 +26,9 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	case *tasktypes.EventSessionCreated:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_CREATED,
 			eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)
+	case *tasktypes.EventSessionKeyUpdated:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_UPDATED,
+			eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)
 	case *tasktypes.EventOrderCancelled:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ORDER_CANCELLED)
 	case *tasktypes.EventRevealPhaseStarted:
@@ -295,6 +298,8 @@ func setTaskEventPayload(envelope *tasktypes.TaskEvent, payload proto.Message) b
 	switch event := payload.(type) {
 	case *tasktypes.EventSessionCreated:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionCreated{SessionCreated: event}
+	case *tasktypes.EventSessionKeyUpdated:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionKeyUpdated{SessionKeyUpdated: event}
 	case *tasktypes.EventOrderCancelled:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_OrderCancelled{OrderCancelled: event}
 	case *tasktypes.EventRevealPhaseStarted:

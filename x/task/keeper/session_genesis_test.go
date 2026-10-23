@@ -27,7 +27,7 @@ func TestSessionTerminalSummaryGenesisStoresRawOwnerAndRoundTrips(t *testing.T) 
 	genesis.SessionTerminalSummaries = []tasktypes.SessionTerminalSummaryState{summary}
 	require.NoError(t, genesis.Validate())
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
-	stored, err := f.keeper.SessionTerminalSummary.Get(f.ctx, tasktypes.NewSessionKey(summary.SessionId))
+	stored, err := f.keeper.SessionTerminalSummary.Get(f.ctx, tasktypes.NewSessionStoreKey(summary.SessionId))
 	require.NoError(t, err)
 	raw, err := sdk.AccAddressFromBech32(summary.OwnerUserAddress)
 	require.NoError(t, err)

@@ -136,84 +136,41 @@ func RecoverEIP712Signer(signingDigest, signature []byte) (EIP712RecoveredSigner
 	return EIP712RecoveredSigner{PublicKey: recovered.PublicKey, Address: recovered.Address}, nil
 }
 
-// VerifySignedOrderV2EIP712WithAccountPublicKey verifies a SignedOrderV2
-// against the immutable public key already stored on the user's auth account.
-func VerifySignedOrderV2EIP712WithAccountPublicKey(
-	businessDenom string,
-	signedOrder SignedOrderV2,
-	taskHash []byte,
-	accountPublicKey TaskOrderEIP712AccountPublicKey,
-) error {
-	if accountPublicKey == nil {
-		return fmt.Errorf("user account public key is required")
+// TaskOrderAccountPublicKey validates the stored owner key required by both
+// wallet and registered-key admission, returning its canonical compressed bytes.
+func TaskOrderAccountPublicKey(accountKey TaskOrderEIP712AccountPublicKey) ([]byte, error) {
+	if accountKey == nil {
+		return nil, fmt.Errorf("user account public key is required")
 	}
-	if accountPublicKey.Type() != EthSecp256k1PublicKeyType {
-		return fmt.Errorf("user account public key type must be %s", EthSecp256k1PublicKeyType)
+	if accountKey.Type() != EthSecp256k1PublicKeyType {
+		return nil, fmt.Errorf("user account public key type must be %s", EthSecp256k1PublicKeyType)
 	}
-	publicKey, err := canonicalEthSecp256k1PublicKey(accountPublicKey.Bytes())
+	key, err := canonicalEthSecp256k1PublicKey(accountKey.Bytes())
 	if err != nil {
-		return fmt.Errorf("user account public key: %w", err)
+		return nil, fmt.Errorf("user account public key: %w", err)
 	}
-	return verifySignedOrderV2EIP712(
-		businessDenom, signedOrder, taskHash,
-		publicKey.SerializeCompressed(), nil,
-	)
+	return key.SerializeCompressed(), nil
 }
 
-// VerifySignedOrderV2EIP712WithAddress verifies a SignedOrderV2 against an
-// explicit raw 20-byte expected address. Handlers with an auth account should
-// prefer the public-key variant so both signer comparisons are enforced.
-func VerifySignedOrderV2EIP712WithAddress(
-	businessDenom string,
-	signedOrder SignedOrderV2,
-	taskHash, expectedAddress []byte,
-) error {
-	if len(expectedAddress) != 20 {
-		return fmt.Errorf("expected user address must be 20 bytes")
-	}
-	return verifySignedOrderV2EIP712(
-		businessDenom, signedOrder, taskHash,
-		nil, append([]byte(nil), expectedAddress...),
-	)
-}
-
-func verifySignedOrderV2EIP712(
-	businessDenom string,
-	signedOrder SignedOrderV2,
-	taskHash, expectedPublicKey, expectedAddress []byte,
-) error {
+// RecoverSignedOrderV2EIP712 validates the complete order commitment and canonical
+// signature once, without deciding whether the recovered identity is authorized.
+// Keeper must compare it with the owner or the current registered session key.
+func RecoverSignedOrderV2EIP712(businessDenom string, signedOrder SignedOrderV2, taskHash []byte) (EIP712RecoveredSigner, error) {
 	if signedOrder.SignatureScheme != SignatureSchemeEIP712 {
-		return fmt.Errorf("signature_scheme must be exactly %q", SignatureSchemeEIP712)
+		return EIP712RecoveredSigner{}, fmt.Errorf("signature_scheme must be exactly %q", SignatureSchemeEIP712)
 	}
 	recomputedTaskHash, err := TaskOrderHash(signedOrder.Order)
 	if err != nil {
-		return fmt.Errorf("task order: %w", err)
+		return EIP712RecoveredSigner{}, fmt.Errorf("task order: %w", err)
 	}
 	if len(taskHash) != Hash32Len || !bytes.Equal(recomputedTaskHash[:], taskHash) {
-		return fmt.Errorf("task_hash does not match TaskOrderV3")
+		return EIP712RecoveredSigner{}, fmt.Errorf("task_hash does not match TaskOrderV3")
 	}
 	digest, err := BuildTaskOrderEIP712Digest(signedOrder.SignatureChainId, businessDenom, signedOrder.Order, taskHash)
 	if err != nil {
-		return err
+		return EIP712RecoveredSigner{}, err
 	}
-	recovered, err := RecoverEIP712Signer(digest.SigningDigest[:], signedOrder.UserSignature)
-	if err != nil {
-		return err
-	}
-	userAddress, err := canonicalTaskOrderEIP712User(signedOrder.Order.UserAddress)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(recovered.Address, userAddress) {
-		return fmt.Errorf("recovered signer does not match TaskOrderV3 user_address")
-	}
-	if len(expectedPublicKey) != 0 && !bytes.Equal(recovered.PublicKey, expectedPublicKey) {
-		return fmt.Errorf("recovered signer public key does not match the user account public key")
-	}
-	if len(expectedAddress) != 0 && !bytes.Equal(recovered.Address, expectedAddress) {
-		return fmt.Errorf("recovered signer does not match the expected user address")
-	}
-	return nil
+	return RecoverEIP712Signer(digest.SigningDigest[:], signedOrder.UserSignature)
 }
 
 func canonicalTaskOrderEIP712User(value string) ([]byte, error) {

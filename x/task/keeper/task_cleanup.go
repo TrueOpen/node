@@ -26,7 +26,7 @@ type taskCleanupStepResult struct {
 	done    bool
 }
 
-func (k Keeper) runTaskCleanup(ctx context.Context, _ types.SessionKey, taskKey types.TaskKey, targetHeight, limit uint64) (evidenceCleanupProgress, error) {
+func (k Keeper) runTaskCleanup(ctx context.Context, _ types.SessionStoreKey, taskKey types.TaskKey, targetHeight, limit uint64) (evidenceCleanupProgress, error) {
 	if limit == 0 {
 		return evidenceCleanupProgress{}, nil
 	}

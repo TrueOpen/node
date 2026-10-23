@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
+
 	internaltypes "github.com/TrueOpen/node/x/task/internal/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
@@ -118,15 +120,31 @@ func setUniqueSessionNonce(ctx context.Context, k Keeper, state types.SessionNon
 }
 
 func (k Keeper) streamToStore(state types.StreamState) (internaltypes.StreamStoreState, error) {
+	state, err := types.NormalizeSessionKeyState(state)
+	if err != nil {
+		return internaltypes.StreamStoreState{}, err
+	}
 	address, err := k.sessionAddressToStore("stream owner", state.OwnerUserAddress)
 	if err != nil {
 		return internaltypes.StreamStoreState{}, err
 	}
-	return internaltypes.StreamStoreState{
+	stored := internaltypes.StreamStoreState{
 		SessionId: append([]byte(nil), state.SessionId...), OwnerUserAddress: address,
 		NextExpectedSequence: state.NextExpectedSequence, LastActiveHeight: state.LastActiveHeight,
 		OpenPendingCount: state.OpenPendingCount, Status: int32(state.Status),
-	}, nil
+		SessionKeyExpiryHeight: state.SessionKeyExpiryHeight, SessionKeySetHeight: state.SessionKeySetHeight,
+	}
+	// Keep legacy wallet-only rows byte-identical; projection supplies canonical zeros.
+	if state.SessionKeySpendCap.AtomicUnits != "0" {
+		stored.SessionKeySpendCapAtomicUnits = state.SessionKeySpendCap.AtomicUnits
+	}
+	if state.SessionKeySpent.AtomicUnits != "0" {
+		stored.SessionKeySpentAtomicUnits = state.SessionKeySpent.AtomicUnits
+	}
+	if state.XSessionKey != nil {
+		stored.XSessionKey = &internaltypes.StreamStoreState_SessionKey{SessionKey: bytes.Clone(state.GetSessionKey())}
+	}
+	return stored, nil
 }
 
 func (k Keeper) ProjectStreamStore(stored internaltypes.StreamStoreState) (types.StreamState, error) {
@@ -134,14 +152,27 @@ func (k Keeper) ProjectStreamStore(stored internaltypes.StreamStoreState) (types
 	if err != nil {
 		return types.StreamState{}, err
 	}
-	return types.StreamState{
+	state := types.StreamState{
 		SessionId: append([]byte(nil), stored.SessionId...), OwnerUserAddress: address,
 		NextExpectedSequence: stored.NextExpectedSequence, LastActiveHeight: stored.LastActiveHeight,
 		OpenPendingCount: stored.OpenPendingCount, Status: types.SessionStatus(stored.Status),
-	}, nil
+		SessionKeyExpiryHeight: stored.SessionKeyExpiryHeight, SessionKeySetHeight: stored.SessionKeySetHeight,
+		SessionKeySpendCap: shared.Amount{AtomicUnits: stored.SessionKeySpendCapAtomicUnits},
+		SessionKeySpent:    shared.Amount{AtomicUnits: stored.SessionKeySpentAtomicUnits},
+	}
+	if stored.XSessionKey != nil {
+		state.XSessionKey = &types.StreamState_SessionKey{SessionKey: bytes.Clone(stored.GetSessionKey())}
+	}
+	if state.SessionKeySpendCap.AtomicUnits == "" {
+		state.SessionKeySpendCap = shared.NewAmount(0)
+	}
+	if state.SessionKeySpent.AtomicUnits == "" {
+		state.SessionKeySpent = shared.NewAmount(0)
+	}
+	return types.NormalizeSessionKeyState(state)
 }
 
-func (k Keeper) ReadStream(ctx context.Context, key types.SessionKey) (types.StreamState, error) {
+func (k Keeper) ReadStream(ctx context.Context, key types.SessionStoreKey) (types.StreamState, error) {
 	stored, err := k.Stream.Get(ctx, key)
 	if err != nil {
 		return types.StreamState{}, err
@@ -152,7 +183,7 @@ func (k Keeper) ReadStream(ctx context.Context, key types.SessionKey) (types.Str
 	return k.ProjectStreamStore(stored)
 }
 
-func (k Keeper) WriteStream(ctx context.Context, key types.SessionKey, state types.StreamState) error {
+func (k Keeper) WriteStream(ctx context.Context, key types.SessionStoreKey, state types.StreamState) error {
 	if !bytes.Equal(state.SessionId, key) {
 		return fmt.Errorf("stream key/session mismatch")
 	}
@@ -187,7 +218,7 @@ func (k Keeper) exportStreams(ctx context.Context) ([]types.StreamState, error) 
 	return states, nil
 }
 
-func setUniqueStream(ctx context.Context, k Keeper, key types.SessionKey, state types.StreamState) error {
+func setUniqueStream(ctx context.Context, k Keeper, key types.SessionStoreKey, state types.StreamState) error {
 	has, err := k.Stream.Has(ctx, key)
 	if err != nil {
 		return err
@@ -228,7 +259,7 @@ func (k Keeper) ProjectTerminalSummaryStore(stored internaltypes.SessionTerminal
 	}, nil
 }
 
-func (k Keeper) ReadSessionTerminalSummary(ctx context.Context, key types.SessionKey) (types.SessionTerminalSummaryState, error) {
+func (k Keeper) ReadSessionTerminalSummary(ctx context.Context, key types.SessionStoreKey) (types.SessionTerminalSummaryState, error) {
 	stored, err := k.SessionTerminalSummary.Get(ctx, key)
 	if err != nil {
 		return types.SessionTerminalSummaryState{}, err
@@ -239,7 +270,7 @@ func (k Keeper) ReadSessionTerminalSummary(ctx context.Context, key types.Sessio
 	return k.ProjectTerminalSummaryStore(stored)
 }
 
-func (k Keeper) WriteSessionTerminalSummary(ctx context.Context, key types.SessionKey, state types.SessionTerminalSummaryState) error {
+func (k Keeper) WriteSessionTerminalSummary(ctx context.Context, key types.SessionStoreKey, state types.SessionTerminalSummaryState) error {
 	if !bytes.Equal(state.SessionId, key) {
 		return fmt.Errorf("terminal summary key/session mismatch")
 	}
@@ -274,7 +305,7 @@ func (k Keeper) exportSessionTerminalSummaries(ctx context.Context) ([]types.Ses
 	return states, nil
 }
 
-func setUniqueSessionTerminalSummary(ctx context.Context, k Keeper, key types.SessionKey, state types.SessionTerminalSummaryState) error {
+func setUniqueSessionTerminalSummary(ctx context.Context, k Keeper, key types.SessionStoreKey, state types.SessionTerminalSummaryState) error {
 	has, err := k.SessionTerminalSummary.Has(ctx, key)
 	if err != nil {
 		return err

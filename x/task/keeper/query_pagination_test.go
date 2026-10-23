@@ -91,7 +91,7 @@ func TestSessionsByOwnerCanonicalPageTokenDoesNotSkipRows(t *testing.T) {
 		bytes.Repeat([]byte{0x22}, types.Hash32Len),
 	}
 	for _, sessionID := range sessionIDs {
-		sessionKey := types.NewSessionKey(sessionID)
+		sessionKey := types.NewSessionStoreKey(sessionID)
 		require.NoError(t, f.keeper.WriteStream(f.ctx, sessionKey, types.StreamState{
 			SessionId: sessionID, OwnerUserAddress: owner,
 			Status: types.SessionStatus_SESSION_STATUS_ACTIVE,

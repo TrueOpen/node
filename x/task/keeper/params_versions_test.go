@@ -45,7 +45,7 @@ func TestParamsForRowFollowsTheVersionItWasCreatedUnder(t *testing.T) {
 	task := func(marker byte) types.TaskKey {
 		return types.NewTaskKey(bytes.Repeat([]byte{marker}, types.Hash32Len))
 	}
-	session := func(marker byte) types.SessionKey { return bytes.Repeat([]byte{marker}, types.Hash32Len) }
+	session := func(marker byte) types.SessionStoreKey { return bytes.Repeat([]byte{marker}, types.Hash32Len) }
 
 	pinnedAtV0, sessionAtV0, legacyTask := task(0x11), session(0x21), task(0x12)
 	require.NoError(t, f.keeper.PinTaskParams(f.ctx, pinnedAtV0))

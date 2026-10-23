@@ -320,7 +320,8 @@ func normalizedCodeFilter(values []shared.ProtocolEventCodeV1, owner eventKind) 
 
 func eventCodeOwner(code shared.ProtocolEventCodeV1) eventKind {
 	switch code {
-	case shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_CREATED,
+	case shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_UPDATED,
+		shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_CREATED,
 		shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ORDER_CANCELLED,
 		shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_REVEAL_PHASE_STARTED,
 		shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_TASK_FAILURE_CLASS_UPDATED,

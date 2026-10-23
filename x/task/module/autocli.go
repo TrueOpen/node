@@ -210,6 +210,11 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Create a user-owned session with a chain-generated session id",
 				},
 				{
+					RpcMethod: "UpdateSessionKey", Use: "update-session-key [session-id]",
+					Short:          "Set or clear the session signing key using the owner's wallet",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "session_id"}},
+				},
+				{
 					RpcMethod:      "CancelOrder",
 					Use:            "cancel-order [session-id] [order-sequence]",
 					Short:          "Cancel the next unused order sequence without moving funds",

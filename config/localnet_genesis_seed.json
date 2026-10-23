@@ -225,7 +225,8 @@
       "session_terminal_summary_retention_blocks": 60480,
       "max_session_terminal_summary_prune_items_per_block": 256,
       "max_session_sweep_per_block": 1024,
-      "cancel_order_min_gas": 50000
+      "cancel_order_min_gas": 50000,
+      "max_session_key_blocks": 604800
     },
     "deadlines": {
       "verify_open_deadline_blocks": 3000,

@@ -2,7 +2,7 @@
 
 > Generated from the current branch protobuf FileDescriptorSet by `scripts/generate_node_api_doc.go`. The descriptor is the authority for registered Msg and Query methods; blocked or internal-only methods are intentionally absent.
 
-> Scope: 100 registered `hub.v1` and `task.v1` Msg/Query RPCs.
+> Scope: 101 registered `hub.v1` and `task.v1` Msg/Query RPCs.
 
 ## 1. Client contract
 
@@ -95,6 +95,7 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `task` | `Msg` | [`SubmitWorkerEvidence`](#rpc-task-submitworkerevidence) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitWorkerHandraises`](#rpc-task-submitworkerhandraises) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SweepDeadline`](#rpc-task-sweepdeadline) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
+| `task` | `Msg` | [`UpdateSessionKey`](#rpc-task-updatesessionkey) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`UpdateTaskParams`](#rpc-task-updatetaskparams) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Query` | [`AssignmentRandomness`](#rpc-task-assignmentrandomness) | `/TrueOpen/task/v1/task/{task_id}/assignment_randomness` |
 | `task` | `Query` | [`BuilderDataUnavailable`](#rpc-task-builderdataunavailable) | `/TrueOpen/task/v1/task/{task_id}/builder_data_unavailable/{verify_round}/{builder_operator_address}` |
@@ -1893,6 +1894,10 @@ Request parameters:
 | Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
 |---|---|---|---|---|
 | `signer_address` | `string` | signer address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+| `session_key` | `task.v1.SessionKeyGrantV1` object | session key; this field is part of the protocol state or of the request. | Built according to the field rules of this nested message; amounts use a legal Coin denom and pagination uses QueryPageRequest. | The object must not be nil; type, amount, pagination ceiling and business consistency checks run recursively. |
+| `session_key.session_key` | `bytes` / base64 string | session key; this field is part of the protocol state or of the request. | Encoded deterministically according to the corresponding protocol structure; REST/JSON uses base64. | Checked for non-emptiness/length/ceiling, plus hash, signature, Merkle proof or canonical encoding verification where applicable. |
+| `session_key.expiry_height` | `uint64` / JSON decimal string | expiry height; this field is part of the protocol state or of the request. | Read the frozen height from the corresponding Query/event; relative windows are computed from on-chain params and must never use local wall-clock time. | Must fall inside the window the current stage permits; too early, past the deadline, a height that moves backwards, or an overflowing computation are all rejected. |
+| `session_key.spend_cap` | `shared.v1.Amount` object | spend cap; this field is part of the protocol state or of the request. | Built according to the field rules of this nested message; amounts use a legal Coin denom and pagination uses QueryPageRequest. | The object must not be nil; type, amount, pagination ceiling and business consistency checks run recursively. |
 
 Response fields:
 
@@ -2269,6 +2274,40 @@ Response fields:
 | `visited` | `uint32` | visited is the number of items this call examined. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `advanced` | `uint32` | advanced is the number of items whose state actually moved. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status is APPLIED or NOOP; rejects use gRPC errors. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-updatesessionkey"></a> `task.UpdateSessionKey`
+
+- gRPC: `/task.v1.Msg/UpdateSessionKey`
+- Transport: build the corresponding Msg and sign and broadcast it through `/cosmos/tx/v1beta1/txs` or the node CLI; a successful transaction only means execution succeeded at this height.
+- Request/response: `task.v1.MsgUpdateSessionKey` -> `task.v1.MsgUpdateSessionKeyResponse`
+- Purpose: Performs the `UpdateSessionKey` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
+- Stage: The user session and order lifecycle stage.
+- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `signer_address` | `string` | signer address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+| `session_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The global identifier of a task session. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `set` | `task.v1.SessionKeyGrantV1` object | set; this field is part of the protocol state or of the request. | Built according to the field rules of this nested message; amounts use a legal Coin denom and pagination uses QueryPageRequest. | The object must not be nil; type, amount, pagination ceiling and business consistency checks run recursively. |
+| `set.session_key` | `bytes` / base64 string | session key; this field is part of the protocol state or of the request. | Encoded deterministically according to the corresponding protocol structure; REST/JSON uses base64. | Checked for non-emptiness/length/ceiling, plus hash, signature, Merkle proof or canonical encoding verification where applicable. |
+| `set.expiry_height` | `uint64` / JSON decimal string | expiry height; this field is part of the protocol state or of the request. | Read the frozen height from the corresponding Query/event; relative windows are computed from on-chain params and must never use local wall-clock time. | Must fall inside the window the current stage permits; too early, past the deadline, a height that moves backwards, or an overflowing computation are all rejected. |
+| `set.spend_cap` | `shared.v1.Amount` object | spend cap; this field is part of the protocol state or of the request. | Built according to the field rules of this nested message; amounts use a legal Coin denom and pagination uses QueryPageRequest. | The object must not be nil; type, amount, pagination ceiling and business consistency checks run recursively. |
+| `clear` | `task.v1.ClearSessionKeyV1` object | clear; this field is part of the protocol state or of the request. | Built according to the field rules of this nested message; amounts use a legal Coin denom and pagination uses QueryPageRequest. | The object must not be nil; type, amount, pagination ceiling and business consistency checks run recursively. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `session_key_or_empty` | `bytes` / base64 string | session key or empty; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | An absent value must be omitted; a present value must satisfy the bytes encoding and width the descriptor declares, and null or empty bytes must not be used to stand in for absence. |
+| `expiry_height` | `uint64` / JSON decimal string | expiry height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `spend_cap` | `shared.v1.Amount` object | spend cap; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `spend_cap.atomic_units` | `string` | atomic units; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `spent` | `shared.v1.Amount` object | spent; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `spent.atomic_units` | `string` | atomic units; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `set_height` | `uint64` / JSON decimal string | set height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-updatetaskparams"></a> `task.UpdateTaskParams`
 
@@ -2654,6 +2693,11 @@ Response fields:
 | `session.last_active_height` | `uint64` / JSON decimal string | last active height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `session.open_pending_count` | `uint32` | open pending count; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `session.status` | `task.v1.SessionStatus` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `session.session_key` | `bytes` / base64 string | Absent means wallet-only. A present value is a nonzero raw20 address, different from owner; it is not an account or a transaction authorization. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | An absent value must be omitted; a present value must satisfy the bytes encoding and width the descriptor declares, and null or empty bytes must not be used to stand in for absence. |
+| `session.session_key_expiry_height` | `uint64` / JSON decimal string | Inclusive last admission/request height. Zero when no key is registered. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `session.session_key_spend_cap` | `shared.v1.Amount` object | Cumulative admitted max_fee limit; zero means unlimited, not disabled. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `session.session_key_spent` | `shared.v1.Amount` object | Checked cumulative max_fee, even without a cap. Never reset by rotation, renewal, clearing or refunds. Wallet orders do not increment it. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `session.session_key_set_height` | `uint64` / JSON decimal string | First registration, different-key replacement or SET after CLEAR records the execution height; same-key renewal/cap changes preserve it. Zero when no key is registered. A delegated order's signed anchor height must be at least this height, preventing signatures from a revoked grant reviving. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-sessionnonce"></a> `task.SessionNonce`
 

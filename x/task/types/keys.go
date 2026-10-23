@@ -243,12 +243,12 @@ type TaskKey = Hash32Key
 
 func NewTaskKey(taskID Hash32Key) TaskKey { return taskID }
 
-// SessionKey = session_id. Primary of StreamState, SessionNonceState's twin
+// SessionStoreKey = session_id. Primary of StreamState, SessionNonceState's twin
 // on the owner side, SessionHistoryPruneCursorState and
 // SessionTerminalSummaryState.
-type SessionKey = Hash32Key
+type SessionStoreKey = Hash32Key
 
-func NewSessionKey(sessionID Hash32Key) SessionKey { return sessionID }
+func NewSessionStoreKey(sessionID Hash32Key) SessionStoreKey { return sessionID }
 
 // DeadlineIndexKey = (deadline_height, task_id). The sweep order is
 // (deadline_height, kind_priority, primary_id); kind_priority is fixed per index,

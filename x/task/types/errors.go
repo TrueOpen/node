@@ -30,4 +30,7 @@ var (
 	ErrTaskParamsVersionMismatch  = errors.Register(ModuleName, 1141, "task params version mismatch")
 	ErrTaskParamsGenesisOnly      = errors.Register(ModuleName, 1142, "task params field is genesis-only")
 	ErrTaskParamsRuntimeImmutable = errors.Register(ModuleName, 1143, "task params field requires future-effective versioning")
+	ErrSessionKeyInvalid          = errors.Register(ModuleName, 1144, "invalid session key")
+	ErrSessionKeyExpired          = errors.Register(ModuleName, 1145, "session key expired")
+	ErrSessionKeySpendCapExceeded = errors.Register(ModuleName, 1146, "session key spend cap exceeded")
 )

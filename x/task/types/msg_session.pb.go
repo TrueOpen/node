@@ -155,13 +155,14 @@ func (m *MsgUpdateTaskParamsResponse) GetStatus() types.MutationStatusV1 {
 }
 
 // MsgCreateSession opens one session namespace and locks its owner
-// (the wire API). Besides the required Cosmos signer there is no business
-// input: the nonce comes from SessionNonceState and session_id is derived on
+// (the wire API). The optional grant registers a session signing key. The
+// nonce comes from SessionNonceState and session_id is derived on
 // chain by TRUEOPEN_SESSION_V1. Model A: creating a session never moves funds, and
 // no unbounded metadata is accepted.
 // MsgCreateSession defines the MsgCreateSession wire type.
 type MsgCreateSession struct {
-	SignerAddress string `protobuf:"bytes,1,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
+	SignerAddress string             `protobuf:"bytes,1,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
+	SessionKey    *SessionKeyGrantV1 `protobuf:"bytes,2,opt,name=session_key,json=sessionKey,proto3" json:"session_key,omitempty"`
 }
 
 func (m *MsgCreateSession) Reset()         { *m = MsgCreateSession{} }
@@ -204,6 +205,343 @@ func (m *MsgCreateSession) GetSignerAddress() string {
 	return ""
 }
 
+func (m *MsgCreateSession) GetSessionKey() *SessionKeyGrantV1 {
+	if m != nil {
+		return m.SessionKey
+	}
+	return nil
+}
+
+// SessionKeyGrantV1 registers a delegated order/request signer for one session.
+// The raw20 address must be nonzero and different from the owner's address.
+// At registration/renewal, current_height < expiry_height <= current_height +
+// the current effective max_session_key_blocks (checked addition). The limit
+// is not resolved through the session's pinned historical parameter version.
+// A canonical zero spend_cap (atomic_units = "0") is unlimited; otherwise it
+// bounds cumulative admitted max_fee, not actual spend or a prepaid balance.
+type SessionKeyGrantV1 struct {
+	SessionKey   []byte       `protobuf:"bytes,1,opt,name=session_key,json=sessionKey,proto3" json:"session_key,omitempty"`
+	ExpiryHeight uint64       `protobuf:"varint,2,opt,name=expiry_height,json=expiryHeight,proto3" json:"expiry_height,omitempty"`
+	SpendCap     types.Amount `protobuf:"bytes,3,opt,name=spend_cap,json=spendCap,proto3" json:"spend_cap"`
+}
+
+func (m *SessionKeyGrantV1) Reset()         { *m = SessionKeyGrantV1{} }
+func (m *SessionKeyGrantV1) String() string { return proto.CompactTextString(m) }
+func (*SessionKeyGrantV1) ProtoMessage()    {}
+func (*SessionKeyGrantV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4d69bfd3efe28e85, []int{3}
+}
+func (m *SessionKeyGrantV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SessionKeyGrantV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SessionKeyGrantV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SessionKeyGrantV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionKeyGrantV1.Merge(m, src)
+}
+func (m *SessionKeyGrantV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *SessionKeyGrantV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionKeyGrantV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionKeyGrantV1 proto.InternalMessageInfo
+
+func (m *SessionKeyGrantV1) GetSessionKey() []byte {
+	if m != nil {
+		return m.SessionKey
+	}
+	return nil
+}
+
+func (m *SessionKeyGrantV1) GetExpiryHeight() uint64 {
+	if m != nil {
+		return m.ExpiryHeight
+	}
+	return 0
+}
+
+func (m *SessionKeyGrantV1) GetSpendCap() types.Amount {
+	if m != nil {
+		return m.SpendCap
+	}
+	return types.Amount{}
+}
+
+// ClearSessionKeyV1 explicitly revokes the current session key.
+type ClearSessionKeyV1 struct {
+}
+
+func (m *ClearSessionKeyV1) Reset()         { *m = ClearSessionKeyV1{} }
+func (m *ClearSessionKeyV1) String() string { return proto.CompactTextString(m) }
+func (*ClearSessionKeyV1) ProtoMessage()    {}
+func (*ClearSessionKeyV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4d69bfd3efe28e85, []int{4}
+}
+func (m *ClearSessionKeyV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClearSessionKeyV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClearSessionKeyV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClearSessionKeyV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClearSessionKeyV1.Merge(m, src)
+}
+func (m *ClearSessionKeyV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClearSessionKeyV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClearSessionKeyV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClearSessionKeyV1 proto.InternalMessageInfo
+
+// MsgUpdateSessionKey changes authorization for an ACTIVE or IDLE session.
+// Only its owner signs this transaction. Exactly one action is required.
+// SET preserves spent; a different key or SET after CLEAR records the execution
+// height as set_height. Same-key renewal/cap changes preserve set_height.
+// CLEAR zeroes key, expiry, cap and set_height, but never spent. An unchanged
+// result is NOOP without an event. Lifecycle status and activity are unchanged.
+// Later transactions, including in the same block, see the new authorization.
+// Already admitted tasks retain their authorization and escrow.
+type MsgUpdateSessionKey struct {
+	SignerAddress string `protobuf:"bytes,1,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
+	SessionId     []byte `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// action selects registration/renewal or explicit revocation.
+	//
+	// Types that are valid to be assigned to Action:
+	//	*MsgUpdateSessionKey_Set
+	//	*MsgUpdateSessionKey_Clear
+	Action isMsgUpdateSessionKey_Action `protobuf_oneof:"action"`
+}
+
+func (m *MsgUpdateSessionKey) Reset()         { *m = MsgUpdateSessionKey{} }
+func (m *MsgUpdateSessionKey) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateSessionKey) ProtoMessage()    {}
+func (*MsgUpdateSessionKey) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4d69bfd3efe28e85, []int{5}
+}
+func (m *MsgUpdateSessionKey) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateSessionKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateSessionKey.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateSessionKey) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateSessionKey.Merge(m, src)
+}
+func (m *MsgUpdateSessionKey) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateSessionKey) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateSessionKey.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateSessionKey proto.InternalMessageInfo
+
+type isMsgUpdateSessionKey_Action interface {
+	isMsgUpdateSessionKey_Action()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type MsgUpdateSessionKey_Set struct {
+	Set *SessionKeyGrantV1 `protobuf:"bytes,3,opt,name=set,proto3,oneof" json:"set,omitempty"`
+}
+type MsgUpdateSessionKey_Clear struct {
+	Clear *ClearSessionKeyV1 `protobuf:"bytes,4,opt,name=clear,proto3,oneof" json:"clear,omitempty"`
+}
+
+func (*MsgUpdateSessionKey_Set) isMsgUpdateSessionKey_Action()   {}
+func (*MsgUpdateSessionKey_Clear) isMsgUpdateSessionKey_Action() {}
+
+func (m *MsgUpdateSessionKey) GetAction() isMsgUpdateSessionKey_Action {
+	if m != nil {
+		return m.Action
+	}
+	return nil
+}
+
+func (m *MsgUpdateSessionKey) GetSignerAddress() string {
+	if m != nil {
+		return m.SignerAddress
+	}
+	return ""
+}
+
+func (m *MsgUpdateSessionKey) GetSessionId() []byte {
+	if m != nil {
+		return m.SessionId
+	}
+	return nil
+}
+
+func (m *MsgUpdateSessionKey) GetSet() *SessionKeyGrantV1 {
+	if x, ok := m.GetAction().(*MsgUpdateSessionKey_Set); ok {
+		return x.Set
+	}
+	return nil
+}
+
+func (m *MsgUpdateSessionKey) GetClear() *ClearSessionKeyV1 {
+	if x, ok := m.GetAction().(*MsgUpdateSessionKey_Clear); ok {
+		return x.Clear
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MsgUpdateSessionKey) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*MsgUpdateSessionKey_Set)(nil),
+		(*MsgUpdateSessionKey_Clear)(nil),
+	}
+}
+
+// MsgUpdateSessionKeyResponse returns the committed authorization and result.
+// An absent session_key_or_empty means no key; spent survives revocation.
+type MsgUpdateSessionKeyResponse struct {
+	// Types that are valid to be assigned to XSessionKeyOrEmpty:
+	//	*MsgUpdateSessionKeyResponse_SessionKeyOrEmpty
+	XSessionKeyOrEmpty isMsgUpdateSessionKeyResponse_XSessionKeyOrEmpty `protobuf_oneof:"_session_key_or_empty"`
+	ExpiryHeight       uint64                                           `protobuf:"varint,2,opt,name=expiry_height,json=expiryHeight,proto3" json:"expiry_height,omitempty"`
+	SpendCap           types.Amount                                     `protobuf:"bytes,3,opt,name=spend_cap,json=spendCap,proto3" json:"spend_cap"`
+	Spent              types.Amount                                     `protobuf:"bytes,4,opt,name=spent,proto3" json:"spent"`
+	SetHeight          uint64                                           `protobuf:"varint,5,opt,name=set_height,json=setHeight,proto3" json:"set_height,omitempty"`
+	Status             types.MutationStatusV1                           `protobuf:"varint,6,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
+}
+
+func (m *MsgUpdateSessionKeyResponse) Reset()         { *m = MsgUpdateSessionKeyResponse{} }
+func (m *MsgUpdateSessionKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateSessionKeyResponse) ProtoMessage()    {}
+func (*MsgUpdateSessionKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4d69bfd3efe28e85, []int{6}
+}
+func (m *MsgUpdateSessionKeyResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateSessionKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateSessionKeyResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateSessionKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateSessionKeyResponse.Merge(m, src)
+}
+func (m *MsgUpdateSessionKeyResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateSessionKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateSessionKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateSessionKeyResponse proto.InternalMessageInfo
+
+type isMsgUpdateSessionKeyResponse_XSessionKeyOrEmpty interface {
+	isMsgUpdateSessionKeyResponse_XSessionKeyOrEmpty()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type MsgUpdateSessionKeyResponse_SessionKeyOrEmpty struct {
+	SessionKeyOrEmpty []byte `protobuf:"bytes,1,opt,name=session_key_or_empty,json=sessionKeyOrEmpty,proto3,oneof" json:"session_key_or_empty,omitempty"`
+}
+
+func (*MsgUpdateSessionKeyResponse_SessionKeyOrEmpty) isMsgUpdateSessionKeyResponse_XSessionKeyOrEmpty() {
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetXSessionKeyOrEmpty() isMsgUpdateSessionKeyResponse_XSessionKeyOrEmpty {
+	if m != nil {
+		return m.XSessionKeyOrEmpty
+	}
+	return nil
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetSessionKeyOrEmpty() []byte {
+	if x, ok := m.GetXSessionKeyOrEmpty().(*MsgUpdateSessionKeyResponse_SessionKeyOrEmpty); ok {
+		return x.SessionKeyOrEmpty
+	}
+	return nil
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetExpiryHeight() uint64 {
+	if m != nil {
+		return m.ExpiryHeight
+	}
+	return 0
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetSpendCap() types.Amount {
+	if m != nil {
+		return m.SpendCap
+	}
+	return types.Amount{}
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetSpent() types.Amount {
+	if m != nil {
+		return m.Spent
+	}
+	return types.Amount{}
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetSetHeight() uint64 {
+	if m != nil {
+		return m.SetHeight
+	}
+	return 0
+}
+
+func (m *MsgUpdateSessionKeyResponse) GetStatus() types.MutationStatusV1 {
+	if m != nil {
+		return m.Status
+	}
+	return types.MutationStatusV1_MUTATION_STATUS_V1_UNSPECIFIED
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MsgUpdateSessionKeyResponse) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*MsgUpdateSessionKeyResponse_SessionKeyOrEmpty)(nil),
+	}
+}
+
 // MsgCreateSessionResponse returns the chain-derived session identity
 // . Clients may also recompute session_id off chain from the same
 // formula; the owner is not derivable from session_id, hence StreamState still
@@ -219,7 +557,7 @@ func (m *MsgCreateSessionResponse) Reset()         { *m = MsgCreateSessionRespon
 func (m *MsgCreateSessionResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgCreateSessionResponse) ProtoMessage()    {}
 func (*MsgCreateSessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4d69bfd3efe28e85, []int{3}
+	return fileDescriptor_4d69bfd3efe28e85, []int{7}
 }
 func (m *MsgCreateSessionResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -285,7 +623,7 @@ func (m *MsgCancelOrder) Reset()         { *m = MsgCancelOrder{} }
 func (m *MsgCancelOrder) String() string { return proto.CompactTextString(m) }
 func (*MsgCancelOrder) ProtoMessage()    {}
 func (*MsgCancelOrder) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4d69bfd3efe28e85, []int{4}
+	return fileDescriptor_4d69bfd3efe28e85, []int{8}
 }
 func (m *MsgCancelOrder) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -349,7 +687,7 @@ func (m *MsgCancelOrderResponse) Reset()         { *m = MsgCancelOrderResponse{}
 func (m *MsgCancelOrderResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgCancelOrderResponse) ProtoMessage()    {}
 func (*MsgCancelOrderResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4d69bfd3efe28e85, []int{5}
+	return fileDescriptor_4d69bfd3efe28e85, []int{9}
 }
 func (m *MsgCancelOrderResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -410,6 +748,10 @@ func init() {
 	proto.RegisterType((*MsgUpdateTaskParams)(nil), "task.v1.MsgUpdateTaskParams")
 	proto.RegisterType((*MsgUpdateTaskParamsResponse)(nil), "task.v1.MsgUpdateTaskParamsResponse")
 	proto.RegisterType((*MsgCreateSession)(nil), "task.v1.MsgCreateSession")
+	proto.RegisterType((*SessionKeyGrantV1)(nil), "task.v1.SessionKeyGrantV1")
+	proto.RegisterType((*ClearSessionKeyV1)(nil), "task.v1.ClearSessionKeyV1")
+	proto.RegisterType((*MsgUpdateSessionKey)(nil), "task.v1.MsgUpdateSessionKey")
+	proto.RegisterType((*MsgUpdateSessionKeyResponse)(nil), "task.v1.MsgUpdateSessionKeyResponse")
 	proto.RegisterType((*MsgCreateSessionResponse)(nil), "task.v1.MsgCreateSessionResponse")
 	proto.RegisterType((*MsgCancelOrder)(nil), "task.v1.MsgCancelOrder")
 	proto.RegisterType((*MsgCancelOrderResponse)(nil), "task.v1.MsgCancelOrderResponse")
@@ -418,49 +760,65 @@ func init() {
 func init() { proto.RegisterFile("task/v1/msg_session.proto", fileDescriptor_4d69bfd3efe28e85) }
 
 var fileDescriptor_4d69bfd3efe28e85 = []byte{
-	// 665 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x94, 0x4f, 0x4b, 0x1b, 0x4f,
-	0x18, 0xc7, 0x33, 0x1a, 0xf2, 0x23, 0xa3, 0xe6, 0xa7, 0xdb, 0xd4, 0x46, 0xc5, 0x18, 0x22, 0x82,
-	0x15, 0x4c, 0x88, 0x16, 0x11, 0x2f, 0xd2, 0x94, 0x42, 0x3d, 0x58, 0x4b, 0x62, 0x3d, 0xf4, 0xb2,
-	0x8c, 0xbb, 0x0f, 0x9b, 0x45, 0x77, 0x66, 0x3b, 0x33, 0xeb, 0x9f, 0x6b, 0x8f, 0x85, 0x42, 0xaf,
-	0xed, 0x2b, 0xe8, 0xd1, 0x43, 0x5f, 0x84, 0x47, 0x5b, 0x28, 0xf4, 0x54, 0x8a, 0x1e, 0x84, 0x5e,
-	0xfb, 0x06, 0xca, 0xcc, 0xce, 0xee, 0x62, 0x48, 0x8b, 0xed, 0x25, 0x64, 0xbe, 0xdf, 0xe7, 0x99,
-	0x79, 0xbe, 0x9f, 0xd9, 0x5d, 0x3c, 0x25, 0x89, 0x38, 0x68, 0x1e, 0xb5, 0x9a, 0x81, 0xf0, 0x6c,
-	0x01, 0x42, 0xf8, 0x8c, 0x36, 0x42, 0xce, 0x24, 0xb3, 0xfe, 0x53, 0x56, 0xe3, 0xa8, 0x35, 0x3d,
-	0x41, 0x02, 0x9f, 0xb2, 0xa6, 0xfe, 0x8d, 0xbd, 0xe9, 0x7b, 0x0e, 0x13, 0x01, 0x13, 0xaa, 0xcb,
-	0x34, 0x1b, 0x63, 0x2a, 0x36, 0x6c, 0xbd, 0x6a, 0xc6, 0x0b, 0x63, 0x95, 0x3d, 0xe6, 0xb1, 0x58,
-	0x57, 0xff, 0x8c, 0x3a, 0x29, 0x7a, 0x84, 0x83, 0xab, 0x76, 0x71, 0x58, 0x10, 0x24, 0xa7, 0x4f,
-	0x97, 0x93, 0xc1, 0x42, 0xc2, 0x49, 0x90, 0xec, 0x31, 0x9b, 0x55, 0x73, 0x10, 0xd2, 0x06, 0xea,
-	0x30, 0xd7, 0xa7, 0xe6, 0xf4, 0xfa, 0x0f, 0x84, 0xef, 0x6c, 0x0b, 0xef, 0x79, 0xe8, 0x12, 0x09,
-	0xbb, 0x44, 0x1c, 0x3c, 0xd3, 0xcd, 0xd6, 0x7d, 0x3c, 0x0e, 0x27, 0x21, 0x38, 0x12, 0x5c, 0xfb,
-	0x08, 0xb8, 0x0a, 0x59, 0x41, 0x35, 0xb4, 0x98, 0xef, 0xfc, 0x9f, 0xe8, 0x7b, 0xb1, 0x6c, 0xad,
-	0xe3, 0x42, 0x7c, 0x62, 0x65, 0xa8, 0x86, 0x16, 0x47, 0x56, 0xee, 0x36, 0x0c, 0x86, 0x46, 0xb6,
-	0xdf, 0x5e, 0xab, 0x5d, 0x3c, 0xff, 0x36, 0x97, 0xfb, 0x70, 0x7d, 0xb6, 0x84, 0x3a, 0xa6, 0xde,
-	0x5a, 0xc3, 0x45, 0x12, 0xc9, 0x1e, 0xe3, 0xbe, 0x3c, 0xad, 0x0c, 0xd7, 0xd0, 0x62, 0xb1, 0x5d,
-	0xf9, 0xfc, 0x71, 0xb9, 0x6c, 0x20, 0x3c, 0x74, 0x5d, 0x0e, 0x42, 0x74, 0x25, 0xf7, 0xa9, 0xd7,
-	0xc9, 0x4a, 0x37, 0xd6, 0x5e, 0x5d, 0x9f, 0x2d, 0x65, 0xeb, 0xd7, 0xd7, 0x67, 0x4b, 0xf3, 0x92,
-	0x47, 0xc0, 0x42, 0xa0, 0xcd, 0x93, 0xa6, 0xe6, 0x30, 0x20, 0x54, 0xfd, 0x3d, 0xc2, 0x33, 0x03,
-	0xf4, 0x0e, 0x88, 0x90, 0x51, 0x01, 0xd6, 0x1c, 0x1e, 0xa1, 0x70, 0xdc, 0x97, 0x17, 0x53, 0x38,
-	0x4e, 0xa2, 0x2e, 0xe0, 0x91, 0x78, 0x74, 0xbb, 0x47, 0x44, 0x4f, 0xe7, 0x1d, 0x6d, 0xe7, 0xcf,
-	0x7f, 0x56, 0x86, 0x3a, 0x38, 0x36, 0x9e, 0x10, 0xd1, 0xb3, 0x56, 0x71, 0x41, 0x48, 0x22, 0x23,
-	0xa1, 0x43, 0x95, 0x56, 0x66, 0x1a, 0xf1, 0x25, 0x28, 0x26, 0xdb, 0x91, 0x24, 0xd2, 0x67, 0xb4,
-	0xab, 0x0b, 0xf6, 0x5a, 0x1d, 0x53, 0x5a, 0x7f, 0x83, 0xf0, 0xf8, 0xb6, 0xf0, 0x1e, 0x71, 0x20,
-	0x12, 0xba, 0xf1, 0x73, 0x65, 0x6d, 0xe2, 0x92, 0xf0, 0x3d, 0x0a, 0xdc, 0x26, 0x31, 0x0c, 0x3d,
-	0xd4, 0x9f, 0x30, 0x8d, 0xc5, 0xf5, 0x46, 0xdc, 0x58, 0x57, 0xa8, 0xfa, 0xf6, 0x50, 0xbc, 0x6a,
-	0x03, 0x78, 0xdd, 0x38, 0xba, 0xfe, 0x0e, 0xe1, 0x4a, 0xbf, 0x98, 0x92, 0x9a, 0xc7, 0xd8, 0x3c,
-	0xfa, 0xb6, 0xef, 0xea, 0x99, 0x12, 0x0e, 0x45, 0xa3, 0x6f, 0xb9, 0xd6, 0x3c, 0x1e, 0x4b, 0x8a,
-	0x28, 0xa3, 0x0e, 0x68, 0x5e, 0xf9, 0xce, 0xa8, 0x11, 0x9f, 0x2a, 0xed, 0xdf, 0x58, 0x7d, 0x41,
-	0xb8, 0xa4, 0x66, 0x23, 0xd4, 0x81, 0xc3, 0x1d, 0xee, 0x02, 0xbf, 0xdd, 0x44, 0x0b, 0xb8, 0xc4,
-	0x54, 0xb5, 0x2d, 0xe0, 0x65, 0x04, 0xd9, 0x48, 0x63, 0x5a, 0xed, 0x1a, 0x71, 0x00, 0xf5, 0xe1,
-	0xbf, 0xa3, 0xbe, 0xf6, 0x1b, 0xea, 0xd5, 0x41, 0xd4, 0xb3, 0x10, 0xf5, 0x4f, 0x08, 0x4f, 0xde,
-	0x94, 0x52, 0xe2, 0xb3, 0x58, 0x7f, 0x5d, 0xfa, 0xc3, 0x15, 0x94, 0xb8, 0xe5, 0x5a, 0xcb, 0xd8,
-	0x72, 0x74, 0xd7, 0x21, 0xb8, 0xfd, 0xe9, 0x26, 0x52, 0x27, 0x4d, 0xf8, 0x00, 0x4f, 0x52, 0x38,
-	0x91, 0x76, 0xfa, 0x8e, 0xa7, 0x2d, 0xc3, 0xba, 0xa5, 0xac, 0xdc, 0xc7, 0xc6, 0x4c, 0xbb, 0xb2,
-	0xbb, 0xca, 0xdf, 0xfa, 0xae, 0xda, 0x9b, 0xe7, 0x97, 0x55, 0x74, 0x71, 0x59, 0x45, 0xdf, 0x2f,
-	0xab, 0xe8, 0xed, 0x55, 0x35, 0x77, 0x71, 0x55, 0xcd, 0x7d, 0xbd, 0xaa, 0xe6, 0x5e, 0x2c, 0x78,
-	0xbe, 0xec, 0x45, 0xfb, 0x0d, 0x87, 0x05, 0xcd, 0x5d, 0x1e, 0xc1, 0x8e, 0x02, 0x43, 0x99, 0x0b,
-	0x09, 0x1d, 0x79, 0x1a, 0x82, 0xd8, 0x2f, 0xe8, 0x2f, 0xd5, 0xea, 0xaf, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x47, 0xaa, 0x6e, 0xd3, 0x79, 0x05, 0x00, 0x00,
+	// 927 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x56, 0x41, 0x6b, 0x1b, 0x47,
+	0x14, 0xd6, 0xd8, 0xb2, 0x1a, 0x8d, 0x62, 0x37, 0xda, 0x38, 0x8e, 0xe2, 0x60, 0xc5, 0xac, 0x31,
+	0xb8, 0x06, 0x4b, 0xc8, 0x09, 0x21, 0x38, 0x87, 0x10, 0x99, 0x50, 0x85, 0xe2, 0xba, 0xac, 0x53,
+	0x1d, 0x7a, 0x59, 0x26, 0xbb, 0x8f, 0xd5, 0x62, 0xef, 0xcc, 0x76, 0x66, 0xe4, 0x48, 0xd7, 0x9e,
+	0x4a, 0x4f, 0xbd, 0xf4, 0xd0, 0xfe, 0x80, 0xd2, 0xa3, 0x0f, 0xfd, 0x11, 0xa6, 0x27, 0xb7, 0x50,
+	0xe8, 0xa9, 0x14, 0xfb, 0x60, 0xe8, 0xb5, 0x7f, 0xa0, 0xcc, 0xec, 0xec, 0xae, 0xa4, 0xc8, 0xc1,
+	0x6d, 0xe9, 0xc5, 0x68, 0xbf, 0xf7, 0xde, 0xcc, 0xf7, 0x7d, 0xef, 0xbd, 0x5d, 0xe3, 0x7b, 0x92,
+	0x88, 0xc3, 0xe6, 0x71, 0xab, 0x19, 0x89, 0xc0, 0x15, 0x20, 0x44, 0xc8, 0x68, 0x23, 0xe6, 0x4c,
+	0x32, 0xeb, 0x3d, 0x15, 0x6a, 0x1c, 0xb7, 0x96, 0xab, 0x24, 0x0a, 0x29, 0x6b, 0xea, 0xbf, 0x49,
+	0x6c, 0xf9, 0xae, 0xc7, 0x44, 0xc4, 0x84, 0xaa, 0x32, 0xc5, 0x26, 0x70, 0x2f, 0x09, 0xb8, 0xfa,
+	0xa9, 0x99, 0x3c, 0x98, 0xd0, 0x62, 0xc0, 0x02, 0x96, 0xe0, 0xea, 0x97, 0x41, 0x97, 0x44, 0x8f,
+	0x70, 0xf0, 0xd5, 0x29, 0x1e, 0x8b, 0xa2, 0xf4, 0xf6, 0x51, 0x9c, 0x44, 0xac, 0x4f, 0x65, 0x7a,
+	0x4a, 0x4a, 0x38, 0x26, 0x9c, 0x44, 0xe9, 0xd9, 0x2b, 0x79, 0x36, 0x07, 0x21, 0x5d, 0xa0, 0x1e,
+	0xf3, 0x43, 0x6a, 0x58, 0xd9, 0x7f, 0x22, 0x7c, 0x7b, 0x4f, 0x04, 0x9f, 0xc6, 0x3e, 0x91, 0xf0,
+	0x8a, 0x88, 0xc3, 0x4f, 0x74, 0xb1, 0xf5, 0x01, 0xbe, 0x05, 0x83, 0x18, 0x3c, 0x09, 0xbe, 0x7b,
+	0x0c, 0x5c, 0x89, 0xaf, 0xa1, 0x55, 0xb4, 0x51, 0x74, 0xde, 0x4f, 0xf1, 0x6e, 0x02, 0x5b, 0x4f,
+	0x70, 0x29, 0xb9, 0xb1, 0x36, 0xb3, 0x8a, 0x36, 0x2a, 0xdb, 0x77, 0x1a, 0xc6, 0x9e, 0x46, 0x7e,
+	0x5e, 0xb7, 0xd5, 0x2e, 0x9f, 0xfe, 0xfe, 0xa0, 0xf0, 0xc3, 0xe5, 0xc9, 0x26, 0x72, 0x4c, 0xbe,
+	0xf5, 0x18, 0x97, 0x49, 0x5f, 0xf6, 0x18, 0x0f, 0xe5, 0xb0, 0x36, 0xbb, 0x8a, 0x36, 0xca, 0xed,
+	0xda, 0x2f, 0x3f, 0x6e, 0x2d, 0x1a, 0x73, 0x9e, 0xfb, 0x3e, 0x07, 0x21, 0x0e, 0x24, 0x0f, 0x69,
+	0xe0, 0xe4, 0xa9, 0x3b, 0x8f, 0xbf, 0xb8, 0x3c, 0xd9, 0xcc, 0x9f, 0xbf, 0xba, 0x3c, 0xd9, 0x5c,
+	0x93, 0xbc, 0x0f, 0x2c, 0x06, 0xda, 0x1c, 0x34, 0xb5, 0x0f, 0x53, 0x44, 0xd9, 0xdf, 0x21, 0x7c,
+	0x7f, 0x0a, 0xee, 0x80, 0x88, 0x19, 0x15, 0x60, 0x3d, 0xc0, 0x15, 0x0a, 0x6f, 0x26, 0xf4, 0x62,
+	0x0a, 0x6f, 0x52, 0xa9, 0xeb, 0xb8, 0x92, 0x50, 0x77, 0x7b, 0x44, 0xf4, 0xb4, 0xde, 0x9b, 0xed,
+	0xe2, 0xe9, 0x5f, 0xb5, 0x19, 0x07, 0x27, 0x81, 0x0e, 0x11, 0x3d, 0xeb, 0x21, 0x2e, 0x09, 0x49,
+	0x64, 0x5f, 0x68, 0x51, 0x0b, 0xdb, 0xf7, 0x1b, 0x49, 0x13, 0x94, 0x27, 0x7b, 0x7d, 0x49, 0x64,
+	0xc8, 0xe8, 0x81, 0x4e, 0xe8, 0xb6, 0x1c, 0x93, 0x6a, 0xff, 0x84, 0xf0, 0xad, 0x3d, 0x11, 0xec,
+	0x72, 0x20, 0x12, 0x0e, 0x92, 0x79, 0xb3, 0x9e, 0xe1, 0x05, 0x11, 0x06, 0x14, 0xb8, 0x4b, 0x12,
+	0x33, 0x34, 0xa9, 0x77, 0xd9, 0x34, 0x9f, 0xe4, 0x1b, 0xd0, 0x7a, 0x8a, 0x2b, 0x66, 0x76, 0xdd,
+	0x43, 0x18, 0x9a, 0x0e, 0x2d, 0x67, 0x1d, 0x32, 0xf7, 0x7c, 0x04, 0xc3, 0x0f, 0x39, 0xa1, 0xb2,
+	0xdb, 0x72, 0xb0, 0xc8, 0xa0, 0x9d, 0x27, 0xca, 0xe7, 0x09, 0x02, 0xca, 0xec, 0xd5, 0x29, 0x66,
+	0x8f, 0xf1, 0xb6, 0xbf, 0x41, 0xb8, 0xfa, 0xd6, 0xd9, 0xca, 0xbe, 0x51, 0x32, 0x28, 0xb3, 0x0f,
+	0x8d, 0x5e, 0x6b, 0xad, 0xe1, 0x79, 0x18, 0xc4, 0x21, 0x1f, 0xba, 0x3d, 0x08, 0x83, 0x9e, 0xd4,
+	0xac, 0x8b, 0xce, 0xcd, 0x04, 0xec, 0x68, 0xcc, 0x7a, 0x84, 0xcb, 0x22, 0x06, 0xea, 0xbb, 0x1e,
+	0x89, 0xb5, 0xcd, 0x95, 0xed, 0xea, 0x88, 0xcd, 0xcf, 0xf5, 0x66, 0xb4, 0x8b, 0x6a, 0xe8, 0x9c,
+	0x1b, 0x3a, 0x73, 0x97, 0xc4, 0xf6, 0x6d, 0x5c, 0xdd, 0x3d, 0x02, 0xc2, 0x73, 0x6e, 0xdd, 0x96,
+	0xfd, 0xfd, 0xcc, 0xc8, 0x0e, 0xe4, 0x91, 0xff, 0x6e, 0xfe, 0x1a, 0x4e, 0x65, 0xb9, 0xa1, 0x3f,
+	0x36, 0x2d, 0x65, 0x83, 0xbf, 0xf4, 0xad, 0x06, 0x9e, 0x15, 0x20, 0x8d, 0x84, 0x77, 0x74, 0xa6,
+	0x53, 0x70, 0x54, 0xa2, 0xb5, 0x8d, 0xe7, 0x3c, 0x25, 0xa1, 0x56, 0x9c, 0xa8, 0x78, 0x4b, 0x58,
+	0xa7, 0xe0, 0x24, 0xa9, 0x3b, 0x4f, 0xaf, 0x68, 0xe4, 0xd5, 0x5b, 0x93, 0x9f, 0xd3, 0xbe, 0x81,
+	0x4b, 0xc4, 0x53, 0x23, 0x6b, 0x9f, 0xcd, 0x8c, 0xec, 0x4f, 0x9e, 0x91, 0xed, 0xcf, 0x0e, 0x5e,
+	0x1c, 0xe9, 0xaf, 0xcb, 0xb8, 0x0b, 0x51, 0x2c, 0xc7, 0x1a, 0xdd, 0x29, 0x38, 0xd5, 0xbc, 0xd5,
+	0xfb, 0xfc, 0x85, 0x4a, 0xf8, 0x12, 0xa1, 0xff, 0xb1, 0xe9, 0xd6, 0x16, 0x9e, 0x53, 0xbf, 0xa5,
+	0x71, 0xec, 0xca, 0x8a, 0x24, 0xcb, 0x5a, 0x51, 0x5d, 0x93, 0x29, 0x8d, 0x39, 0x4d, 0xa3, 0x2c,
+	0x40, 0x1a, 0x0e, 0xf9, 0x72, 0x97, 0xae, 0xbd, 0xdc, 0xed, 0xbb, 0xf8, 0x8e, 0x3b, 0xcd, 0x1a,
+	0xfb, 0x5b, 0x84, 0x6b, 0x93, 0xdb, 0x93, 0xf9, 0x39, 0x3e, 0x3f, 0x68, 0xfa, 0xfc, 0xac, 0xe1,
+	0xf9, 0x34, 0x89, 0x32, 0xea, 0x41, 0x6a, 0x9c, 0x01, 0x3f, 0x56, 0xd8, 0xbf, 0x7b, 0x23, 0xfd,
+	0x8a, 0xf0, 0x82, 0xe2, 0x46, 0xa8, 0x07, 0x47, 0xfb, 0xdc, 0x07, 0x7e, 0x3d, 0x46, 0xeb, 0x78,
+	0x81, 0xa9, 0x6c, 0x57, 0xc0, 0xe7, 0x7d, 0xc8, 0x29, 0xcd, 0x6b, 0xf4, 0xc0, 0x80, 0x53, 0xd6,
+	0x6b, 0xf6, 0x1f, 0xad, 0x57, 0xf2, 0x19, 0x98, 0x32, 0xd5, 0xf5, 0x69, 0xaf, 0xa7, 0x5c, 0x84,
+	0xfd, 0x33, 0xc2, 0x4b, 0xe3, 0x50, 0xe6, 0xf8, 0x0a, 0xd6, 0xdf, 0xf6, 0x49, 0x71, 0x25, 0x05,
+	0xbe, 0xf4, 0xad, 0x2d, 0x6c, 0x79, 0xba, 0xea, 0x08, 0xfc, 0x49, 0x75, 0xd5, 0x2c, 0x92, 0x29,
+	0x7c, 0x84, 0x97, 0x28, 0x0c, 0xa4, 0x9b, 0x7d, 0x49, 0xb3, 0x92, 0x59, 0x5d, 0xb2, 0xa8, 0xa2,
+	0x2f, 0x4c, 0x30, 0xab, 0xca, 0x7b, 0x55, 0xbc, 0xfe, 0x80, 0x3d, 0x3b, 0x3d, 0xaf, 0xa3, 0xb3,
+	0xf3, 0x3a, 0xfa, 0xe3, 0xbc, 0x8e, 0xbe, 0xbe, 0xa8, 0x17, 0xce, 0x2e, 0xea, 0x85, 0xdf, 0x2e,
+	0xea, 0x85, 0xcf, 0xd6, 0x83, 0x50, 0xf6, 0xfa, 0xaf, 0x1b, 0x1e, 0x8b, 0x9a, 0xaf, 0x78, 0x1f,
+	0xf6, 0x95, 0x31, 0x94, 0xf9, 0x90, 0xba, 0x23, 0x87, 0x31, 0x88, 0xd7, 0x25, 0xfd, 0xff, 0xc0,
+	0xc3, 0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0x61, 0xac, 0x40, 0xce, 0xf7, 0x08, 0x00, 0x00,
 }
 
 func (m *MsgUpdateTaskParams) Marshal() (dAtA []byte, err error) {
@@ -568,6 +926,18 @@ func (m *MsgCreateSession) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.SessionKey != nil {
+		{
+			size, err := m.SessionKey.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMsgSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
 	if len(m.SignerAddress) > 0 {
 		i -= len(m.SignerAddress)
 		copy(dAtA[i:], m.SignerAddress)
@@ -578,6 +948,245 @@ func (m *MsgCreateSession) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *SessionKeyGrantV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SessionKeyGrantV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SessionKeyGrantV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.SpendCap.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintMsgSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	if m.ExpiryHeight != 0 {
+		i = encodeVarintMsgSession(dAtA, i, uint64(m.ExpiryHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.SessionKey) > 0 {
+		i -= len(m.SessionKey)
+		copy(dAtA[i:], m.SessionKey)
+		i = encodeVarintMsgSession(dAtA, i, uint64(len(m.SessionKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ClearSessionKeyV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClearSessionKeyV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ClearSessionKeyV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateSessionKey) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateSessionKey) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateSessionKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Action != nil {
+		{
+			size := m.Action.Size()
+			i -= size
+			if _, err := m.Action.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	if len(m.SessionId) > 0 {
+		i -= len(m.SessionId)
+		copy(dAtA[i:], m.SessionId)
+		i = encodeVarintMsgSession(dAtA, i, uint64(len(m.SessionId)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.SignerAddress) > 0 {
+		i -= len(m.SignerAddress)
+		copy(dAtA[i:], m.SignerAddress)
+		i = encodeVarintMsgSession(dAtA, i, uint64(len(m.SignerAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateSessionKey_Set) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateSessionKey_Set) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Set != nil {
+		{
+			size, err := m.Set.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMsgSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	return len(dAtA) - i, nil
+}
+func (m *MsgUpdateSessionKey_Clear) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateSessionKey_Clear) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Clear != nil {
+		{
+			size, err := m.Clear.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMsgSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	return len(dAtA) - i, nil
+}
+func (m *MsgUpdateSessionKeyResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateSessionKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateSessionKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Status != 0 {
+		i = encodeVarintMsgSession(dAtA, i, uint64(m.Status))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.SetHeight != 0 {
+		i = encodeVarintMsgSession(dAtA, i, uint64(m.SetHeight))
+		i--
+		dAtA[i] = 0x28
+	}
+	{
+		size, err := m.Spent.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintMsgSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
+	{
+		size, err := m.SpendCap.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintMsgSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	if m.ExpiryHeight != 0 {
+		i = encodeVarintMsgSession(dAtA, i, uint64(m.ExpiryHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.XSessionKeyOrEmpty != nil {
+		{
+			size := m.XSessionKeyOrEmpty.Size()
+			i -= size
+			if _, err := m.XSessionKeyOrEmpty.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateSessionKeyResponse_SessionKeyOrEmpty) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateSessionKeyResponse_SessionKeyOrEmpty) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionKeyOrEmpty != nil {
+		i -= len(m.SessionKeyOrEmpty)
+		copy(dAtA[i:], m.SessionKeyOrEmpty)
+		i = encodeVarintMsgSession(dAtA, i, uint64(len(m.SessionKeyOrEmpty)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
 func (m *MsgCreateSessionResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -763,9 +1372,121 @@ func (m *MsgCreateSession) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovMsgSession(uint64(l))
 	}
+	if m.SessionKey != nil {
+		l = m.SessionKey.Size()
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
 	return n
 }
 
+func (m *SessionKeyGrantV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SessionKey)
+	if l > 0 {
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	if m.ExpiryHeight != 0 {
+		n += 1 + sovMsgSession(uint64(m.ExpiryHeight))
+	}
+	l = m.SpendCap.Size()
+	n += 1 + l + sovMsgSession(uint64(l))
+	return n
+}
+
+func (m *ClearSessionKeyV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgUpdateSessionKey) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SignerAddress)
+	if l > 0 {
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	l = len(m.SessionId)
+	if l > 0 {
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	if m.Action != nil {
+		n += m.Action.Size()
+	}
+	return n
+}
+
+func (m *MsgUpdateSessionKey_Set) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Set != nil {
+		l = m.Set.Size()
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	return n
+}
+func (m *MsgUpdateSessionKey_Clear) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Clear != nil {
+		l = m.Clear.Size()
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	return n
+}
+func (m *MsgUpdateSessionKeyResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.XSessionKeyOrEmpty != nil {
+		n += m.XSessionKeyOrEmpty.Size()
+	}
+	if m.ExpiryHeight != 0 {
+		n += 1 + sovMsgSession(uint64(m.ExpiryHeight))
+	}
+	l = m.SpendCap.Size()
+	n += 1 + l + sovMsgSession(uint64(l))
+	l = m.Spent.Size()
+	n += 1 + l + sovMsgSession(uint64(l))
+	if m.SetHeight != 0 {
+		n += 1 + sovMsgSession(uint64(m.SetHeight))
+	}
+	if m.Status != 0 {
+		n += 1 + sovMsgSession(uint64(m.Status))
+	}
+	return n
+}
+
+func (m *MsgUpdateSessionKeyResponse_SessionKeyOrEmpty) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionKeyOrEmpty != nil {
+		l = len(m.SessionKeyOrEmpty)
+		n += 1 + l + sovMsgSession(uint64(l))
+	}
+	return n
+}
 func (m *MsgCreateSessionResponse) Size() (n int) {
 	if m == nil {
 		return 0
@@ -1150,6 +1871,620 @@ func (m *MsgCreateSession) Unmarshal(dAtA []byte) error {
 			}
 			m.SignerAddress = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionKey", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SessionKey == nil {
+				m.SessionKey = &SessionKeyGrantV1{}
+			}
+			if err := m.SessionKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SessionKeyGrantV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SessionKeyGrantV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SessionKeyGrantV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionKey = append(m.SessionKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.SessionKey == nil {
+				m.SessionKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiryHeight", wireType)
+			}
+			m.ExpiryHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiryHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SpendCap", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.SpendCap.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClearSessionKeyV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClearSessionKeyV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClearSessionKeyV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateSessionKey) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateSessionKey: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateSessionKey: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SignerAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SignerAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionId = append(m.SessionId[:0], dAtA[iNdEx:postIndex]...)
+			if m.SessionId == nil {
+				m.SessionId = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Set", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &SessionKeyGrantV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Action = &MsgUpdateSessionKey_Set{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Clear", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &ClearSessionKeyV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Action = &MsgUpdateSessionKey_Clear{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateSessionKeyResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateSessionKeyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateSessionKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionKeyOrEmpty", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.XSessionKeyOrEmpty = &MsgUpdateSessionKeyResponse_SessionKeyOrEmpty{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiryHeight", wireType)
+			}
+			m.ExpiryHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiryHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SpendCap", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.SpendCap.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Spent", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Spent.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SetHeight", wireType)
+			}
+			m.SetHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SetHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= types.MutationStatusV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipMsgSession(dAtA[iNdEx:])
