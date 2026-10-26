@@ -17,6 +17,11 @@ message StreamStoreState {
   uint64 last_active_height = 4;
   uint32 open_pending_count = 5;
   int32 status = 6;
+  optional bytes session_key = 7;
+  uint64 session_key_expiry_height = 8;
+  string session_key_spend_cap_atomic_units = 9;
+  string session_key_spent_atomic_units = 10;
+  uint64 session_key_set_height = 11;
 }
 
 // SessionTerminalSummaryStoreState stores the owner address as codec bytes.

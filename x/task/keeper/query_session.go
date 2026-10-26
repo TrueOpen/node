@@ -101,7 +101,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 
 	response := &types.QuerySessionsByOwnerResponse{Sessions: []types.StreamState{}}
 	responseBytes := 0
-	var lastReturnedSessionKey types.SessionKey
+	var lastReturnedSessionKey types.SessionStoreKey
 	for ; iter.Valid(); iter.Next() {
 		if uint32(len(response.Sessions)) >= limit {
 			pageToken, err := q.encodeSessionsByOwnerPageToken(ownerBytes, lastReturnedSessionKey, rpcDigest, selectorDigest, queryHeight)
@@ -150,7 +150,7 @@ func (q *queryServer) SessionsByOwner(ctx context.Context, req *types.QuerySessi
 
 func (q *queryServer) encodeSessionsByOwnerPageToken(
 	owner types.AddrKey,
-	sessionKey types.SessionKey,
+	sessionKey types.SessionStoreKey,
 	rpcDigest, selectorDigest []byte,
 	queryHeight uint64,
 ) ([]byte, error) {

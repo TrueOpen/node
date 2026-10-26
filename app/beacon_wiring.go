@@ -67,10 +67,18 @@ func (app *App) wireBeaconHooks(logger log.Logger, nodeHome string, vrfKeyRequir
 	inheritedPreBlocker := app.App.BaseApp.PreBlocker()
 	beaconPreBlocker := NewBeaconPreBlocker(app.HubKeeper, stakingLookup, verifier,
 		func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+			response := &sdk.ResponsePreBlock{}
 			if inheritedPreBlocker != nil {
-				return inheritedPreBlocker(ctx, req)
+				var err error
+				response, err = inheritedPreBlocker(ctx, req)
+				if err != nil {
+					return nil, err
+				}
 			}
-			return &sdk.ResponsePreBlock{}, nil
+			if err := app.TaskKeeper.InitializeSessionKeyParams(sdk.WrapSDKContext(ctx)); err != nil {
+				return nil, err
+			}
+			return response, nil
 		},
 	)
 	app.App.BaseApp.SetPreBlocker(beaconPreBlocker)

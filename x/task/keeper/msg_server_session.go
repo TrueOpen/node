@@ -23,11 +23,18 @@ func (m *msgServer) UpdateTaskParams(ctx context.Context, req *types.MsgUpdateTa
 	if err != nil || !bytes.Equal(authority, m.k.authority) {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, "authority does not match task authority")
 	}
-	if err := req.Params.Validate(); err != nil {
-		return nil, err
-	}
 	current, err := m.k.Params.Get(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if current.Session.MaxSessionKeyBlocks == 0 {
+		if req.Params.Session.MaxSessionKeyBlocks != 0 {
+			return nil, errorsmod.Wrap(types.ErrSessionKeyInvalid, "registration is not activated")
+		}
+		if err := types.ValidateHistoricalTaskParams(req.Params); err != nil {
+			return nil, err
+		}
+	} else if err := req.Params.Validate(); err != nil {
 		return nil, err
 	}
 	meta, err := m.k.GetTaskParamsMeta(ctx)
@@ -181,10 +188,17 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 		return nil, err
 	}
 	stream := types.StreamState{
-		SessionId:        append([]byte(nil), sessionID...),
-		OwnerUserAddress: owner,
-		LastActiveHeight: height,
-		Status:           types.SessionStatus_SESSION_STATUS_ACTIVE,
+		SessionId:          append([]byte(nil), sessionID...),
+		OwnerUserAddress:   owner,
+		LastActiveHeight:   height,
+		Status:             types.SessionStatus_SESSION_STATUS_ACTIVE,
+		SessionKeySpendCap: shared.NewAmount(0), SessionKeySpent: shared.NewAmount(0),
+	}
+	if req.SessionKey != nil {
+		if err := m.k.validateSessionKeyGrant(ctx, req.SessionKey, ownerBytes, height); err != nil {
+			return nil, err
+		}
+		setSessionKey(&stream, req.SessionKey, height)
 	}
 	// Pinned before the first lifecycle index row is written: that row's key is
 	// computed from this session's own TTLs.
@@ -204,6 +218,11 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 	}
 	if err := emitTypedEvent(ctx, &types.EventSessionCreated{SessionId: sessionID, Owner: owner, Nonce: nonce}); err != nil {
 		return nil, err
+	}
+	if req.SessionKey != nil {
+		if err := emitSessionKeyUpdated(ctx, stream); err != nil {
+			return nil, err
+		}
 	}
 	return &types.MsgCreateSessionResponse{
 		SessionId:    sessionID,

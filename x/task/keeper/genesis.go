@@ -18,7 +18,7 @@ import (
 // exclusively from those primaries. The cache context makes a rejected import a
 // zero-write operation.
 func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) error {
-	if err := genesis.Validate(); err != nil {
+	if err := k.ValidateGenesis(genesis); err != nil {
 		return err
 	}
 	if err := k.assertFreshGenesisStore(ctx); err != nil {
@@ -26,6 +26,20 @@ func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) err
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	// SDK InitChain uses initial_height for non-fresh imports; the imported
+	// state was exported after the preceding block. Fresh InitChain uses zero.
+	stateHeight := uint64(max(sdkCtx.BlockHeight(), 0))
+	if stateHeight > 0 {
+		stateHeight--
+	}
+	if genesis.Params.Session.MaxSessionKeyBlocks == 0 && (k.sessionKeyActivationHeight == nil || *k.sessionKeyActivationHeight == 0 || stateHeight >= *k.sessionKeyActivationHeight) {
+		return fmt.Errorf("legacy genesis requires import before the configured session key activation")
+	}
+	for _, stream := range genesis.Streams {
+		if stream.SessionKeySetHeight > stateHeight {
+			return fmt.Errorf("session key set_height exceeds genesis state height")
+		}
+	}
 	cacheCtx, write := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	if err := k.initGenesisPrimaries(cache, genesis); err != nil {

@@ -135,7 +135,7 @@ func (k Keeper) ensureOrderBudgetTerminal(ctx context.Context, state types.Order
 	return nil
 }
 
-func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.SessionKey, currentHeight uint64, remaining *uint64) (bool, error) {
+func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.SessionStoreKey, currentHeight uint64, remaining *uint64) (bool, error) {
 	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return false, err

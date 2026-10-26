@@ -82,6 +82,7 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		LastActiveHeight:     5,
 		OpenPendingCount:     1,
 		Status:               tasktypes.SessionStatus_SESSION_STATUS_ACTIVE,
+		SessionKeySpendCap:   shared.NewAmount(0), SessionKeySpent: shared.NewAmount(0),
 	}}
 	genesis.OrderSequences = []tasktypes.OrderSequenceState{{
 		SessionId:      sessionID,

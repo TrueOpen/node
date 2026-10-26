@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -97,7 +98,7 @@ func (k Keeper) admitSignedWorkerOrder(
 	if err != nil {
 		return err
 	}
-	stream, err := k.ReadStream(ctx, types.NewSessionKey(order.SessionId))
+	stream, err := k.ReadStream(ctx, types.NewSessionStoreKey(order.SessionId))
 	if err != nil {
 		if errIsNotFound(err) {
 			return fmt.Errorf("session does not exist")
@@ -111,10 +112,16 @@ func (k Keeper) admitSignedWorkerOrder(
 	if account == nil || account.GetPubKey() == nil {
 		return fmt.Errorf("user account public key is required before order admission")
 	}
-	if err := types.VerifySignedOrderV2EIP712WithAccountPublicKey(
-		hubParams.BusinessDenom, *scope.signed, scope.ref.TaskHash, account.GetPubKey(),
-	); err != nil {
+	recovered, err := types.RecoverSignedOrderV2EIP712(hubParams.BusinessDenom, *scope.signed, scope.ref.TaskHash)
+	if err != nil {
 		return fmt.Errorf("signed order authorization: %w", err)
+	}
+	delegated, nextSpent, err := authorizeOrderSigner(stream, userBytes, recovered, account.GetPubKey(), order, currentHeight)
+	if params.Session.MaxSessionKeyBlocks == 0 && errors.Is(err, types.ErrSessionKeyInvalid) {
+		return fmt.Errorf("recovered signer does not match TaskOrderV3 user_address")
+	}
+	if err != nil {
+		return err
 	}
 
 	if order.SessionAnchorHeight >= currentHeight || currentHeight-order.SessionAnchorHeight > params.Session.AnchorFreshnessWindowBlocks {
@@ -303,6 +310,18 @@ func (k Keeper) admitSignedWorkerOrder(
 	}
 	if err := k.consumeOrderSequence(ctx, order.SessionId, order.OrderSequence, scope.ref.TaskId); err != nil {
 		return err
+	}
+	if delegated {
+		// consumeOrderSequence re-reads and writes StreamState; update its result,
+		// not the pre-admission copy, so counters and lifecycle changes survive.
+		acceptedStream, err := k.ReadStream(ctx, types.NewSessionStoreKey(order.SessionId))
+		if err != nil {
+			return err
+		}
+		acceptedStream.SessionKeySpent = shared.NewAmount(nextSpent)
+		if err := k.WriteStream(ctx, types.NewSessionStoreKey(order.SessionId), acceptedStream); err != nil {
+			return err
+		}
 	}
 	if err := addDeadlineIndex(ctx, k.AssignmentRandomnessIndex, taskKey, windowClose); err != nil {
 		return err

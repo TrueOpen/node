@@ -91,6 +91,9 @@ func (m msgServer) SubmitWorkerHandraises(ctx context.Context, msg *types.MsgSub
 	taskKey := types.NewTaskKey(existing.TaskId)
 	if proposalScope.signed != nil {
 		if err := m.k.admitSignedWorkerOrder(cache, &proposalScope, msg.Handraises[0], params, currentHeight); err != nil {
+			if errors.Is(err, types.ErrSessionKeyInvalid) || errors.Is(err, types.ErrSessionKeyExpired) || errors.Is(err, types.ErrSessionKeySpendCapExceeded) {
+				return nil, err
+			}
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 		}
 	}

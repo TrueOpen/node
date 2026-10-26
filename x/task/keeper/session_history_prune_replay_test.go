@@ -13,7 +13,7 @@ import (
 // on: a closed stream whose single order sequence is terminal and names a task.
 // The existing session_runtime tests all use task-less CANCELLED sequences,
 // which return before ensureOrderBudgetTerminal ever looks at a task record.
-func closedSessionWithTerminalOrder(t *testing.T, f *internalFixture, tag byte) (types.SessionKey, types.TaskKey, []byte) {
+func closedSessionWithTerminalOrder(t *testing.T, f *internalFixture, tag byte) (types.SessionStoreKey, types.TaskKey, []byte) {
 	t.Helper()
 	sessionID := bytes.Repeat([]byte{tag}, types.Hash32Len)
 	taskID := bytes.Repeat([]byte{tag ^ 0xff}, types.Hash32Len)
