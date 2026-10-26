@@ -749,8 +749,8 @@ github.com/TrueOpen/wire v0.4.1-0.20261012085101-62f00fe00d9f h1:pVG0sDWy2dYsK0+
 github.com/TrueOpen/wire v0.4.1-0.20261012085101-62f00fe00d9f/go.mod h1:AFFxZGikd4t3+KD1dKTNLxd6Pq+aHft1ZCIyv3Szfa4=
 github.com/TrueOpen/wire v0.5.0 h1:5R69NhFNsPchlN5RIJrkadkS0ZMj584PBeli9CUJo/A=
 github.com/TrueOpen/wire v0.5.0/go.mod h1:AFFxZGikd4t3+KD1dKTNLxd6Pq+aHft1ZCIyv3Szfa4=
-github.com/TrueOpen/wire v0.5.1-0.20261023023131-602cb1831f37 h1:Uqb66ySPB+fzgrVTw+d8W1Zel+bjQavYsxDMxv7Bo9Q=
-github.com/TrueOpen/wire v0.5.1-0.20261023023131-602cb1831f37/go.mod h1:AFFxZGikd4t3+KD1dKTNLxd6Pq+aHft1ZCIyv3Szfa4=
+github.com/TrueOpen/wire v0.5.1 h1:CEaFJJv4le8O6RIjwA2Jyn9DxKOWBEdkSRtNouKDo7E=
+github.com/TrueOpen/wire v0.5.1/go.mod h1:AFFxZGikd4t3+KD1dKTNLxd6Pq+aHft1ZCIyv3Szfa4=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
