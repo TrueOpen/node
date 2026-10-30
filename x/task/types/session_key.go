@@ -37,7 +37,9 @@ func NormalizeSessionKeyState(state StreamState) (StreamState, error) {
 		if err := ValidateSessionKeyAddress(key.SessionKey, owner); err != nil {
 			return state, err
 		}
-		if state.SessionKeySetHeight == 0 || !shared.IsBlockHeightV1(state.SessionKeyExpiryHeight) || state.SessionKeyExpiryHeight <= state.SessionKeySetHeight {
+		// A grant can expire while its restrictive change waits to become effective.
+		// Preserve that expired grant; admission rejects it by absolute expiry.
+		if state.SessionKeySetHeight == 0 || !shared.IsBlockHeightV1(state.SessionKeyExpiryHeight) {
 			return state, fmt.Errorf("invalid session key registration/expiry heights")
 		}
 		if _, err := shared.ParseAmount(state.SessionKeySpendCap); err != nil {

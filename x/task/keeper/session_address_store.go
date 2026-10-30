@@ -134,15 +134,20 @@ func (k Keeper) streamToStore(state types.StreamState) (internaltypes.StreamStor
 		OpenPendingCount: state.OpenPendingCount, Status: int32(state.Status),
 		SessionKeyExpiryHeight: state.SessionKeyExpiryHeight, SessionKeySetHeight: state.SessionKeySetHeight,
 	}
-	// Keep legacy wallet-only rows byte-identical; projection supplies canonical zeros.
-	if state.SessionKeySpendCap.AtomicUnits != "0" {
-		stored.SessionKeySpendCapAtomicUnits = state.SessionKeySpendCap.AtomicUnits
+	cap, err := shared.ParseAmount(state.SessionKeySpendCap)
+	if err != nil {
+		return internaltypes.StreamStoreState{}, err
 	}
-	if state.SessionKeySpent.AtomicUnits != "0" {
-		stored.SessionKeySpentAtomicUnits = state.SessionKeySpent.AtomicUnits
+	spent, err := shared.ParseAmount(state.SessionKeySpent)
+	if err != nil {
+		return internaltypes.StreamStoreState{}, err
 	}
+	stored.SessionKeySpendCap, stored.SessionKeySpent = cap, spent
 	if state.XSessionKey != nil {
 		stored.XSessionKey = &internaltypes.StreamStoreState_SessionKey{SessionKey: bytes.Clone(state.GetSessionKey())}
+	}
+	if err := k.streamDispatchToStore(state, &stored); err != nil {
+		return internaltypes.StreamStoreState{}, err
 	}
 	return stored, nil
 }
@@ -157,17 +162,14 @@ func (k Keeper) ProjectStreamStore(stored internaltypes.StreamStoreState) (types
 		NextExpectedSequence: stored.NextExpectedSequence, LastActiveHeight: stored.LastActiveHeight,
 		OpenPendingCount: stored.OpenPendingCount, Status: types.SessionStatus(stored.Status),
 		SessionKeyExpiryHeight: stored.SessionKeyExpiryHeight, SessionKeySetHeight: stored.SessionKeySetHeight,
-		SessionKeySpendCap: shared.Amount{AtomicUnits: stored.SessionKeySpendCapAtomicUnits},
-		SessionKeySpent:    shared.Amount{AtomicUnits: stored.SessionKeySpentAtomicUnits},
+		SessionKeySpendCap: shared.NewAmount(stored.SessionKeySpendCap),
+		SessionKeySpent:    shared.NewAmount(stored.SessionKeySpent),
 	}
 	if stored.XSessionKey != nil {
 		state.XSessionKey = &types.StreamState_SessionKey{SessionKey: bytes.Clone(stored.GetSessionKey())}
 	}
-	if state.SessionKeySpendCap.AtomicUnits == "" {
-		state.SessionKeySpendCap = shared.NewAmount(0)
-	}
-	if state.SessionKeySpent.AtomicUnits == "" {
-		state.SessionKeySpent = shared.NewAmount(0)
+	if err := k.projectStreamDispatch(stored, &state); err != nil {
+		return types.StreamState{}, err
 	}
 	return types.NormalizeSessionKeyState(state)
 }

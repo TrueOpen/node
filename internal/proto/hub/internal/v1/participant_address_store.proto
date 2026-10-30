@@ -17,6 +17,9 @@ message CortexNodeStoreState {
   uint32 active_task_liability_count = 10;
   uint32 pending_stage_duty_count = 11;
   uint32 pending_evidence_submission_count = 12;
+  bytes previous_service_pubkey = 13;
+  uint64 previous_service_authorization_nonce = 14;
+  uint64 previous_retired_height = 15;
 }
 
 // BuilderStoreState keeps account addresses in codec bytes.
@@ -32,10 +35,32 @@ message BuilderStoreState {
   uint32 active_task_liability_count = 9;
   uint32 pending_stage_duty_count = 10;
   uint32 pending_evidence_submission_count = 11;
+  bytes previous_service_pubkey = 12;
+  uint64 previous_service_authorization_nonce = 13;
+  uint64 previous_retired_height = 14;
 }
 
 // CurrentServiceAddressIndexStoreState stores the operator as codec bytes.
 message CurrentServiceAddressIndexStoreState {
   bytes operator_address = 1;
   uint64 service_authorization_nonce = 2;
+}
+
+// PendingServiceKeyRotationStoreState stores the operator as raw account bytes.
+message PendingServiceKeyRotationStoreState {
+  int32 participant_type = 1;
+  bytes operator_address = 2;
+  uint64 current_service_authorization_nonce = 3;
+  bytes new_service_pubkey = 4;
+  uint64 next_service_authorization_nonce = 5;
+  uint64 registered_height = 6;
+  uint64 effective_height = 7;
+  reserved 8;
+  reserved "old_material_close_height";
+}
+
+// PendingServiceAddressStoreState reserves a future address across both roles.
+message PendingServiceAddressStoreState {
+  int32 participant_type = 1;
+  bytes operator_address = 2;
 }

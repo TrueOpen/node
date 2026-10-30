@@ -91,8 +91,8 @@ func (k Keeper) ExecuteReplaceBuilderSetV1(
 		return BuilderSetReplacementResult{}, err
 	}
 	memberCount := uint32(len(memberBytes))
-	if memberCount < params.Builder.BuildersPerTask || memberCount > params.Builder.BuilderSetCap {
-		return BuilderSetReplacementResult{}, fmt.Errorf("builder set replacement member count %d is outside [%d,%d]", memberCount, params.Builder.BuildersPerTask, params.Builder.BuilderSetCap)
+	if memberCount == 0 || memberCount > params.Builder.BuilderSetCap {
+		return BuilderSetReplacementResult{}, fmt.Errorf("builder set replacement member count %d is outside [%d,%d]", memberCount, uint32(1), params.Builder.BuilderSetCap)
 	}
 	members := make([]string, len(action.Members))
 	for index, member := range action.Members {

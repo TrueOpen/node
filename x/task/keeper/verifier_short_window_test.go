@@ -88,6 +88,9 @@ func stageVerifyOpenFailureReadyTask(t *testing.T, f *internalFixture, taskKey t
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.WriteStream(f.ctx, sessionKey, types.StreamState{
 		SessionId: core.SessionId, OwnerUserAddress: core.UserAddress,
+		BoundBuilder: sdk.AccAddress(bytes.Repeat([]byte{0xc8}, 20)).String(), BoundChangeHeight: 1,
+		Balance: shared.NewAmount(1000), FrozenTotal: shared.NewAmount(1000),
+		PendingWithdrawAmount: shared.NewAmount(0), PendingWithdrawKind: types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		NextExpectedSequence: 2, LastActiveHeight: 10, OpenPendingCount: 1,
 		Status: types.SessionStatus_SESSION_STATUS_ACTIVE,
 	}))

@@ -1,0 +1,21 @@
+package types
+
+var (
+	DispatchRecordKey                 = MustVersionedStorePrefix("dispatch_record", CurrentStoreSchemaVersion)
+	DispatchRecordByHashKey           = MustVersionedStorePrefix("dispatch_record_by_hash", CurrentStoreSchemaVersion)
+	DispatchRecordPruneKey            = MustVersionedStorePrefix("dispatch_record_prune", CurrentStoreSchemaVersion)
+	TakeoverEntryReceiptKey           = MustVersionedStorePrefix("takeover_entry_receipt", CurrentStoreSchemaVersion)
+	TakeoverEntryReceiptPruneKey      = MustVersionedStorePrefix("takeover_entry_receipt_prune", CurrentStoreSchemaVersion)
+	DispatchCompensationClaimKey      = MustVersionedStorePrefix("dispatch_compensation_claim", CurrentStoreSchemaVersion)
+	DispatchClaimRebuttalKey          = MustVersionedStorePrefix("dispatch_claim_rebuttal", CurrentStoreSchemaVersion)
+	DispatchClaimPruneKey             = MustVersionedStorePrefix("dispatch_claim_prune", CurrentStoreSchemaVersion)
+	DispatchOpenClaimByBuilderKey     = MustVersionedStorePrefix("dispatch_open_claim_by_builder", CurrentStoreSchemaVersion)
+	DispatchWinnerIneligibleKey       = MustVersionedStorePrefix("dispatch_winner_ineligible", CurrentStoreSchemaVersion)
+	DispatchWinnerIneligiblePruneKey  = MustVersionedStorePrefix("dispatch_winner_ineligible_prune", CurrentStoreSchemaVersion)
+	DispatchChallengeKey              = MustVersionedStorePrefix("dispatch_challenge", CurrentStoreSchemaVersion)
+	DispatchChallengeResponseKey      = MustVersionedStorePrefix("dispatch_challenge_response", CurrentStoreSchemaVersion)
+	DispatchChallengePruneKey         = MustVersionedStorePrefix("dispatch_challenge_prune", CurrentStoreSchemaVersion)
+	DispatchOpenChallengeByBuilderKey = MustVersionedStorePrefix("dispatch_open_challenge_by_builder", CurrentStoreSchemaVersion)
+	DispatchUpheldScopeKey            = MustVersionedStorePrefix("dispatch_upheld_scope", CurrentStoreSchemaVersion)
+	DispatchPendingByTaskKey          = MustVersionedStorePrefix("dispatch_pending_by_task", CurrentStoreSchemaVersion)
+)

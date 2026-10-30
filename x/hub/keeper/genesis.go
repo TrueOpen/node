@@ -239,8 +239,26 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 			}
 		}
 	}
+	for _, pending := range genState.PendingServiceKeyRotations {
+		if pending.RegisteredHeight > sdkWrappedContextHeight(ctx) {
+			return fmt.Errorf("pending rotation registered after genesis state height")
+		}
+		if err := k.registerPendingServiceKeyRotation(ctx, pending); err != nil {
+			return err
+		}
+	}
 	for _, state := range genState.BuilderAdmissions {
 		if err := k.storeBuilderAdmission(ctx, state); err != nil {
+			return err
+		}
+	}
+	for _, state := range genState.BuilderCompensationAccounts {
+		if err := k.WriteBuilderCompensationAccount(ctx, state); err != nil {
+			return err
+		}
+	}
+	for _, state := range genState.DispatchFaults {
+		if err := k.writeDispatchFault(ctx, state); err != nil {
 			return err
 		}
 	}
@@ -440,6 +458,9 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	if err := k.EnsureCurrentServiceAddressIndexInvariant(ctx); err != nil {
 		return fmt.Errorf("current service address index invariant: %w", err)
 	}
+	if err := k.EnsureServiceKeyRotationInvariant(ctx); err != nil {
+		return err
+	}
 	if err := k.EnsureFreezeRiskScheduleInvariant(ctx); err != nil {
 		return fmt.Errorf("freeze risk schedule invariant: %w", err)
 	}
@@ -583,6 +604,18 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 	genesis.ServiceKeyResponsibilities, err = k.exportServiceKeyResponsibilities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	genesis.PendingServiceKeyRotations, err = k.exportPendingServiceKeyRotations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	genesis.BuilderCompensationAccounts, err = k.exportBuilderCompensationAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	genesis.DispatchFaults, err = k.exportDispatchFaults(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -773,6 +806,12 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 	if err := k.EnsureBridgeSupplyInvariant(ctx); err != nil {
 		return nil, fmt.Errorf("bridge supply invariant: %w", err)
+	}
+	if err := k.EnsureServiceKeyRotationInvariant(ctx); err != nil {
+		return nil, err
+	}
+	if err := k.EnsureBuilderCompensationInvariant(ctx); err != nil {
+		return nil, err
 	}
 	return genesis, nil
 }

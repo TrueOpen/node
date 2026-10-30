@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -107,14 +108,20 @@ type TaskSafetyWindowProvider interface {
 	GetTaskSafetyWindows(context.Context) (TaskSafetyWindows, error)
 }
 
+// WorkerCandidateWeightProvider reads Task-owned policy only when an epoch activates.
+type WorkerCandidateWeightProvider interface {
+	GetWorkerCandidateWeightPolicy(context.Context, uint64) (shared.WorkerCandidateWeightPolicy, error)
+}
+
 type TaskSafetyWindows struct {
 	ChallengeResolveWindowBlocks uint64
 	EvidenceResponseWindowBlocks uint64
 }
 
 type MsgServerDependencies struct {
-	FreezeTaskValidator       FreezeSignalTaskValidator
-	ValidatorSnapshotProvider ValidatorSnapshotProvider
-	TaskSafetyWindowProvider  TaskSafetyWindowProvider
-	RoleFaultConsumerGate     RoleFaultConsumerGate
+	FreezeTaskValidator           FreezeSignalTaskValidator
+	ValidatorSnapshotProvider     ValidatorSnapshotProvider
+	TaskSafetyWindowProvider      TaskSafetyWindowProvider
+	RoleFaultConsumerGate         RoleFaultConsumerGate
+	WorkerCandidateWeightProvider WorkerCandidateWeightProvider
 }

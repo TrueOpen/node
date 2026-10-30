@@ -182,6 +182,9 @@ func (k Keeper) RegisterModelProfileState(
 	if err := k.setProfileState(ctx, profile); err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}
+	if err := k.noteCandidateProfileAddition(ctx, profile, height, params); err != nil {
+		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
+	}
 	if err := k.scheduleNextFreezeRiskWindow(ctx, profile); err != nil {
 		return types.ModelState{}, types.ProfileState{}, types.RegistrationReceipt{}, false, err
 	}

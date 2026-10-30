@@ -69,14 +69,27 @@ func (k Keeper) applyRoundEconomicEffectInCache(
 			return types.RoundEconomicEffectApplyReceipt{}, fmt.Errorf("round effect pool credit overflow: %w", err)
 		}
 		if parsed.requested != 0 {
-			if _, err := k.ApplyTaskRoleFault(ctx, types.TaskRoleFaultFact{
-				SessionID: append([]byte(nil), req.SessionID...), TaskID: append([]byte(nil), req.TaskID...),
-				OperatorAddress: parsed.source, Duty: req.Duty, FaultType: types.FaultTypeRoundDivergence,
-				ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND,
-				EvidenceDigest:       append([]byte(nil), req.EvidenceDigest...), SlashBps: 0, Height: req.Height,
-			}); err != nil {
-				return types.RoundEconomicEffectApplyReceipt{}, err
+			var valueFault types.RoleFaultState
+			if len(req.ValueEvidenceFaultID) != 0 {
+				var err error
+				valueFault, err = k.requireValueEvidenceFault(ctx, req.TaskID, parsed.source, req.Duty, req.EvidenceDigest, req.ValueEvidenceFaultID)
+				if err != nil {
+					return types.RoundEconomicEffectApplyReceipt{}, err
+				}
+				if _, err = k.closeTaskLiabilityReservationInCache(ctx, req.TaskID, parsed.source, req.Duty, types.TaskLiabilityStatusSlashed, 0, req.Height, nil); err != nil {
+					return types.RoundEconomicEffectApplyReceipt{}, err
+				}
+			} else {
+				if _, err := k.ApplyTaskRoleFault(ctx, types.TaskRoleFaultFact{
+					SessionID: append([]byte(nil), req.SessionID...), TaskID: append([]byte(nil), req.TaskID...),
+					OperatorAddress: parsed.source, Duty: req.Duty, FaultType: types.FaultTypeRoundDivergence,
+					ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND,
+					EvidenceDigest:       append([]byte(nil), req.EvidenceDigest...), SlashBps: 0, Height: req.Height,
+				}); err != nil {
+					return types.RoundEconomicEffectApplyReceipt{}, err
+				}
 			}
+
 			result, err := k.applyServiceSlashInCache(ctx, ApplyServiceSlashRequest{
 				OperatorAddress: parsed.source, Duty: req.Duty,
 				TaskID: append([]byte(nil), req.TaskID...), Requested: parsed.requested, Height: req.Height,
@@ -89,6 +102,12 @@ func (k Keeper) applyRoundEconomicEffectInCache(
 				return types.RoundEconomicEffectApplyReceipt{}, err
 			}
 			applied, unfilled = result.Applied, result.Unfilled
+			if len(req.ValueEvidenceFaultID) != 0 {
+				if _, err = k.finishValueEvidenceFault(ctx, valueFault, nil, req.Height); err != nil {
+					return types.RoundEconomicEffectApplyReceipt{}, err
+				}
+			}
+
 		}
 		poolAfter, _ = checkedAdd(parsed.poolBefore, applied)
 		receipt.EffectPoolCredit = shared.NewAmount(applied)

@@ -56,8 +56,10 @@ func (m msgServer) RotateServiceKey(ctx context.Context, msg *types.MsgRotateSer
 	if current.AuthorizationNonce == math.MaxUint64 {
 		return nil, fmt.Errorf("service authorization nonce overflow")
 	}
-	if err := m.k.ensureServiceKeyCanChange(cache, msg.ParticipantType, operatorAddress); err != nil {
+	if pending, err := m.k.PendingServiceKeyRotation.Has(cache, types.NewParticipantKey(msg.ParticipantType, operatorAddress)); err != nil {
 		return nil, err
+	} else if pending {
+		return nil, fmt.Errorf("service key rotation is already pending")
 	}
 	pub, err := parseServicePubKey("new_service_pubkey", msg.NewServicePubkey)
 	if err != nil {
@@ -86,24 +88,24 @@ func (m msgServer) RotateServiceKey(ctx context.Context, msg *types.MsgRotateSer
 	if err := verifyServiceKeyProof(pub, digest, msg.NewServiceKeyProof); err != nil {
 		return nil, err
 	}
-	oldServiceAddress := current.ServiceAddress
-	oldAuthorizationNonce := current.AuthorizationNonce
-	current.ServiceAddress = serviceAddress
-	current.ServicePubkey = append([]byte(nil), msg.NewServicePubkey...)
-	current.AuthorizationNonce = nextNonce
-	current.ServiceKeyStatus = types.ServiceKeyStatus_SERVICE_KEY_STATUS_ACTIVE
-	current.UpdatedHeight = sdkContextHeight(cacheCtx)
-	if err := m.k.persistParticipantIdentity(cache, current, oldServiceAddress, oldAuthorizationNonce); err != nil {
+	height := sdkContextHeight(cacheCtx)
+	effectiveHeight, err := m.k.serviceRotationHeight(cache, height)
+	if err != nil {
 		return nil, err
 	}
-	mustEmitHubEvent(cache, &types.EventServiceKeyRotated{
-		ParticipantType: msg.ParticipantType, Operator: operatorAddress,
-		OldServiceAddress: oldServiceAddress, NewServiceAddress: serviceAddress, AuthorizationNonce: nextNonce,
-	})
+	pending := types.PendingServiceKeyRotationState{
+		ParticipantType: msg.ParticipantType, OperatorAddress: operatorAddress,
+		CurrentServiceAuthorizationNonce: current.AuthorizationNonce, NewServicePubkey: append([]byte(nil), msg.NewServicePubkey...),
+		NextServiceAuthorizationNonce: nextNonce, RegisteredHeight: height, EffectiveHeight: effectiveHeight,
+	}
+	if err := m.k.registerPendingServiceKeyRotation(cache, pending); err != nil {
+		return nil, err
+	}
+	mustEmitHubEvent(cache, &types.EventServiceKeyRotationRegistered{PendingRotation: pending})
 	commit()
 	return &types.MsgRotateServiceKeyResponse{
 		OperatorAddress: operatorAddress, NewServiceAddress: serviceAddress, NewNonce: nextNonce,
-		Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED,
+		PendingRotation: pending, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED,
 	}, nil
 }
 
@@ -136,8 +138,12 @@ func (m msgServer) RevokeServiceKey(ctx context.Context, msg *types.MsgRevokeSer
 	if msg.ExpectedCurrentServiceAuthorizationNonce != current.AuthorizationNonce {
 		return nil, errorsmod.Wrap(types.ErrExpectedVersionMismatch, "expected current service authorization nonce does not match")
 	}
+	if err := m.k.cancelPendingServiceKeyRotation(cache, msg.ParticipantType, operatorAddress); err != nil {
+		return nil, err
+	}
 	revokedServiceAddress := current.ServiceAddress
 	if current.ServiceKeyStatus == types.ServiceKeyStatus_SERVICE_KEY_STATUS_REVOKED {
+		commit()
 		return &types.MsgRevokeServiceKeyResponse{
 			OperatorAddress: operatorAddress, RevokedServiceAddress: revokedServiceAddress,
 			AuthorizationNonce: current.AuthorizationNonce, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP,

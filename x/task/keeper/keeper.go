@@ -29,37 +29,36 @@ import (
 // a second,
 // non-authoritative copy of the session binding to 15 primary and 10 index keys.
 type Keeper struct {
+	ValueEvidenceReceipt          collections.Map[types.ValueEvidenceReceiptKey, internaltypes.ValueEvidenceReceiptStoreState]
+	ValueEvidenceWindowCloseIndex collections.KeySet[types.DeadlineIndexKey]
 	// Shared across dependency-injected Keeper copies; configured before execution.
-	sessionKeyActivationHeight *uint64
-	storeService               corestore.KVStoreService
-	transientStoreService      corestore.TransientStoreService
-	cdc                        codec.Codec
-	addressCodec               address.Codec
-	authority                  []byte
-	authKeeper                 types.AuthKeeper
-	bankKeeper                 types.BankKeeper
-	hubKeeper                  types.HubKeeper
+	storeService          corestore.KVStoreService
+	transientStoreService corestore.TransientStoreService
+	cdc                   codec.Codec
+	addressCodec          address.Codec
+	authority             []byte
+	authKeeper            types.AuthKeeper
+	bankKeeper            types.BankKeeper
+	hubKeeper             types.HubKeeper
 
 	Schema     collections.Schema
 	Params     collections.Item[types.TaskParamsV1]
 	ParamsMeta collections.Item[types.TaskParamsMetaState]
 
-	// Params versioning (see params_versions.go). ParamsHistory keeps the params of
-	// every version that a later update replaced, LegacyParamsVersion names the
-	// version that Tasks and Sessions created before versioning existed run under,
-	// and the two pointer maps record the version each live row was created under.
-	ParamsHistory        collections.Map[uint64, types.TaskParamsV1]
-	LegacyParamsVersion  collections.Item[uint64]
-	TaskParamsVersion    collections.Map[types.TaskKey, uint64]
-	SessionParamsVersion collections.Map[types.SessionStoreKey, uint64]
+	// Parameter bodies and bindings are primary; counts and time indexes rebuild
+	// from them at Genesis import. Current bodies are never duplicated in history.
+	ParamsHistory              collections.Map[uint64, types.TaskParamsHistoryState]
+	TaskParamsVersion          collections.Map[types.TaskKey, uint64]
+	SessionParamsVersion       collections.Map[types.SessionStoreKey, uint64]
+	ParamsVersionRefCount      collections.Map[uint64, uint64]
+	ParamsHistoryByHeightIndex collections.KeySet[collections.Pair[uint64, uint64]]
+	ParamsHistoryPruneIndex    collections.KeySet[collections.Pair[uint64, uint64]]
 
 	// ---- Session / Order ----
 	//
-	// Model A: a session never holds funds. SessionEscrow is deleted; TaskBudget is
-	// the only ledger. SessionByOwnerIndex holds ACTIVE/IDLE streams only, and the
-	// three prune rows implement the bounded CLOSED -> sequence_root -> terminal
-	// summary -> deleted pipeline.
-	// SessionNonce uses the owner's canonical address bytes as its store key.
+	// Stream owns prefunded balances and frozen totals; TaskBudget records each
+	// reservation. The custody account holds the sum of Stream balances.
+	// SessionNonce is keyed by the owner's canonical address bytes.
 	SessionNonce                     collections.Map[types.AddrKey, internaltypes.SessionNonceStoreState]
 	Stream                           collections.Map[types.SessionStoreKey, internaltypes.StreamStoreState]
 	SessionByOwnerIndex              collections.KeySet[types.SessionByOwnerKey]
@@ -69,7 +68,28 @@ type Keeper struct {
 	SessionHistoryPruneIndex         collections.KeySet[types.SessionHeightIndexKey]
 	SessionTerminalSummary           collections.Map[types.SessionStoreKey, internaltypes.SessionTerminalSummaryStoreState]
 	SessionTerminalSummaryPruneIndex collections.KeySet[types.SessionHeightIndexKey]
+	SessionWithdrawIndex             collections.KeySet[types.SessionHeightIndexKey]
+	SessionKeyChangeIndex            collections.KeySet[types.SessionHeightIndexKey]
+	SessionTakeoverIndex             collections.KeySet[types.SessionHeightIndexKey]
+	OrderCancelIndex                 collections.KeySet[types.OrderCancelIndexKeyTriple]
 	TaskBudget                       collections.Map[types.TaskBudgetKey, types.TaskBudgetState]
+	DispatchRecord                   collections.Map[types.TaskKey, internaltypes.DispatchRecordStoreState]
+	DispatchRecordByHash             collections.Map[types.Hash32Key, types.Hash32Key]
+	DispatchRecordPrune              collections.KeySet[types.DeadlineIndexKey]
+	TakeoverEntryReceipt             collections.Map[types.Hash32Key, internaltypes.TakeoverEntryReceiptStoreState]
+	TakeoverEntryReceiptPrune        collections.KeySet[types.DeadlineIndexKey]
+	DispatchCompensationClaim        collections.Map[types.Hash32Key, internaltypes.DispatchCompensationClaimStoreState]
+	DispatchClaimRebuttal            collections.KeySet[types.DeadlineIndexKey]
+	DispatchClaimPrune               collections.KeySet[types.DeadlineIndexKey]
+	DispatchOpenClaimByBuilder       collections.KeySet[types.RoleActiveTaskKey]
+	DispatchWinnerIneligible         collections.Map[types.Hash32Key, internaltypes.DispatchWinnerIneligibleStoreState]
+	DispatchWinnerIneligiblePrune    collections.KeySet[types.DeadlineIndexKey]
+	DispatchChallenge                collections.Map[types.Hash32Key, internaltypes.DispatchChallengeStoreState]
+	DispatchChallengeResponse        collections.KeySet[types.DeadlineIndexKey]
+	DispatchChallengePrune           collections.KeySet[types.DeadlineIndexKey]
+	DispatchOpenChallengeByBuilder   collections.KeySet[types.RoleActiveTaskKey]
+	DispatchUpheldScope              collections.Map[[]byte, []byte]
+	DispatchPendingByTask            collections.Map[types.Hash32Key, uint64]
 
 	// ---- Task core, assignment and handraise ----
 	//
@@ -79,11 +99,10 @@ type Keeper struct {
 	// of TaskAssignment.selected worker, and are deleted.
 	//
 	// The candidate vector exists exactly once, as TaskCandidateFact rows keyed by
-	// (task_id, stage, slot). AssignmentCandidateSet keeps only the commitment
+	// (task_id, stage, slot). The Verifier stage header keeps the commitment
 	// header, and the union bitmap segment bodies are deleted at finalize.
 	TaskCore                       collections.Map[types.TaskKey, types.TaskCoreState]
 	TaskAssignment                 collections.Map[types.TaskKey, internaltypes.TaskAssignmentStoreState]
-	AssignmentCandidateSet         collections.Map[types.TaskKey, types.AssignmentCandidateSetState]
 	TaskCandidateFact              collections.Map[types.TaskCandidateFactKeyTriple, internaltypes.TaskCandidateFactStoreState]
 	BuilderStageProposal           collections.Map[types.BuilderStageProposalKeyTriple, internaltypes.BuilderStageProposalStoreState]
 	TaskStageHandraiseUnion        collections.Map[types.TaskStageKey, types.TaskStageHandraiseUnionState]
@@ -144,7 +163,6 @@ type Keeper struct {
 	// SampleReadyIndex and WorkerRevealDeadlineIndex are deleted (not a
 	// registered height index, no DeadlineKindV1 value). TaskByModelIndex is
 	// deleted (the protocol forbids a KeySet a primary prefix scan can already page).
-	AssignmentRandomnessIndex        collections.KeySet[types.DeadlineIndexKey]
 	InferDeadlineIndex               collections.KeySet[types.DeadlineIndexKey]
 	VerifyOpenDeadlineIndex          collections.KeySet[types.DeadlineIndexKey]
 	CommitDeadlineIndex              collections.KeySet[types.DeadlineIndexKey]
@@ -215,8 +233,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 	epochTaskSummaryScheduleKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)
 
 	k := Keeper{
-		sessionKeyActivationHeight: new(uint64),
-		storeService:               storeService, transientStoreService: transientStoreService,
+		storeService: storeService, transientStoreService: transientStoreService,
 		cdc:          cdc,
 		addressCodec: addressCodec,
 		authority:    authority,
@@ -227,10 +244,14 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		Params:     collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.TaskParamsV1](cdc)),
 		ParamsMeta: collections.NewItem(sb, types.ParamsMetaKey, "params_meta", codec.CollValue[types.TaskParamsMetaState](cdc)),
 
-		ParamsHistory:        collections.NewMap(sb, types.ParamsHistoryKey, "params_history", collections.Uint64Key, codec.CollValue[types.TaskParamsV1](cdc)),
-		LegacyParamsVersion:  collections.NewItem(sb, types.LegacyParamsVersionKey, "legacy_params_version", collections.Uint64Value),
-		TaskParamsVersion:    collections.NewMap(sb, types.TaskParamsVersionKey, "task_params_version", types.Hash32KeyCodec, collections.Uint64Value),
-		SessionParamsVersion: collections.NewMap(sb, types.SessionParamsVersionKey, "session_params_version", types.Hash32KeyCodec, collections.Uint64Value),
+		ValueEvidenceReceipt:          collections.NewMap(sb, types.ValueEvidenceReceiptStateKey, "value_evidence_receipt", collections.QuadKeyCodec(types.Hash32KeyCodec, collections.Uint32Key, types.AddrKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.ValueEvidenceReceiptStoreState](cdc)),
+		ValueEvidenceWindowCloseIndex: collections.NewKeySet(sb, types.ValueEvidenceWindowCloseKey, "value_evidence_window_close", collections.PairKeyCodec(collections.Uint64Key, types.Hash32KeyCodec)),
+		ParamsVersionRefCount:         collections.NewMap(sb, types.ParamsVersionRefCountKey, "params_version_ref_count", collections.Uint64Key, collections.Uint64Value),
+		ParamsHistoryByHeightIndex:    collections.NewKeySet(sb, types.ParamsHistoryByHeightIndexKey, "params_history_by_height", collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)),
+		ParamsHistoryPruneIndex:       collections.NewKeySet(sb, types.ParamsHistoryPruneIndexKey, "params_history_prune", collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)),
+		ParamsHistory:                 collections.NewMap(sb, types.ParamsHistoryKey, "params_history", collections.Uint64Key, codec.CollValue[types.TaskParamsHistoryState](cdc)),
+		TaskParamsVersion:             collections.NewMap(sb, types.TaskParamsVersionKey, "task_params_version", types.Hash32KeyCodec, collections.Uint64Value),
+		SessionParamsVersion:          collections.NewMap(sb, types.SessionParamsVersionKey, "session_params_version", types.Hash32KeyCodec, collections.Uint64Value),
 
 		SessionNonce:                     collections.NewMap(sb, types.SessionNonceKey, "session_nonce", types.AddrKeyCodec, codec.CollValue[internaltypes.SessionNonceStoreState](cdc)),
 		Stream:                           collections.NewMap(sb, types.StreamStateKey, "stream_state", types.Hash32KeyCodec, codec.CollValue[internaltypes.StreamStoreState](cdc)),
@@ -241,7 +262,28 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		SessionHistoryPruneIndex:         collections.NewKeySet(sb, types.SessionHistoryPruneIndexKey, "session_history_prune_index", sessionHeightIndexKeyCodec),
 		SessionTerminalSummary:           collections.NewMap(sb, types.SessionTerminalSummaryKey, "session_terminal_summary", types.Hash32KeyCodec, codec.CollValue[internaltypes.SessionTerminalSummaryStoreState](cdc)),
 		SessionTerminalSummaryPruneIndex: collections.NewKeySet(sb, types.SessionTerminalSummaryPruneIndexKey, "session_terminal_summary_prune_index", sessionHeightIndexKeyCodec),
+		SessionWithdrawIndex:             collections.NewKeySet(sb, types.SessionWithdrawIndexKey, "session_withdraw_index", sessionHeightIndexKeyCodec),
+		SessionKeyChangeIndex:            collections.NewKeySet(sb, types.SessionKeyChangeIndexKey, "session_key_change_index", sessionHeightIndexKeyCodec),
+		SessionTakeoverIndex:             collections.NewKeySet(sb, types.SessionTakeoverIndexKey, "session_takeover_index", sessionHeightIndexKeyCodec),
+		OrderCancelIndex:                 collections.NewKeySet(sb, types.OrderCancelIndexKey, "order_cancel_index", collections.TripleKeyCodec(collections.Uint64Key, types.Hash32KeyCodec, collections.Uint64Key)),
 		TaskBudget:                       collections.NewMap(sb, types.TaskBudgetKeyPrefix, "task_budget", types.Hash32KeyCodec, codec.CollValue[types.TaskBudgetState](cdc)),
+		DispatchRecord:                   collections.NewMap(sb, types.DispatchRecordKey, "dispatch_record", types.Hash32KeyCodec, codec.CollValue[internaltypes.DispatchRecordStoreState](cdc)),
+		DispatchRecordByHash:             collections.NewMap(sb, types.DispatchRecordByHashKey, "dispatch_record_by_hash", types.Hash32KeyCodec, collections.BytesValue),
+		DispatchRecordPrune:              collections.NewKeySet(sb, types.DispatchRecordPruneKey, "dispatch_record_prune", deadlineKeyCodec),
+		TakeoverEntryReceipt:             collections.NewMap(sb, types.TakeoverEntryReceiptKey, "takeover_entry_receipt", types.Hash32KeyCodec, codec.CollValue[internaltypes.TakeoverEntryReceiptStoreState](cdc)),
+		TakeoverEntryReceiptPrune:        collections.NewKeySet(sb, types.TakeoverEntryReceiptPruneKey, "takeover_entry_receipt_prune", deadlineKeyCodec),
+		DispatchCompensationClaim:        collections.NewMap(sb, types.DispatchCompensationClaimKey, "dispatch_compensation_claim", types.Hash32KeyCodec, codec.CollValue[internaltypes.DispatchCompensationClaimStoreState](cdc)),
+		DispatchClaimRebuttal:            collections.NewKeySet(sb, types.DispatchClaimRebuttalKey, "dispatch_claim_rebuttal", deadlineKeyCodec),
+		DispatchClaimPrune:               collections.NewKeySet(sb, types.DispatchClaimPruneKey, "dispatch_claim_prune", deadlineKeyCodec),
+		DispatchOpenClaimByBuilder:       collections.NewKeySet(sb, types.DispatchOpenClaimByBuilderKey, "dispatch_open_claim_by_builder", roleActiveTaskKeyCodec),
+		DispatchWinnerIneligible:         collections.NewMap(sb, types.DispatchWinnerIneligibleKey, "dispatch_winner_ineligible", types.Hash32KeyCodec, codec.CollValue[internaltypes.DispatchWinnerIneligibleStoreState](cdc)),
+		DispatchWinnerIneligiblePrune:    collections.NewKeySet(sb, types.DispatchWinnerIneligiblePruneKey, "dispatch_winner_ineligible_prune", deadlineKeyCodec),
+		DispatchChallenge:                collections.NewMap(sb, types.DispatchChallengeKey, "dispatch_challenge", types.Hash32KeyCodec, codec.CollValue[internaltypes.DispatchChallengeStoreState](cdc)),
+		DispatchChallengeResponse:        collections.NewKeySet(sb, types.DispatchChallengeResponseKey, "dispatch_challenge_response", deadlineKeyCodec),
+		DispatchChallengePrune:           collections.NewKeySet(sb, types.DispatchChallengePruneKey, "dispatch_challenge_prune", deadlineKeyCodec),
+		DispatchOpenChallengeByBuilder:   collections.NewKeySet(sb, types.DispatchOpenChallengeByBuilderKey, "dispatch_open_challenge_by_builder", roleActiveTaskKeyCodec),
+		DispatchUpheldScope:              collections.NewMap(sb, types.DispatchUpheldScopeKey, "dispatch_upheld_scope", collections.BytesKey, collections.BytesValue),
+		DispatchPendingByTask:            collections.NewMap(sb, types.DispatchPendingByTaskKey, "dispatch_pending_by_task", types.Hash32KeyCodec, collections.Uint64Value),
 
 		TaskCore: collections.NewMap(sb, types.TaskCoreKey, "task_core", types.Hash32KeyCodec, taskCoreValueCodec{
 			addressCodec: addressCodec,
@@ -249,7 +291,6 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 			private:      codec.CollValue[internaltypes.TaskCoreStoreState](cdc),
 		}),
 		TaskAssignment:                 collections.NewMap(sb, types.TaskAssignmentKey, "task_assignment", types.Hash32KeyCodec, codec.CollValue[internaltypes.TaskAssignmentStoreState](cdc)),
-		AssignmentCandidateSet:         collections.NewMap(sb, types.AssignmentCandidateSetKey, "assignment_candidate_set", types.Hash32KeyCodec, codec.CollValue[types.AssignmentCandidateSetState](cdc)),
 		TaskCandidateFact:              collections.NewMap(sb, types.TaskCandidateFactKey, "task_candidate_fact", taskStageSlotKeyCodec, codec.CollValue[internaltypes.TaskCandidateFactStoreState](cdc)),
 		BuilderStageProposal:           collections.NewMap(sb, types.BuilderStageProposalKey, "builder_stage_proposal", taskStageDigestKeyCodec, codec.CollValue[internaltypes.BuilderStageProposalStoreState](cdc)),
 		TaskStageHandraiseUnion:        collections.NewMap(sb, types.TaskStageHandraiseUnionKey, "task_stage_handraise_union", taskStageKeyCodec, codec.CollValue[types.TaskStageHandraiseUnionState](cdc)),
@@ -289,7 +330,6 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		EpochTaskSummaryScheduleIndex:        collections.NewKeySet(sb, types.EpochTaskSummaryScheduleIndexKey, "epoch_task_summary_schedule_index", epochTaskSummaryScheduleKeyCodec),
 		TaskFailureClassWindowPruneIndex:     collections.NewKeySet(sb, types.TaskFailureClassWindowPruneIndexKey, "task_failure_class_window_prune_index", verifyRoundIndexKeyCodec),
 
-		AssignmentRandomnessIndex:        collections.NewKeySet(sb, types.AssignmentRandomnessIndexKey, "assignment_randomness_index", deadlineKeyCodec),
 		InferDeadlineIndex:               collections.NewKeySet(sb, types.InferDeadlineIndexKey, "infer_deadline_index", deadlineKeyCodec),
 		VerifyOpenDeadlineIndex:          collections.NewKeySet(sb, types.VerifyOpenDeadlineIndexKey, "verify_open_deadline_index", deadlineKeyCodec),
 		CommitDeadlineIndex:              collections.NewKeySet(sb, types.CommitDeadlineIndexKey, "commit_deadline_index", deadlineKeyCodec),

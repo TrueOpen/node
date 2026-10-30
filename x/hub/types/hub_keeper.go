@@ -33,8 +33,6 @@ type HubParamsSnapshot struct {
 	UnbondingSlashSafetyMarginBlocks      uint64
 	ObjectiveForgerySlashBps              uint32
 	CandidateSlotHardCapacity             uint32
-	BuildersPerTask                       uint32
-	AssignmentBuilderProposalWindowBlocks uint64
 	OpenVerifyBuilderProposalWindowBlocks uint64
 	SettlementBuilderGraceBlocks          uint64
 	FreezeFailureIndexRetentionBlocks     uint64
@@ -98,13 +96,15 @@ type ServiceBondSnapshot struct {
 }
 
 type CurrentServiceKeySnapshot struct {
-	ParticipantType    string
-	OperatorAddress    string
-	ServiceAddress     string
-	ServicePubkey      string
-	AuthorizationNonce uint64
-	UpdatedHeight      uint64
-	Status             ServiceKeyStatus
+	ParticipantType            string
+	OperatorAddress            string
+	ServiceAddress             string
+	ServicePubkey              string
+	AuthorizationNonce         uint64
+	Status                     ServiceKeyStatus
+	PreviousServicePubkey      []byte
+	PreviousAuthorizationNonce uint64
+	PreviousRetiredHeight      uint64
 }
 
 type RoleScoringSnapshot struct {
@@ -176,15 +176,16 @@ type TaskRoleFaultFact struct {
 // minimum Hub execution scope. Task persists the effect and cursor; Hub owns
 // only service slashing and custody moves involving the challenge-effect pool.
 type RoundEconomicEffectApplyRequest struct {
-	SessionID         []byte
-	TaskID            []byte
-	RoundID           []byte
-	VerifyRound       uint32
-	Duty              shared.Duty
-	Effect            shared.RoundEconomicEffectV1
-	EffectPoolBalance shared.Amount
-	EvidenceDigest    []byte
-	Height            uint64
+	SessionID            []byte
+	TaskID               []byte
+	RoundID              []byte
+	VerifyRound          uint32
+	Duty                 shared.Duty
+	Effect               shared.RoundEconomicEffectV1
+	EffectPoolBalance    shared.Amount
+	EvidenceDigest       []byte
+	ValueEvidenceFaultID []byte
+	Height               uint64
 }
 
 // RoundEconomicEffectApplyReceipt reports the actual custody result. Pool
@@ -218,6 +219,9 @@ type TaskEarningsCredit struct {
 
 // HubKeeper is the single Task-to-Hub owner boundary for the fresh v0.3 state.
 type HubKeeper interface {
+	GetBuilderDispatchAuthority(context.Context, string) (DispatchBuilderAuthority, error)
+	GetBuilderVrfKeyForEpoch(context.Context, string, uint64) ([]byte, error)
+	GetDispatchServiceProofKey(context.Context, shared.ParticipantType, string) (CurrentServiceKeySnapshot, error)
 	GetNodeJailStatus(ctx sdk.Context, addr sdk.AccAddress, duty string) JailStatus
 	GetNodeTombstone(ctx sdk.Context, addr sdk.AccAddress) bool
 	GetCortexNode(ctx sdk.Context, addr sdk.AccAddress) (CortexNodeSnapshot, bool)
@@ -247,15 +251,20 @@ type HubKeeper interface {
 	GetTaskLiabilityReservation(ctx context.Context, taskID []byte, duty shared.Duty, operatorAddress string) (TaskLiabilityReservationSnapshot, error)
 	RecordTaskSupportCompletion(ctx context.Context, fact TaskSupportCompletionFact) error
 	ApplyTaskRoleFault(ctx context.Context, fact TaskRoleFaultFact) (RoleFaultState, error)
+	ApplyVerifierValueEvidenceFault(ctx context.Context, fact shared.VerifierValueEvidenceFactV1, faultID []byte) (RoleFaultState, error)
+	RecordVerifierValueEvidence(ctx context.Context, fact shared.VerifierValueEvidenceFactV1) (RoleFaultState, error)
+	ReadRoleFaultValue(ctx context.Context, faultID shared.Hash32Key) (RoleFaultState, error)
 	ApplyWorkerObjectiveEvidence(ctx context.Context, fact shared.WorkerObjectiveEvidenceFactV1) (RoleFaultState, error)
 	ApplyRoundEconomicEffect(ctx context.Context, req RoundEconomicEffectApplyRequest) (RoundEconomicEffectApplyReceipt, error)
 	ReleaseTaskLiabilities(ctx context.Context, sessionID, taskID string, height uint64) error
+	DeleteOneRoundSlashSummary(ctx context.Context, taskID, roundID []byte) (bool, error)
+	HasTaskRoleFaults(ctx context.Context, taskID []byte) (bool, error)
 	DeleteOneClosedTaskLiability(ctx context.Context, taskID string) (bool, error)
 
 	GetCurrentServiceKey(ctx context.Context, participantType, operatorAddress string) (CurrentServiceKeySnapshot, error)
-	GetBuilderEvidenceProofKey(ctx context.Context, operatorAddress string, authorizationNonce uint64) (CurrentServiceKeySnapshot, error)
+	GetBuilderEvidenceProofKey(ctx context.Context, operatorAddress string, authorizationNonce uint64, sessionID, taskID []byte) (CurrentServiceKeySnapshot, error)
 	GetWorkerEvidenceProofKey(ctx context.Context, sessionIDHex, taskIDHex, operatorAddress string) (CurrentServiceKeySnapshot, error)
-	GetBuilderObjectiveEvidenceCurrentBinding(ctx context.Context, operatorAddress string) (CurrentServiceKeySnapshot, error)
+	ReadBusObjectiveEvidenceResponsibility(ctx context.Context, operatorAddress string, sessionID, taskID []byte) (shared.BusObjectiveEvidenceResponsibilityReceiptV1, error)
 	ReserveServiceKeyResponsibility(ctx context.Context, responsibility ServiceKeyResponsibilityState) error
 	ReleaseServiceKeyResponsibility(ctx context.Context, participantType, operatorAddress, responsibilityID string) error
 	ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID, taskID string) error
@@ -281,6 +290,9 @@ type HubKeeper interface {
 	ReleaseParameterBucketTaskRef(ctx context.Context, kind shared.BucketKind, bucketKey string, version, height uint64) error
 
 	CreditTaskSettlementEarnings(ctx context.Context, sessionID, taskID []byte, credits []TaskEarningsCredit, height uint64) error
+	PayDispatchCompensation(ctx context.Context, builder, worker string, sessionID, taskID []byte, requested, height uint64) (uint64, error)
+	ApplyDispatchFault(ctx context.Context, request DispatchFaultRequest) (DispatchFaultState, bool, error)
+	RestoreDispatchFaultPruneIndex(ctx context.Context, retention uint64) error
 	CreditTaskMaintenance(ctx context.Context, settlementID []byte, amount shared.Amount, height uint64) error
 	RecordProfilePriceSample(ctx context.Context, sample shared.ProfilePriceSampleV1) error
 	ApplyBuilderObjectiveEvidence(ctx context.Context, fact shared.BuilderObjectiveEvidenceFactV2) (shared.BuilderObjectiveEvidenceReceiptV2, error)

@@ -14,6 +14,9 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
+// ValidateGenesis checks the fresh-genesis contract without an activation fallback.
+func (k Keeper) ValidateGenesis(genesis types.GenesisState) error { return genesis.Validate() }
+
 // InitGenesis imports every Wire v0.3 Task primary. Derived indexes are rebuilt
 // exclusively from those primaries. The cache context makes a rejected import a
 // zero-write operation.
@@ -32,9 +35,6 @@ func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) err
 	if stateHeight > 0 {
 		stateHeight--
 	}
-	if genesis.Params.Session.MaxSessionKeyBlocks == 0 && (k.sessionKeyActivationHeight == nil || *k.sessionKeyActivationHeight == 0 || stateHeight >= *k.sessionKeyActivationHeight) {
-		return fmt.Errorf("legacy genesis requires import before the configured session key activation")
-	}
 	for _, stream := range genesis.Streams {
 		if stream.SessionKeySetHeight > stateHeight {
 			return fmt.Errorf("session key set_height exceeds genesis state height")
@@ -45,10 +45,19 @@ func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) err
 	if err := k.initGenesisPrimaries(cache, genesis); err != nil {
 		return err
 	}
+	if err := k.initParamsVersionGenesis(cache, genesis, stateHeight); err != nil {
+		return err
+	}
 	if err := k.validateGenesisHubRefs(cache, genesis); err != nil {
 		return err
 	}
 	if err := k.rebuildGenesisIndexes(cache, genesis); err != nil {
+		return err
+	}
+	if err := k.initDispatchGenesis(cache, genesis, stateHeight); err != nil {
+		return err
+	}
+	if err := k.EnsureParamsVersionInvariant(cache); err != nil {
 		return err
 	}
 	write()
@@ -146,11 +155,6 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 	}
-	for _, state := range genesis.AssignmentCandidateSets {
-		if err := setTaskPrimary(ctx, k.AssignmentCandidateSet, state.TaskId, state, "assignment candidate set"); err != nil {
-			return err
-		}
-	}
 	for _, state := range genesis.InferReceipts {
 		key, err := genesisHashKey("infer receipt task_id", state.TaskId)
 		if err != nil {
@@ -164,6 +168,21 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return fmt.Errorf("duplicate infer receipt")
 		}
 		if err := k.WriteInferReceipt(ctx, key, state); err != nil {
+			return err
+		}
+	}
+	for _, state := range genesis.VerifierValueEvidenceReceipts {
+		stored, err := k.valueEvidenceReceiptToStore(state)
+		if err != nil {
+			return err
+		}
+		key := valueEvidenceReceiptKey(stored)
+		if exists, err := k.ValueEvidenceReceipt.Has(ctx, key); err != nil {
+			return err
+		} else if exists {
+			return fmt.Errorf("duplicate value evidence receipt")
+		}
+		if err = k.ValueEvidenceReceipt.Set(ctx, key, stored); err != nil {
 			return err
 		}
 	}
@@ -648,6 +667,14 @@ func timeoutForWorkUnits(entries []hubtypes.TimeoutBucketEntryV1, workUnits uint
 }
 
 func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.GenesisState) error {
+	for _, row := range genesis.TaskRoundSummaries {
+		if row.XVerifierValueEvidenceCloseHeight != nil && row.XVerifierValueEvidenceWindowClosedHeight == nil {
+			if err := addDeadlineIndex(ctx, k.ValueEvidenceWindowCloseIndex, row.TaskId, row.GetVerifierValueEvidenceCloseHeight()); err != nil {
+				return err
+			}
+		}
+	}
+
 	coreByTask := make(map[string]types.TaskCoreState, len(genesis.TaskCores))
 	terminalByTask := make(map[string]types.TaskTerminalSummaryState, len(genesis.TaskTerminalSummaries))
 
@@ -704,23 +731,7 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 	for _, assignment := range genesis.TaskAssignments {
 		taskID, _ := genesisHashKey("task assignment task_id", assignment.TaskId)
 		core := coreByTask[genesisHex(assignment.TaskId)]
-		if core.AssignmentStatus == types.AssignmentStatus_ASSIGNMENT_STATUS_NONE &&
-			core.TaskPhase == types.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING {
-			union, err := k.TaskStageHandraiseUnion.Get(ctx, types.NewTaskStageKey(taskID, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK))
-			if err != nil || union.Status != types.TaskCandidateStageStatusV1_TASK_CANDIDATE_STAGE_STATUS_V1_OPEN ||
-				union.WindowCloseHeight == 0 || assignment.AssignmentRandomnessHeight != union.WindowCloseHeight {
-				return fmt.Errorf("pending worker proposal window is missing its canonical close height")
-			}
-			if err := setGenesisDeadlineIndex(ctx, k.AssignmentRandomnessIndex, "assignment_randomness_index", union.WindowCloseHeight, taskID); err != nil {
-				return err
-			}
-		}
-		if core.AssignmentStatus == types.AssignmentStatus_ASSIGNMENT_STATUS_RANDOMNESS_PENDING {
-			if err := setGenesisDeadlineIndex(ctx, k.AssignmentRandomnessIndex, "assignment_randomness_index", assignment.AssignmentRandomnessHeight, taskID); err != nil {
-				return err
-			}
-		}
-		if core.AssignmentStatus == types.AssignmentStatus_ASSIGNMENT_STATUS_WORKER_ASSIGNED &&
+		if core.AssignmentStatus == types.AssignmentStatus_ASSIGNMENT_STATUS_WORKER_RECORDED &&
 			core.ReceiptStatus == types.ReceiptStatus_RECEIPT_STATUS_NONE {
 			if err := setGenesisDeadlineIndex(ctx, k.InferDeadlineIndex, "infer_deadline_index", assignment.InferDeadlineHeight, taskID); err != nil {
 				return err
@@ -975,11 +986,19 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.TaskAssignments, err = k.exportTaskAssignments(ctx); err != nil {
 		return nil, err
 	}
-	if genesis.AssignmentCandidateSets, err = collectMapValues(ctx, k.AssignmentCandidateSet); err != nil {
-		return nil, err
-	}
 	if genesis.InferReceipts, err = k.exportInferReceipts(ctx); err != nil {
 		return nil, err
+	}
+	valueRows, err := collectMapValues(ctx, k.ValueEvidenceReceipt)
+	if err != nil {
+		return nil, err
+	}
+	for _, stored := range valueRows {
+		row, err := k.ProjectValueEvidenceReceiptStore(stored)
+		if err != nil {
+			return nil, err
+		}
+		genesis.VerifierValueEvidenceReceipts = append(genesis.VerifierValueEvidenceReceipts, row)
 	}
 	if genesis.WorkerEvidenceReceipts, err = k.exportWorkerEvidenceReceipts(ctx); err != nil {
 		return nil, err
@@ -1069,6 +1088,15 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 	if genesis.SettlementFactsRetained, err = k.exportSettlementFacts(ctx); err != nil {
+		return nil, err
+	}
+	if err := k.exportDispatchGenesis(ctx, genesis); err != nil {
+		return nil, err
+	}
+	if err := k.EnsureParamsVersionInvariant(ctx); err != nil {
+		return nil, err
+	}
+	if err := k.exportParamsVersionGenesis(ctx, genesis); err != nil {
 		return nil, err
 	}
 	if err := genesis.Validate(); err != nil {

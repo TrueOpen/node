@@ -8,18 +8,21 @@ import (
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
 type SessionLifecycleSweepResult struct {
-	SweptCount      uint64
-	MarkedIdleCount uint64
-	ClosedCount     uint64
+	SweptCount             uint64
+	MarkedIdleCount        uint64
+	ClosedCount            uint64
+	WithdrawRequestedCount uint64
 }
 
 type sessionLifecycleResult struct {
-	markedIdle uint64
-	closed     uint64
+	markedIdle        uint64
+	closed            uint64
+	withdrawRequested uint64
 }
 
 // sessionLifecycleDueHeights recomputes the two candidate due heights of a
@@ -96,24 +99,27 @@ func (k Keeper) advanceSessionLifecycleForIndex(ctx context.Context, sessionKey 
 			}
 			return sessionLifecycleResult{}, nil
 		}
-		stream.Status = types.SessionStatus_SESSION_STATUS_CLOSED
-		stream.LastActiveHeight = currentHeight
-		if err := k.replaceStreamState(ctx, previous, stream); err != nil {
+		balance, err := shared.ParseAmount(stream.Balance)
+		if err != nil {
 			return sessionLifecycleResult{}, err
 		}
-		// The CLOSED transaction removes the owner
-		// index and every remaining lifecycle row of this session.
-		if err := k.removeSessionByOwnerIndex(ctx, stream.OwnerUserAddress, sessionKey); err != nil {
-			return sessionLifecycleResult{}, err
+		if stream.PendingWithdrawKind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE {
+			return sessionLifecycleResult{}, nil
 		}
-		if err := k.removeSessionLifecycleIndexes(ctx, sessionKey, previous.LastActiveHeight); err != nil {
-			return sessionLifecycleResult{}, err
+		if balance != 0 {
+			current, err := k.Params.Get(ctx)
+			if err != nil {
+				return sessionLifecycleResult{}, err
+			}
+			if err := k.requestSessionWithdrawal(ctx, &stream, types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE, shared.NewAmount(0), currentHeight, current.Session.SessionWithdrawDelayBlocks); err != nil {
+				return sessionLifecycleResult{}, err
+			}
+			if err := k.replaceStreamState(ctx, previous, stream); err != nil {
+				return sessionLifecycleResult{}, err
+			}
+			return sessionLifecycleResult{withdrawRequested: 1}, nil
 		}
-		eligibleHeight, overflow := checkedSessionAddUint64(currentHeight, params.Session.SessionOrderRetentionBlocks)
-		if overflow {
-			return sessionLifecycleResult{}, errorsmod.Wrap(types.ErrInvariantBroken, "session history retention height overflow")
-		}
-		if err := k.SessionHistoryPruneIndex.Set(ctx, types.NewSessionHistoryPruneIndexKey(eligibleHeight, sessionKey)); err != nil {
+		if err := k.closeSessionState(ctx, previous, stream, currentHeight); err != nil {
 			return sessionLifecycleResult{}, err
 		}
 		if err := emitSessionDeadlineSweptEvent(ctx, stream.SessionId,
@@ -208,6 +214,7 @@ func (k Keeper) SweepExpiredSessionLifecycle(ctx context.Context, currentHeight,
 		}
 		result.MarkedIdleCount += advanced.markedIdle
 		result.ClosedCount += advanced.closed
+		result.WithdrawRequestedCount += advanced.withdrawRequested
 	}
 	return result, nil
 }
@@ -260,5 +267,6 @@ func (k Keeper) SweepSessionLifecycleByID(ctx context.Context, sessionKey types.
 	}
 	result.MarkedIdleCount = advanced.markedIdle
 	result.ClosedCount = advanced.closed
+	result.WithdrawRequestedCount = advanced.withdrawRequested
 	return result, nil
 }

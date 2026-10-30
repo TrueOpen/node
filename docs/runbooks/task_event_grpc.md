@@ -61,7 +61,7 @@ This stream routes events to one service operator. `target_role` must be
 `EVENT_ROLE_WORKER`, `EVENT_ROLE_VERIFIER`, or `EVENT_ROLE_BUILDER`. An empty
 `codes` filter selects every matching task event.
 
-Assignment and verification-open events carry structured repeated targets. A
+Dispatch-recorded and verification-open events carry structured repeated targets. A
 consumer should use this stream for discovery, then query the task and follow it
 through `SubscribeTaskEvents`.
 

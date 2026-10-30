@@ -255,6 +255,20 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil {
 		return settlementInputs{}, err
 	}
+	evidence, err := k.firstValueEvidenceReceipts(ctx, taskKey)
+	if err != nil {
+		return settlementInputs{}, err
+	}
+	seenDisqualified := make(map[string]bool, len(disqualified))
+	for _, operator := range disqualified {
+		seenDisqualified[operator] = true
+	}
+	for _, receipt := range evidence {
+		if !seenDisqualified[receipt.TargetOperatorAddress] {
+			disqualified = append(disqualified, receipt.TargetOperatorAddress)
+			seenDisqualified[receipt.TargetOperatorAddress] = true
+		}
+	}
 	round1Assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 verifier assignment is unavailable")
@@ -790,7 +804,7 @@ func settlementEarningsCredits(inputs settlementInputs, plan types.SettlementPla
 //
 //	net + gas   -> Hub Rewards, which is the account MsgClaimEarnings pays from
 //	maintenance -> Treasury
-//	refund      -> the ordering user
+//	refund      -> available session balance
 //
 // The earnings ledger is only a claim, never a transfer, so omitting the Rewards
 // leg would leave every payout unclaimable and strand the balance in escrow.
@@ -813,10 +827,8 @@ func (k Keeper) finalizeSettledBudget(ctx context.Context, inputs settlementInpu
 	if err := k.sendFromTaskEscrow(ctx, hubtypes.TreasuryModuleName, maintenance); err != nil {
 		return err
 	}
-	if refund > 0 {
-		if err := k.releaseTaskBudgetRefund(ctx, inputs.Core.UserAddress, refund); err != nil {
-			return err
-		}
+	if err := k.finalizeSessionTaskFunds(ctx, inputs.Core.SessionId, inputs.Budget.ReservedAmount, refund); err != nil {
+		return err
 	}
 	budget := inputs.Budget
 	budget.ReservedAmount = shared.NewAmount(0)

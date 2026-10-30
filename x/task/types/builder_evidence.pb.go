@@ -26,27 +26,39 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// BuilderProtocolViolation is the closed invalid-stage violation registry whose
-// numbers the wire API freezes as UNSPECIFIED=0 /
-// WRONG_TASK_SCOPE=1 / WRONG_STAGE=2 / WRONG_BUILDER_SET=3 /
-// NON_CANONICAL_BITMAP=4 / BIT_CLEAR_ATTEMPT=5 /
-// CONFLICTING_ACCEPTED_MATERIAL=6. Only values 1 and 2 are ACTIVE in V1.
-// Values 3-6 retain their numbers but are non-active and fail closed until a
-// future typed evidence schema freezes their complete authority facts.
-// Evidence never accepts an implementation-defined reason or stage string.
-//
-// OWNERSHIP: the enum used to be declared in hub.v1 next to the retired
-// SignedEnvelopeProtocolFaultV1. Its only remaining reference is field 2 of
-// SignedEnvelopeProtocolFaultV2 below, and task.v1 may not import
-// hub.v1, so the declaration moves here rather than into shared.v1:
-// the module-split closure rule sends a declaration to shared because two domains
-// reference it, and the Hub fault kernel never sees a violation value. The Hub
-// receives only shared.v1.BuilderObjectiveEvidenceFactV2, which carries the
-// recomputed canonical_evidence_digest and no violation field. The numbers are
-// unchanged; only the protobuf FQN moved, and no alias is kept in hub.v1.
-// The violation value enters the content digest as enum_u32_be, so this must
-// stay the single numeric definition repo-wide.
-// BuilderProtocolViolation defines the BuilderProtocolViolation wire type.
+// StreamMessageKind is the closed StreamMessageKind registry.
+type StreamMessageKind int32
+
+const (
+	// UNSPECIFIED is the unspecified value.
+	StreamMessageKind_STREAM_MESSAGE_KIND_UNSPECIFIED StreamMessageKind = 0
+	// OPEN_VERIFY is the open verify value.
+	StreamMessageKind_STREAM_MESSAGE_KIND_OPEN_VERIFY StreamMessageKind = 1
+	// VERIFIER_ASSIGNMENT_NOTIFY is the verifier assignment notify value.
+	StreamMessageKind_STREAM_MESSAGE_KIND_VERIFIER_ASSIGNMENT_NOTIFY StreamMessageKind = 2
+)
+
+var StreamMessageKind_name = map[int32]string{
+	0: "STREAM_MESSAGE_KIND_UNSPECIFIED",
+	1: "STREAM_MESSAGE_KIND_OPEN_VERIFY",
+	2: "STREAM_MESSAGE_KIND_VERIFIER_ASSIGNMENT_NOTIFY",
+}
+
+var StreamMessageKind_value = map[string]int32{
+	"STREAM_MESSAGE_KIND_UNSPECIFIED":                0,
+	"STREAM_MESSAGE_KIND_OPEN_VERIFY":                1,
+	"STREAM_MESSAGE_KIND_VERIFIER_ASSIGNMENT_NOTIFY": 2,
+}
+
+func (x StreamMessageKind) String() string {
+	return proto.EnumName(StreamMessageKind_name, int32(x))
+}
+
+func (StreamMessageKind) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_725bb4d559bef373, []int{0}
+}
+
+// BuilderProtocolViolation defines the BuilderProtocolViolation contract.
 type BuilderProtocolViolation int32
 
 const (
@@ -102,151 +114,10 @@ func (x BuilderProtocolViolation) String() string {
 }
 
 func (BuilderProtocolViolation) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_725bb4d559bef373, []int{0}
-}
-
-// SignedEnvelopeEquivocationV2 carries the two conflicting BusEnvelope frames of
-// one protocol scope as exact serialized bytes.
-//
-// Both frames must share chain_id, subject, kind, sender operator, service
-// authorization nonce, message_id, payload_type and expiry and must derive the
-// same payload-based action scope, must both verify under the proof-only
-// profile, must have different bus_signing_digest values, and must collide on
-// the (message_id, nonce) dual replay key.
-//
-// Canonical selected fields for the content digest are
-// (lower_bus_signing_digest, higher_bus_signing_digest): the two raw32 digests
-// sorted lexicographically ascending by bytes, so swapping the submission order
-// of the two envelopes cannot produce a second evidence identity.
-// SignedEnvelopeEquivocationV2 defines the SignedEnvelopeEquivocationV2 wire type.
-type SignedEnvelopeEquivocationV2 struct {
-	// Exact serialized bus.v1.BusEnvelopeV1 bytes, <= 1,048,576 bytes;
-	// never re-marshaled and never decoded into a Task-local envelope struct.
-	EnvelopeA []byte `protobuf:"bytes,1,opt,name=envelope_a,json=envelopeA,proto3" json:"envelope_a,omitempty"`
-	// Exact serialized bus.v1.BusEnvelopeV1 bytes, <= 1,048,576 bytes.
-	EnvelopeB []byte `protobuf:"bytes,2,opt,name=envelope_b,json=envelopeB,proto3" json:"envelope_b,omitempty"`
-}
-
-func (m *SignedEnvelopeEquivocationV2) Reset()         { *m = SignedEnvelopeEquivocationV2{} }
-func (m *SignedEnvelopeEquivocationV2) String() string { return proto.CompactTextString(m) }
-func (*SignedEnvelopeEquivocationV2) ProtoMessage()    {}
-func (*SignedEnvelopeEquivocationV2) Descriptor() ([]byte, []int) {
-	return fileDescriptor_725bb4d559bef373, []int{0}
-}
-func (m *SignedEnvelopeEquivocationV2) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *SignedEnvelopeEquivocationV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_SignedEnvelopeEquivocationV2.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *SignedEnvelopeEquivocationV2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SignedEnvelopeEquivocationV2.Merge(m, src)
-}
-func (m *SignedEnvelopeEquivocationV2) XXX_Size() int {
-	return m.Size()
-}
-func (m *SignedEnvelopeEquivocationV2) XXX_DiscardUnknown() {
-	xxx_messageInfo_SignedEnvelopeEquivocationV2.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SignedEnvelopeEquivocationV2 proto.InternalMessageInfo
-
-func (m *SignedEnvelopeEquivocationV2) GetEnvelopeA() []byte {
-	if m != nil {
-		return m.EnvelopeA
-	}
-	return nil
-}
-
-func (m *SignedEnvelopeEquivocationV2) GetEnvelopeB() []byte {
-	if m != nil {
-		return m.EnvelopeB
-	}
-	return nil
-}
-
-// SignedEnvelopeProtocolFaultV2 binds one exact serialized BusEnvelope frame to
-// one closed violation. The envelope must verify, its
-// action scope must be recomputable from the typed payload plus Task/BuilderSet
-// state, and it must land on exactly one closed violation value; malformed,
-// unknown-kind and unattributable material is rejected rather than downgraded.
-//
-// Canonical selected fields for the content digest are
-// (bus_signing_digest, violation as enum_u32_be).
-// SignedEnvelopeProtocolFaultV2 defines the SignedEnvelopeProtocolFaultV2 wire type.
-type SignedEnvelopeProtocolFaultV2 struct {
-	// Exact serialized bus.v1.BusEnvelopeV1 bytes, <= 1,048,576 bytes.
-	Envelope []byte `protobuf:"bytes,1,opt,name=envelope,proto3" json:"envelope,omitempty"`
-	// Closed violation the verified envelope provably hits.
-	Violation BuilderProtocolViolation `protobuf:"varint,2,opt,name=violation,proto3,enum=task.v1.BuilderProtocolViolation" json:"violation,omitempty"`
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) Reset()         { *m = SignedEnvelopeProtocolFaultV2{} }
-func (m *SignedEnvelopeProtocolFaultV2) String() string { return proto.CompactTextString(m) }
-func (*SignedEnvelopeProtocolFaultV2) ProtoMessage()    {}
-func (*SignedEnvelopeProtocolFaultV2) Descriptor() ([]byte, []int) {
 	return fileDescriptor_725bb4d559bef373, []int{1}
 }
-func (m *SignedEnvelopeProtocolFaultV2) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *SignedEnvelopeProtocolFaultV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_SignedEnvelopeProtocolFaultV2.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *SignedEnvelopeProtocolFaultV2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SignedEnvelopeProtocolFaultV2.Merge(m, src)
-}
-func (m *SignedEnvelopeProtocolFaultV2) XXX_Size() int {
-	return m.Size()
-}
-func (m *SignedEnvelopeProtocolFaultV2) XXX_DiscardUnknown() {
-	xxx_messageInfo_SignedEnvelopeProtocolFaultV2.DiscardUnknown(m)
-}
 
-var xxx_messageInfo_SignedEnvelopeProtocolFaultV2 proto.InternalMessageInfo
-
-func (m *SignedEnvelopeProtocolFaultV2) GetEnvelope() []byte {
-	if m != nil {
-		return m.Envelope
-	}
-	return nil
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) GetViolation() BuilderProtocolViolation {
-	if m != nil {
-		return m.Violation
-	}
-	return BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_UNSPECIFIED
-}
-
-// DataUnavailableStateReferenceV1 locates one already CONFIRMED Task-owned
-// round-1 data-unavailable aggregate for a Builder that made the actual
-// data-ready attestation. Worker self-rescue and challenge-round
-// aggregates never produce this evidence branch. It submits stable primary keys
-// only: the deadline, accepted version, report hash, counts, threshold and
-// verdict are loaded and recomputed by the Keeper, never carried here.
-//
-// Canonical selected fields for the content digest are
-// (task_id, verify_round, builder_operator).
-// DataUnavailableStateReferenceV1 defines the DataUnavailableStateReferenceV1 wire type.
+// DataUnavailableStateReferenceV1 defines the DataUnavailableStateReferenceV1 contract.
 type DataUnavailableStateReferenceV1 struct {
 	// Charged task, raw32; also the scope_id of the derived fact.
 	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -261,7 +132,7 @@ func (m *DataUnavailableStateReferenceV1) Reset()         { *m = DataUnavailable
 func (m *DataUnavailableStateReferenceV1) String() string { return proto.CompactTextString(m) }
 func (*DataUnavailableStateReferenceV1) ProtoMessage()    {}
 func (*DataUnavailableStateReferenceV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_725bb4d559bef373, []int{2}
+	return fileDescriptor_725bb4d559bef373, []int{0}
 }
 func (m *DataUnavailableStateReferenceV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -311,158 +182,7 @@ func (m *DataUnavailableStateReferenceV1) GetBuilderOperator() string {
 	return ""
 }
 
-// BuilderEvidenceV2 is the only accepted public Builder objective-evidence wire
-// of fresh genesis. Free-text reasons, arbitrary
-// evidence_hash values and "a proposal was rejected" never form a fault.
-//
-// The ACTIVE oneof is the closed set of tags 2, 3 and 5,
-// and each branch maps to exactly one shared.v1.BuilderEvidenceKind
-// :
-//
-//	tag 2 equivocation             -> BUILDER_EVIDENCE_KIND_PROPOSAL_EQUIVOCATION      (1)
-//	tag 3 invalid_stage_submission -> BUILDER_EVIDENCE_KIND_INVALID_STAGE_SUBMISSION    (2)
-//	tag 5 data_unavailable         -> BUILDER_EVIDENCE_KIND_OBJECTIVE_DATA_UNAVAILABLE  (4)
-//
-// Tags 2 and 3 are checked by the proof-only profile of this contract
-// plus the Task authority state; tag 5 accepts only an already CONFIRMED round-1
-// aggregate for an actual data-ready attesting Builder. A handler must not write
-// a BuilderFault merely because the oneof structure is present.
-//
-// Field number 4 is permanently reserved. It used
-// to be the missed-duty branch, and BUILDER_EVIDENCE_KIND_OBJECTIVE_MISSED_DUTY (3) is now
-// kept exclusively for an internal fault the Keeper may in future derive from an
-// authoritative duty receipt. This Msg accepts no missed-duty branch, the old
-// tag 4 is never reused, and any future public missed-duty wire must use a new
-// schema and a new tag.
-//
-// scope_id of the derived fact is the existing authoritative primary key of the
-// charged fact, which is task_id for all three branches; evidence introduces no
-// new hash semantics.
-// BuilderEvidenceV2 defines the BuilderEvidenceV2 wire type.
-type BuilderEvidenceV2 struct {
-	// Always 2 for this evidence generation.
-	SchemaVersion uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	// Exactly one typed evidence branch must be present; the branch selects the
-	// evidence kind and the canonical selected fields of the content digest.
-	//
-	// Types that are valid to be assigned to Evidence:
-	//	*BuilderEvidenceV2_Equivocation
-	//	*BuilderEvidenceV2_InvalidStageSubmission
-	//	*BuilderEvidenceV2_DataUnavailable
-	Evidence isBuilderEvidenceV2_Evidence `protobuf_oneof:"evidence"`
-}
-
-func (m *BuilderEvidenceV2) Reset()         { *m = BuilderEvidenceV2{} }
-func (m *BuilderEvidenceV2) String() string { return proto.CompactTextString(m) }
-func (*BuilderEvidenceV2) ProtoMessage()    {}
-func (*BuilderEvidenceV2) Descriptor() ([]byte, []int) {
-	return fileDescriptor_725bb4d559bef373, []int{3}
-}
-func (m *BuilderEvidenceV2) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *BuilderEvidenceV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_BuilderEvidenceV2.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *BuilderEvidenceV2) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BuilderEvidenceV2.Merge(m, src)
-}
-func (m *BuilderEvidenceV2) XXX_Size() int {
-	return m.Size()
-}
-func (m *BuilderEvidenceV2) XXX_DiscardUnknown() {
-	xxx_messageInfo_BuilderEvidenceV2.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_BuilderEvidenceV2 proto.InternalMessageInfo
-
-type isBuilderEvidenceV2_Evidence interface {
-	isBuilderEvidenceV2_Evidence()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-
-type BuilderEvidenceV2_Equivocation struct {
-	Equivocation *SignedEnvelopeEquivocationV2 `protobuf:"bytes,2,opt,name=equivocation,proto3,oneof" json:"equivocation,omitempty"`
-}
-type BuilderEvidenceV2_InvalidStageSubmission struct {
-	InvalidStageSubmission *SignedEnvelopeProtocolFaultV2 `protobuf:"bytes,3,opt,name=invalid_stage_submission,json=invalidStageSubmission,proto3,oneof" json:"invalid_stage_submission,omitempty"`
-}
-type BuilderEvidenceV2_DataUnavailable struct {
-	DataUnavailable *DataUnavailableStateReferenceV1 `protobuf:"bytes,5,opt,name=data_unavailable,json=dataUnavailable,proto3,oneof" json:"data_unavailable,omitempty"`
-}
-
-func (*BuilderEvidenceV2_Equivocation) isBuilderEvidenceV2_Evidence()           {}
-func (*BuilderEvidenceV2_InvalidStageSubmission) isBuilderEvidenceV2_Evidence() {}
-func (*BuilderEvidenceV2_DataUnavailable) isBuilderEvidenceV2_Evidence()        {}
-
-func (m *BuilderEvidenceV2) GetEvidence() isBuilderEvidenceV2_Evidence {
-	if m != nil {
-		return m.Evidence
-	}
-	return nil
-}
-
-func (m *BuilderEvidenceV2) GetSchemaVersion() uint32 {
-	if m != nil {
-		return m.SchemaVersion
-	}
-	return 0
-}
-
-func (m *BuilderEvidenceV2) GetEquivocation() *SignedEnvelopeEquivocationV2 {
-	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_Equivocation); ok {
-		return x.Equivocation
-	}
-	return nil
-}
-
-func (m *BuilderEvidenceV2) GetInvalidStageSubmission() *SignedEnvelopeProtocolFaultV2 {
-	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_InvalidStageSubmission); ok {
-		return x.InvalidStageSubmission
-	}
-	return nil
-}
-
-func (m *BuilderEvidenceV2) GetDataUnavailable() *DataUnavailableStateReferenceV1 {
-	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_DataUnavailable); ok {
-		return x.DataUnavailable
-	}
-	return nil
-}
-
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*BuilderEvidenceV2) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*BuilderEvidenceV2_Equivocation)(nil),
-		(*BuilderEvidenceV2_InvalidStageSubmission)(nil),
-		(*BuilderEvidenceV2_DataUnavailable)(nil),
-	}
-}
-
-// MsgSubmitBuilderEvidence is the permissionless Builder objective-evidence
-// entry owned by task.v1.Msg. evidence_bytes preserves the exact serialized
-// BuilderEvidenceV2 so the Wire strict decoder can reject unknown fields,
-// duplicate singular/oneof fields and wrong wire types before gogo decoding can
-// discard or collapse them. submitter_address is the only Cosmos signer and
-// never enters any digest; anyone may submit. The Msg must not carry
-// Keeper-derived BPS, thresholds, deadlines or counts.
-//
-// The RPC returns shared.v1.BuilderObjectiveEvidenceReceiptV2 directly
-// : there is deliberately no MsgSubmitBuilderEvidenceResponse
-// wrapper, because a per-module wrapper would be a second copy of the shared
-// receipt shape. evidence_id is the idempotency key: exact replay is a NOOP and
-// the same key with different evidence is a conflict.
-// MsgSubmitBuilderEvidence defines the MsgSubmitBuilderEvidence wire type.
+// MsgSubmitBuilderEvidence defines the MsgSubmitBuilderEvidence contract.
 type MsgSubmitBuilderEvidence struct {
 	EvidenceBytes    []byte `protobuf:"bytes,1,opt,name=evidence_bytes,json=evidenceBytes,proto3" json:"evidence_bytes,omitempty"`
 	SubmitterAddress string `protobuf:"bytes,2,opt,name=submitter_address,json=submitterAddress,proto3" json:"submitter_address,omitempty"`
@@ -472,7 +192,7 @@ func (m *MsgSubmitBuilderEvidence) Reset()         { *m = MsgSubmitBuilderEviden
 func (m *MsgSubmitBuilderEvidence) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitBuilderEvidence) ProtoMessage()    {}
 func (*MsgSubmitBuilderEvidence) Descriptor() ([]byte, []int) {
-	return fileDescriptor_725bb4d559bef373, []int{4}
+	return fileDescriptor_725bb4d559bef373, []int{1}
 }
 func (m *MsgSubmitBuilderEvidence) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -515,142 +235,309 @@ func (m *MsgSubmitBuilderEvidence) GetSubmitterAddress() string {
 	return ""
 }
 
+// SignedMessageEquivocationV2 defines the canonical SignedMessageEquivocationV2 fields.
+type SignedMessageEquivocationV2 struct {
+	MessageKind StreamMessageKind `protobuf:"varint,1,opt,name=message_kind,json=messageKind,proto3,enum=task.v1.StreamMessageKind" json:"message_kind,omitempty"`
+	MessageA    []byte            `protobuf:"bytes,2,opt,name=message_a,json=messageA,proto3" json:"message_a,omitempty"`
+	MessageB    []byte            `protobuf:"bytes,3,opt,name=message_b,json=messageB,proto3" json:"message_b,omitempty"`
+}
+
+func (m *SignedMessageEquivocationV2) Reset()         { *m = SignedMessageEquivocationV2{} }
+func (m *SignedMessageEquivocationV2) String() string { return proto.CompactTextString(m) }
+func (*SignedMessageEquivocationV2) ProtoMessage()    {}
+func (*SignedMessageEquivocationV2) Descriptor() ([]byte, []int) {
+	return fileDescriptor_725bb4d559bef373, []int{2}
+}
+func (m *SignedMessageEquivocationV2) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SignedMessageEquivocationV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SignedMessageEquivocationV2.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SignedMessageEquivocationV2) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SignedMessageEquivocationV2.Merge(m, src)
+}
+func (m *SignedMessageEquivocationV2) XXX_Size() int {
+	return m.Size()
+}
+func (m *SignedMessageEquivocationV2) XXX_DiscardUnknown() {
+	xxx_messageInfo_SignedMessageEquivocationV2.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SignedMessageEquivocationV2 proto.InternalMessageInfo
+
+func (m *SignedMessageEquivocationV2) GetMessageKind() StreamMessageKind {
+	if m != nil {
+		return m.MessageKind
+	}
+	return StreamMessageKind_STREAM_MESSAGE_KIND_UNSPECIFIED
+}
+
+func (m *SignedMessageEquivocationV2) GetMessageA() []byte {
+	if m != nil {
+		return m.MessageA
+	}
+	return nil
+}
+
+func (m *SignedMessageEquivocationV2) GetMessageB() []byte {
+	if m != nil {
+		return m.MessageB
+	}
+	return nil
+}
+
+// SignedMessageProtocolFaultV2 defines the canonical SignedMessageProtocolFaultV2 fields.
+type SignedMessageProtocolFaultV2 struct {
+	MessageKind StreamMessageKind        `protobuf:"varint,1,opt,name=message_kind,json=messageKind,proto3,enum=task.v1.StreamMessageKind" json:"message_kind,omitempty"`
+	Message     []byte                   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Violation   BuilderProtocolViolation `protobuf:"varint,3,opt,name=violation,proto3,enum=task.v1.BuilderProtocolViolation" json:"violation,omitempty"`
+}
+
+func (m *SignedMessageProtocolFaultV2) Reset()         { *m = SignedMessageProtocolFaultV2{} }
+func (m *SignedMessageProtocolFaultV2) String() string { return proto.CompactTextString(m) }
+func (*SignedMessageProtocolFaultV2) ProtoMessage()    {}
+func (*SignedMessageProtocolFaultV2) Descriptor() ([]byte, []int) {
+	return fileDescriptor_725bb4d559bef373, []int{3}
+}
+func (m *SignedMessageProtocolFaultV2) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SignedMessageProtocolFaultV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SignedMessageProtocolFaultV2.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SignedMessageProtocolFaultV2) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SignedMessageProtocolFaultV2.Merge(m, src)
+}
+func (m *SignedMessageProtocolFaultV2) XXX_Size() int {
+	return m.Size()
+}
+func (m *SignedMessageProtocolFaultV2) XXX_DiscardUnknown() {
+	xxx_messageInfo_SignedMessageProtocolFaultV2.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SignedMessageProtocolFaultV2 proto.InternalMessageInfo
+
+func (m *SignedMessageProtocolFaultV2) GetMessageKind() StreamMessageKind {
+	if m != nil {
+		return m.MessageKind
+	}
+	return StreamMessageKind_STREAM_MESSAGE_KIND_UNSPECIFIED
+}
+
+func (m *SignedMessageProtocolFaultV2) GetMessage() []byte {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+func (m *SignedMessageProtocolFaultV2) GetViolation() BuilderProtocolViolation {
+	if m != nil {
+		return m.Violation
+	}
+	return BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_UNSPECIFIED
+}
+
+// BuilderEvidenceV2 carries exact typed stream-message bytes, not a transport envelope.
+// Strict decoding rejects unknown fields, duplicate singular fields and oneof conflicts.
+type BuilderEvidenceV2 struct {
+	SchemaVersion uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	// evidence selects exactly one supported proof.
+	//
+	// Types that are valid to be assigned to Evidence:
+	//	*BuilderEvidenceV2_Equivocation
+	//	*BuilderEvidenceV2_InvalidStageSubmission
+	//	*BuilderEvidenceV2_DataUnavailable
+	Evidence isBuilderEvidenceV2_Evidence `protobuf_oneof:"evidence"`
+}
+
+func (m *BuilderEvidenceV2) Reset()         { *m = BuilderEvidenceV2{} }
+func (m *BuilderEvidenceV2) String() string { return proto.CompactTextString(m) }
+func (*BuilderEvidenceV2) ProtoMessage()    {}
+func (*BuilderEvidenceV2) Descriptor() ([]byte, []int) {
+	return fileDescriptor_725bb4d559bef373, []int{4}
+}
+func (m *BuilderEvidenceV2) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *BuilderEvidenceV2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_BuilderEvidenceV2.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *BuilderEvidenceV2) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BuilderEvidenceV2.Merge(m, src)
+}
+func (m *BuilderEvidenceV2) XXX_Size() int {
+	return m.Size()
+}
+func (m *BuilderEvidenceV2) XXX_DiscardUnknown() {
+	xxx_messageInfo_BuilderEvidenceV2.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BuilderEvidenceV2 proto.InternalMessageInfo
+
+type isBuilderEvidenceV2_Evidence interface {
+	isBuilderEvidenceV2_Evidence()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type BuilderEvidenceV2_Equivocation struct {
+	Equivocation *SignedMessageEquivocationV2 `protobuf:"bytes,2,opt,name=equivocation,proto3,oneof" json:"equivocation,omitempty"`
+}
+type BuilderEvidenceV2_InvalidStageSubmission struct {
+	InvalidStageSubmission *SignedMessageProtocolFaultV2 `protobuf:"bytes,3,opt,name=invalid_stage_submission,json=invalidStageSubmission,proto3,oneof" json:"invalid_stage_submission,omitempty"`
+}
+type BuilderEvidenceV2_DataUnavailable struct {
+	DataUnavailable *DataUnavailableStateReferenceV1 `protobuf:"bytes,5,opt,name=data_unavailable,json=dataUnavailable,proto3,oneof" json:"data_unavailable,omitempty"`
+}
+
+func (*BuilderEvidenceV2_Equivocation) isBuilderEvidenceV2_Evidence()           {}
+func (*BuilderEvidenceV2_InvalidStageSubmission) isBuilderEvidenceV2_Evidence() {}
+func (*BuilderEvidenceV2_DataUnavailable) isBuilderEvidenceV2_Evidence()        {}
+
+func (m *BuilderEvidenceV2) GetEvidence() isBuilderEvidenceV2_Evidence {
+	if m != nil {
+		return m.Evidence
+	}
+	return nil
+}
+
+func (m *BuilderEvidenceV2) GetSchemaVersion() uint32 {
+	if m != nil {
+		return m.SchemaVersion
+	}
+	return 0
+}
+
+func (m *BuilderEvidenceV2) GetEquivocation() *SignedMessageEquivocationV2 {
+	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_Equivocation); ok {
+		return x.Equivocation
+	}
+	return nil
+}
+
+func (m *BuilderEvidenceV2) GetInvalidStageSubmission() *SignedMessageProtocolFaultV2 {
+	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_InvalidStageSubmission); ok {
+		return x.InvalidStageSubmission
+	}
+	return nil
+}
+
+func (m *BuilderEvidenceV2) GetDataUnavailable() *DataUnavailableStateReferenceV1 {
+	if x, ok := m.GetEvidence().(*BuilderEvidenceV2_DataUnavailable); ok {
+		return x.DataUnavailable
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*BuilderEvidenceV2) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*BuilderEvidenceV2_Equivocation)(nil),
+		(*BuilderEvidenceV2_InvalidStageSubmission)(nil),
+		(*BuilderEvidenceV2_DataUnavailable)(nil),
+	}
+}
+
 func init() {
+	proto.RegisterEnum("task.v1.StreamMessageKind", StreamMessageKind_name, StreamMessageKind_value)
 	proto.RegisterEnum("task.v1.BuilderProtocolViolation", BuilderProtocolViolation_name, BuilderProtocolViolation_value)
-	proto.RegisterType((*SignedEnvelopeEquivocationV2)(nil), "task.v1.SignedEnvelopeEquivocationV2")
-	proto.RegisterType((*SignedEnvelopeProtocolFaultV2)(nil), "task.v1.SignedEnvelopeProtocolFaultV2")
 	proto.RegisterType((*DataUnavailableStateReferenceV1)(nil), "task.v1.DataUnavailableStateReferenceV1")
-	proto.RegisterType((*BuilderEvidenceV2)(nil), "task.v1.BuilderEvidenceV2")
 	proto.RegisterType((*MsgSubmitBuilderEvidence)(nil), "task.v1.MsgSubmitBuilderEvidence")
+	proto.RegisterType((*SignedMessageEquivocationV2)(nil), "task.v1.SignedMessageEquivocationV2")
+	proto.RegisterType((*SignedMessageProtocolFaultV2)(nil), "task.v1.SignedMessageProtocolFaultV2")
+	proto.RegisterType((*BuilderEvidenceV2)(nil), "task.v1.BuilderEvidenceV2")
 }
 
 func init() { proto.RegisterFile("task/v1/builder_evidence.proto", fileDescriptor_725bb4d559bef373) }
 
 var fileDescriptor_725bb4d559bef373 = []byte{
-	// 811 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0x4f, 0x6f, 0xe3, 0x44,
-	0x14, 0x8f, 0xd3, 0x3f, 0xb4, 0xb3, 0x6d, 0xd7, 0x1d, 0x21, 0x30, 0x2b, 0x1a, 0xba, 0x41, 0x5d,
-	0x55, 0x5d, 0x88, 0x69, 0xf6, 0x82, 0x10, 0xd2, 0xca, 0x76, 0xdd, 0xd6, 0x6c, 0x6a, 0x47, 0xb6,
-	0x1b, 0x24, 0x2e, 0xa3, 0x49, 0x3c, 0x9b, 0x8e, 0x70, 0x3c, 0xc1, 0x33, 0xb6, 0xe8, 0x75, 0x8f,
-	0x9c, 0xf8, 0x18, 0x1c, 0xf7, 0xc0, 0x87, 0xd8, 0xe3, 0x0a, 0x38, 0x70, 0x44, 0xed, 0x61, 0x3f,
-	0x00, 0x37, 0x4e, 0xc8, 0x63, 0x3b, 0xbb, 0x29, 0x34, 0xbd, 0x44, 0x9a, 0xf7, 0xfb, 0xf3, 0x5e,
-	0xde, 0x6f, 0x3c, 0xa0, 0x25, 0x30, 0xff, 0x5e, 0xcf, 0x0f, 0xf5, 0x61, 0x46, 0xe3, 0x88, 0xa4,
-	0x88, 0xe4, 0x34, 0x22, 0xc9, 0x88, 0x74, 0xa6, 0x29, 0x13, 0x0c, 0xbe, 0x57, 0xe0, 0x9d, 0xfc,
-	0xf0, 0xc1, 0x36, 0x9e, 0xd0, 0x84, 0xe9, 0xf2, 0xb7, 0xc4, 0x1e, 0x7c, 0x38, 0x62, 0x7c, 0xc2,
-	0xb8, 0x3e, 0xe1, 0xe3, 0xc2, 0x61, 0xc2, 0xc7, 0x15, 0xf0, 0x51, 0x09, 0x20, 0x79, 0xd2, 0xcb,
-	0x43, 0x05, 0xed, 0xf0, 0x0b, 0x9c, 0x92, 0xa8, 0xe0, 0xa7, 0x84, 0x0b, 0x44, 0x92, 0x11, 0x8b,
-	0x68, 0x52, 0x29, 0xdb, 0x17, 0xe0, 0xe3, 0x80, 0x8e, 0x13, 0x12, 0xd9, 0x49, 0x4e, 0x62, 0x36,
-	0x25, 0xf6, 0x0f, 0x19, 0xcd, 0xd9, 0x08, 0x0b, 0xca, 0x92, 0x41, 0x17, 0x7e, 0x0a, 0x00, 0xa9,
-	0x10, 0x84, 0x35, 0x65, 0x57, 0xd9, 0xdf, 0x30, 0x97, 0x5f, 0xfd, 0xad, 0x29, 0xfe, 0x7a, 0x5d,
-	0x37, 0xe6, 0x48, 0x43, 0xad, 0xf9, 0x7f, 0x24, 0xb3, 0xfd, 0x42, 0x01, 0x3b, 0xf3, 0xad, 0xfa,
-	0xc5, 0x04, 0x23, 0x16, 0x1f, 0xe3, 0x2c, 0x16, 0x83, 0x2e, 0xdc, 0x05, 0x6b, 0x35, 0x7d, 0xae,
-	0xd3, 0xac, 0x0a, 0x9f, 0x82, 0xf5, 0x9c, 0xb2, 0x58, 0x0e, 0x27, 0xfb, 0x6c, 0x75, 0x1f, 0x76,
-	0xaa, 0x85, 0x75, 0xcc, 0x72, 0xa1, 0xb5, 0xeb, 0xa0, 0x26, 0xfa, 0x6f, 0x35, 0xed, 0x5f, 0x14,
-	0xf0, 0xc9, 0x11, 0x16, 0xf8, 0x3c, 0xc1, 0x39, 0xa6, 0x31, 0x1e, 0xc6, 0x24, 0x10, 0x58, 0x10,
-	0x9f, 0x3c, 0x27, 0x69, 0x91, 0xc2, 0xe0, 0x10, 0xee, 0x00, 0x99, 0x01, 0xa2, 0xd1, 0x3b, 0x53,
-	0x34, 0xfd, 0xd5, 0xa2, 0xe8, 0x44, 0xf0, 0x21, 0xd8, 0xc8, 0x49, 0x4a, 0x9f, 0x5f, 0xa2, 0x94,
-	0x65, 0x49, 0x24, 0xc7, 0xd8, 0xf4, 0xef, 0x95, 0x35, 0xbf, 0x28, 0x41, 0x0b, 0xa8, 0x75, 0xba,
-	0x6c, 0x4a, 0x52, 0x2c, 0x58, 0xaa, 0x2d, 0xed, 0x2a, 0xfb, 0xeb, 0xa6, 0xf6, 0xdb, 0xaf, 0x9f,
-	0xbf, 0x5f, 0xe5, 0x63, 0x44, 0x51, 0x4a, 0x38, 0x0f, 0x44, 0x4a, 0x93, 0xb1, 0x7f, 0xbf, 0x52,
-	0x78, 0x95, 0xa0, 0xfd, 0x47, 0x13, 0x6c, 0x57, 0x7f, 0xc9, 0xae, 0xae, 0xc8, 0xa0, 0x0b, 0xf7,
-	0xc0, 0x16, 0x1f, 0x5d, 0x90, 0x09, 0x46, 0x39, 0x49, 0x79, 0xb1, 0x06, 0x45, 0xf6, 0xdf, 0x2c,
-	0xab, 0x83, 0xb2, 0x08, 0x9f, 0x81, 0x0d, 0xf2, 0x4e, 0x90, 0x72, 0xc8, 0x7b, 0xdd, 0xbd, 0xd9,
-	0xae, 0x16, 0x65, 0x7e, 0xda, 0xf0, 0xe7, 0xc4, 0x70, 0x08, 0x34, 0x9a, 0xe4, 0x38, 0xa6, 0x11,
-	0xe2, 0x02, 0x8f, 0x09, 0xe2, 0xd9, 0x70, 0x42, 0xb9, 0xec, 0xbe, 0x24, 0x8d, 0x1f, 0xdd, 0x62,
-	0x7c, 0x23, 0xe1, 0xd3, 0x86, 0xff, 0x41, 0xe5, 0x14, 0x14, 0x46, 0xc1, 0xcc, 0x07, 0x9e, 0x03,
-	0x35, 0xc2, 0x02, 0xa3, 0xec, 0x6d, 0x30, 0xda, 0x8a, 0xf4, 0xde, 0x9f, 0x79, 0xdf, 0x11, 0xdc,
-	0x69, 0xc3, 0xbf, 0x1f, 0xcd, 0x53, 0x4c, 0x00, 0xd6, 0xea, 0xef, 0xeb, 0x9b, 0xe5, 0xb5, 0x65,
-	0x75, 0xa5, 0xfd, 0xbb, 0x02, 0xb4, 0x33, 0x3e, 0x96, 0xad, 0xc5, 0x8d, 0xfd, 0xc2, 0xc7, 0x60,
-	0xab, 0xa6, 0xa3, 0xe1, 0xa5, 0x20, 0x7c, 0xee, 0x1e, 0x6e, 0xd6, 0x98, 0x59, 0x40, 0xd0, 0x06,
-	0xdb, 0x72, 0x11, 0x42, 0x90, 0x14, 0xe1, 0x32, 0x4c, 0xb9, 0xe8, 0x45, 0x31, 0xab, 0x33, 0x49,
-	0x55, 0xff, 0xca, 0x7a, 0xf1, 0xe6, 0xe5, 0xc1, 0x7f, 0x9d, 0x7e, 0x7a, 0xf3, 0xf2, 0x60, 0x5f,
-	0xa4, 0x19, 0x61, 0x53, 0x92, 0xe8, 0x3f, 0xea, 0xf2, 0xd9, 0xb8, 0x6d, 0xf0, 0x83, 0x7f, 0x9a,
-	0x40, 0xbb, 0xed, 0xfe, 0xc3, 0x03, 0xf0, 0xc8, 0x3c, 0x77, 0x7a, 0x47, 0xb6, 0x8f, 0xfa, 0xbe,
-	0x17, 0x7a, 0x96, 0xd7, 0x43, 0x03, 0xc7, 0xeb, 0x19, 0xa1, 0xe3, 0xb9, 0xe8, 0xdc, 0x0d, 0xfa,
-	0xb6, 0xe5, 0x1c, 0x3b, 0xf6, 0x91, 0xda, 0x80, 0x3a, 0x78, 0xbc, 0x80, 0xfb, 0xad, 0xef, 0xb9,
-	0x27, 0x28, 0x34, 0x82, 0x67, 0x28, 0xb0, 0xbc, 0xbe, 0xad, 0x2a, 0x77, 0x98, 0x97, 0x82, 0x20,
-	0x34, 0x4e, 0x6c, 0xb5, 0x09, 0xbf, 0x00, 0x9f, 0xdd, 0xc9, 0xad, 0x09, 0x81, 0x1d, 0xaa, 0x4b,
-	0xf0, 0x09, 0xd0, 0x17, 0x28, 0x5c, 0xcf, 0x45, 0x96, 0xe1, 0x7a, 0xae, 0x63, 0x19, 0x3d, 0x64,
-	0x3a, 0xe1, 0x99, 0xd1, 0x57, 0x97, 0xef, 0x68, 0x63, 0x3a, 0x21, 0xb2, 0x7a, 0xb6, 0xe1, 0x23,
-	0x23, 0x0c, 0xed, 0xb3, 0x7e, 0xa8, 0xae, 0xc0, 0xaf, 0xc1, 0x97, 0x0b, 0x14, 0x96, 0xe7, 0x1e,
-	0xf7, 0x1c, 0x2b, 0x74, 0xdc, 0x13, 0x64, 0x58, 0x96, 0xdd, 0x0f, 0xed, 0x23, 0x74, 0x66, 0x84,
-	0xb6, 0xef, 0x18, 0x3d, 0x75, 0xd5, 0x7c, 0xfa, 0xea, 0xaa, 0xa5, 0xbc, 0xbe, 0x6a, 0x29, 0x7f,
-	0x5d, 0xb5, 0x94, 0x9f, 0xaf, 0x5b, 0x8d, 0xd7, 0xd7, 0xad, 0xc6, 0x9f, 0xd7, 0xad, 0xc6, 0x77,
-	0x7b, 0x63, 0x2a, 0x2e, 0xb2, 0x61, 0x67, 0xc4, 0x26, 0x7a, 0x98, 0x66, 0xc4, 0x2b, 0xb2, 0x4c,
-	0x58, 0x44, 0xea, 0x40, 0xc5, 0xe5, 0x94, 0xf0, 0xe1, 0xaa, 0x7c, 0x8b, 0x9f, 0xfc, 0x1b, 0x00,
-	0x00, 0xff, 0xff, 0xed, 0x70, 0x13, 0x0d, 0x1c, 0x06, 0x00, 0x00,
-}
-
-func (m *SignedEnvelopeEquivocationV2) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SignedEnvelopeEquivocationV2) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SignedEnvelopeEquivocationV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.EnvelopeB) > 0 {
-		i -= len(m.EnvelopeB)
-		copy(dAtA[i:], m.EnvelopeB)
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.EnvelopeB)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.EnvelopeA) > 0 {
-		i -= len(m.EnvelopeA)
-		copy(dAtA[i:], m.EnvelopeA)
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.EnvelopeA)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Violation != 0 {
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(m.Violation))
-		i--
-		dAtA[i] = 0x10
-	}
-	if len(m.Envelope) > 0 {
-		i -= len(m.Envelope)
-		copy(dAtA[i:], m.Envelope)
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.Envelope)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
+	// 911 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0xbb, 0x73, 0xe3, 0x44,
+	0x18, 0xb7, 0x7c, 0x49, 0x2e, 0xd9, 0x3c, 0x4e, 0xd9, 0x61, 0xc0, 0x04, 0xce, 0x97, 0x18, 0xc2,
+	0x78, 0x7c, 0x60, 0x11, 0x5f, 0xc3, 0x30, 0x30, 0x37, 0x92, 0xbc, 0x71, 0x74, 0xb1, 0x25, 0xcf,
+	0x4a, 0x31, 0x03, 0xcd, 0xce, 0xda, 0xda, 0x73, 0x76, 0xce, 0x92, 0x82, 0x76, 0xed, 0x21, 0x2d,
+	0x25, 0x15, 0xfc, 0x0b, 0x54, 0x94, 0x57, 0x50, 0x53, 0x5f, 0x79, 0x73, 0x34, 0x94, 0x4c, 0x52,
+	0xdc, 0x1f, 0x40, 0x47, 0xc5, 0xe8, 0x95, 0xd7, 0x5d, 0x92, 0x82, 0xc6, 0x33, 0xfb, 0xfd, 0x1e,
+	0xfa, 0xed, 0xf7, 0x7d, 0x92, 0x41, 0x55, 0x52, 0xf1, 0x4c, 0x9b, 0xed, 0x68, 0xc3, 0x29, 0x9f,
+	0xf8, 0x2c, 0x26, 0x6c, 0xc6, 0x7d, 0x16, 0x8e, 0x58, 0xf3, 0x28, 0x8e, 0x64, 0x04, 0xef, 0x26,
+	0x78, 0x73, 0xb6, 0xb3, 0xb1, 0x4e, 0x03, 0x1e, 0x46, 0x5a, 0xfa, 0x9b, 0x61, 0x1b, 0xef, 0x8d,
+	0x22, 0x11, 0x44, 0x42, 0x0b, 0xc4, 0x38, 0x71, 0x08, 0xc4, 0x38, 0x07, 0xde, 0xcf, 0x00, 0x92,
+	0x9e, 0xb4, 0xec, 0x90, 0x43, 0xf7, 0xc5, 0x21, 0x8d, 0x99, 0x9f, 0xf0, 0x63, 0x26, 0x24, 0x61,
+	0xe1, 0x28, 0xf2, 0x79, 0x98, 0x2b, 0x6b, 0xbf, 0x29, 0xe0, 0x41, 0x9b, 0x4a, 0x7a, 0x10, 0xd2,
+	0x19, 0xe5, 0x13, 0x3a, 0x9c, 0x30, 0x57, 0x52, 0xc9, 0x30, 0x7b, 0xca, 0xe2, 0x24, 0xd6, 0x60,
+	0x07, 0xde, 0x07, 0x69, 0x28, 0xc2, 0xfd, 0x8a, 0xb2, 0xa9, 0xd4, 0x57, 0x8c, 0xb9, 0x17, 0xff,
+	0x54, 0xca, 0x78, 0x21, 0x29, 0x5a, 0x3e, 0xdc, 0x02, 0x2b, 0x33, 0x16, 0xf3, 0xa7, 0xc7, 0x24,
+	0x8e, 0xa6, 0xa1, 0x5f, 0x29, 0x6f, 0x2a, 0xf5, 0x55, 0xbc, 0x9c, 0xd5, 0x70, 0x52, 0x82, 0x26,
+	0x50, 0x8b, 0xeb, 0x46, 0x47, 0x2c, 0xa6, 0x32, 0x8a, 0x2b, 0x77, 0x36, 0x95, 0xfa, 0x92, 0x51,
+	0x79, 0xf5, 0xfb, 0x67, 0xef, 0xe4, 0x81, 0x75, 0xdf, 0x8f, 0x99, 0x10, 0xae, 0x8c, 0x79, 0x38,
+	0xc6, 0xf7, 0x72, 0x85, 0x93, 0x0b, 0x6a, 0x7f, 0x2a, 0xa0, 0xd2, 0x13, 0x63, 0x77, 0x3a, 0x0c,
+	0xb8, 0x34, 0x32, 0x10, 0xe5, 0xcd, 0x83, 0x0f, 0xc1, 0x5a, 0xd1, 0x48, 0x32, 0x3c, 0x96, 0x4c,
+	0x5c, 0x88, 0xaa, 0xe0, 0xd5, 0x02, 0x33, 0x12, 0x08, 0x22, 0xb0, 0x2e, 0x52, 0x17, 0xc9, 0x62,
+	0x42, 0xb3, 0xa7, 0xa6, 0xb1, 0x6f, 0xca, 0xa3, 0x9e, 0x49, 0xf2, 0xfa, 0x97, 0xe6, 0x8f, 0xaf,
+	0x9f, 0x37, 0xde, 0x74, 0xfa, 0xe9, 0xf5, 0xf3, 0x46, 0x5d, 0xc6, 0x53, 0x16, 0x1d, 0xb1, 0x50,
+	0xfb, 0x41, 0x4b, 0x07, 0x7e, 0x5d, 0xf0, 0xda, 0xaf, 0x0a, 0xf8, 0xc0, 0xe5, 0xe3, 0x90, 0xf9,
+	0x3d, 0x26, 0x04, 0x1d, 0x33, 0xf4, 0xfd, 0x94, 0xcf, 0xa2, 0x11, 0x95, 0x3c, 0x0a, 0x07, 0x2d,
+	0xf8, 0x35, 0x58, 0x09, 0x32, 0x80, 0x3c, 0xe3, 0x61, 0x36, 0x81, 0xb5, 0xd6, 0x46, 0x33, 0x5f,
+	0x93, 0xa6, 0x2b, 0x63, 0x46, 0x83, 0x5c, 0xbb, 0xcf, 0x43, 0x1f, 0x2f, 0x07, 0xe7, 0x07, 0xb8,
+	0x05, 0x96, 0x0a, 0x39, 0x4d, 0xaf, 0x58, 0xb4, 0x64, 0x31, 0x2f, 0xeb, 0x17, 0x29, 0xc3, 0x74,
+	0x2a, 0x57, 0x29, 0x46, 0xed, 0x0f, 0x05, 0x7c, 0x78, 0x29, 0x64, 0x3f, 0x59, 0x9e, 0x51, 0x34,
+	0xd9, 0xa5, 0xd3, 0x89, 0xfc, 0xff, 0x29, 0xab, 0xe0, 0x6e, 0x7e, 0xbc, 0x94, 0xb1, 0x28, 0xc2,
+	0xc7, 0x60, 0x69, 0xc6, 0xa3, 0x49, 0xda, 0x93, 0x34, 0xe2, 0x5a, 0x6b, 0xeb, 0xcc, 0x3b, 0xef,
+	0x68, 0x11, 0x69, 0x50, 0x10, 0xf1, 0xb9, 0xa6, 0xf6, 0xaa, 0x0c, 0xd6, 0xaf, 0x74, 0x7e, 0xd0,
+	0x82, 0xdb, 0x60, 0x4d, 0x8c, 0x0e, 0x59, 0x40, 0xc9, 0x8c, 0xc5, 0x22, 0xf1, 0x56, 0xd2, 0xdd,
+	0x5d, 0xcd, 0xaa, 0x83, 0xac, 0x08, 0x9f, 0x80, 0x15, 0x76, 0x61, 0x28, 0x69, 0xc4, 0xe5, 0xd6,
+	0xc7, 0xe7, 0x97, 0xbb, 0x7e, 0x7c, 0x7b, 0x25, 0x7c, 0x49, 0x0b, 0x29, 0xa8, 0xf0, 0x70, 0x46,
+	0x27, 0xdc, 0x27, 0x42, 0x26, 0xed, 0x4a, 0xd7, 0x47, 0x88, 0xe2, 0x62, 0xcb, 0xad, 0xed, 0xb7,
+	0xfb, 0x5e, 0xe9, 0xf8, 0x5e, 0x09, 0xbf, 0x9b, 0x1b, 0xb9, 0x89, 0x8f, 0x7b, 0x66, 0x03, 0x0f,
+	0x80, 0xea, 0x53, 0x49, 0xc9, 0xf4, 0xfc, 0x95, 0xae, 0xcc, 0xa7, 0xd6, 0xf5, 0x33, 0xeb, 0x5b,
+	0x5e, 0xf9, 0xbd, 0x12, 0xbe, 0xe7, 0x5f, 0xa6, 0x18, 0x00, 0x2c, 0x16, 0x6f, 0xd1, 0x93, 0xb9,
+	0xc5, 0x39, 0x75, 0xbe, 0xf1, 0x8b, 0x02, 0xd6, 0xdf, 0x18, 0x2c, 0xfc, 0x08, 0x3c, 0x70, 0x3d,
+	0x8c, 0xf4, 0x1e, 0xe9, 0x21, 0xd7, 0xd5, 0x3b, 0x88, 0xec, 0x5b, 0x76, 0x9b, 0x1c, 0xd8, 0x6e,
+	0x1f, 0x99, 0xd6, 0xae, 0x85, 0xda, 0x6a, 0xe9, 0x3a, 0x92, 0xd3, 0x47, 0x36, 0x19, 0x20, 0x6c,
+	0xed, 0x7e, 0xab, 0x2a, 0xb0, 0x05, 0x9a, 0x6f, 0x23, 0xa5, 0xb8, 0x85, 0x30, 0xd1, 0x5d, 0xd7,
+	0xea, 0xd8, 0x3d, 0x64, 0x7b, 0xc4, 0x76, 0xbc, 0x44, 0x53, 0x6e, 0xfc, 0x5b, 0x06, 0x95, 0xeb,
+	0x16, 0x02, 0x36, 0xc0, 0x27, 0xc6, 0x81, 0xd5, 0x6d, 0x23, 0x4c, 0xfa, 0xd8, 0xf1, 0x1c, 0xd3,
+	0xe9, 0x92, 0x81, 0xe5, 0x74, 0x75, 0xcf, 0x72, 0xec, 0x2b, 0x09, 0x35, 0xf0, 0xf0, 0x06, 0xee,
+	0x37, 0xd8, 0xb1, 0x3b, 0xc4, 0xd3, 0xdd, 0x7d, 0xe2, 0x9a, 0x4e, 0x1f, 0xa9, 0xca, 0x2d, 0xe6,
+	0x99, 0xc0, 0xf5, 0xf4, 0x0e, 0x52, 0xcb, 0xf0, 0x73, 0xf0, 0xe9, 0xad, 0xdc, 0x82, 0xe0, 0x22,
+	0x4f, 0xbd, 0x03, 0x1f, 0x01, 0xed, 0x06, 0x85, 0xed, 0xd8, 0xc4, 0xd4, 0x6d, 0xc7, 0xb6, 0x4c,
+	0xbd, 0x4b, 0x0c, 0xcb, 0xeb, 0xe9, 0x7d, 0x75, 0xee, 0x96, 0xc7, 0x18, 0x96, 0x47, 0xcc, 0x2e,
+	0xd2, 0x31, 0xd1, 0x3d, 0x0f, 0xf5, 0xfa, 0x9e, 0x3a, 0x0f, 0xbf, 0x02, 0x5f, 0xdc, 0xa0, 0x30,
+	0x1d, 0x7b, 0xb7, 0x6b, 0x99, 0x9e, 0x65, 0x77, 0x88, 0x6e, 0x9a, 0xa8, 0xef, 0xa1, 0x36, 0xe9,
+	0xe9, 0x1e, 0xc2, 0x96, 0xde, 0x55, 0x17, 0x8c, 0xc7, 0x2f, 0x4e, 0xaa, 0xca, 0xcb, 0x93, 0xaa,
+	0xf2, 0xf7, 0x49, 0x55, 0xf9, 0xf9, 0xb4, 0x5a, 0x7a, 0x79, 0x5a, 0x2d, 0xfd, 0x75, 0x5a, 0x2d,
+	0x7d, 0xb7, 0x3d, 0xe6, 0xf2, 0x70, 0x3a, 0x6c, 0x8e, 0xa2, 0x40, 0xf3, 0xe2, 0x29, 0x73, 0x92,
+	0x4f, 0x63, 0x18, 0xf9, 0xac, 0xf8, 0x3e, 0xca, 0xe3, 0x23, 0x26, 0x86, 0x0b, 0xe9, 0x9f, 0xd2,
+	0xa3, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x03, 0x0e, 0xb8, 0x3e, 0x25, 0x07, 0x00, 0x00,
 }
 
 func (m *DataUnavailableStateReferenceV1) Marshal() (dAtA []byte, err error) {
@@ -691,6 +578,125 @@ func (m *DataUnavailableStateReferenceV1) MarshalToSizedBuffer(dAtA []byte) (int
 		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.TaskId)))
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgSubmitBuilderEvidence) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSubmitBuilderEvidence) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSubmitBuilderEvidence) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.SubmitterAddress) > 0 {
+		i -= len(m.SubmitterAddress)
+		copy(dAtA[i:], m.SubmitterAddress)
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.SubmitterAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.EvidenceBytes) > 0 {
+		i -= len(m.EvidenceBytes)
+		copy(dAtA[i:], m.EvidenceBytes)
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.EvidenceBytes)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SignedMessageEquivocationV2) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SignedMessageEquivocationV2) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SignedMessageEquivocationV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.MessageB) > 0 {
+		i -= len(m.MessageB)
+		copy(dAtA[i:], m.MessageB)
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.MessageB)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.MessageA) > 0 {
+		i -= len(m.MessageA)
+		copy(dAtA[i:], m.MessageA)
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.MessageA)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.MessageKind != 0 {
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(m.MessageKind))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SignedMessageProtocolFaultV2) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SignedMessageProtocolFaultV2) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SignedMessageProtocolFaultV2) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Violation != 0 {
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(m.Violation))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.Message) > 0 {
+		i -= len(m.Message)
+		copy(dAtA[i:], m.Message)
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.Message)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.MessageKind != 0 {
+		i = encodeVarintBuilderEvidence(dAtA, i, uint64(m.MessageKind))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -795,43 +801,6 @@ func (m *BuilderEvidenceV2_DataUnavailable) MarshalToSizedBuffer(dAtA []byte) (i
 	}
 	return len(dAtA) - i, nil
 }
-func (m *MsgSubmitBuilderEvidence) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MsgSubmitBuilderEvidence) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MsgSubmitBuilderEvidence) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.SubmitterAddress) > 0 {
-		i -= len(m.SubmitterAddress)
-		copy(dAtA[i:], m.SubmitterAddress)
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.SubmitterAddress)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.EvidenceBytes) > 0 {
-		i -= len(m.EvidenceBytes)
-		copy(dAtA[i:], m.EvidenceBytes)
-		i = encodeVarintBuilderEvidence(dAtA, i, uint64(len(m.EvidenceBytes)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func encodeVarintBuilderEvidence(dAtA []byte, offset int, v uint64) int {
 	offset -= sovBuilderEvidence(v)
 	base := offset
@@ -843,39 +812,6 @@ func encodeVarintBuilderEvidence(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *SignedEnvelopeEquivocationV2) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.EnvelopeA)
-	if l > 0 {
-		n += 1 + l + sovBuilderEvidence(uint64(l))
-	}
-	l = len(m.EnvelopeB)
-	if l > 0 {
-		n += 1 + l + sovBuilderEvidence(uint64(l))
-	}
-	return n
-}
-
-func (m *SignedEnvelopeProtocolFaultV2) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Envelope)
-	if l > 0 {
-		n += 1 + l + sovBuilderEvidence(uint64(l))
-	}
-	if m.Violation != 0 {
-		n += 1 + sovBuilderEvidence(uint64(m.Violation))
-	}
-	return n
-}
-
 func (m *DataUnavailableStateReferenceV1) Size() (n int) {
 	if m == nil {
 		return 0
@@ -892,6 +828,62 @@ func (m *DataUnavailableStateReferenceV1) Size() (n int) {
 	l = len(m.BuilderOperator)
 	if l > 0 {
 		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgSubmitBuilderEvidence) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.EvidenceBytes)
+	if l > 0 {
+		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	l = len(m.SubmitterAddress)
+	if l > 0 {
+		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	return n
+}
+
+func (m *SignedMessageEquivocationV2) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.MessageKind != 0 {
+		n += 1 + sovBuilderEvidence(uint64(m.MessageKind))
+	}
+	l = len(m.MessageA)
+	if l > 0 {
+		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	l = len(m.MessageB)
+	if l > 0 {
+		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	return n
+}
+
+func (m *SignedMessageProtocolFaultV2) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.MessageKind != 0 {
+		n += 1 + sovBuilderEvidence(uint64(m.MessageKind))
+	}
+	l = len(m.Message)
+	if l > 0 {
+		n += 1 + l + sovBuilderEvidence(uint64(l))
+	}
+	if m.Violation != 0 {
+		n += 1 + sovBuilderEvidence(uint64(m.Violation))
 	}
 	return n
 }
@@ -947,249 +939,12 @@ func (m *BuilderEvidenceV2_DataUnavailable) Size() (n int) {
 	}
 	return n
 }
-func (m *MsgSubmitBuilderEvidence) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.EvidenceBytes)
-	if l > 0 {
-		n += 1 + l + sovBuilderEvidence(uint64(l))
-	}
-	l = len(m.SubmitterAddress)
-	if l > 0 {
-		n += 1 + l + sovBuilderEvidence(uint64(l))
-	}
-	return n
-}
 
 func sovBuilderEvidence(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozBuilderEvidence(x uint64) (n int) {
 	return sovBuilderEvidence(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *SignedEnvelopeEquivocationV2) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowBuilderEvidence
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: SignedEnvelopeEquivocationV2: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SignedEnvelopeEquivocationV2: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EnvelopeA", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.EnvelopeA = append(m.EnvelopeA[:0], dAtA[iNdEx:postIndex]...)
-			if m.EnvelopeA == nil {
-				m.EnvelopeA = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EnvelopeB", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.EnvelopeB = append(m.EnvelopeB[:0], dAtA[iNdEx:postIndex]...)
-			if m.EnvelopeB == nil {
-				m.EnvelopeB = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *SignedEnvelopeProtocolFaultV2) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowBuilderEvidence
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: SignedEnvelopeProtocolFaultV2: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SignedEnvelopeProtocolFaultV2: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Envelope", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Envelope = append(m.Envelope[:0], dAtA[iNdEx:postIndex]...)
-			if m.Envelope == nil {
-				m.Envelope = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Violation", wireType)
-			}
-			m.Violation = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Violation |= BuilderProtocolViolation(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *DataUnavailableStateReferenceV1) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -1326,180 +1081,6 @@ func (m *DataUnavailableStateReferenceV1) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *BuilderEvidenceV2) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowBuilderEvidence
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: BuilderEvidenceV2: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: BuilderEvidenceV2: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SchemaVersion", wireType)
-			}
-			m.SchemaVersion = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.SchemaVersion |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Equivocation", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &SignedEnvelopeEquivocationV2{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.Evidence = &BuilderEvidenceV2_Equivocation{v}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field InvalidStageSubmission", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &SignedEnvelopeProtocolFaultV2{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.Evidence = &BuilderEvidenceV2_InvalidStageSubmission{v}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DataUnavailable", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowBuilderEvidence
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &DataUnavailableStateReferenceV1{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.Evidence = &BuilderEvidenceV2_DataUnavailable{v}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthBuilderEvidence
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *MsgSubmitBuilderEvidence) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1594,6 +1175,439 @@ func (m *MsgSubmitBuilderEvidence) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.SubmitterAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SignedMessageEquivocationV2) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowBuilderEvidence
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SignedMessageEquivocationV2: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SignedMessageEquivocationV2: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageKind", wireType)
+			}
+			m.MessageKind = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MessageKind |= StreamMessageKind(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageA", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MessageA = append(m.MessageA[:0], dAtA[iNdEx:postIndex]...)
+			if m.MessageA == nil {
+				m.MessageA = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageB", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MessageB = append(m.MessageB[:0], dAtA[iNdEx:postIndex]...)
+			if m.MessageB == nil {
+				m.MessageB = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SignedMessageProtocolFaultV2) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowBuilderEvidence
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SignedMessageProtocolFaultV2: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SignedMessageProtocolFaultV2: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageKind", wireType)
+			}
+			m.MessageKind = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MessageKind |= StreamMessageKind(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Message = append(m.Message[:0], dAtA[iNdEx:postIndex]...)
+			if m.Message == nil {
+				m.Message = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Violation", wireType)
+			}
+			m.Violation = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Violation |= BuilderProtocolViolation(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipBuilderEvidence(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *BuilderEvidenceV2) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowBuilderEvidence
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: BuilderEvidenceV2: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: BuilderEvidenceV2: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SchemaVersion", wireType)
+			}
+			m.SchemaVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SchemaVersion |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Equivocation", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &SignedMessageEquivocationV2{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Evidence = &BuilderEvidenceV2_Equivocation{v}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InvalidStageSubmission", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &SignedMessageProtocolFaultV2{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Evidence = &BuilderEvidenceV2_InvalidStageSubmission{v}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DataUnavailable", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowBuilderEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthBuilderEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &DataUnavailableStateReferenceV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Evidence = &BuilderEvidenceV2_DataUnavailable{v}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

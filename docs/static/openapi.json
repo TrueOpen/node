@@ -374,13 +374,30 @@
       },
       "type": "object"
     },
+    "hub.v1.BuilderCompensationAccountState": {
+      "description": "BuilderCompensationAccountState defines the canonical BuilderCompensationAccountState fields.",
+      "properties": {
+        "balance": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "builder_address": {
+          "type": "string"
+        },
+        "total_funded": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "total_paid": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "total_penalized": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.BuilderParamsV1": {
       "description": "BuilderParamsV1 groups governed fixed-set and duty parameters.",
       "properties": {
-        "assignment_builder_proposal_window_blocks": {
-          "format": "uint64",
-          "type": "string"
-        },
         "builder_fault_retention_blocks": {
           "format": "uint64",
           "type": "string"
@@ -400,10 +417,6 @@
         "builder_set_update_lead_blocks": {
           "format": "uint64",
           "type": "string"
-        },
-        "builders_per_task": {
-          "format": "int64",
-          "type": "integer"
         },
         "max_builder_fault_prune_items_per_block": {
           "format": "int64",
@@ -502,6 +515,19 @@
           "format": "int64",
           "type": "integer"
         },
+        "previous_retired_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_authorization_nonce": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_pubkey": {
+          "description": "Present together; one previous generation for old proofs, never live authority.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
+        },
         "registered_height": {
           "format": "uint64",
           "type": "string"
@@ -587,6 +613,43 @@
       },
       "type": "object"
     },
+    "hub.v1.CandidatePoolSnapshotMemberViewV1": {
+      "description": "CandidatePoolSnapshotMemberViewV1 reads only the frozen snapshot. With a\nmodel/profile selector, fields 6/7 are projections of the matching profiles[]\nentry, not independent live facts; candidate_weight uses that same entry and\nthe frozen member inputs and the snapshot header's Worker coefficients.\nNever substitute current Task parameters. No match means\nprofile_support_fresh=false and zero\ncandidate_weight/min_stake_snapshot. Missing weight_inputs on an in-pool member\nis an invalid snapshot, not permission to read current bond/support state.",
+      "properties": {
+        "binding_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "candidate_weight": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "in_pool": {
+          "type": "boolean"
+        },
+        "min_stake_snapshot": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "profile_support_fresh": {
+          "type": "boolean"
+        },
+        "slot": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "slot_version": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "weight_inputs": {
+          "$ref": "#/definitions/hub.v1.CandidateWeightInputsV1"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.CandidatePoolSnapshotStatus": {
       "default": "CANDIDATE_POOL_SNAPSHOT_STATUS_UNSPECIFIED",
       "description": "CandidatePoolSnapshotStatus is the snapshot lifecycle. Numeric values are\nfrozen (sole closed-enum authority).\nCandidatePoolSnapshotStatus defines the CandidatePoolSnapshotStatus wire type.\n\n - CANDIDATE_POOL_SNAPSHOT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nCANDIDATE_POOL_SNAPSHOT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - CANDIDATE_POOL_SNAPSHOT_STATUS_READY: Published header, not yet effective_height.\nCANDIDATE_POOL_SNAPSHOT_STATUS_READY identifies the corresponding protocol value.\n - CANDIDATE_POOL_SNAPSHOT_STATUS_ACTIVE: Current pool; the only snapshot a first Worker proposal may lock.\nCANDIDATE_POOL_SNAPSHOT_STATUS_ACTIVE identifies the corresponding protocol value.\n - CANDIDATE_POOL_SNAPSHOT_STATUS_EXPIRED: Past expires_height; still usable by tasks that already locked it.\nCANDIDATE_POOL_SNAPSHOT_STATUS_EXPIRED identifies the corresponding protocol value.\n - CANDIDATE_POOL_SNAPSHOT_STATUS_PRUNED: Body deleted; only the retained header answers by-ID queries.\nCANDIDATE_POOL_SNAPSHOT_STATUS_PRUNED identifies the corresponding protocol value.",
@@ -660,12 +723,88 @@
         },
         "status": {
           "$ref": "#/definitions/hub.v1.CandidatePoolSnapshotStatus"
+        },
+        "worker_performance_weight_ppm": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "worker_stake_weight_ppm": {
+          "description": "The epoch header's immutable Worker scoring policy; both zero before activation.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "hub.v1.CandidateProfileWeightInputV1": {
+      "description": "CandidateProfileWeightInputV1 is the authoritative model/profile-specific\neligibility input frozen in the snapshot. Match both model_id and\nprofile_version; never substitute the member-wide inference_capable flag.",
+      "properties": {
+        "inference_capable": {
+          "type": "boolean"
+        },
+        "min_stake_snapshot": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile_support_fresh": {
+          "type": "boolean"
+        },
+        "profile_version": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "hub.v1.CandidateWeightInputsV1": {
+      "description": "CandidateWeightInputsV1 defines the canonical CandidateWeightInputsV1 fields.",
+      "properties": {
+        "active_bond": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "available_bond": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "candidate_jail_factor_ppm": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "inference_capable": {
+          "description": "Member-wide summary only. Dispatch for a profile uses that profile's flag.",
+          "type": "boolean"
+        },
+        "performance_method_version": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "performance_score_ppm": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "profiles": {
+          "items": {
+            "$ref": "#/definitions/hub.v1.CandidateProfileWeightInputV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "tombstoned": {
+          "type": "boolean"
+        },
+        "unbonding": {
+          "type": "boolean"
         }
       },
       "type": "object"
     },
     "hub.v1.CortexNodeState": {
-      "description": "CortexNodeState is the single stable Cortex identity row. Fields 10-12\nare the three online-responsibility counters that the wire API /\nthis contract require MsgRotateServiceKey to see at zero; they replace the previous\nstring-keyed TASK_LIABILITY_* responsibility rows.\nCortexNodeState defines the CortexNodeState wire type.",
+      "description": "CortexNodeState is the single stable Cortex identity row. Fields 10-12 track\naccepted online responsibilities. Rotation can be registered while they are\nnonzero; only previous-generation evidence duties gate another registration.\nCortexNodeState defines the CortexNodeState wire type.",
       "properties": {
         "active_task_liability_count": {
           "format": "int64",
@@ -693,6 +832,19 @@
         "pending_stage_duty_count": {
           "format": "int64",
           "type": "integer"
+        },
+        "previous_retired_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_authorization_nonce": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_pubkey": {
+          "description": "The three previous fields are present together, for proof verification only.\nThey grant no live identity or reverse-address-index entry.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
         },
         "registered_height": {
           "format": "uint64",
@@ -734,6 +886,23 @@
         },
         "participant_type": {
           "$ref": "#/definitions/shared.v1.ParticipantType"
+        },
+        "pending_rotation": {
+          "$ref": "#/definitions/hub.v1.PendingServiceKeyRotationState",
+          "description": "A proposal never changes the current fields above until activation."
+        },
+        "previous_retired_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_authorization_nonce": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "previous_service_pubkey": {
+          "description": "One previous proof identity, with paired presence matching the stored binding.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
         },
         "service_address": {
           "type": "string"
@@ -867,20 +1036,6 @@
         }
       },
       "type": "object"
-    },
-    "hub.v1.FaultKind": {
-      "default": "FAULT_KIND_UNSPECIFIED",
-      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.\n - FAULT_KIND_VERIFIER_VALUE_MISMATCH: Reserved for the later verifier value-evidence admission upgrade.\n - FAULT_KIND_WORKER_VALUES_INVALID: Reserved for objectively invalid Worker value evidence after activation.",
-      "enum": [
-        "FAULT_KIND_UNSPECIFIED",
-        "FAULT_KIND_TIMEOUT",
-        "FAULT_KIND_INVALID_RESULT",
-        "FAULT_KIND_EQUIVOCATION",
-        "FAULT_KIND_BUILDER_OBJECTIVE_FAULT",
-        "FAULT_KIND_VERIFIER_VALUE_MISMATCH",
-        "FAULT_KIND_WORKER_VALUES_INVALID"
-      ],
-      "type": "string"
     },
     "hub.v1.FreezeFailureClassCountsV1": {
       "description": "FreezeFailureClassCountsV1 is the per-class breakdown of the failures a freeze\nsignal aggregated.\n\nThe four fixed counters correspond to the freeze-eligible failure classes:\nMETRIC_THRESHOLD_BREACH, OBJECTIVE_FAULT, SCHEMA_FAULT, and\nWORKER_EVIDENCE_FAULT. They are fixed counters, not an unbounded list.\nINSUFFICIENT_VERIFIER is excluded from the freeze root and counted separately\nin excluded_insufficient_verifier_count.\nFreezeFailureClassCountsV1 defines the FreezeFailureClassCountsV1 wire type.",
@@ -1474,6 +1629,40 @@
       },
       "type": "object"
     },
+    "hub.v1.PendingServiceKeyRotationState": {
+      "description": "PendingServiceKeyRotationState is at most one replacement per role/operator.\nRegistration in epoch E activates at epoch E+2, independently of material\ncounts or ordinary queue budgets. Rebuild activation/address indexes from\nthese primaries; the binding retains only one previous proof key.",
+      "properties": {
+        "current_service_authorization_nonce": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "effective_height": {
+          "description": "Fixed E+2 epoch start; install atomically before business transactions there.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "new_service_pubkey": {
+          "description": "REST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
+        },
+        "next_service_authorization_nonce": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "participant_type": {
+          "$ref": "#/definitions/shared.v1.ParticipantType"
+        },
+        "registered_height": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.Phase0ParamsV1": {
       "description": "Phase0ParamsV1 freezes the tokenless-mainnet denomination and fee profile.",
       "properties": {
@@ -1707,6 +1896,15 @@
       },
       "type": "object"
     },
+    "hub.v1.QueryBuilderCompensationAccountResponse": {
+      "description": "QueryBuilderCompensationAccountResponse defines the canonical QueryBuilderCompensationAccountResponse fields.",
+      "properties": {
+        "account": {
+          "$ref": "#/definitions/hub.v1.BuilderCompensationAccountState"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.QueryBuilderResponse": {
       "description": "QueryBuilderResponse returns the Builder primary row.",
       "properties": {
@@ -1762,6 +1960,15 @@
         },
         "page": {
           "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
+        }
+      },
+      "type": "object"
+    },
+    "hub.v1.QueryCandidatePoolSnapshotMemberResponse": {
+      "description": "QueryCandidatePoolSnapshotMemberResponse defines the canonical QueryCandidatePoolSnapshotMemberResponse fields.",
+      "properties": {
+        "member": {
+          "$ref": "#/definitions/hub.v1.CandidatePoolSnapshotMemberViewV1"
         }
       },
       "type": "object"
@@ -2313,7 +2520,7 @@
           "type": "string"
         },
         "fault_class": {
-          "$ref": "#/definitions/hub.v1.FaultKind"
+          "$ref": "#/definitions/shared.v1.FaultKind"
         },
         "fault_id": {
           "format": "trueopen-hash32",
@@ -2417,7 +2624,7 @@
     },
     "hub.v1.ServiceBondStatus": {
       "default": "SERVICE_BOND_STATUS_UNSPECIFIED",
-      "description": "ServiceBondStatus is the operator-global service bond lifecycle.\n\n - SERVICE_BOND_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSERVICE_BOND_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_REGISTERED: Bond row created but not yet effective.\nSERVICE_BOND_STATUS_REGISTERED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_ACTIVE: Bond is effective and may back duties.\nSERVICE_BOND_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_JAILED: Operator is jailed; no new duty is assigned.\nSERVICE_BOND_STATUS_JAILED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_UNBONDING: Operator is unbonding to zero.\nSERVICE_BOND_STATUS_UNBONDING identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_EXITED: Bond reached zero with no outstanding liability.\nSERVICE_BOND_STATUS_EXITED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_TOMBSTONED: Permanently excluded.\nSERVICE_BOND_STATUS_TOMBSTONED identifies the corresponding protocol value.",
+      "description": "ServiceBondStatus is the operator-global service bond lifecycle.\n\n - SERVICE_BOND_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nSERVICE_BOND_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_REGISTERED: Bond row created but not yet effective.\nSERVICE_BOND_STATUS_REGISTERED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_ACTIVE: Bond is effective and may back duties.\nSERVICE_BOND_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_JAILED: Recoverable jail: candidate eligibility follows the nonzero jail factor.\nSERVICE_BOND_STATUS_JAILED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_UNBONDING: Operator is unbonding to zero.\nSERVICE_BOND_STATUS_UNBONDING identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_EXITED: Bond reached zero with no outstanding liability.\nSERVICE_BOND_STATUS_EXITED identifies the corresponding protocol value.\n - SERVICE_BOND_STATUS_TOMBSTONED: Permanently excluded.\nSERVICE_BOND_STATUS_TOMBSTONED identifies the corresponding protocol value.",
       "enum": [
         "SERVICE_BOND_STATUS_UNSPECIFIED",
         "SERVICE_BOND_STATUS_REGISTERED",
@@ -2502,7 +2709,7 @@
     },
     "hub.v1.ServiceKeyStatus": {
       "default": "SERVICE_KEY_STATUS_UNSPECIFIED",
-      "description": "ServiceKeyStatus is the lifecycle of one current Cortex service key binding (9.6b).\n\n - SERVICE_KEY_STATUS_UNSPECIFIED: Never written; rejects zero-value bindings.\nSERVICE_KEY_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_KEY_STATUS_ACTIVE: Binding may authorize service submissions.\nSERVICE_KEY_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_KEY_STATUS_REVOKED: Binding is revoked and authorizes nothing.\nSERVICE_KEY_STATUS_REVOKED identifies the corresponding protocol value.",
+      "description": "ServiceKeyStatus is the lifecycle of one current Cortex service key binding (9.6b).\n\n - SERVICE_KEY_STATUS_UNSPECIFIED: Never written; rejects zero-value bindings.\nSERVICE_KEY_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_KEY_STATUS_ACTIVE: Binding may authorize service submissions.\nSERVICE_KEY_STATUS_ACTIVE identifies the corresponding protocol value.\n - SERVICE_KEY_STATUS_REVOKED: Binding grants no live permission; retained proof identity remains usable.\nSERVICE_KEY_STATUS_REVOKED identifies the corresponding protocol value.",
       "enum": [
         "SERVICE_KEY_STATUS_UNSPECIFIED",
         "SERVICE_KEY_STATUS_ACTIVE",
@@ -2957,6 +3164,19 @@
       ],
       "type": "string"
     },
+    "shared.v1.DispatchChallengeKindV1": {
+      "default": "DISPATCH_CHALLENGE_KIND_V1_UNSPECIFIED",
+      "description": "DispatchChallengeKindV1 is the closed DispatchChallengeKindV1 registry.\n\n - DISPATCH_CHALLENGE_KIND_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_CHALLENGE_KIND_V1_OMISSION: OMISSION is the omission value.\n - DISPATCH_CHALLENGE_KIND_V1_DRAW: DRAW is the draw value.\n - DISPATCH_CHALLENGE_KIND_V1_SKIP: SKIP is the skip value.\n - DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE: ROSTER_UNAVAILABLE is the roster unavailable value.\n - DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH: DOUBLE_DISPATCH is the double dispatch value.",
+      "enum": [
+        "DISPATCH_CHALLENGE_KIND_V1_UNSPECIFIED",
+        "DISPATCH_CHALLENGE_KIND_V1_OMISSION",
+        "DISPATCH_CHALLENGE_KIND_V1_DRAW",
+        "DISPATCH_CHALLENGE_KIND_V1_SKIP",
+        "DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE",
+        "DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH"
+      ],
+      "type": "string"
+    },
     "shared.v1.Duty": {
       "default": "DUTY_UNSPECIFIED",
       "description": "Duty is the task role an operator can be selected for (9.6b).\n\n - DUTY_UNSPECIFIED: Never written; rejects zero-value rows and selectors.\nDUTY_UNSPECIFIED identifies the corresponding protocol value.\n - DUTY_WORKER: Inference worker duty.\nDUTY_WORKER identifies the corresponding protocol value.\n - DUTY_VERIFIER: Verification duty.\nDUTY_VERIFIER identifies the corresponding protocol value.",
@@ -3044,6 +3264,22 @@
       ],
       "type": "string"
     },
+    "shared.v1.FaultKind": {
+      "default": "FAULT_KIND_UNSPECIFIED",
+      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.\n - FAULT_KIND_VERIFIER_VALUE_MISMATCH: Active bounded verifier value-evidence fault.\n - FAULT_KIND_WORKER_VALUES_INVALID: Active objectively invalid Worker value evidence.\n - FAULT_KIND_WORKER_DISPATCH_INELIGIBLE: Signed Worker dispatch cannot reserve its required liability.\n - FAULT_KIND_WORKER_DISPATCH_CONTRADICTION: Worker signs both reject and accept for the same ticket.",
+      "enum": [
+        "FAULT_KIND_UNSPECIFIED",
+        "FAULT_KIND_TIMEOUT",
+        "FAULT_KIND_INVALID_RESULT",
+        "FAULT_KIND_EQUIVOCATION",
+        "FAULT_KIND_BUILDER_OBJECTIVE_FAULT",
+        "FAULT_KIND_VERIFIER_VALUE_MISMATCH",
+        "FAULT_KIND_WORKER_VALUES_INVALID",
+        "FAULT_KIND_WORKER_DISPATCH_INELIGIBLE",
+        "FAULT_KIND_WORKER_DISPATCH_CONTRADICTION"
+      ],
+      "type": "string"
+    },
     "shared.v1.GenerationType": {
       "default": "GENERATION_TYPE_UNSPECIFIED",
       "description": "GenerationType defines whether output generation uses deterministic or sampled decoding.\n\n - GENERATION_TYPE_UNSPECIFIED: GENERATION_TYPE_UNSPECIFIED is invalid in a registered profile.\n - GENERATION_TYPE_DETERMINISTIC: GENERATION_TYPE_DETERMINISTIC requires deterministic decoding.\n - GENERATION_TYPE_SAMPLED: GENERATION_TYPE_SAMPLED permits seed-bound sampled decoding.",
@@ -3120,11 +3356,12 @@
     },
     "shared.v1.ParticipantType": {
       "default": "PARTICIPANT_TYPE_UNSPECIFIED",
-      "description": "ParticipantType selects the Hub identity domain a service key or descriptor belongs to (9.6b).\n\n - PARTICIPANT_TYPE_UNSPECIFIED: Never written; rejects zero-value rows and selectors.\nPARTICIPANT_TYPE_UNSPECIFIED identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_CORTEX: Cortex node identity domain.\nPARTICIPANT_TYPE_CORTEX identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_BUILDER: Builder identity domain.\nPARTICIPANT_TYPE_BUILDER identifies the corresponding protocol value.",
+      "description": "ParticipantType selects the Hub identity domain a service key or descriptor belongs to (9.6b).\n\n - PARTICIPANT_TYPE_UNSPECIFIED: Never written; rejects zero-value rows and selectors.\nPARTICIPANT_TYPE_UNSPECIFIED identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_CORTEX: Cortex node identity domain.\nPARTICIPANT_TYPE_CORTEX identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_BUILDER: Builder identity domain.\nPARTICIPANT_TYPE_BUILDER identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_VALIDATOR: Validator is accepted only by the VRF registry, not service-key methods.",
       "enum": [
         "PARTICIPANT_TYPE_UNSPECIFIED",
         "PARTICIPANT_TYPE_CORTEX",
-        "PARTICIPANT_TYPE_BUILDER"
+        "PARTICIPANT_TYPE_BUILDER",
+        "PARTICIPANT_TYPE_VALIDATOR"
       ],
       "type": "string"
     },
@@ -3430,79 +3667,13 @@
       },
       "type": "object"
     },
-    "task.v1.AssignmentFailureReason": {
-      "default": "ASSIGNMENT_FAILURE_REASON_UNSPECIFIED",
-      "description": "AssignmentFailureReason is the single closed reason for a failed Worker\nassignment, frozen by this contract.\nAssignmentFailureReason defines the AssignmentFailureReason wire type.\n\n - ASSIGNMENT_FAILURE_REASON_UNSPECIFIED: No failure recorded.\nASSIGNMENT_FAILURE_REASON_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET: Frozen union bitmap held no usable candidate.\nASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE: Required future beacon never became available.\nASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE: Drawn winner could no longer reserve task liability.\nASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED: Order expired before assignment completed.\nASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED identifies the corresponding protocol value.",
-      "enum": [
-        "ASSIGNMENT_FAILURE_REASON_UNSPECIFIED",
-        "ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET",
-        "ASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE",
-        "ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE",
-        "ASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED"
-      ],
-      "type": "string"
-    },
-    "task.v1.AssignmentRandomnessViewV1": {
-      "description": "AssignmentRandomnessViewV1 joins TaskAssignmentState with the BeaconState of\nits exact randomness height. A scope or hash mismatch is Internal and\nthe Beacon must not be pruned while a consumer exists. Field 5 is present for\nproposer-VRF and absent for a dev placeholder. Fields 6-8 are present together\nor absent together.\nAssignmentRandomnessViewV1 defines the AssignmentRandomnessViewV1 wire type.",
-      "properties": {
-        "assignment_candidate_set_hash": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "assignment_randomness_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "beacon_proof_digest": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "beacon_randomness": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "task_id": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "winner_confirm_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "winner_draw_digest": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "winner_worker": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "task.v1.AssignmentStatus": {
       "default": "ASSIGNMENT_STATUS_UNSPECIFIED",
-      "description": "AssignmentStatus is the Worker assignment sub-state. Values are frozen by\nthis contract. It is stored only on TaskCoreState; TaskAssignmentState must not keep a\ncopy.\nAssignmentStatus defines the AssignmentStatus wire type.\n\n - ASSIGNMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nASSIGNMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_NONE: No assignment activity yet.\nASSIGNMENT_STATUS_NONE identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_RANDOMNESS_PENDING: Legal set frozen, waiting for the future beacon.\nASSIGNMENT_STATUS_RANDOMNESS_PENDING identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_ASSIGNED: Winner finalized and liability reserved.\nASSIGNMENT_STATUS_WORKER_ASSIGNED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_ASSIGN_TIMEOUT: Assignment could not be completed.\nASSIGNMENT_STATUS_ASSIGN_TIMEOUT identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_TIMEOUT: Winner missed the inference deadline.\nASSIGNMENT_STATUS_WORKER_TIMEOUT identifies the corresponding protocol value.",
+      "description": "AssignmentStatus is the Worker assignment sub-state. Values are frozen by\nthis contract. It is stored only on TaskCoreState; TaskAssignmentState must not keep a\ncopy.\nAssignmentStatus defines the AssignmentStatus wire type.\n\n - ASSIGNMENT_STATUS_UNSPECIFIED: Never written; rejects zero-value rows.\nASSIGNMENT_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_NONE: No assignment activity yet.\nASSIGNMENT_STATUS_NONE identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_RECORDED: Dispatch accepted and liability reserved.\nASSIGNMENT_STATUS_WORKER_RECORDED identifies the corresponding protocol value.\n - ASSIGNMENT_STATUS_WORKER_TIMEOUT: Winner missed the inference deadline.\nASSIGNMENT_STATUS_WORKER_TIMEOUT identifies the corresponding protocol value.",
       "enum": [
         "ASSIGNMENT_STATUS_UNSPECIFIED",
         "ASSIGNMENT_STATUS_NONE",
-        "ASSIGNMENT_STATUS_RANDOMNESS_PENDING",
-        "ASSIGNMENT_STATUS_WORKER_ASSIGNED",
-        "ASSIGNMENT_STATUS_ASSIGN_TIMEOUT",
+        "ASSIGNMENT_STATUS_WORKER_RECORDED",
         "ASSIGNMENT_STATUS_WORKER_TIMEOUT"
       ],
       "type": "string"
@@ -3600,6 +3771,30 @@
           "maxLength": 66,
           "minLength": 66,
           "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.CandidateMemberRefV1": {
+      "description": "CandidateMemberRefV1 is the caller-authored reference to one stable\nCandidatePool slot. Only the snapshot ID travels on\nthe wire: the snapshot ID already commits the pool hash, so no asserted pool\nhash copy is submitted or signed.\n\nThis value type is shared by StandingHandraiseV1 (global CandidatePool /\nassignment flow) and VerifierHandraiseV1 below, so it is defined exactly once\nin the module.\nCandidateMemberRefV1 defines the CandidateMemberRefV1 wire type.",
+      "properties": {
+        "candidate_pool_snapshot_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "slot": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "slot_version": {
+          "format": "uint64",
           "type": "string"
         }
       },
@@ -3824,7 +4019,7 @@
     },
     "task.v1.DeadlineKindV1": {
       "default": "DEADLINE_KIND_V1_UNSPECIFIED",
-      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_ASSIGNMENT: Assignment randomness expiry; kind_priority 90.\nDEADLINE_KIND_V1_WORKER_ASSIGNMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.",
+      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: Closes a Task's verifier value-evidence window; TaskDeadlineLocator, priority 30.\n - DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE: DISPATCH_CHALLENGE_RESPONSE is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL: DISPATCH_COMPENSATION_REBUTTAL is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_TAKEOVER_ACTIVATION: TAKEOVER_ACTIVATION is an EndBlock-only deadline.",
       "enum": [
         "DEADLINE_KIND_V1_UNSPECIFIED",
         "DEADLINE_KIND_V1_TASK_FINALITY",
@@ -3834,13 +4029,608 @@
         "DEADLINE_KIND_V1_VERIFY_COMMIT",
         "DEADLINE_KIND_V1_VERIFY_OPEN",
         "DEADLINE_KIND_V1_WORKER_INFER",
-        "DEADLINE_KIND_V1_WORKER_ASSIGNMENT",
         "DEADLINE_KIND_V1_SESSION_LIFECYCLE",
         "DEADLINE_KIND_V1_VERIFY_FINAL",
         "DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE",
-        "DEADLINE_KIND_V1_EVIDENCE_CLEANUP"
+        "DEADLINE_KIND_V1_EVIDENCE_CLEANUP",
+        "DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE",
+        "DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE",
+        "DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL",
+        "DEADLINE_KIND_V1_TAKEOVER_ACTIVATION"
       ],
       "type": "string"
+    },
+    "task.v1.DispatchAttemptOutcomeV1": {
+      "default": "DISPATCH_ATTEMPT_OUTCOME_V1_UNSPECIFIED",
+      "description": "DispatchAttemptOutcomeV1 is the closed DispatchAttemptOutcomeV1 registry.\n\n - DISPATCH_ATTEMPT_OUTCOME_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED: ACCEPTED is the accepted value.\n - DISPATCH_ATTEMPT_OUTCOME_V1_REJECTED: REJECTED is the rejected value.\n - DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT: TIMEOUT is the timeout value.\n - DISPATCH_ATTEMPT_OUTCOME_V1_VOIDED: VOIDED is the voided value.\n - DISPATCH_ATTEMPT_OUTCOME_V1_REVOKED: REVOKED is the revoked value.",
+      "enum": [
+        "DISPATCH_ATTEMPT_OUTCOME_V1_UNSPECIFIED",
+        "DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED",
+        "DISPATCH_ATTEMPT_OUTCOME_V1_REJECTED",
+        "DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT",
+        "DISPATCH_ATTEMPT_OUTCOME_V1_VOIDED",
+        "DISPATCH_ATTEMPT_OUTCOME_V1_REVOKED"
+      ],
+      "type": "string"
+    },
+    "task.v1.DispatchAttemptV1": {
+      "description": "DispatchAttemptV1 defines the canonical DispatchAttemptV1 fields.",
+      "properties": {
+        "dispatch_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "member": {
+          "$ref": "#/definitions/task.v1.CandidateMemberRefV1"
+        },
+        "outcome": {
+          "$ref": "#/definitions/task.v1.DispatchAttemptOutcomeV1"
+        },
+        "rank": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "reject_digest_or_zero32": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "timeout_tier_or_zero": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchChallengeGasCapV1": {
+      "description": "DispatchChallengeGasCapV1 defines the canonical DispatchChallengeGasCapV1 fields.",
+      "properties": {
+        "gas_cap": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/shared.v1.DispatchChallengeKindV1"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchChallengeState": {
+      "description": "DispatchChallengeState defines the canonical DispatchChallengeState fields.",
+      "properties": {
+        "attempt_rank": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "builder_address": {
+          "type": "string"
+        },
+        "challenge_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "challenged_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "challenger_address": {
+          "type": "string"
+        },
+        "dispatch_record_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "dispatch_round": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "fault_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/shared.v1.DispatchChallengeKindV1"
+        },
+        "opened_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "proof_deadline_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "resolved_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/task.v1.DispatchChallengeStatusV1"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "victim_operator_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchChallengeStatusV1": {
+      "default": "DISPATCH_CHALLENGE_STATUS_V1_UNSPECIFIED",
+      "description": "DispatchChallengeStatusV1 is the closed DispatchChallengeStatusV1 registry.\n\n - DISPATCH_CHALLENGE_STATUS_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_CHALLENGE_STATUS_V1_AWAITING_PROOF: AWAITING_PROOF is the awaiting proof value.\n - DISPATCH_CHALLENGE_STATUS_V1_AWAITING_ROSTER: AWAITING_ROSTER is the awaiting roster value.\n - DISPATCH_CHALLENGE_STATUS_V1_UPHELD: UPHELD is the upheld value.\n - DISPATCH_CHALLENGE_STATUS_V1_DISMISSED: DISMISSED is the dismissed value.\n - DISPATCH_CHALLENGE_STATUS_V1_EXPIRED: EXPIRED is the expired value.",
+      "enum": [
+        "DISPATCH_CHALLENGE_STATUS_V1_UNSPECIFIED",
+        "DISPATCH_CHALLENGE_STATUS_V1_AWAITING_PROOF",
+        "DISPATCH_CHALLENGE_STATUS_V1_AWAITING_ROSTER",
+        "DISPATCH_CHALLENGE_STATUS_V1_UPHELD",
+        "DISPATCH_CHALLENGE_STATUS_V1_DISMISSED",
+        "DISPATCH_CHALLENGE_STATUS_V1_EXPIRED"
+      ],
+      "type": "string"
+    },
+    "task.v1.DispatchCompensationClaimState": {
+      "description": "DispatchCompensationClaimState defines the canonical DispatchCompensationClaimState fields.",
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "builder_address": {
+          "type": "string"
+        },
+        "builder_set_id": {
+          "type": "string"
+        },
+        "claim_window_close_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "claimed_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "earliest_submit_height": {
+          "description": "Frozen from the claim's verified original order, including unrecorded orders.\nPositive and strictly below claimed_height; retained unchanged through\nresolution, Query and Genesis. Previous record/reject keys each compare\nthis value with their own retirement height, never another ticket's record.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "order_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "paid_amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "rebuttal_deadline_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "rebutted_by_or_empty": {
+          "type": "string"
+        },
+        "resolved_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/task.v1.DispatchCompensationClaimStatusV1"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "unfilled_amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "worker_operator_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchCompensationClaimStatusV1": {
+      "default": "DISPATCH_COMPENSATION_CLAIM_STATUS_V1_UNSPECIFIED",
+      "description": "DispatchCompensationClaimStatusV1 is the closed DispatchCompensationClaimStatusV1 registry.\n\n - DISPATCH_COMPENSATION_CLAIM_STATUS_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL: PENDING_REBUTTAL is the pending rebuttal value.\n - DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PAID: PAID is the paid value.\n - DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED: DISMISSED is the dismissed value.",
+      "enum": [
+        "DISPATCH_COMPENSATION_CLAIM_STATUS_V1_UNSPECIFIED",
+        "DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL",
+        "DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PAID",
+        "DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED"
+      ],
+      "type": "string"
+    },
+    "task.v1.DispatchFaultPenaltyV1": {
+      "description": "DispatchFaultPenaltyV1 defines the canonical DispatchFaultPenaltyV1 fields.",
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "kind": {
+          "$ref": "#/definitions/shared.v1.DispatchChallengeKindV1"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchParamsV1": {
+      "description": "DispatchParamsV1 defines the canonical DispatchParamsV1 fields.",
+      "properties": {
+        "builder_compensation_account_min_balance": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "builder_max_inflight_per_session": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "dispatch_challenge_gas_cap_by_kind": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchChallengeGasCapV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "dispatch_challenge_response_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_challenge_window_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_compensation_claim_window_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_compensation_rebuttal_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_evidence_retention_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_fault_penalty_by_kind": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchFaultPenaltyV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "dispatch_record_retention_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_dispatch_entries_per_record": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_dispatch_record_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_dispatch_roster_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_pending_per_session": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "max_prerecord_output_tokens": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_skips": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "order_freshness_margin_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "prefill_compensation_by_model_tier": {
+          "items": {
+            "$ref": "#/definitions/task.v1.PrefillCompensationV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "record_deadline_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "sticky_max_orders": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "sticky_window_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "worker_dispatch_contradiction_slash_bps": {
+          "description": "ServiceBond slash for a Worker signing both rejection and acceptance; 0..10000.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchRandomnessSchemeV1": {
+      "default": "DISPATCH_RANDOMNESS_SCHEME_V1_UNSPECIFIED",
+      "description": "DispatchRandomnessSchemeV1 is the closed DispatchRandomnessSchemeV1 registry.\n\n - DISPATCH_RANDOMNESS_SCHEME_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_RANDOMNESS_SCHEME_V1_BUILDER_VRF: BUILDER_VRF is the builder vrf value.",
+      "enum": [
+        "DISPATCH_RANDOMNESS_SCHEME_V1_UNSPECIFIED",
+        "DISPATCH_RANDOMNESS_SCHEME_V1_BUILDER_VRF"
+      ],
+      "type": "string"
+    },
+    "task.v1.DispatchRecordByOrderV1": {
+      "description": "DispatchRecordByOrderV1 defines the canonical DispatchRecordByOrderV1 fields.",
+      "properties": {
+        "order_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchRecordState": {
+      "description": "DispatchRecordState defines the canonical DispatchRecordState fields.",
+      "properties": {
+        "accepted_entry_digest": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "bound_change_height": {
+          "description": "Frozen record anchor; later takeovers never move old-material windows.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "builder_address": {
+          "type": "string"
+        },
+        "candidate_pool_snapshot_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "claim_window_close_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_record_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "dispatch_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "earliest_submit_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "randomness_scheme": {
+          "$ref": "#/definitions/task.v1.DispatchRandomnessSchemeV1"
+        },
+        "recorded_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "reference_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "rounds": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchRoundV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "service_authorization_nonce": {
+          "description": "Frozen from the accepted record for proof-key selection after cutover.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "sticky_anchor_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "sticky_applied": {
+          "type": "boolean"
+        },
+        "sticky_run_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "sticky_snapshot": {
+          "$ref": "#/definitions/task.v1.DispatchStickySnapshotV1"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "vrf_epoch": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "vrf_output": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "vrf_proof": {
+          "description": "REST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
+        },
+        "winner": {
+          "$ref": "#/definitions/task.v1.CandidateMemberRefV1"
+        },
+        "winner_round": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchRoundV1": {
+      "description": "DispatchRoundV1 defines the canonical DispatchRoundV1 fields.",
+      "properties": {
+        "attempts": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchAttemptV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "dispatch_round": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "handraise_root_digest": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "roster_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchStickySnapshotV1": {
+      "description": "DispatchStickySnapshotV1 defines the canonical DispatchStickySnapshotV1 fields.",
+      "properties": {
+        "anchor_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "last_record_winner": {
+          "type": "string"
+        },
+        "run_count": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.DispatchWinnerIneligibleReasonV1": {
+      "default": "DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNSPECIFIED",
+      "description": "DispatchWinnerIneligibleReasonV1 is the closed DispatchWinnerIneligibleReasonV1 registry.\n\n - DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - DISPATCH_WINNER_INELIGIBLE_REASON_V1_BOND_INSUFFICIENT: BOND_INSUFFICIENT is the bond insufficient value.\n - DISPATCH_WINNER_INELIGIBLE_REASON_V1_LIABILITY_INSUFFICIENT: LIABILITY_INSUFFICIENT is the liability insufficient value.\n - DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNBONDING: UNBONDING is the unbonding value.\n - DISPATCH_WINNER_INELIGIBLE_REASON_V1_TOMBSTONED: TOMBSTONED is the tombstoned value.",
+      "enum": [
+        "DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNSPECIFIED",
+        "DISPATCH_WINNER_INELIGIBLE_REASON_V1_BOND_INSUFFICIENT",
+        "DISPATCH_WINNER_INELIGIBLE_REASON_V1_LIABILITY_INSUFFICIENT",
+        "DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNBONDING",
+        "DISPATCH_WINNER_INELIGIBLE_REASON_V1_TOMBSTONED"
+      ],
+      "type": "string"
+    },
+    "task.v1.DispatchWinnerIneligibleState": {
+      "description": "DispatchWinnerIneligibleState defines the canonical DispatchWinnerIneligibleState fields.",
+      "properties": {
+        "claim_window_close_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/task.v1.DispatchWinnerIneligibleReasonV1"
+        },
+        "rejected_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "worker_operator_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "task.v1.EpochTaskSummaryReceiptState": {
       "description": "EpochTaskSummaryReceiptState prevents replay from dispatching an epoch twice\nand retains the bounded payload plus its complete source commitment.\nEpochTaskSummaryReceiptState defines the EpochTaskSummaryReceiptState wire type.",
@@ -3983,7 +4773,7 @@
           "type": "integer"
         },
         "verifier_value_evidence_window_blocks": {
-          "description": "Reserved for the later verifier value-evidence admission upgrade.",
+          "description": "Active from fresh Phase 1 genesis; bounds contradiction-evidence admission.",
           "format": "uint64",
           "type": "string"
         }
@@ -4202,6 +4992,10 @@
     "task.v1.OrderSequenceState": {
       "description": "OrderSequenceState records how one order sequence was used (this contract, key =\n(session_id, order_sequence)). StreamState.next_expected_sequence stays the\nonly authority for the next acceptable sequence.\nOrderSequenceState defines the OrderSequenceState wire type.",
       "properties": {
+        "cancel_effective_height": {
+          "format": "uint64",
+          "type": "string"
+        },
         "cancelled_height": {
           "format": "uint64",
           "type": "string"
@@ -4236,14 +5030,15 @@
     },
     "task.v1.OrderSequenceStatus": {
       "default": "ORDER_SEQUENCE_STATUS_UNSPECIFIED",
-      "description": "OrderSequenceStatus is the per-sequence audit status of this contract.\n\nThe five nonzero values are frozen in sequence lifecycle order.\nOrderSequenceStatus defines the OrderSequenceStatus wire type.\n\n - ORDER_SEQUENCE_STATUS_UNSPECIFIED: Never written; an absent row is the unused state.\nORDER_SEQUENCE_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_UNUSED: Reserved sequence that no task has consumed yet.\nORDER_SEQUENCE_STATUS_UNUSED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CONSUMED: Consumed by an accepted first Worker proposal.\nORDER_SEQUENCE_STATUS_CONSUMED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CANCELLED: Skipped by MsgCancelOrder; no funds moved.\nORDER_SEQUENCE_STATUS_CANCELLED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_REFUNDED: Task failed and the reserved budget was refunded.\nORDER_SEQUENCE_STATUS_REFUNDED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_SETTLED: Task reached a settled terminal state.\nORDER_SEQUENCE_STATUS_SETTLED identifies the corresponding protocol value.",
+      "description": "OrderSequenceStatus is the per-sequence audit status of this contract.\n\nStatuses distinguish retained sequence outcomes and pending cancellation.\nOrderSequenceStatus defines the OrderSequenceStatus wire type.\n\n - ORDER_SEQUENCE_STATUS_UNSPECIFIED: Never written; an absent row is the unused state.\nORDER_SEQUENCE_STATUS_UNSPECIFIED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_UNUSED: Reserved sequence that no task has consumed yet.\nORDER_SEQUENCE_STATUS_UNUSED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CONSUMED: Consumed by an accepted dispatch entry.\nORDER_SEQUENCE_STATUS_CONSUMED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CANCELLED: Skipped by MsgCancelOrder; no funds moved.\nORDER_SEQUENCE_STATUS_CANCELLED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_REFUNDED: Task failed and the reserved budget was refunded.\nORDER_SEQUENCE_STATUS_REFUNDED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_SETTLED: Task reached a settled terminal state.\nORDER_SEQUENCE_STATUS_SETTLED identifies the corresponding protocol value.\n - ORDER_SEQUENCE_STATUS_CANCEL_PENDING: Cancellation is registered but not yet effective.",
       "enum": [
         "ORDER_SEQUENCE_STATUS_UNSPECIFIED",
         "ORDER_SEQUENCE_STATUS_UNUSED",
         "ORDER_SEQUENCE_STATUS_CONSUMED",
         "ORDER_SEQUENCE_STATUS_CANCELLED",
         "ORDER_SEQUENCE_STATUS_REFUNDED",
-        "ORDER_SEQUENCE_STATUS_SETTLED"
+        "ORDER_SEQUENCE_STATUS_SETTLED",
+        "ORDER_SEQUENCE_STATUS_CANCEL_PENDING"
       ],
       "type": "string"
     },
@@ -4257,11 +5052,59 @@
       ],
       "type": "string"
     },
-    "task.v1.QueryAssignmentRandomnessResponse": {
-      "description": "QueryAssignmentRandomnessResponse returns only the frozen height, beacon and\ndraw digest facts.\nQueryAssignmentRandomnessResponse defines the QueryAssignmentRandomnessResponse wire type.",
+    "task.v1.PendingSessionKeyChangeV1": {
+      "description": "PendingSessionKeyChangeV1 defines the canonical PendingSessionKeyChangeV1 fields.",
       "properties": {
-        "randomness": {
-          "$ref": "#/definitions/task.v1.AssignmentRandomnessViewV1"
+        "effective_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "grant": {
+          "$ref": "#/definitions/task.v1.SessionKeyGrantV1"
+        },
+        "kind": {
+          "$ref": "#/definitions/task.v1.SessionKeyChangeKindV1"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.PendingTakeoverV1": {
+      "description": "PendingTakeoverV1 defines the canonical PendingTakeoverV1 fields.",
+      "properties": {
+        "activation_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "candidate_builder": {
+          "type": "string"
+        },
+        "order_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "order_task_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "registered_height": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.PrefillCompensationV1": {
+      "description": "PrefillCompensationV1 defines the canonical PrefillCompensationV1 fields.",
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "resource_tier": {
+          "format": "int64",
+          "type": "integer"
         }
       },
       "type": "object"
@@ -4287,6 +5130,74 @@
             "type": "object"
           },
           "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchChallengeResponse": {
+      "description": "QueryDispatchChallengeResponse defines the canonical QueryDispatchChallengeResponse fields.",
+      "properties": {
+        "row": {
+          "$ref": "#/definitions/task.v1.DispatchChallengeState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchChallengesByBuilderResponse": {
+      "description": "QueryDispatchChallengesByBuilderResponse orders rows by raw32 challenge_id.\nInclude an overdue open primary until its handler actually closes it; a\nQuery must not infer a terminal outcome or drop it based on the wall clock.",
+      "properties": {
+        "page": {
+          "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchChallengeState",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchCompensationClaimResponse": {
+      "description": "QueryDispatchCompensationClaimResponse defines the canonical QueryDispatchCompensationClaimResponse fields.",
+      "properties": {
+        "claim": {
+          "$ref": "#/definitions/task.v1.DispatchCompensationClaimState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchCompensationClaimsByBuilderResponse": {
+      "description": "QueryDispatchCompensationClaimsByBuilderResponse orders by raw32 ticket hash.",
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/definitions/task.v1.DispatchCompensationClaimState",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchRecordResponse": {
+      "description": "QueryDispatchRecordResponse defines the canonical QueryDispatchRecordResponse fields.",
+      "properties": {
+        "record": {
+          "$ref": "#/definitions/task.v1.DispatchRecordState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryDispatchWinnerIneligibleResponse": {
+      "description": "QueryDispatchWinnerIneligibleResponse defines the canonical QueryDispatchWinnerIneligibleResponse fields.",
+      "properties": {
+        "row": {
+          "$ref": "#/definitions/task.v1.DispatchWinnerIneligibleState"
         }
       },
       "type": "object"
@@ -4436,7 +5347,7 @@
       "type": "object"
     },
     "task.v1.QueryTaskBuildersResponse": {
-      "description": "QueryTaskBuildersResponse returns the frozen Builder selection projected in\ncommitment order. It is the read path that makes the per-Task Builder\nidentity reachable at all; see TaskBuilderSelectionViewV1 for the bitmap-order\ncontract the two Builder bitmaps depend on.\n\nPruning and compaction semantics, exactly as frozen by this contract:\n  - body_status = ACTIVE: selected_task_builders has exactly\n    selected_task_builder_count == builders_per_task members in frozen order.\n  - body_status = PRUNED: the cleanup runner's ACTIVE_INDEXES_AND_LIABILITIES\n    phase, after finality and the evidence-retention window,\n    released every BUS_OBJECTIVE_EVIDENCE responsibility and cleared the member\n    body. selected_task_builders MUST be empty while count/hash and the other\n    public header fields remain auditable. The RPC is NOT NotFound in this\n    window, and an empty member array with body_status = ACTIVE is Internal.\n  - After the TASK_COMPACTION phase the whole\n    TaskBuilderSelectionState row is deleted together with the rest of the Task\n    detail, so the RPC returns NotFound and the long-lived commitment must be\n    read from TaskTerminalSummaryState.selected_task_builders_hash instead. The\n    PRUNED body therefore only exists between those two phases; a compacted\n    Task must never be answered with a fabricated header.\n  - An unknown task_id is NotFound; a non-canonical task_id is InvalidArgument;\n    a header whose retained selected_task_builders_hash does not recompute from\n    a still-resident body is Internal.\nQueryTaskBuildersResponse defines the QueryTaskBuildersResponse wire type.",
+      "description": "QueryTaskBuildersResponse returns the frozen Builder selection projected in\ncommitment order. It is the read path that makes the per-Task Builder\nidentity reachable at all; see TaskBuilderSelectionViewV1 for the bitmap-order\ncontract the two Builder bitmaps depend on.\n\nPruning and compaction semantics, exactly as frozen by this contract:\n  - body_status = ACTIVE: selected_task_builders has exactly\n    selected_task_builder_count == snapshot member count members in frozen order.\n  - body_status = PRUNED: the cleanup runner's ACTIVE_INDEXES_AND_LIABILITIES\n    phase, after finality and the evidence-retention window,\n    released every BUS_OBJECTIVE_EVIDENCE responsibility and cleared the member\n    body. selected_task_builders MUST be empty while count/hash and the other\n    public header fields remain auditable. The RPC is NOT NotFound in this\n    window, and an empty member array with body_status = ACTIVE is Internal.\n  - After the TASK_COMPACTION phase the whole\n    TaskBuilderSelectionState row is deleted together with the rest of the Task\n    detail, so the RPC returns NotFound and the long-lived commitment must be\n    read from TaskTerminalSummaryState.selected_task_builders_hash instead. The\n    PRUNED body therefore only exists between those two phases; a compacted\n    Task must never be answered with a fabricated header.\n  - An unknown task_id is NotFound; a non-canonical task_id is InvalidArgument;\n    a header whose retained selected_task_builders_hash does not recompute from\n    a still-resident body is Internal.\nQueryTaskBuildersResponse defines the QueryTaskBuildersResponse wire type.",
       "properties": {
         "selection": {
           "$ref": "#/definitions/task.v1.TaskBuilderSelectionViewV1"
@@ -4536,25 +5447,17 @@
       "type": "object"
     },
     "task.v1.QueryVerifierValueEvidenceResponse": {
-      "description": "QueryVerifierValueEvidenceResponse is reserved for an activated receipt.",
+      "description": "QueryVerifierValueEvidenceResponse never exposes raw leaves or paths.",
       "properties": {
-        "accepted_height": {
-          "format": "uint64",
-          "type": "string"
+        "page": {
+          "$ref": "#/definitions/shared.v1.QueryPageResponseV1"
         },
-        "evidence_digest": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "fault_id": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
+        "receipts": {
+          "items": {
+            "$ref": "#/definitions/task.v1.VerifierValueEvidenceReceiptState",
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -4722,16 +5625,44 @@
       },
       "type": "object"
     },
-    "task.v1.SessionParamsV1": {
-      "description": "SessionParamsV1 bounds session admission, lifecycle, and retention work.",
+    "task.v1.SessionKeyChangeKindV1": {
+      "default": "SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED",
+      "description": "SessionKeyChangeKindV1 is the closed SessionKeyChangeKindV1 registry.\n\n - SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - SESSION_KEY_CHANGE_KIND_V1_SET: SET is the set value.\n - SESSION_KEY_CHANGE_KIND_V1_CLEAR: CLEAR is the clear value.",
+      "enum": [
+        "SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED",
+        "SESSION_KEY_CHANGE_KIND_V1_SET",
+        "SESSION_KEY_CHANGE_KIND_V1_CLEAR"
+      ],
+      "type": "string"
+    },
+    "task.v1.SessionKeyGrantV1": {
+      "description": "SessionKeyGrantV1 registers a delegated order/request signer for one session.\nThe raw20 address must be nonzero and different from the owner's address.\nAt registration/renewal, current_height \u003c expiry_height \u003c= current_height +\nthe current effective max_session_key_blocks (checked addition). The limit\nis not resolved through the session's pinned historical parameter version.\nA canonical zero spend_cap (atomic_units = \"0\") is unlimited; otherwise it\nbounds cumulative admitted max_fee, not actual spend or a prepaid balance.",
       "properties": {
-        "anchor_freshness_window_blocks": {
+        "expiry_height": {
           "format": "uint64",
           "type": "string"
         },
+        "session_key": {
+          "description": "REST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+          "format": "byte",
+          "type": "string"
+        },
+        "spend_cap": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.SessionParamsV1": {
+      "description": "SessionParamsV1 bounds session admission, lifecycle, and retention work.",
+      "properties": {
         "cancel_order_min_gas": {
           "format": "uint64",
           "type": "string"
+        },
+        "max_active_sessions_per_account": {
+          "format": "int64",
+          "type": "integer"
         },
         "max_order_sequences_per_active_session": {
           "format": "int64",
@@ -4742,7 +5673,7 @@
           "type": "integer"
         },
         "max_session_key_blocks": {
-          "description": "Positive deployment-configured limit. Registration and renewal read the\ncurrent effective value, not ParamsForSession; later governance changes do\nnot rewrite an existing grant's expiry. Legacy history may omit this field.",
+          "description": "Positive deployment-configured limit. Registration and renewal read the\ncurrent effective value, not ParamsForSession; later governance changes do\nnot rewrite an existing grant's expiry. Fresh genesis requires a positive value.",
           "format": "uint64",
           "type": "string"
         },
@@ -4754,6 +5685,10 @@
           "format": "int64",
           "type": "integer"
         },
+        "session_change_delay_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
         "session_close_ttl_blocks": {
           "format": "uint64",
           "type": "string"
@@ -4762,11 +5697,18 @@
           "format": "uint64",
           "type": "string"
         },
+        "session_min_prefund": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
         "session_order_retention_blocks": {
           "format": "uint64",
           "type": "string"
         },
         "session_terminal_summary_retention_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "session_withdraw_delay_blocks": {
           "format": "uint64",
           "type": "string"
         }
@@ -4838,6 +5780,17 @@
         }
       },
       "type": "object"
+    },
+    "task.v1.SessionWithdrawKindV1": {
+      "default": "SESSION_WITHDRAW_KIND_V1_UNSPECIFIED",
+      "description": "SessionWithdrawKindV1 is the closed SessionWithdrawKindV1 registry.\n\n - SESSION_WITHDRAW_KIND_V1_UNSPECIFIED: UNSPECIFIED is the unspecified value.\n - SESSION_WITHDRAW_KIND_V1_NONE: NONE is the none value.\n - SESSION_WITHDRAW_KIND_V1_AMOUNT: AMOUNT is the amount value.\n - SESSION_WITHDRAW_KIND_V1_CLOSE: CLOSE is the close value.",
+      "enum": [
+        "SESSION_WITHDRAW_KIND_V1_UNSPECIFIED",
+        "SESSION_WITHDRAW_KIND_V1_NONE",
+        "SESSION_WITHDRAW_KIND_V1_AMOUNT",
+        "SESSION_WITHDRAW_KIND_V1_CLOSE"
+      ],
+      "type": "string"
     },
     "task.v1.SettlementFactsRetainedState": {
       "description": "SettlementFactsRetainedState keeps the fixed audit inputs needed after\nsettlement while detailed result rows remain subject to cleanup.\nSettlementFactsRetainedState defines the SettlementFactsRetainedState wire type.",
@@ -5104,10 +6057,30 @@
       "type": "string"
     },
     "task.v1.StreamState": {
-      "description": "StreamState is one session: sequence counter, owner, in-flight count and\noptional delegated signing authorization\n(key = session_id). Model A: a session never holds a balance; the\nabandoned SessionEscrowState double ledger is deleted, and funds live in the\nuser account and the escrow module account with TaskBudgetState as the only\nper-task ledger.\nStreamState defines the StreamState wire type.",
+      "description": "StreamState is one session: sequence counter, owner, in-flight count and\noptional delegated signing authorization\n(key = session_id). Balance includes frozen Task reservations in the escrow\nmodule account. Admission freezes funds from this ledger; settlement charges\nactual spend and makes the remainder available in this same session.\nStreamState defines the StreamState wire type.",
       "properties": {
+        "balance": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "bound_builder": {
+          "type": "string"
+        },
+        "bound_change_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "frozen_total": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
         "last_active_height": {
           "format": "uint64",
+          "type": "string"
+        },
+        "last_record_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "last_record_winner": {
           "type": "string"
         },
         "next_expected_sequence": {
@@ -5120,6 +6093,22 @@
         },
         "owner_user_address": {
           "type": "string"
+        },
+        "pending_session_key_change": {
+          "$ref": "#/definitions/task.v1.PendingSessionKeyChangeV1"
+        },
+        "pending_takeover": {
+          "$ref": "#/definitions/task.v1.PendingTakeoverV1"
+        },
+        "pending_withdraw_amount": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "pending_withdraw_effective_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "pending_withdraw_kind": {
+          "$ref": "#/definitions/task.v1.SessionWithdrawKindV1"
         },
         "session_id": {
           "format": "trueopen-hash32",
@@ -5139,7 +6128,7 @@
           "type": "string"
         },
         "session_key_set_height": {
-          "description": "First registration, different-key replacement or SET after CLEAR records\nthe execution height; same-key renewal/cap changes preserve it. Zero when\nno key is registered. A delegated order's signed anchor height must be at\nleast this height, preventing signatures from a revoked grant reviving.",
+          "description": "First registration, different-key replacement or SET after CLEAR records\nthe effective height; initial creation is immediate. Same-key renewal/cap\nchanges preserve it. Zero when\nno key is registered. A delegated order's signed anchor height must be at\nleast this height, preventing signatures from a revoked grant reviving.",
           "format": "uint64",
           "type": "string"
         },
@@ -5153,6 +6142,18 @@
         },
         "status": {
           "$ref": "#/definitions/task.v1.SessionStatus"
+        },
+        "sticky_anchor_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "sticky_anchor_sequence": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "sticky_run_count": {
+          "format": "int64",
+          "type": "integer"
         }
       },
       "type": "object"
@@ -5181,24 +6182,6 @@
     "task.v1.TaskAssignmentViewV1": {
       "description": "TaskAssignmentViewV1 projects one TaskAssignmentState and hides the internal\ncandidate_pool_ref_released field. Fields 1-17 and 19-20 come from\nthat single State; field 18 assignment_status is joined from TaskCoreState because\nTaskCoreState is the only primary of the six sub-states and TaskAssignmentState\nkeeps no copy - the same value stored twice is Internal. The three winner\noptional fields (4, 10, 11) must be present together or absent together, so a\npending assignment never reports a default winner.\nTaskAssignmentViewV1 defines the TaskAssignmentViewV1 wire type.",
       "properties": {
-        "assign_accept_height": {
-          "format": "uint64",
-          "type": "string"
-        },
-        "assignment_candidate_set_hash": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "assignment_fail_reason": {
-          "$ref": "#/definitions/task.v1.AssignmentFailureReason"
-        },
-        "assignment_randomness_height": {
-          "format": "uint64",
-          "type": "string"
-        },
         "assignment_status": {
           "$ref": "#/definitions/task.v1.AssignmentStatus"
         },
@@ -5217,6 +6200,20 @@
           "type": "string"
         },
         "canonical_encoding_version": {
+          "type": "string"
+        },
+        "dispatch_record_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "dispatch_ticket_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "evidence_schema_hash": {
@@ -5255,6 +6252,10 @@
           "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
+        "record_height": {
+          "format": "uint64",
+          "type": "string"
+        },
         "result_reveal_missing_slash_bps": {
           "format": "int64",
           "type": "integer"
@@ -5268,13 +6269,6 @@
         },
         "winner_confirm_height": {
           "format": "uint64",
-          "type": "string"
-        },
-        "winner_draw_digest": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "winner_worker": {
@@ -5394,7 +6388,7 @@
           "type": "integer"
         },
         "selected_task_builders": {
-          "description": "Frozen order; length equals builders_per_task while body_status is ACTIVE and\nis empty once the body is pruned.",
+          "description": "Frozen order; length equals the locked BuilderSet snapshot size while body_status is ACTIVE and\nis empty once the body is pruned.",
           "items": {
             "type": "string"
           },
@@ -5402,13 +6396,6 @@
         },
         "selected_task_builders_hash": {
           "description": "Ordered-member commitment; retained after pruning.",
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
-        "session_anchor_block_hash": {
           "format": "trueopen-hash32",
           "maxLength": 66,
           "minLength": 66,
@@ -5889,6 +6876,9 @@
         "deadlines": {
           "$ref": "#/definitions/task.v1.TaskDeadlineParamsV1"
         },
+        "dispatch": {
+          "$ref": "#/definitions/task.v1.DispatchParamsV1"
+        },
         "evidence": {
           "$ref": "#/definitions/task.v1.EvidenceLimitParamsV1"
         },
@@ -5919,11 +6909,10 @@
     },
     "task.v1.TaskPhase": {
       "default": "TASK_PHASE_UNSPECIFIED",
-      "description": "TaskPhase is the aggregate task phase. Numeric values are frozen by\nthe wire API; ascending order is the mandatory forward order, so\ntransition checks are monotonic with no rollback and no skipping.\nTaskPhase defines the TaskPhase wire type.\n\n - TASK_PHASE_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_PHASE_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNMENT_PENDING: First Worker proposal accepted; candidate union still open.\nTASK_PHASE_WORKER_ASSIGNMENT_PENDING identifies the corresponding protocol value.\n - TASK_PHASE_WORKER_ASSIGNED: Winner Worker finalized from the frozen legal set.\nTASK_PHASE_WORKER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_RECEIPT_COMMITTED: Infer receipt accepted.\nTASK_PHASE_RECEIPT_COMMITTED identifies the corresponding protocol value.\n - TASK_PHASE_VERIFIER_ASSIGNED: Verifier set selected for the current round.\nTASK_PHASE_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_COMMITTING: Verify commit collection.\nTASK_PHASE_COMMITTING identifies the corresponding protocol value.\n - TASK_PHASE_REVEALING: Verify reveal collection.\nTASK_PHASE_REVEALING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLING: Settlement in progress.\nTASK_PHASE_SETTLING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLED: Settled terminal phase.\nTASK_PHASE_SETTLED identifies the corresponding protocol value.\n - TASK_PHASE_FAILED: Failed terminal phase.\nTASK_PHASE_FAILED identifies the corresponding protocol value.",
+      "description": "TaskPhase is the aggregate task phase. Numeric values are frozen by\nthe wire API. Consumers validate explicit allowed transitions; numeric order\ndoes not express the lifecycle after retired values have been reserved.\nTaskPhase defines the TaskPhase wire type.\n\n - TASK_PHASE_UNSPECIFIED: Never written; rejects zero-value rows.\nTASK_PHASE_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_PHASE_INFER_PENDING: Dispatch accepted, inference in progress.\nTASK_PHASE_INFER_PENDING identifies the corresponding protocol value.\n - TASK_PHASE_RECEIPT_COMMITTED: Infer receipt accepted.\nTASK_PHASE_RECEIPT_COMMITTED identifies the corresponding protocol value.\n - TASK_PHASE_VERIFIER_ASSIGNED: Verifier set selected for the current round.\nTASK_PHASE_VERIFIER_ASSIGNED identifies the corresponding protocol value.\n - TASK_PHASE_COMMITTING: Verify commit collection.\nTASK_PHASE_COMMITTING identifies the corresponding protocol value.\n - TASK_PHASE_REVEALING: Verify reveal collection.\nTASK_PHASE_REVEALING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLING: Settlement in progress.\nTASK_PHASE_SETTLING identifies the corresponding protocol value.\n - TASK_PHASE_SETTLED: Settled terminal phase.\nTASK_PHASE_SETTLED identifies the corresponding protocol value.\n - TASK_PHASE_FAILED: Failed terminal phase.\nTASK_PHASE_FAILED identifies the corresponding protocol value.",
       "enum": [
         "TASK_PHASE_UNSPECIFIED",
-        "TASK_PHASE_WORKER_ASSIGNMENT_PENDING",
-        "TASK_PHASE_WORKER_ASSIGNED",
+        "TASK_PHASE_INFER_PENDING",
         "TASK_PHASE_RECEIPT_COMMITTED",
         "TASK_PHASE_VERIFIER_ASSIGNED",
         "TASK_PHASE_COMMITTING",
@@ -5966,10 +6955,10 @@
     },
     "task.v1.TaskReimbursementKindV1": {
       "default": "TASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED",
-      "description": "TaskReimbursementKindV1 identifies an accepted Task maintenance action whose\npost-handler may record gas reimbursement.\nTaskReimbursementKindV1 defines the TaskReimbursementKindV1 wire type.\n\n - TASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED: Unset; rejected.\nTASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE: Gas for a Worker handraise submission.\nTASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT: Gas for an infer receipt submission.\nTASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE: Gas for a Verifier handraise submission, in either round.\nTASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT: Gas for a data unavailability report.\nTASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFY_COMMIT: Gas for a verify commit, single or batched.\nTASK_REIMBURSEMENT_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT: Gas for a verify result, single or batched.\nTASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT identifies the corresponding protocol value.",
+      "description": "TaskReimbursementKindV1 identifies an accepted Task maintenance action whose\npost-handler may record gas reimbursement.\nTaskReimbursementKindV1 defines the TaskReimbursementKindV1 wire type.\n\n - TASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED: Unset; rejected.\nTASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_DISPATCH_RECORD: Gas for an accepted dispatch record entry.\n - TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT: Gas for an infer receipt submission.\nTASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE: Gas for a Verifier handraise submission, in either round.\nTASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT: Gas for a data unavailability report.\nTASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFY_COMMIT: Gas for a verify commit, single or batched.\nTASK_REIMBURSEMENT_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT: Gas for a verify result, single or batched.\nTASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT identifies the corresponding protocol value.",
       "enum": [
         "TASK_REIMBURSEMENT_KIND_V1_UNSPECIFIED",
-        "TASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE",
+        "TASK_REIMBURSEMENT_KIND_V1_DISPATCH_RECORD",
         "TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT",
         "TASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE",
         "TASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT",
@@ -6048,6 +7037,11 @@
           "type": "string"
         },
         "verifier_value_evidence_close_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "verifier_value_evidence_window_closed_height": {
+          "description": "Set by the close runner before finalization; absent means the window is not closed.",
           "format": "uint64",
           "type": "string"
         }
@@ -6235,13 +7229,6 @@
     "task.v1.TaskTerminalSummaryState": {
       "description": "TaskTerminalSummaryState is the sole Task authority after detail compaction.\nEvery *_or_zero32 field is a required raw Hash32 and never uses omission.\nTaskTerminalSummaryState defines the TaskTerminalSummaryState wire type.",
       "properties": {
-        "assignment_candidate_set_hash": {
-          "format": "trueopen-hash32",
-          "maxLength": 66,
-          "minLength": 66,
-          "pattern": "^0x[0-9a-f]{64}$",
-          "type": "string"
-        },
         "builder_set_hash": {
           "format": "trueopen-hash32",
           "maxLength": 66,
@@ -6279,6 +7266,14 @@
         },
         "created_height": {
           "format": "uint64",
+          "type": "string"
+        },
+        "dispatch_record_hash": {
+          "description": "Retained admission commitment distinguishes a pruned record from no admission.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         },
         "effective_verify_round": {
@@ -6955,6 +7950,68 @@
       },
       "type": "object"
     },
+    "task.v1.VerifierValueEvidenceKindV1": {
+      "default": "VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED",
+      "description": "VerifierValueEvidenceKindV1 identifies an active bounded contradiction proof.\n\n - VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED: Unset; rejected.\n - VERIFIER_VALUE_EVIDENCE_KIND_V1_VERIFIER_VALUE_MISMATCH: A selected Verifier's committed local values contradict bound evidence.\n - VERIFIER_VALUE_EVIDENCE_KIND_V1_WORKER_VALUES_INVALID: The committed Worker value leaf violates the bounded leaf predicates.",
+      "enum": [
+        "VERIFIER_VALUE_EVIDENCE_KIND_V1_UNSPECIFIED",
+        "VERIFIER_VALUE_EVIDENCE_KIND_V1_VERIFIER_VALUE_MISMATCH",
+        "VERIFIER_VALUE_EVIDENCE_KIND_V1_WORKER_VALUES_INVALID"
+      ],
+      "type": "string"
+    },
+    "task.v1.VerifierValueEvidenceReceiptState": {
+      "description": "VerifierValueEvidenceReceiptState retains accepted identity only. Its primary\nkey is (task_id, verify_round, target_operator_address, position); all positions\nfor the same target/round reuse the first fault_id. Cleanup follows Task evidence.",
+      "properties": {
+        "accepted_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "evidence_digest": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "evidence_kind": {
+          "$ref": "#/definitions/task.v1.VerifierValueEvidenceKindV1"
+        },
+        "fault_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "faulted_duty": {
+          "$ref": "#/definitions/shared.v1.Duty"
+        },
+        "position": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "schema_version": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "target_operator_address": {
+          "type": "string"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "verify_round": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.WorkerEvidenceKindV1": {
       "default": "WORKER_EVIDENCE_KIND_V1_UNSPECIFIED",
       "description": "WorkerEvidenceKindV1 is the closed set of objective Worker evidence.\n\n - WORKER_EVIDENCE_KIND_V1_UNSPECIFIED: Never written; rejects an unset evidence branch.\nWORKER_EVIDENCE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - WORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION: A valid signed output prefix conflicts with the accepted final MMR root.\nWORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION identifies the corresponding protocol value.",
@@ -7492,7 +8549,8 @@
             "enum": [
               "PARTICIPANT_TYPE_UNSPECIFIED",
               "PARTICIPANT_TYPE_CORTEX",
-              "PARTICIPANT_TYPE_BUILDER"
+              "PARTICIPANT_TYPE_BUILDER",
+              "PARTICIPANT_TYPE_VALIDATOR"
             ],
             "in": "path",
             "name": "participant_type",
@@ -8142,7 +9200,8 @@
             "enum": [
               "PARTICIPANT_TYPE_UNSPECIFIED",
               "PARTICIPANT_TYPE_CORTEX",
-              "PARTICIPANT_TYPE_BUILDER"
+              "PARTICIPANT_TYPE_BUILDER",
+              "PARTICIPANT_TYPE_VALIDATOR"
             ],
             "in": "path",
             "name": "participant_type",
@@ -8339,6 +9398,20 @@
             "name": "operator_address",
             "required": true,
             "type": "string"
+          },
+          {
+            "default": "PARTICIPANT_TYPE_UNSPECIFIED",
+            "description": "Zero selects Validator; Builder selectors explicitly use BUILDER.\n\n - PARTICIPANT_TYPE_UNSPECIFIED: Never written; rejects zero-value rows and selectors.\nPARTICIPANT_TYPE_UNSPECIFIED identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_CORTEX: Cortex node identity domain.\nPARTICIPANT_TYPE_CORTEX identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_BUILDER: Builder identity domain.\nPARTICIPANT_TYPE_BUILDER identifies the corresponding protocol value.\n - PARTICIPANT_TYPE_VALIDATOR: Validator is accepted only by the VRF registry, not service-key methods.",
+            "enum": [
+              "PARTICIPANT_TYPE_UNSPECIFIED",
+              "PARTICIPANT_TYPE_CORTEX",
+              "PARTICIPANT_TYPE_BUILDER",
+              "PARTICIPANT_TYPE_VALIDATOR"
+            ],
+            "in": "query",
+            "name": "participant_type",
+            "required": false,
+            "type": "string"
           }
         ],
         "responses": {
@@ -8355,7 +9428,258 @@
             }
           }
         },
-        "summary": "VrfKey returns one validator operator's active and pending VRF key.",
+        "summary": "VrfKey returns current active/pending keys for the selected participant role.\nThis RPC has no by-epoch/history lookup. Audit consumers retain registration\nand cutover history or use archival state at the relevant height; an old\nticket must never be verified by substituting the latest active key.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/builder/{builder_address}/dispatch_challenges": {
+      "get": {
+        "operationId": "Query_DispatchChallengesByBuilder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "builder_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "Empty on the first page. Otherwise the opaque next_page_token returned by the preceding page: it is bound to this RPC, chain, selectors and query height, and must be replayed byte for byte.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+            "format": "byte",
+            "in": "query",
+            "name": "page.page_token",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "Optional page size. 0 uses max_query_page_limit; a non-zero value above that cap is rejected with InvalidArgument and is never silently clamped.",
+            "format": "int64",
+            "in": "query",
+            "name": "page.limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchChallengesByBuilderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchChallengesByBuilder pages open challenges against one Builder.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/builder/{builder_address}/dispatch_compensation_claims": {
+      "get": {
+        "operationId": "Query_DispatchCompensationClaimsByBuilder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "builder_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "Empty on the first page. Otherwise the opaque next_page_token returned by the preceding page: it is bound to this RPC, chain, selectors and query height, and must be replayed byte for byte.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+            "format": "byte",
+            "in": "query",
+            "name": "page.page_token",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "Optional page size. 0 uses max_query_page_limit; a non-zero value above that cap is rejected with InvalidArgument and is never silently clamped.",
+            "format": "int64",
+            "in": "query",
+            "name": "page.limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchCompensationClaimsByBuilderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchCompensationClaimsByBuilder pages claims pending that Builder's rebuttal.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/dispatch_challenge/{challenge_id}": {
+      "get": {
+        "operationId": "Query_DispatchChallenge",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "challenge_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchChallengeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchChallenge executes the DispatchChallenge operation.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/dispatch_compensation/{dispatch_ticket_hash}": {
+      "get": {
+        "operationId": "Query_DispatchCompensationClaim",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "dispatch_ticket_hash",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchCompensationClaimResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchCompensationClaim executes the DispatchCompensationClaim operation.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/dispatch_ineligible/{dispatch_ticket_hash}": {
+      "get": {
+        "operationId": "Query_DispatchWinnerIneligible",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "dispatch_ticket_hash",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchWinnerIneligibleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchWinnerIneligible executes the DispatchWinnerIneligible operation.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/dispatch_record": {
+      "get": {
+        "operationId": "Query_DispatchRecord",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "by_order.session_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "uint64",
+            "in": "query",
+            "name": "by_order.order_sequence",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "dispatch_record_hash",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryDispatchRecordResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "DispatchRecord executes the DispatchRecord operation.",
         "tags": [
           "Query"
         ]
@@ -8729,41 +10053,6 @@
           }
         },
         "summary": "TaskAssignment returns the Worker assignment projection of one task.",
-        "tags": [
-          "Query"
-        ]
-      }
-    },
-    "/TrueOpen/task/v1/task/{task_id}/assignment_randomness": {
-      "get": {
-        "operationId": "Query_AssignmentRandomness",
-        "parameters": [
-          {
-            "format": "trueopen-hash32",
-            "in": "path",
-            "maxLength": 66,
-            "minLength": 66,
-            "name": "task_id",
-            "pattern": "^0x[0-9a-f]{64}$",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/task.v1.QueryAssignmentRandomnessResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/google.rpc.Status"
-            }
-          }
-        },
-        "summary": "AssignmentRandomness returns the frozen assignment randomness of one task.",
         "tags": [
           "Query"
         ]
@@ -9394,7 +10683,7 @@
         ]
       }
     },
-    "/TrueOpen/task/v1/task/{task_id}/verifier_value_evidence/{verify_round}/{target_operator_address}/{position}": {
+    "/TrueOpen/task/v1/task/{task_id}/verifier_value_evidence/{verify_round}/{target_operator_address}": {
       "get": {
         "operationId": "Query_VerifierValueEvidence",
         "parameters": [
@@ -9422,10 +10711,19 @@
             "type": "string"
           },
           {
+            "description": "Empty on the first page. Otherwise the opaque next_page_token returned by the preceding page: it is bound to this RPC, chain, selectors and query height, and must be replayed byte for byte.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
+            "format": "byte",
+            "in": "query",
+            "name": "page.page_token",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "Optional page size. 0 uses max_query_page_limit; a non-zero value above that cap is rejected with InvalidArgument and is never silently clamped.",
             "format": "int64",
-            "in": "path",
-            "name": "position",
-            "required": true,
+            "in": "query",
+            "name": "page.limit",
+            "required": false,
             "type": "integer"
           }
         ],
@@ -9443,7 +10741,7 @@
             }
           }
         },
-        "summary": "VerifierValueEvidence is registered but returns ERR_NOT_ACTIVATED.",
+        "summary": "VerifierValueEvidence pages accepted compact receipts, ordered by position.",
         "tags": [
           "Query"
         ]
@@ -9535,6 +10833,95 @@
           }
         },
         "summary": "WorkerEvidence returns one compact objective-evidence receipt.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/trueopenhub/v1/builder_compensation/{builder_address}": {
+      "get": {
+        "operationId": "Query_BuilderCompensationAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "builder_address",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/hub.v1.QueryBuilderCompensationAccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "BuilderCompensationAccount executes the BuilderCompensationAccount operation.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/trueopenhub/v1/candidate_pool/{snapshot_id}/member_by_operator/{operator_address}": {
+      "get": {
+        "operationId": "Query_CandidatePoolSnapshotMember",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "snapshot_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "model_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "format": "int64",
+            "in": "query",
+            "name": "profile_version",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/hub.v1.QueryCandidatePoolSnapshotMemberResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "CandidatePoolSnapshotMember executes the CandidatePoolSnapshotMember operation.",
         "tags": [
           "Query"
         ]

@@ -32,6 +32,9 @@ const (
 
 	// ServiceBondModuleName holds service-side worker/verifier bonds.
 	ServiceBondModuleName = "hub_service_bond"
+
+	// BuilderCompensationModuleName isolates prefund backing from service bonds.
+	BuilderCompensationModuleName = "trueopen_builder_compensation"
 )
 
 const (
@@ -853,15 +856,17 @@ const (
 //
 
 const (
-	FaultTypeWorkerInferTimeout   = "worker_infer_timeout"
-	FaultTypeVerifierMiss         = "verifier_miss"
-	FaultTypeCommitNoResult       = "commit_no_result"
-	FaultTypeResultNoSettleReveal = "result_no_settle_reveal"
-	FaultTypeValueOutlier         = "value_outlier"
-	FaultTypeCommitRevealMismatch = "commit_reveal_mismatch"
-	FaultTypeWorkerRevealTimeout  = "worker_reveal_timeout"
-	FaultTypeObjectiveForgery     = "objective_forgery"
-	FaultTypeRoundDivergence      = "round_divergence"
+	FaultTypeWorkerInferTimeout          = "worker_infer_timeout"
+	FaultTypeWorkerDispatchIneligible    = "worker_dispatch_ineligible"
+	FaultTypeWorkerDispatchContradiction = "worker_dispatch_contradiction"
+	FaultTypeVerifierMiss                = "verifier_miss"
+	FaultTypeCommitNoResult              = "commit_no_result"
+	FaultTypeResultNoSettleReveal        = "result_no_settle_reveal"
+	FaultTypeValueOutlier                = "value_outlier"
+	FaultTypeCommitRevealMismatch        = "commit_reveal_mismatch"
+	FaultTypeWorkerRevealTimeout         = "worker_reveal_timeout"
+	FaultTypeObjectiveForgery            = "objective_forgery"
+	FaultTypeRoundDivergence             = "round_divergence"
 )
 
 const (
@@ -908,20 +913,23 @@ var (
 	VrfKeyPruneIndexKey      = MustVersionedStorePrefix("vrf_key_prune", CurrentStoreSchemaVersion)
 )
 
-type VrfKeyHistoryKeyPair = collections.Pair[string, uint64]
+type VrfKeyHistoryKeyTriple = collections.Triple[int32, string, uint64]
 
-func NewVrfKeyHistoryKey(operatorAddress string, effectiveFromEpoch uint64) VrfKeyHistoryKeyPair {
-	return collections.Join(operatorAddress, effectiveFromEpoch)
+func NewVrfKeyHistoryKey(role shared.ParticipantType, operatorAddress string, effectiveFromEpoch uint64) VrfKeyHistoryKeyTriple {
+	return collections.Join3(int32(role), operatorAddress, effectiveFromEpoch)
 }
 
-type VrfKeyActivationKeyPair = collections.Pair[uint64, string]
+type VrfKeyActivationKeyTriple = collections.Triple[uint64, int32, string]
 
-func NewVrfKeyActivationKey(activationEpoch uint64, operatorAddress string) VrfKeyActivationKeyPair {
-	return collections.Join(activationEpoch, operatorAddress)
+func NewVrfKeyActivationKey(activationEpoch uint64, role shared.ParticipantType, operatorAddress string) VrfKeyActivationKeyTriple {
+	return collections.Join3(activationEpoch, int32(role), operatorAddress)
 }
 
-type VrfKeyPruneKeyTriple = collections.Triple[uint64, string, uint64]
+type VrfKeyPruneKeyQuad = collections.Quad[uint64, int32, string, uint64]
 
-func NewVrfKeyPruneKey(pruneEpoch uint64, operatorAddress string, effectiveFromEpoch uint64) VrfKeyPruneKeyTriple {
-	return collections.Join3(pruneEpoch, operatorAddress, effectiveFromEpoch)
+func NewVrfKeyPruneKey(pruneEpoch uint64, role shared.ParticipantType, operatorAddress string, effectiveFromEpoch uint64) VrfKeyPruneKeyQuad {
+	return collections.Join4(pruneEpoch, int32(role), operatorAddress, effectiveFromEpoch)
 }
+
+// CandidatePoolProfileAdditionKey normalizes profiles added to an unsealed pool.
+var CandidatePoolProfileAdditionKey = MustVersionedStorePrefix("candidate_pool_profile_addition", CurrentStoreSchemaVersion)

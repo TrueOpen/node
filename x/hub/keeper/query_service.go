@@ -122,10 +122,20 @@ func (q queryServer) CurrentServiceKey(ctx context.Context, req *types.QueryCurr
 		ServiceAddress: identity.ServiceAddress, ServicePubkey: append([]byte(nil), identity.ServicePubkey...),
 		ServiceAuthorizationNonce: identity.AuthorizationNonce, CurrentDescriptorVersion: identity.CurrentDescriptorVersion,
 	}
+	if identity.PreviousAuthorizationNonce != 0 {
+		view.XPreviousServicePubkey = &types.CurrentServiceKeyViewV1_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(identity.PreviousServicePubkey)}
+		view.XPreviousServiceAuthorizationNonce = &types.CurrentServiceKeyViewV1_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: identity.PreviousAuthorizationNonce}
+		view.XPreviousRetiredHeight = &types.CurrentServiceKeyViewV1_PreviousRetiredHeight{PreviousRetiredHeight: identity.PreviousRetiredHeight}
+	}
 	if req.ParticipantType == shared.ParticipantType_PARTICIPANT_TYPE_CORTEX {
 		view.ParticipantStatus = &types.CurrentServiceKeyViewV1_CortexServiceKeyStatus{CortexServiceKeyStatus: identity.ServiceKeyStatus}
 	} else {
 		view.ParticipantStatus = &types.CurrentServiceKeyViewV1_BuilderServiceKeyStatus{BuilderServiceKeyStatus: identity.ServiceKeyStatus}
+	}
+	if pending, err := q.k.ReadPendingServiceKeyRotation(ctx, req.ParticipantType, operatorAddress); err == nil {
+		view.XPendingRotation = &types.CurrentServiceKeyViewV1_PendingRotation{PendingRotation: &pending}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return nil, status.Error(codes.Internal, "pending service key unavailable")
 	}
 	return &types.QueryCurrentServiceKeyResponse{Binding: view}, nil
 }

@@ -21,6 +21,12 @@ func (s CortexNodeState) Validate() error {
 	if s.ServiceAuthorizationNonce == 0 || !IsValidServiceKeyStatus(s.ServiceKeyStatus) {
 		return fmt.Errorf("cortex node service authorization nonce/status is invalid")
 	}
+	if (s.XPreviousServicePubkey == nil) != (s.XPreviousServiceAuthorizationNonce == nil) || (s.XPreviousServicePubkey == nil) != (s.XPreviousRetiredHeight == nil) || s.XPreviousServicePubkey != nil && len(s.GetPreviousServicePubkey()) == 0 {
+		return fmt.Errorf("previous service key fields must be present together")
+	}
+	if err := ValidatePreviousServiceKeyBinding(s.ServiceAuthorizationNonce, s.CurrentServicePubkey, s.GetPreviousServicePubkey(), s.GetPreviousServiceAuthorizationNonce(), s.GetPreviousRetiredHeight()); err != nil {
+		return err
+	}
 	if s.RegisteredHeight == 0 || s.UpdatedHeight < s.RegisteredHeight {
 		return fmt.Errorf("cortex node heights are invalid")
 	}
@@ -410,8 +416,11 @@ func isValidModelSupportActivationKind(kind ModelSupportActivationKind) bool {
 	return kind == ModelSupportActivationNone || kind == ModelSupportActivationP30OrderValue || kind == ModelSupportActivationVerifierAssignedValid
 }
 
-func isValidFaultKind(kind FaultKind) bool {
-	return kind >= FaultKind_FAULT_KIND_TIMEOUT && kind <= FaultKind_FAULT_KIND_BUILDER_OBJECTIVE_FAULT
+func isValidFaultKind(kind shared.FaultKind) bool {
+	if kind == shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_INELIGIBLE || kind == shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_CONTRADICTION {
+		return true
+	}
+	return kind >= shared.FaultKind_FAULT_KIND_TIMEOUT && kind <= shared.FaultKind_FAULT_KIND_WORKER_VALUES_INVALID
 }
 
 func isValidFailureClassificationSource(source shared.FailureClassificationSource) bool {

@@ -309,10 +309,8 @@ func (k Keeper) applyPreVerificationFailure(
 	if err := k.sendFromTaskEscrow(ctx, hubtypes.RewardsModuleName, gasTotal); err != nil {
 		return preVerificationFailureResult{}, err
 	}
-	if refund != 0 {
-		if err := k.releaseTaskBudgetRefund(ctx, core.UserAddress, refund); err != nil {
-			return preVerificationFailureResult{}, err
-		}
+	if err := k.finalizeSessionTaskFunds(ctx, core.SessionId, budget.ReservedAmount, refund); err != nil {
+		return preVerificationFailureResult{}, err
 	}
 	budget.ReservedAmount = shared.NewAmount(0)
 	budget.TxFeeReserveRemaining = shared.NewAmount(0)
@@ -438,8 +436,6 @@ func (k Keeper) applyPreVerificationFailure(
 
 func preVerificationVerdict(kind types.DeadlineKindV1) (types.TaskVerdict, error) {
 	switch kind {
-	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:
-		return types.TaskVerdict_TASK_VERDICT_ASSIGN_TIMEOUT, nil
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:
 		return types.TaskVerdict_TASK_VERDICT_WORKER_TIMEOUT, nil
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:

@@ -23,7 +23,6 @@ func (k Keeper) taskBuilderSelectionToStore(state types.TaskBuilderSelectionStat
 	}
 	return internaltypes.TaskBuilderSelectionStoreState{
 		TaskId:                   append([]byte(nil), state.TaskId...),
-		SessionAnchorBlockHash:   append([]byte(nil), state.SessionAnchorBlockHash...),
 		BuilderSetId:             state.BuilderSetId,
 		BuilderSetHash:           append([]byte(nil), state.BuilderSetHash...),
 		SelectedTaskBuilders:     builders,
@@ -50,7 +49,6 @@ func (k Keeper) ProjectTaskBuilderSelection(stored internaltypes.TaskBuilderSele
 	}
 	return types.TaskBuilderSelectionState{
 		TaskId:                       append([]byte(nil), stored.TaskId...),
-		SessionAnchorBlockHash:       append([]byte(nil), stored.SessionAnchorBlockHash...),
 		BuilderSetId:                 stored.BuilderSetId,
 		BuilderSetHash:               append([]byte(nil), stored.BuilderSetHash...),
 		SelectedTaskBuilders:         builders,

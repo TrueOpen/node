@@ -111,7 +111,7 @@ func (SessionLifecycleAction) EnumDescriptor() ([]byte, []int) {
 
 // OrderSequenceStatus is the per-sequence audit status of this contract.
 //
-// The five nonzero values are frozen in sequence lifecycle order.
+// Statuses distinguish retained sequence outcomes and pending cancellation.
 // OrderSequenceStatus defines the OrderSequenceStatus wire type.
 type OrderSequenceStatus int32
 
@@ -122,7 +122,7 @@ const (
 	// Reserved sequence that no task has consumed yet.
 	// ORDER_SEQUENCE_STATUS_UNUSED identifies the corresponding protocol value.
 	OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED OrderSequenceStatus = 1
-	// Consumed by an accepted first Worker proposal.
+	// Consumed by an accepted dispatch entry.
 	// ORDER_SEQUENCE_STATUS_CONSUMED identifies the corresponding protocol value.
 	OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CONSUMED OrderSequenceStatus = 2
 	// Skipped by MsgCancelOrder; no funds moved.
@@ -134,6 +134,8 @@ const (
 	// Task reached a settled terminal state.
 	// ORDER_SEQUENCE_STATUS_SETTLED identifies the corresponding protocol value.
 	OrderSequenceStatus_ORDER_SEQUENCE_STATUS_SETTLED OrderSequenceStatus = 5
+	// Cancellation is registered but not yet effective.
+	OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING OrderSequenceStatus = 6
 )
 
 var OrderSequenceStatus_name = map[int32]string{
@@ -143,15 +145,17 @@ var OrderSequenceStatus_name = map[int32]string{
 	3: "ORDER_SEQUENCE_STATUS_CANCELLED",
 	4: "ORDER_SEQUENCE_STATUS_REFUNDED",
 	5: "ORDER_SEQUENCE_STATUS_SETTLED",
+	6: "ORDER_SEQUENCE_STATUS_CANCEL_PENDING",
 }
 
 var OrderSequenceStatus_value = map[string]int32{
-	"ORDER_SEQUENCE_STATUS_UNSPECIFIED": 0,
-	"ORDER_SEQUENCE_STATUS_UNUSED":      1,
-	"ORDER_SEQUENCE_STATUS_CONSUMED":    2,
-	"ORDER_SEQUENCE_STATUS_CANCELLED":   3,
-	"ORDER_SEQUENCE_STATUS_REFUNDED":    4,
-	"ORDER_SEQUENCE_STATUS_SETTLED":     5,
+	"ORDER_SEQUENCE_STATUS_UNSPECIFIED":    0,
+	"ORDER_SEQUENCE_STATUS_UNUSED":         1,
+	"ORDER_SEQUENCE_STATUS_CONSUMED":       2,
+	"ORDER_SEQUENCE_STATUS_CANCELLED":      3,
+	"ORDER_SEQUENCE_STATUS_REFUNDED":       4,
+	"ORDER_SEQUENCE_STATUS_SETTLED":        5,
+	"ORDER_SEQUENCE_STATUS_CANCEL_PENDING": 6,
 }
 
 func (x OrderSequenceStatus) String() string {
@@ -198,6 +202,74 @@ func (x TaskBudgetStatus) String() string {
 
 func (TaskBudgetStatus) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_eaa9868f95fea5c3, []int{3}
+}
+
+// SessionWithdrawKindV1 is the closed SessionWithdrawKindV1 registry.
+type SessionWithdrawKindV1 int32
+
+const (
+	// UNSPECIFIED is the unspecified value.
+	SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_UNSPECIFIED SessionWithdrawKindV1 = 0
+	// NONE is the none value.
+	SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE SessionWithdrawKindV1 = 1
+	// AMOUNT is the amount value.
+	SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_AMOUNT SessionWithdrawKindV1 = 2
+	// CLOSE is the close value.
+	SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE SessionWithdrawKindV1 = 3
+)
+
+var SessionWithdrawKindV1_name = map[int32]string{
+	0: "SESSION_WITHDRAW_KIND_V1_UNSPECIFIED",
+	1: "SESSION_WITHDRAW_KIND_V1_NONE",
+	2: "SESSION_WITHDRAW_KIND_V1_AMOUNT",
+	3: "SESSION_WITHDRAW_KIND_V1_CLOSE",
+}
+
+var SessionWithdrawKindV1_value = map[string]int32{
+	"SESSION_WITHDRAW_KIND_V1_UNSPECIFIED": 0,
+	"SESSION_WITHDRAW_KIND_V1_NONE":        1,
+	"SESSION_WITHDRAW_KIND_V1_AMOUNT":      2,
+	"SESSION_WITHDRAW_KIND_V1_CLOSE":       3,
+}
+
+func (x SessionWithdrawKindV1) String() string {
+	return proto.EnumName(SessionWithdrawKindV1_name, int32(x))
+}
+
+func (SessionWithdrawKindV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{4}
+}
+
+// SessionKeyChangeKindV1 is the closed SessionKeyChangeKindV1 registry.
+type SessionKeyChangeKindV1 int32
+
+const (
+	// UNSPECIFIED is the unspecified value.
+	SessionKeyChangeKindV1_SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED SessionKeyChangeKindV1 = 0
+	// SET is the set value.
+	SessionKeyChangeKindV1_SESSION_KEY_CHANGE_KIND_V1_SET SessionKeyChangeKindV1 = 1
+	// CLEAR is the clear value.
+	SessionKeyChangeKindV1_SESSION_KEY_CHANGE_KIND_V1_CLEAR SessionKeyChangeKindV1 = 2
+)
+
+var SessionKeyChangeKindV1_name = map[int32]string{
+	0: "SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED",
+	1: "SESSION_KEY_CHANGE_KIND_V1_SET",
+	2: "SESSION_KEY_CHANGE_KIND_V1_CLEAR",
+}
+
+var SessionKeyChangeKindV1_value = map[string]int32{
+	"SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED": 0,
+	"SESSION_KEY_CHANGE_KIND_V1_SET":         1,
+	"SESSION_KEY_CHANGE_KIND_V1_CLEAR":       2,
+}
+
+func (x SessionKeyChangeKindV1) String() string {
+	return proto.EnumName(SessionKeyChangeKindV1_name, int32(x))
+}
+
+func (SessionKeyChangeKindV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{5}
 }
 
 // SessionNonceState is the per-user session counter (key = user_address).
@@ -257,10 +329,9 @@ func (m *SessionNonceState) GetNextSessionNonce() uint64 {
 
 // StreamState is one session: sequence counter, owner, in-flight count and
 // optional delegated signing authorization
-// (key = session_id). Model A: a session never holds a balance; the
-// abandoned SessionEscrowState double ledger is deleted, and funds live in the
-// user account and the escrow module account with TaskBudgetState as the only
-// per-task ledger.
+// (key = session_id). Balance includes frozen Task reservations in the escrow
+// module account. Admission freezes funds from this ledger; settlement charges
+// actual spend and makes the remainder available in this same session.
 // StreamState defines the StreamState wire type.
 type StreamState struct {
 	SessionId            []byte        `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -280,10 +351,31 @@ type StreamState struct {
 	// renewal, clearing or refunds. Wallet orders do not increment it.
 	SessionKeySpent types.Amount `protobuf:"bytes,10,opt,name=session_key_spent,json=sessionKeySpent,proto3" json:"session_key_spent"`
 	// First registration, different-key replacement or SET after CLEAR records
-	// the execution height; same-key renewal/cap changes preserve it. Zero when
+	// the effective height; initial creation is immediate. Same-key renewal/cap
+	// changes preserve it. Zero when
 	// no key is registered. A delegated order's signed anchor height must be at
 	// least this height, preventing signatures from a revoked grant reviving.
-	SessionKeySetHeight uint64 `protobuf:"varint,11,opt,name=session_key_set_height,json=sessionKeySetHeight,proto3" json:"session_key_set_height,omitempty"`
+	SessionKeySetHeight            uint64                `protobuf:"varint,11,opt,name=session_key_set_height,json=sessionKeySetHeight,proto3" json:"session_key_set_height,omitempty"`
+	Balance                        types.Amount          `protobuf:"bytes,12,opt,name=balance,proto3" json:"balance"`
+	FrozenTotal                    types.Amount          `protobuf:"bytes,13,opt,name=frozen_total,json=frozenTotal,proto3" json:"frozen_total"`
+	PendingWithdrawKind            SessionWithdrawKindV1 `protobuf:"varint,14,opt,name=pending_withdraw_kind,json=pendingWithdrawKind,proto3,enum=task.v1.SessionWithdrawKindV1" json:"pending_withdraw_kind,omitempty"`
+	PendingWithdrawAmount          types.Amount          `protobuf:"bytes,15,opt,name=pending_withdraw_amount,json=pendingWithdrawAmount,proto3" json:"pending_withdraw_amount"`
+	PendingWithdrawEffectiveHeight uint64                `protobuf:"varint,16,opt,name=pending_withdraw_effective_height,json=pendingWithdrawEffectiveHeight,proto3" json:"pending_withdraw_effective_height,omitempty"`
+	BoundBuilder                   string                `protobuf:"bytes,17,opt,name=bound_builder,json=boundBuilder,proto3" json:"bound_builder,omitempty"`
+	BoundChangeHeight              uint64                `protobuf:"varint,18,opt,name=bound_change_height,json=boundChangeHeight,proto3" json:"bound_change_height,omitempty"`
+	LastRecordHeight               uint64                `protobuf:"varint,19,opt,name=last_record_height,json=lastRecordHeight,proto3" json:"last_record_height,omitempty"`
+	// Types that are valid to be assigned to XLastRecordWinner:
+	//	*StreamState_LastRecordWinner
+	XLastRecordWinner    isStreamState_XLastRecordWinner `protobuf_oneof:"_last_record_winner"`
+	StickyAnchorSequence uint64                          `protobuf:"varint,21,opt,name=sticky_anchor_sequence,json=stickyAnchorSequence,proto3" json:"sticky_anchor_sequence,omitempty"`
+	StickyAnchorHeight   uint64                          `protobuf:"varint,22,opt,name=sticky_anchor_height,json=stickyAnchorHeight,proto3" json:"sticky_anchor_height,omitempty"`
+	StickyRunCount       uint32                          `protobuf:"varint,23,opt,name=sticky_run_count,json=stickyRunCount,proto3" json:"sticky_run_count,omitempty"`
+	// Types that are valid to be assigned to XPendingSessionKeyChange:
+	//	*StreamState_PendingSessionKeyChange
+	XPendingSessionKeyChange isStreamState_XPendingSessionKeyChange `protobuf_oneof:"_pending_session_key_change"`
+	// Types that are valid to be assigned to XPendingTakeover:
+	//	*StreamState_PendingTakeover
+	XPendingTakeover isStreamState_XPendingTakeover `protobuf_oneof:"_pending_takeover"`
 }
 
 func (m *StreamState) Reset()         { *m = StreamState{} }
@@ -324,16 +416,61 @@ type isStreamState_XSessionKey interface {
 	MarshalTo([]byte) (int, error)
 	Size() int
 }
+type isStreamState_XLastRecordWinner interface {
+	isStreamState_XLastRecordWinner()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+type isStreamState_XPendingSessionKeyChange interface {
+	isStreamState_XPendingSessionKeyChange()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+type isStreamState_XPendingTakeover interface {
+	isStreamState_XPendingTakeover()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
 
 type StreamState_SessionKey struct {
 	SessionKey []byte `protobuf:"bytes,7,opt,name=session_key,json=sessionKey,proto3,oneof" json:"session_key,omitempty"`
 }
+type StreamState_LastRecordWinner struct {
+	LastRecordWinner string `protobuf:"bytes,20,opt,name=last_record_winner,json=lastRecordWinner,proto3,oneof" json:"last_record_winner,omitempty"`
+}
+type StreamState_PendingSessionKeyChange struct {
+	PendingSessionKeyChange *PendingSessionKeyChangeV1 `protobuf:"bytes,24,opt,name=pending_session_key_change,json=pendingSessionKeyChange,proto3,oneof" json:"pending_session_key_change,omitempty"`
+}
+type StreamState_PendingTakeover struct {
+	PendingTakeover *PendingTakeoverV1 `protobuf:"bytes,25,opt,name=pending_takeover,json=pendingTakeover,proto3,oneof" json:"pending_takeover,omitempty"`
+}
 
-func (*StreamState_SessionKey) isStreamState_XSessionKey() {}
+func (*StreamState_SessionKey) isStreamState_XSessionKey()                           {}
+func (*StreamState_LastRecordWinner) isStreamState_XLastRecordWinner()               {}
+func (*StreamState_PendingSessionKeyChange) isStreamState_XPendingSessionKeyChange() {}
+func (*StreamState_PendingTakeover) isStreamState_XPendingTakeover()                 {}
 
 func (m *StreamState) GetXSessionKey() isStreamState_XSessionKey {
 	if m != nil {
 		return m.XSessionKey
+	}
+	return nil
+}
+func (m *StreamState) GetXLastRecordWinner() isStreamState_XLastRecordWinner {
+	if m != nil {
+		return m.XLastRecordWinner
+	}
+	return nil
+}
+func (m *StreamState) GetXPendingSessionKeyChange() isStreamState_XPendingSessionKeyChange {
+	if m != nil {
+		return m.XPendingSessionKeyChange
+	}
+	return nil
+}
+func (m *StreamState) GetXPendingTakeover() isStreamState_XPendingTakeover {
+	if m != nil {
+		return m.XPendingTakeover
 	}
 	return nil
 }
@@ -415,10 +552,111 @@ func (m *StreamState) GetSessionKeySetHeight() uint64 {
 	return 0
 }
 
+func (m *StreamState) GetBalance() types.Amount {
+	if m != nil {
+		return m.Balance
+	}
+	return types.Amount{}
+}
+
+func (m *StreamState) GetFrozenTotal() types.Amount {
+	if m != nil {
+		return m.FrozenTotal
+	}
+	return types.Amount{}
+}
+
+func (m *StreamState) GetPendingWithdrawKind() SessionWithdrawKindV1 {
+	if m != nil {
+		return m.PendingWithdrawKind
+	}
+	return SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_UNSPECIFIED
+}
+
+func (m *StreamState) GetPendingWithdrawAmount() types.Amount {
+	if m != nil {
+		return m.PendingWithdrawAmount
+	}
+	return types.Amount{}
+}
+
+func (m *StreamState) GetPendingWithdrawEffectiveHeight() uint64 {
+	if m != nil {
+		return m.PendingWithdrawEffectiveHeight
+	}
+	return 0
+}
+
+func (m *StreamState) GetBoundBuilder() string {
+	if m != nil {
+		return m.BoundBuilder
+	}
+	return ""
+}
+
+func (m *StreamState) GetBoundChangeHeight() uint64 {
+	if m != nil {
+		return m.BoundChangeHeight
+	}
+	return 0
+}
+
+func (m *StreamState) GetLastRecordHeight() uint64 {
+	if m != nil {
+		return m.LastRecordHeight
+	}
+	return 0
+}
+
+func (m *StreamState) GetLastRecordWinner() string {
+	if x, ok := m.GetXLastRecordWinner().(*StreamState_LastRecordWinner); ok {
+		return x.LastRecordWinner
+	}
+	return ""
+}
+
+func (m *StreamState) GetStickyAnchorSequence() uint64 {
+	if m != nil {
+		return m.StickyAnchorSequence
+	}
+	return 0
+}
+
+func (m *StreamState) GetStickyAnchorHeight() uint64 {
+	if m != nil {
+		return m.StickyAnchorHeight
+	}
+	return 0
+}
+
+func (m *StreamState) GetStickyRunCount() uint32 {
+	if m != nil {
+		return m.StickyRunCount
+	}
+	return 0
+}
+
+func (m *StreamState) GetPendingSessionKeyChange() *PendingSessionKeyChangeV1 {
+	if x, ok := m.GetXPendingSessionKeyChange().(*StreamState_PendingSessionKeyChange); ok {
+		return x.PendingSessionKeyChange
+	}
+	return nil
+}
+
+func (m *StreamState) GetPendingTakeover() *PendingTakeoverV1 {
+	if x, ok := m.GetXPendingTakeover().(*StreamState_PendingTakeover); ok {
+		return x.PendingTakeover
+	}
+	return nil
+}
+
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*StreamState) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
 		(*StreamState_SessionKey)(nil),
+		(*StreamState_LastRecordWinner)(nil),
+		(*StreamState_PendingSessionKeyChange)(nil),
+		(*StreamState_PendingTakeover)(nil),
 	}
 }
 
@@ -427,12 +665,13 @@ func (*StreamState) XXX_OneofWrappers() []interface{} {
 // only authority for the next acceptable sequence.
 // OrderSequenceState defines the OrderSequenceState wire type.
 type OrderSequenceState struct {
-	SessionId       []byte              `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	OrderSequence   uint64              `protobuf:"varint,2,opt,name=order_sequence,json=orderSequence,proto3" json:"order_sequence,omitempty"`
-	Status          OrderSequenceStatus `protobuf:"varint,3,opt,name=status,proto3,enum=task.v1.OrderSequenceStatus" json:"status,omitempty"`
-	TaskId          []byte              `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ConsumedHeight  uint64              `protobuf:"varint,5,opt,name=consumed_height,json=consumedHeight,proto3" json:"consumed_height,omitempty"`
-	CancelledHeight uint64              `protobuf:"varint,6,opt,name=cancelled_height,json=cancelledHeight,proto3" json:"cancelled_height,omitempty"`
+	SessionId             []byte              `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	OrderSequence         uint64              `protobuf:"varint,2,opt,name=order_sequence,json=orderSequence,proto3" json:"order_sequence,omitempty"`
+	Status                OrderSequenceStatus `protobuf:"varint,3,opt,name=status,proto3,enum=task.v1.OrderSequenceStatus" json:"status,omitempty"`
+	TaskId                []byte              `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ConsumedHeight        uint64              `protobuf:"varint,5,opt,name=consumed_height,json=consumedHeight,proto3" json:"consumed_height,omitempty"`
+	CancelledHeight       uint64              `protobuf:"varint,6,opt,name=cancelled_height,json=cancelledHeight,proto3" json:"cancelled_height,omitempty"`
+	CancelEffectiveHeight uint64              `protobuf:"varint,7,opt,name=cancel_effective_height,json=cancelEffectiveHeight,proto3" json:"cancel_effective_height,omitempty"`
 }
 
 func (m *OrderSequenceState) Reset()         { *m = OrderSequenceState{} }
@@ -506,6 +745,13 @@ func (m *OrderSequenceState) GetConsumedHeight() uint64 {
 func (m *OrderSequenceState) GetCancelledHeight() uint64 {
 	if m != nil {
 		return m.CancelledHeight
+	}
+	return 0
+}
+
+func (m *OrderSequenceState) GetCancelEffectiveHeight() uint64 {
+	if m != nil {
+		return m.CancelEffectiveHeight
 	}
 	return 0
 }
@@ -985,11 +1231,283 @@ func (m *TaskBudgetState) GetBudgetStatus() TaskBudgetStatus {
 	return TaskBudgetStatus_TASK_BUDGET_STATUS_UNSPECIFIED
 }
 
+// SessionKeyGrantV1 registers a delegated order/request signer for one session.
+// The raw20 address must be nonzero and different from the owner's address.
+// At registration/renewal, current_height < expiry_height <= current_height +
+// the current effective max_session_key_blocks (checked addition). The limit
+// is not resolved through the session's pinned historical parameter version.
+// A canonical zero spend_cap (atomic_units = "0") is unlimited; otherwise it
+// bounds cumulative admitted max_fee, not actual spend or a prepaid balance.
+type SessionKeyGrantV1 struct {
+	SessionKey   []byte       `protobuf:"bytes,1,opt,name=session_key,json=sessionKey,proto3" json:"session_key,omitempty"`
+	ExpiryHeight uint64       `protobuf:"varint,2,opt,name=expiry_height,json=expiryHeight,proto3" json:"expiry_height,omitempty"`
+	SpendCap     types.Amount `protobuf:"bytes,3,opt,name=spend_cap,json=spendCap,proto3" json:"spend_cap"`
+}
+
+func (m *SessionKeyGrantV1) Reset()         { *m = SessionKeyGrantV1{} }
+func (m *SessionKeyGrantV1) String() string { return proto.CompactTextString(m) }
+func (*SessionKeyGrantV1) ProtoMessage()    {}
+func (*SessionKeyGrantV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{7}
+}
+func (m *SessionKeyGrantV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SessionKeyGrantV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SessionKeyGrantV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SessionKeyGrantV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionKeyGrantV1.Merge(m, src)
+}
+func (m *SessionKeyGrantV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *SessionKeyGrantV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionKeyGrantV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionKeyGrantV1 proto.InternalMessageInfo
+
+func (m *SessionKeyGrantV1) GetSessionKey() []byte {
+	if m != nil {
+		return m.SessionKey
+	}
+	return nil
+}
+
+func (m *SessionKeyGrantV1) GetExpiryHeight() uint64 {
+	if m != nil {
+		return m.ExpiryHeight
+	}
+	return 0
+}
+
+func (m *SessionKeyGrantV1) GetSpendCap() types.Amount {
+	if m != nil {
+		return m.SpendCap
+	}
+	return types.Amount{}
+}
+
+// ClearSessionKeyV1 registers delayed revocation.
+type ClearSessionKeyV1 struct {
+}
+
+func (m *ClearSessionKeyV1) Reset()         { *m = ClearSessionKeyV1{} }
+func (m *ClearSessionKeyV1) String() string { return proto.CompactTextString(m) }
+func (*ClearSessionKeyV1) ProtoMessage()    {}
+func (*ClearSessionKeyV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{8}
+}
+func (m *ClearSessionKeyV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ClearSessionKeyV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ClearSessionKeyV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ClearSessionKeyV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClearSessionKeyV1.Merge(m, src)
+}
+func (m *ClearSessionKeyV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *ClearSessionKeyV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClearSessionKeyV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClearSessionKeyV1 proto.InternalMessageInfo
+
+// PendingTakeoverV1 defines the canonical PendingTakeoverV1 fields.
+type PendingTakeoverV1 struct {
+	CandidateBuilder string `protobuf:"bytes,1,opt,name=candidate_builder,json=candidateBuilder,proto3" json:"candidate_builder,omitempty"`
+	OrderSequence    uint64 `protobuf:"varint,2,opt,name=order_sequence,json=orderSequence,proto3" json:"order_sequence,omitempty"`
+	OrderTaskHash    []byte `protobuf:"bytes,3,opt,name=order_task_hash,json=orderTaskHash,proto3" json:"order_task_hash,omitempty"`
+	RegisteredHeight uint64 `protobuf:"varint,4,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
+	ActivationHeight uint64 `protobuf:"varint,5,opt,name=activation_height,json=activationHeight,proto3" json:"activation_height,omitempty"`
+}
+
+func (m *PendingTakeoverV1) Reset()         { *m = PendingTakeoverV1{} }
+func (m *PendingTakeoverV1) String() string { return proto.CompactTextString(m) }
+func (*PendingTakeoverV1) ProtoMessage()    {}
+func (*PendingTakeoverV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{9}
+}
+func (m *PendingTakeoverV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PendingTakeoverV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PendingTakeoverV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PendingTakeoverV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PendingTakeoverV1.Merge(m, src)
+}
+func (m *PendingTakeoverV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *PendingTakeoverV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_PendingTakeoverV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PendingTakeoverV1 proto.InternalMessageInfo
+
+func (m *PendingTakeoverV1) GetCandidateBuilder() string {
+	if m != nil {
+		return m.CandidateBuilder
+	}
+	return ""
+}
+
+func (m *PendingTakeoverV1) GetOrderSequence() uint64 {
+	if m != nil {
+		return m.OrderSequence
+	}
+	return 0
+}
+
+func (m *PendingTakeoverV1) GetOrderTaskHash() []byte {
+	if m != nil {
+		return m.OrderTaskHash
+	}
+	return nil
+}
+
+func (m *PendingTakeoverV1) GetRegisteredHeight() uint64 {
+	if m != nil {
+		return m.RegisteredHeight
+	}
+	return 0
+}
+
+func (m *PendingTakeoverV1) GetActivationHeight() uint64 {
+	if m != nil {
+		return m.ActivationHeight
+	}
+	return 0
+}
+
+// PendingSessionKeyChangeV1 defines the canonical PendingSessionKeyChangeV1 fields.
+type PendingSessionKeyChangeV1 struct {
+	Kind SessionKeyChangeKindV1 `protobuf:"varint,1,opt,name=kind,proto3,enum=task.v1.SessionKeyChangeKindV1" json:"kind,omitempty"`
+	// Types that are valid to be assigned to XGrant:
+	//	*PendingSessionKeyChangeV1_Grant
+	XGrant          isPendingSessionKeyChangeV1_XGrant `protobuf_oneof:"_grant"`
+	EffectiveHeight uint64                             `protobuf:"varint,3,opt,name=effective_height,json=effectiveHeight,proto3" json:"effective_height,omitempty"`
+}
+
+func (m *PendingSessionKeyChangeV1) Reset()         { *m = PendingSessionKeyChangeV1{} }
+func (m *PendingSessionKeyChangeV1) String() string { return proto.CompactTextString(m) }
+func (*PendingSessionKeyChangeV1) ProtoMessage()    {}
+func (*PendingSessionKeyChangeV1) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eaa9868f95fea5c3, []int{10}
+}
+func (m *PendingSessionKeyChangeV1) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PendingSessionKeyChangeV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PendingSessionKeyChangeV1.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PendingSessionKeyChangeV1) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PendingSessionKeyChangeV1.Merge(m, src)
+}
+func (m *PendingSessionKeyChangeV1) XXX_Size() int {
+	return m.Size()
+}
+func (m *PendingSessionKeyChangeV1) XXX_DiscardUnknown() {
+	xxx_messageInfo_PendingSessionKeyChangeV1.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PendingSessionKeyChangeV1 proto.InternalMessageInfo
+
+type isPendingSessionKeyChangeV1_XGrant interface {
+	isPendingSessionKeyChangeV1_XGrant()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type PendingSessionKeyChangeV1_Grant struct {
+	Grant *SessionKeyGrantV1 `protobuf:"bytes,2,opt,name=grant,proto3,oneof" json:"grant,omitempty"`
+}
+
+func (*PendingSessionKeyChangeV1_Grant) isPendingSessionKeyChangeV1_XGrant() {}
+
+func (m *PendingSessionKeyChangeV1) GetXGrant() isPendingSessionKeyChangeV1_XGrant {
+	if m != nil {
+		return m.XGrant
+	}
+	return nil
+}
+
+func (m *PendingSessionKeyChangeV1) GetKind() SessionKeyChangeKindV1 {
+	if m != nil {
+		return m.Kind
+	}
+	return SessionKeyChangeKindV1_SESSION_KEY_CHANGE_KIND_V1_UNSPECIFIED
+}
+
+func (m *PendingSessionKeyChangeV1) GetGrant() *SessionKeyGrantV1 {
+	if x, ok := m.GetXGrant().(*PendingSessionKeyChangeV1_Grant); ok {
+		return x.Grant
+	}
+	return nil
+}
+
+func (m *PendingSessionKeyChangeV1) GetEffectiveHeight() uint64 {
+	if m != nil {
+		return m.EffectiveHeight
+	}
+	return 0
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*PendingSessionKeyChangeV1) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*PendingSessionKeyChangeV1_Grant)(nil),
+	}
+}
+
 func init() {
 	proto.RegisterEnum("task.v1.SessionStatus", SessionStatus_name, SessionStatus_value)
 	proto.RegisterEnum("task.v1.SessionLifecycleAction", SessionLifecycleAction_name, SessionLifecycleAction_value)
 	proto.RegisterEnum("task.v1.OrderSequenceStatus", OrderSequenceStatus_name, OrderSequenceStatus_value)
 	proto.RegisterEnum("task.v1.TaskBudgetStatus", TaskBudgetStatus_name, TaskBudgetStatus_value)
+	proto.RegisterEnum("task.v1.SessionWithdrawKindV1", SessionWithdrawKindV1_name, SessionWithdrawKindV1_value)
+	proto.RegisterEnum("task.v1.SessionKeyChangeKindV1", SessionKeyChangeKindV1_name, SessionKeyChangeKindV1_value)
 	proto.RegisterType((*SessionNonceState)(nil), "task.v1.SessionNonceState")
 	proto.RegisterType((*StreamState)(nil), "task.v1.StreamState")
 	proto.RegisterType((*OrderSequenceState)(nil), "task.v1.OrderSequenceState")
@@ -997,114 +1515,160 @@ func init() {
 	proto.RegisterType((*SessionTerminalSummaryState)(nil), "task.v1.SessionTerminalSummaryState")
 	proto.RegisterType((*FeePerGasRateV1)(nil), "task.v1.FeePerGasRateV1")
 	proto.RegisterType((*TaskBudgetState)(nil), "task.v1.TaskBudgetState")
+	proto.RegisterType((*SessionKeyGrantV1)(nil), "task.v1.SessionKeyGrantV1")
+	proto.RegisterType((*ClearSessionKeyV1)(nil), "task.v1.ClearSessionKeyV1")
+	proto.RegisterType((*PendingTakeoverV1)(nil), "task.v1.PendingTakeoverV1")
+	proto.RegisterType((*PendingSessionKeyChangeV1)(nil), "task.v1.PendingSessionKeyChangeV1")
 }
 
 func init() { proto.RegisterFile("task/v1/session.proto", fileDescriptor_eaa9868f95fea5c3) }
 
 var fileDescriptor_eaa9868f95fea5c3 = []byte{
-	// 1622 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x57, 0xcf, 0x53, 0x1b, 0xc9,
-	0x15, 0x46, 0x58, 0xc6, 0xe6, 0x01, 0x92, 0x68, 0x0c, 0x2b, 0x6c, 0x90, 0x65, 0x1c, 0x12, 0x96,
-	0x4a, 0xa0, 0xbc, 0xeb, 0xda, 0xca, 0x56, 0x2a, 0xd9, 0x48, 0x62, 0x58, 0x2b, 0xc6, 0x02, 0xcf,
-	0x08, 0xaa, 0xb2, 0x97, 0xa9, 0x46, 0xf3, 0x10, 0x53, 0x68, 0xa6, 0x95, 0xee, 0x1e, 0x56, 0xba,
-	0xec, 0x39, 0x7b, 0x49, 0xe5, 0x8f, 0xc9, 0x1f, 0xe1, 0x53, 0x6a, 0x2b, 0xa7, 0x9c, 0x52, 0x29,
-	0xfb, 0x9e, 0x4a, 0x55, 0x4e, 0xb9, 0xa5, 0xba, 0x7b, 0x66, 0x34, 0x22, 0x42, 0xb6, 0x4f, 0x7b,
-	0x33, 0xdf, 0xfb, 0xde, 0xf7, 0x7e, 0xb7, 0x47, 0xb0, 0x2a, 0xa9, 0xb8, 0xda, 0xbf, 0x7e, 0xb6,
-	0x2f, 0x50, 0x08, 0x9f, 0x85, 0x7b, 0x7d, 0xce, 0x24, 0x23, 0xf7, 0x14, 0xbc, 0x77, 0xfd, 0xec,
-	0xe1, 0x7a, 0x87, 0x89, 0x80, 0x09, 0x57, 0xc3, 0xfb, 0xe6, 0x0f, 0xc3, 0x79, 0xf8, 0xa0, 0xcb,
-	0xba, 0xcc, 0xe0, 0xea, 0x5f, 0x31, 0xba, 0x26, 0x2e, 0x29, 0x47, 0x4f, 0x49, 0xd2, 0x80, 0x45,
-	0xa1, 0x8c, 0xf1, 0xcd, 0x11, 0xce, 0x51, 0x48, 0x17, 0xc3, 0x0e, 0xf3, 0xfc, 0xb0, 0x6b, 0xcc,
-	0x5b, 0xdf, 0xc1, 0xb2, 0x63, 0x32, 0x68, 0xb1, 0xb0, 0x83, 0x8e, 0xa4, 0x12, 0xc9, 0xaf, 0x60,
-	0x31, 0x12, 0xc8, 0x5d, 0xea, 0x79, 0x1c, 0x85, 0x28, 0xe7, 0xaa, 0xb9, 0x9d, 0xf9, 0x7a, 0xf9,
-	0x6f, 0x7f, 0xf9, 0xc5, 0x83, 0x38, 0x93, 0x9a, 0xb1, 0x38, 0x92, 0xfb, 0x61, 0xd7, 0x5e, 0x50,
-	0xec, 0x18, 0x22, 0x3f, 0x07, 0x12, 0xe2, 0x40, 0xba, 0x71, 0x61, 0x6e, 0xa8, 0x74, 0xcb, 0xb3,
-	0xd5, 0xdc, 0x4e, 0xde, 0x2e, 0x29, 0x4b, 0x36, 0xde, 0xd6, 0x7f, 0xf3, 0xb0, 0xe0, 0x48, 0x8e,
-	0x34, 0x30, 0xa1, 0x9f, 0x02, 0x24, 0x8e, 0xbe, 0xa7, 0x03, 0x2f, 0xd6, 0xf3, 0x6f, 0xfe, 0x53,
-	0x9e, 0xb5, 0xe7, 0x63, 0xbc, 0xe9, 0x91, 0x43, 0x20, 0xec, 0xdb, 0x10, 0xb9, 0x3b, 0x96, 0xe5,
-	0xec, 0x7b, 0xb2, 0x2c, 0x69, 0x9f, 0xd3, 0x4c, 0xaa, 0xcf, 0x61, 0x4d, 0xa7, 0x8a, 0x83, 0x3e,
-	0x76, 0x24, 0x7a, 0xae, 0xc0, 0x3f, 0x44, 0xa8, 0xd2, 0xbd, 0xa3, 0xd3, 0x7d, 0xa0, 0xac, 0x56,
-	0x6c, 0x74, 0x62, 0x9b, 0x2a, 0xb0, 0x47, 0x85, 0x74, 0x69, 0x47, 0xfa, 0xd7, 0xe8, 0x5e, 0xa2,
-	0xdf, 0xbd, 0x94, 0xe5, 0xbc, 0x29, 0x50, 0x59, 0x6a, 0xda, 0xf0, 0x42, 0xe3, 0x8a, 0xcd, 0xfa,
-	0x18, 0xba, 0x7d, 0x0c, 0x55, 0xdb, 0xdd, 0x8e, 0x9a, 0x4d, 0xf9, 0x6e, 0x35, 0xb7, 0xb3, 0x64,
-	0x97, 0x94, 0xe5, 0xc4, 0x18, 0x1a, 0x0a, 0x27, 0x7b, 0x30, 0x27, 0x24, 0x95, 0x91, 0x28, 0xcf,
-	0x55, 0x73, 0x3b, 0x85, 0xcf, 0xd6, 0xf6, 0xe2, 0x85, 0xd8, 0x8b, 0xbb, 0xe6, 0x68, 0xab, 0x1d,
-	0xb3, 0xc8, 0x2e, 0x2c, 0x24, 0xed, 0xba, 0xc2, 0x61, 0xf9, 0x5e, 0xda, 0xaf, 0xdc, 0x8b, 0x19,
-	0x3b, 0xe9, 0xe4, 0x4b, 0x1c, 0xfe, 0x31, 0x97, 0x23, 0x5f, 0xc2, 0x7a, 0x86, 0xab, 0x8a, 0xf6,
-	0xf9, 0x30, 0x49, 0xff, 0xbe, 0x4e, 0x7f, 0x6d, 0xe4, 0x61, 0x69, 0x73, 0x5c, 0xc4, 0xef, 0x60,
-	0x35, 0xeb, 0x2a, 0x54, 0x31, 0x6e, 0x87, 0xf6, 0xcb, 0xf3, 0xd5, 0xdc, 0xce, 0xc2, 0x67, 0xcb,
-	0x7b, 0x66, 0xc9, 0x54, 0x9e, 0x35, 0xbd, 0x7c, 0xf5, 0xfc, 0x9b, 0x7f, 0x3c, 0x9e, 0xb1, 0xc9,
-	0x48, 0xcf, 0x51, 0x3e, 0x0d, 0xda, 0x27, 0x0d, 0x58, 0xbe, 0xa9, 0x25, 0xcb, 0x30, 0x5d, 0xa7,
-	0x38, 0xae, 0x23, 0xc9, 0xe7, 0xb0, 0x36, 0x26, 0x82, 0x32, 0x29, 0x64, 0x41, 0x17, 0xb2, 0x92,
-	0x71, 0x40, 0x69, 0xaa, 0xa8, 0x17, 0x60, 0xd1, 0xcd, 0x78, 0x6d, 0x7d, 0x3f, 0x0b, 0xe4, 0x98,
-	0x7b, 0xc8, 0x93, 0xd1, 0x7e, 0xc4, 0x0a, 0x6e, 0x43, 0x81, 0x29, 0xd7, 0xd1, 0xca, 0x98, 0x0d,
-	0x5f, 0x62, 0x59, 0x41, 0xf2, 0x3c, 0x9d, 0xe7, 0x1d, 0x3d, 0xcf, 0x8d, 0x74, 0x9e, 0xff, 0x17,
-	0x38, 0x33, 0xd5, 0x4d, 0xd0, 0xef, 0x80, 0x0a, 0x9f, 0xcf, 0x84, 0x9f, 0x53, 0x60, 0xd3, 0x23,
-	0x3f, 0x83, 0x62, 0x87, 0x85, 0x22, 0x0a, 0xd0, 0x4b, 0xaa, 0xbe, 0xab, 0x83, 0x17, 0x12, 0x38,
-	0x1e, 0xdb, 0xa7, 0x50, 0xea, 0xd0, 0xb0, 0x83, 0xbd, 0xde, 0x88, 0x39, 0xa7, 0x99, 0xc5, 0x14,
-	0x37, 0xd4, 0xad, 0x7f, 0xcf, 0x42, 0x25, 0x5e, 0xb1, 0x17, 0xbe, 0x90, 0x8c, 0x0f, 0x4f, 0x78,
-	0x14, 0x62, 0x23, 0xe2, 0x82, 0xf1, 0x8f, 0xe8, 0xcb, 0x1e, 0xac, 0xe8, 0x93, 0x9a, 0xd8, 0x9c,
-	0x65, 0x65, 0x1a, 0x2b, 0x9c, 0xfc, 0x12, 0x56, 0x39, 0xeb, 0xf5, 0xd4, 0x65, 0x24, 0x64, 0x97,
-	0x33, 0x26, 0x75, 0xbf, 0x12, 0xfd, 0x95, 0x98, 0x92, 0x78, 0xd9, 0x8c, 0x49, 0x35, 0x81, 0xb4,
-	0x0b, 0xe6, 0xa8, 0xf2, 0xfa, 0xa8, 0x96, 0x12, 0xd4, 0x5c, 0x94, 0x6a, 0x56, 0xda, 0x83, 0xec,
-	0xf1, 0x15, 0x52, 0xd8, 0x10, 0xb7, 0xa1, 0xc0, 0xf1, 0x22, 0x0a, 0xbd, 0x94, 0x37, 0x67, 0xf4,
-	0x12, 0xd4, 0xd0, 0x9e, 0xc2, 0x92, 0x40, 0x29, 0x47, 0x6a, 0xf7, 0x34, 0x6b, 0x31, 0x06, 0x53,
-	0xd2, 0xb5, 0x2f, 0x7c, 0x99, 0x92, 0xcc, 0x79, 0x2d, 0xc6, 0xa0, 0x26, 0x6d, 0x7d, 0x9f, 0x87,
-	0x47, 0x71, 0xcb, 0xdb, 0xc8, 0x03, 0x3f, 0xa4, 0x3d, 0x27, 0x0a, 0x02, 0xca, 0x87, 0x3f, 0xc2,
-	0x53, 0xf8, 0x15, 0x6c, 0x5c, 0xa8, 0x0c, 0xdc, 0xa9, 0x0f, 0xe2, 0xba, 0xe6, 0xb4, 0x26, 0xbd,
-	0x8a, 0xdb, 0x50, 0x48, 0x07, 0x38, 0x36, 0x8e, 0x04, 0x35, 0x9d, 0xf9, 0x14, 0x96, 0xc6, 0xe7,
-	0x7c, 0x37, 0x53, 0xd7, 0xa2, 0x98, 0x3e, 0xe0, 0xb9, 0x0f, 0x1c, 0xf0, 0xbd, 0x0f, 0x1c, 0xf0,
-	0xfd, 0x0f, 0x1a, 0xf0, 0xfc, 0xe4, 0x01, 0x77, 0x7a, 0x4c, 0x8c, 0xce, 0x0a, 0xcc, 0x80, 0x0d,
-	0x98, 0x39, 0x3f, 0x16, 0xf4, 0xa9, 0xee, 0xe4, 0xd8, 0xf3, 0x54, 0x4c, 0xf1, 0xf8, 0xfc, 0x5e,
-	0x43, 0xf1, 0x10, 0xf1, 0x04, 0xf9, 0xd7, 0x54, 0xd8, 0x54, 0xe2, 0xd9, 0x33, 0xb2, 0x01, 0xf3,
-	0x61, 0x14, 0x20, 0xa7, 0x92, 0x71, 0x3d, 0xfd, 0xbc, 0x3d, 0x02, 0x48, 0x15, 0x16, 0x3c, 0x0c,
-	0x99, 0xda, 0x1a, 0x65, 0x37, 0xf7, 0x95, 0x85, 0xb6, 0xfe, 0x3a, 0x0f, 0xc5, 0x36, 0x15, 0x57,
-	0xf5, 0xc8, 0xeb, 0xa2, 0x34, 0x2b, 0x95, 0x79, 0x58, 0x72, 0x13, 0x1e, 0x96, 0x1d, 0x28, 0x5d,
-	0x20, 0xba, 0x3c, 0xea, 0xa1, 0x7b, 0x8d, 0x5c, 0xad, 0x58, 0xac, 0x5c, 0xb8, 0x40, 0xb4, 0xa3,
-	0x1e, 0x9e, 0x19, 0x94, 0xbc, 0x86, 0x32, 0xe3, 0x7e, 0x57, 0x6f, 0x0c, 0x47, 0x81, 0xfc, 0x1a,
-	0x3d, 0xd7, 0x7c, 0x77, 0xe8, 0x55, 0x99, 0xf2, 0x96, 0xaf, 0x25, 0x8e, 0x76, 0xec, 0x67, 0xac,
-	0xe4, 0xb7, 0x50, 0xbc, 0xa9, 0x94, 0x9f, 0xae, 0x54, 0xe0, 0xe3, 0x0a, 0x27, 0x50, 0x96, 0x03,
-	0x57, 0x57, 0x60, 0x0c, 0x2e, 0xc7, 0x80, 0xfa, 0xa1, 0x1f, 0x76, 0xf5, 0x9a, 0x4d, 0x91, 0x5a,
-	0x95, 0x83, 0x43, 0xc4, 0x38, 0x23, 0x3b, 0xf1, 0x22, 0xcf, 0x61, 0xbe, 0xcf, 0xfd, 0x0e, 0xba,
-	0xe7, 0xbe, 0xa7, 0xb7, 0x6f, 0x8a, 0xc4, 0x7d, 0xcd, 0xac, 0xfb, 0x1e, 0xf9, 0x02, 0xe0, 0x5b,
-	0xc6, 0xaf, 0x90, 0xbb, 0x01, 0x1d, 0xe8, 0x65, 0x9c, 0xe2, 0x36, 0x6f, 0xa8, 0xaf, 0xe8, 0x40,
-	0xf9, 0x5d, 0x23, 0xf7, 0x2f, 0x86, 0xda, 0xef, 0xfe, 0x7b, 0xfc, 0x0c, 0x55, 0xf9, 0x7d, 0x09,
-	0xeb, 0xb1, 0x1f, 0xa7, 0xd2, 0x67, 0xee, 0x79, 0x5f, 0xb8, 0x22, 0xa4, 0x7d, 0x71, 0xc9, 0x92,
-	0xed, 0x5d, 0x33, 0x04, 0x5b, 0xd9, 0xeb, 0x7d, 0xe1, 0xc4, 0x56, 0xb2, 0x0b, 0xcb, 0x01, 0x1d,
-	0xb8, 0x2c, 0x92, 0xfd, 0x48, 0xba, 0x92, 0x5d, 0x61, 0x28, 0xe2, 0x5d, 0x2e, 0x06, 0x74, 0x70,
-	0xac, 0xf1, 0xb6, 0x86, 0x49, 0x0d, 0x36, 0x55, 0x5f, 0x24, 0x86, 0x54, 0x5f, 0x2f, 0x95, 0x38,
-	0x1e, 0x6a, 0x41, 0x87, 0x7a, 0x98, 0x21, 0xa9, 0x55, 0xce, 0x86, 0xfb, 0x35, 0x3c, 0x52, 0xe3,
-	0xe9, 0xb3, 0x9e, 0xdf, 0x19, 0x26, 0x2b, 0x36, 0x12, 0x58, 0xd4, 0x81, 0xcb, 0x17, 0x88, 0x27,
-	0x9a, 0x11, 0x6f, 0x5b, 0xea, 0xce, 0x60, 0x5b, 0x65, 0xcb, 0xd1, 0x0f, 0xce, 0x23, 0x2e, 0xe8,
-	0x79, 0x0f, 0xf5, 0xb8, 0xfb, 0xc8, 0xdd, 0x2e, 0xcd, 0x64, 0xb2, 0xa4, 0x7b, 0x57, 0x4e, 0xff,
-	0xb3, 0xbd, 0x71, 0x5b, 0x71, 0x0b, 0xab, 0x01, 0x1d, 0xd8, 0x19, 0xad, 0x94, 0x95, 0x06, 0xa4,
-	0xf0, 0x24, 0x1b, 0x10, 0x03, 0x0c, 0xa5, 0x8e, 0x26, 0x07, 0xa3, 0x60, 0x85, 0xe9, 0x83, 0xda,
-	0xcc, 0x44, 0xd1, 0x02, 0x27, 0xc8, 0xdb, 0x83, 0x34, 0x04, 0xc2, 0xd3, 0x5b, 0x42, 0xa8, 0x43,
-	0x4d, 0x83, 0x14, 0xa7, 0x07, 0x79, 0x3c, 0x29, 0x08, 0x15, 0x57, 0x69, 0x98, 0x2f, 0xe0, 0x13,
-	0xd5, 0xa1, 0xf1, 0x30, 0xe6, 0x7d, 0x2b, 0xe9, 0xb1, 0xad, 0x76, 0xa9, 0x18, 0x53, 0x30, 0x0f,
-	0x5d, 0x13, 0x1e, 0x8c, 0xf9, 0x79, 0xae, 0x64, 0x92, 0xf6, 0xca, 0xcb, 0xef, 0xf9, 0xf0, 0xcb,
-	0xaa, 0x79, 0x6d, 0xe5, 0x42, 0x7e, 0x03, 0x4b, 0xe7, 0xfa, 0x2d, 0x72, 0xe3, 0x4f, 0x22, 0xa2,
-	0x3f, 0x89, 0xd6, 0xd3, 0x29, 0x8d, 0xbf, 0x56, 0x91, 0xb0, 0x17, 0xcf, 0x33, 0x7f, 0xed, 0x7e,
-	0x07, 0x4b, 0x63, 0x1f, 0xc1, 0xa4, 0x02, 0x0f, 0x1d, 0xcb, 0x71, 0x9a, 0xc7, 0x2d, 0xd7, 0x69,
-	0xd7, 0xda, 0xa7, 0x8e, 0x7b, 0xda, 0x72, 0x4e, 0xac, 0x46, 0xf3, 0xb0, 0x69, 0x1d, 0x94, 0x66,
-	0xc8, 0x3a, 0xac, 0xde, 0xb0, 0xd7, 0x1a, 0xed, 0xe6, 0x99, 0x55, 0xca, 0x91, 0x4f, 0x60, 0xe5,
-	0x86, 0xa9, 0x79, 0x70, 0x64, 0x95, 0x66, 0x27, 0xf8, 0x34, 0x8e, 0x8e, 0x1d, 0xeb, 0xa0, 0x74,
-	0x67, 0xf7, 0x4f, 0x39, 0x58, 0x8b, 0x13, 0x38, 0xf2, 0x2f, 0xb0, 0x33, 0xec, 0xf4, 0x50, 0x7d,
-	0xea, 0xb3, 0x90, 0xec, 0xc0, 0x4f, 0x12, 0xaf, 0xa3, 0xe6, 0xa1, 0xd5, 0xf8, 0x7d, 0xe3, 0xc8,
-	0xd2, 0xc1, 0x8e, 0x5b, 0x37, 0x72, 0xfa, 0x29, 0x6c, 0xdd, 0xca, 0x7c, 0x55, 0xb3, 0x5f, 0x9a,
-	0x3c, 0x72, 0x64, 0x0b, 0x2a, 0xb7, 0xf2, 0x74, 0x46, 0xa5, 0xd9, 0xdd, 0x7f, 0xe5, 0x60, 0x65,
-	0xc2, 0x67, 0x24, 0xd9, 0x86, 0x27, 0xc7, 0xf6, 0x81, 0x65, 0xbb, 0x8e, 0xf5, 0xfa, 0xd4, 0x6a,
-	0x35, 0xac, 0xc9, 0xed, 0xa9, 0xc2, 0xc6, 0x6d, 0xb4, 0x53, 0x55, 0xb1, 0x4e, 0x62, 0x32, 0xa3,
-	0x71, 0xdc, 0x72, 0x4e, 0x5f, 0x59, 0x07, 0xa5, 0x59, 0xf2, 0x14, 0x1e, 0xdf, 0xc2, 0xa9, 0xb5,
-	0x1a, 0xd6, 0xd1, 0x91, 0x6a, 0xdd, 0xed, 0x42, 0xb6, 0x75, 0x78, 0xda, 0x3a, 0xb0, 0x0e, 0x4a,
-	0x79, 0xf2, 0x04, 0x36, 0x27, 0x73, 0x1c, 0xab, 0xdd, 0x56, 0x32, 0x77, 0x77, 0x87, 0x50, 0xba,
-	0xb9, 0x23, 0x4a, 0xba, 0x5d, 0x73, 0x5e, 0xba, 0xf5, 0xd3, 0x83, 0xaf, 0xad, 0xf6, 0xe4, 0x4a,
-	0x1f, 0xc3, 0xa3, 0x09, 0x1c, 0xdb, 0x72, 0x2c, 0xfb, 0x4c, 0x17, 0x5a, 0x85, 0x8d, 0x09, 0x84,
-	0xc3, 0x66, 0xab, 0x76, 0xd4, 0xfc, 0x46, 0x95, 0x59, 0xff, 0xea, 0xcd, 0xdb, 0x4a, 0xee, 0x87,
-	0xb7, 0x95, 0xdc, 0x3f, 0xdf, 0x56, 0x72, 0x7f, 0x7e, 0x57, 0x99, 0xf9, 0xe1, 0x5d, 0x65, 0xe6,
-	0xef, 0xef, 0x2a, 0x33, 0xdf, 0x6c, 0x77, 0x7d, 0x79, 0x19, 0x9d, 0xef, 0x75, 0x58, 0xb0, 0xdf,
-	0xe6, 0x11, 0x1e, 0xf7, 0x31, 0xdc, 0x0f, 0x99, 0x87, 0xfb, 0x83, 0x7d, 0xfd, 0x23, 0x5f, 0x0e,
-	0xfb, 0x28, 0xce, 0xe7, 0xf4, 0xef, 0xed, 0xcf, 0xff, 0x17, 0x00, 0x00, 0xff, 0xff, 0xff, 0x3c,
-	0x78, 0x5b, 0xf9, 0x0f, 0x00, 0x00,
+	// 2293 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0x4b, 0x73, 0xdb, 0xd6,
+	0xf5, 0x17, 0x68, 0x59, 0x8f, 0x23, 0x8a, 0x04, 0xaf, 0x1e, 0xa6, 0x64, 0xeb, 0x61, 0x3a, 0xca,
+	0x5f, 0x51, 0xf2, 0x97, 0xaa, 0xc4, 0xf5, 0x34, 0xed, 0xa4, 0x29, 0x49, 0x41, 0x16, 0x23, 0x99,
+	0x92, 0x41, 0x4a, 0x9e, 0x64, 0x83, 0xb9, 0x22, 0xae, 0x28, 0x8c, 0x48, 0x80, 0xbd, 0xb8, 0x90,
+	0xc9, 0x2e, 0xb2, 0x4e, 0x36, 0x9d, 0x6e, 0x3a, 0xd3, 0x2f, 0xd1, 0x5d, 0x97, 0xdd, 0x74, 0xe7,
+	0x55, 0x27, 0xed, 0xaa, 0xab, 0x4e, 0xc7, 0xfe, 0x02, 0x9d, 0xe9, 0x17, 0xe8, 0xdc, 0x07, 0x40,
+	0x80, 0xa2, 0x28, 0x67, 0xd5, 0x1d, 0x79, 0xce, 0xef, 0x3c, 0xee, 0x79, 0xdd, 0x7b, 0x00, 0x0b,
+	0x0c, 0xfb, 0x57, 0x3b, 0xd7, 0xbb, 0x3b, 0x3e, 0xf1, 0x7d, 0xc7, 0x73, 0xb7, 0x3b, 0xd4, 0x63,
+	0x1e, 0x9a, 0xe4, 0xe4, 0xed, 0xeb, 0xdd, 0xe5, 0xa5, 0x86, 0xe7, 0xb7, 0x3d, 0xdf, 0x12, 0xe4,
+	0x1d, 0xf9, 0x47, 0x62, 0x96, 0xe7, 0x9b, 0x5e, 0xd3, 0x93, 0x74, 0xfe, 0x4b, 0x51, 0x17, 0xfd,
+	0x4b, 0x4c, 0x89, 0xcd, 0x55, 0xe2, 0xb6, 0x17, 0xb8, 0x4c, 0xd1, 0x57, 0xfa, 0x74, 0x4a, 0x7c,
+	0x66, 0x11, 0xb7, 0xe1, 0xd9, 0x8e, 0xdb, 0x94, 0xec, 0xc2, 0xb7, 0x90, 0xab, 0x49, 0x0f, 0xaa,
+	0x9e, 0xdb, 0x20, 0x35, 0x86, 0x19, 0x41, 0xbf, 0x80, 0x74, 0xe0, 0x13, 0x6a, 0x61, 0xdb, 0xa6,
+	0xc4, 0xf7, 0xf3, 0xda, 0xba, 0xb6, 0x39, 0x5d, 0xca, 0xff, 0xfd, 0x4f, 0xff, 0x3f, 0xaf, 0x3c,
+	0x29, 0x4a, 0x4e, 0x8d, 0x51, 0xc7, 0x6d, 0x9a, 0x33, 0x1c, 0xad, 0x48, 0xe8, 0x13, 0x40, 0x2e,
+	0xe9, 0x32, 0x4b, 0x1d, 0xcc, 0x72, 0xb9, 0xde, 0x7c, 0x6a, 0x5d, 0xdb, 0x1c, 0x37, 0x75, 0xce,
+	0x89, 0xdb, 0x2b, 0xfc, 0x2d, 0x0d, 0x33, 0x35, 0x46, 0x09, 0x6e, 0x4b, 0xd3, 0x4f, 0x00, 0x42,
+	0x41, 0xc7, 0x16, 0x86, 0xd3, 0xa5, 0xf1, 0x37, 0xff, 0xc9, 0xa7, 0xcc, 0x69, 0x45, 0xaf, 0xd8,
+	0x68, 0x1f, 0x90, 0xf7, 0xda, 0x25, 0xd4, 0x4a, 0x78, 0x99, 0xba, 0xc3, 0x4b, 0x5d, 0xc8, 0x9c,
+	0xc6, 0x5c, 0x7d, 0x0a, 0x8b, 0xc2, 0x55, 0xd2, 0xed, 0x90, 0x06, 0x23, 0xb6, 0xe5, 0x93, 0x5f,
+	0x07, 0x84, 0xbb, 0x7b, 0x4f, 0xb8, 0x3b, 0xcf, 0xb9, 0x86, 0x62, 0xd6, 0x14, 0x8f, 0x1f, 0xb0,
+	0x85, 0x7d, 0x66, 0xe1, 0x06, 0x73, 0xae, 0x89, 0x75, 0x49, 0x9c, 0xe6, 0x25, 0xcb, 0x8f, 0xcb,
+	0x03, 0x72, 0x4e, 0x51, 0x30, 0x0e, 0x04, 0x9d, 0xa3, 0xbd, 0x0e, 0x71, 0xad, 0x0e, 0x71, 0x79,
+	0xd8, 0xad, 0x06, 0xcf, 0x4d, 0xfe, 0xfe, 0xba, 0xb6, 0x39, 0x6b, 0xea, 0x9c, 0x73, 0x22, 0x19,
+	0x65, 0x4e, 0x47, 0xdb, 0x30, 0xe1, 0x33, 0xcc, 0x02, 0x3f, 0x3f, 0xb1, 0xae, 0x6d, 0x66, 0x3e,
+	0x5d, 0xdc, 0x56, 0x05, 0xb1, 0xad, 0xa2, 0x56, 0x13, 0x5c, 0x53, 0xa1, 0xd0, 0x16, 0xcc, 0x84,
+	0xe1, 0xba, 0x22, 0xbd, 0xfc, 0x64, 0x14, 0x2f, 0xed, 0x60, 0xcc, 0x0c, 0x23, 0x79, 0x48, 0x7a,
+	0xdf, 0x69, 0x1a, 0xfa, 0x1c, 0x96, 0x62, 0x58, 0x7e, 0x68, 0x87, 0xf6, 0x42, 0xf7, 0xa7, 0x84,
+	0xfb, 0x8b, 0x7d, 0x09, 0x43, 0xb0, 0xd5, 0x21, 0xbe, 0x82, 0x85, 0xb8, 0xa8, 0xcf, 0x0f, 0x63,
+	0x35, 0x70, 0x27, 0x3f, 0xbd, 0xae, 0x6d, 0xce, 0x7c, 0x9a, 0xdb, 0x96, 0x45, 0xc6, 0xfd, 0x2c,
+	0x8a, 0xe2, 0x2b, 0x8d, 0xbf, 0xf9, 0xe7, 0xda, 0x98, 0x89, 0xfa, 0xfa, 0x6a, 0x5c, 0xa6, 0x8c,
+	0x3b, 0xa8, 0x0c, 0xb9, 0x41, 0x5d, 0x2c, 0x0f, 0xa3, 0xf5, 0x64, 0x93, 0x7a, 0x18, 0xfa, 0x0c,
+	0x16, 0x13, 0x4a, 0x08, 0x0b, 0x0f, 0x32, 0x23, 0x0e, 0x32, 0x17, 0x13, 0x20, 0x4c, 0x9d, 0x62,
+	0x17, 0x26, 0xcf, 0x71, 0x0b, 0xf3, 0xfc, 0xa6, 0x47, 0xdb, 0x0b, 0x71, 0xe8, 0xe7, 0x90, 0xbe,
+	0xa0, 0xde, 0x6f, 0x88, 0x6b, 0x31, 0x8f, 0xe1, 0x56, 0x7e, 0x76, 0xb4, 0xdc, 0x8c, 0x04, 0xd7,
+	0x39, 0x16, 0x99, 0xb0, 0x10, 0x26, 0xfd, 0xb5, 0xc3, 0x2e, 0x6d, 0x8a, 0x5f, 0x5b, 0x57, 0x8e,
+	0x6b, 0xe7, 0x33, 0x22, 0xb5, 0xab, 0x83, 0xa9, 0x7d, 0xa5, 0x40, 0x87, 0x8e, 0x6b, 0x9f, 0xed,
+	0x9a, 0x73, 0x4a, 0x38, 0x4e, 0x46, 0xc7, 0xf0, 0xe0, 0x86, 0x4e, 0xd9, 0xee, 0xf9, 0xec, 0x68,
+	0xd7, 0x16, 0x06, 0xd4, 0x49, 0x26, 0xaa, 0xc0, 0xe3, 0x1b, 0x0a, 0xc9, 0xc5, 0x05, 0x49, 0xd4,
+	0xb6, 0x2e, 0x62, 0xba, 0x3a, 0xa0, 0xc1, 0x08, 0x61, 0x2a, 0xbc, 0x5f, 0xc0, 0xec, 0xb9, 0x17,
+	0xb8, 0xb6, 0x75, 0x1e, 0x38, 0x2d, 0x9b, 0xd0, 0x7c, 0xee, 0x8e, 0x86, 0x4c, 0x0b, 0x78, 0x49,
+	0xa2, 0xd1, 0x36, 0xcc, 0x49, 0xf1, 0xc6, 0x25, 0x76, 0x9b, 0x91, 0x6d, 0x24, 0x6c, 0xe7, 0x04,
+	0xab, 0x2c, 0x38, 0xfd, 0xc6, 0x12, 0x6d, 0x48, 0x49, 0xc3, 0xa3, 0x76, 0x08, 0x9f, 0xeb, 0xb7,
+	0xa1, 0x29, 0x18, 0x0a, 0x7d, 0x98, 0x44, 0xbf, 0x76, 0x5c, 0x97, 0xd0, 0xfc, 0xfc, 0x68, 0x0f,
+	0x0f, 0xb4, 0xb8, 0xa6, 0x57, 0x42, 0x86, 0x77, 0xd2, 0x53, 0x58, 0xf4, 0x99, 0xd3, 0xb8, 0xea,
+	0x59, 0xd8, 0x6d, 0x5c, 0x7a, 0xb4, 0x3f, 0x37, 0x16, 0xe4, 0xdc, 0x90, 0xdc, 0xa2, 0x60, 0x46,
+	0x73, 0xe3, 0x27, 0x30, 0x9f, 0x94, 0x52, 0x2e, 0x2f, 0x0a, 0x19, 0x14, 0x97, 0x51, 0x4e, 0x6f,
+	0x82, 0xae, 0x24, 0x68, 0xe0, 0xaa, 0xc9, 0xf1, 0x40, 0x4c, 0x8e, 0x8c, 0xa4, 0x9b, 0x81, 0x2b,
+	0xe7, 0x86, 0x0d, 0xcb, 0x61, 0x1a, 0xe3, 0x7d, 0x21, 0x43, 0x99, 0xcf, 0x8b, 0xd2, 0x28, 0x44,
+	0x05, 0xa7, 0x46, 0x4e, 0x2d, 0xea, 0x11, 0x19, 0xd8, 0xb3, 0xdd, 0x83, 0x94, 0x19, 0xd6, 0xd7,
+	0x20, 0x93, 0x9f, 0xfb, 0x2b, 0xd0, 0x43, 0x2b, 0x0c, 0x5f, 0x11, 0xef, 0x9a, 0xd0, 0xfc, 0x92,
+	0xd0, 0xbd, 0x3c, 0xa8, 0xbb, 0xae, 0xf8, 0x67, 0xbb, 0x07, 0xf7, 0xcc, 0x6c, 0x27, 0x49, 0xfc,
+	0x4e, 0xd3, 0x4a, 0x19, 0x48, 0xc7, 0x5d, 0x2d, 0x2d, 0xc0, 0x9c, 0x75, 0x33, 0x43, 0xa5, 0x15,
+	0x78, 0x68, 0xdd, 0x7e, 0xb2, 0xd2, 0x1c, 0xe4, 0xac, 0x41, 0x97, 0x0a, 0x7f, 0x49, 0x01, 0x3a,
+	0xa6, 0x36, 0x89, 0x42, 0xff, 0x23, 0xae, 0x96, 0x0d, 0xc8, 0x78, 0x5c, 0xb4, 0x9f, 0x52, 0x79,
+	0x73, 0xcd, 0x7a, 0x71, 0x85, 0xe8, 0x69, 0x34, 0xa7, 0xef, 0x89, 0x66, 0x7e, 0x14, 0x9d, 0xff,
+	0x86, 0xe1, 0xd8, 0xb4, 0x5e, 0x01, 0x71, 0xbf, 0x73, 0xf3, 0xe3, 0x31, 0xf3, 0x13, 0x9c, 0x58,
+	0xb1, 0xd1, 0xff, 0x41, 0xb6, 0xe1, 0xb9, 0x7e, 0xd0, 0x26, 0x51, 0x39, 0xdf, 0x17, 0xc6, 0x33,
+	0x21, 0x59, 0xd5, 0xc5, 0x47, 0xa0, 0x37, 0xf8, 0x78, 0x6a, 0xb5, 0xfa, 0xc8, 0x09, 0x81, 0xcc,
+	0x46, 0x74, 0x05, 0x7d, 0x06, 0x0f, 0x24, 0xe9, 0x66, 0x57, 0x4f, 0x0a, 0x89, 0x05, 0xc9, 0x1e,
+	0x68, 0xe6, 0xc2, 0xbf, 0x53, 0xb0, 0xaa, 0x4a, 0xe0, 0xc0, 0xf1, 0x99, 0x47, 0x7b, 0x27, 0x34,
+	0x70, 0x49, 0x39, 0xa0, 0xbe, 0x47, 0x7f, 0x44, 0x3c, 0xb7, 0x61, 0x4e, 0x5c, 0xb1, 0x43, 0x83,
+	0x9a, 0xe3, 0xac, 0x44, 0xc0, 0xd0, 0xcf, 0x60, 0x81, 0x7a, 0xad, 0x96, 0x4c, 0xb7, 0xa4, 0x59,
+	0xd4, 0xf3, 0x98, 0x88, 0x73, 0xa8, 0x7f, 0x4e, 0x41, 0x42, 0x29, 0xd3, 0xf3, 0x18, 0xcf, 0x5c,
+	0x14, 0x3d, 0xd9, 0x2a, 0xe3, 0xa2, 0x55, 0x66, 0x43, 0xaa, 0xec, 0x14, 0x1e, 0xe4, 0x28, 0x76,
+	0xf1, 0xcb, 0x38, 0x13, 0x91, 0x25, 0x70, 0x03, 0x32, 0x94, 0x5c, 0x04, 0xae, 0x1d, 0xe1, 0x26,
+	0xa4, 0xbe, 0x90, 0x2a, 0x61, 0x4f, 0x60, 0xd6, 0x27, 0x8c, 0xf5, 0xb5, 0x4d, 0x0a, 0x54, 0x5a,
+	0x11, 0x23, 0xd0, 0xb5, 0xe3, 0x3b, 0x2c, 0x02, 0xc9, 0xeb, 0x36, 0xad, 0x88, 0x02, 0x54, 0xf8,
+	0x7e, 0x1c, 0x1e, 0xaa, 0x90, 0xd7, 0x09, 0x6d, 0x3b, 0x2e, 0x6e, 0xd5, 0x82, 0x76, 0x1b, 0xd3,
+	0xde, 0xff, 0xe0, 0x69, 0xf4, 0x25, 0x3c, 0xba, 0xe0, 0x1e, 0x58, 0x23, 0x1f, 0x48, 0x4b, 0x02,
+	0x53, 0x1d, 0xf6, 0x4a, 0xda, 0x80, 0x4c, 0x94, 0xc0, 0x44, 0x3a, 0x42, 0xaa, 0x8c, 0xcc, 0x47,
+	0x30, 0x9b, 0xcc, 0xf3, 0xfd, 0xd8, 0xb9, 0xd2, 0xfe, 0xe8, 0x04, 0x4f, 0xbc, 0x67, 0x82, 0x27,
+	0xdf, 0x33, 0xc1, 0x53, 0xef, 0x95, 0xe0, 0xe9, 0xe1, 0x09, 0x6e, 0xb4, 0x3c, 0xbf, 0xdf, 0x8e,
+	0x20, 0x13, 0x2c, 0x89, 0xb1, 0xb6, 0xf5, 0xda, 0x1d, 0x2c, 0x22, 0x99, 0x78, 0xae, 0x64, 0x23,
+	0xba, 0x6a, 0xbf, 0x97, 0x90, 0xdd, 0x27, 0xe4, 0x84, 0xd0, 0xe7, 0xd8, 0x37, 0x31, 0x23, 0x67,
+	0xbb, 0xe8, 0x11, 0x4c, 0xbb, 0x41, 0x9b, 0x50, 0xcc, 0x3c, 0x2a, 0xb2, 0x3f, 0x6e, 0xf6, 0x09,
+	0x68, 0x1d, 0x66, 0x6c, 0xe2, 0x7a, 0xbc, 0x6a, 0x38, 0x5f, 0xf6, 0x57, 0x9c, 0x54, 0xf8, 0xeb,
+	0x34, 0x64, 0xeb, 0xd8, 0xbf, 0x2a, 0x05, 0x76, 0x93, 0x30, 0x59, 0x52, 0xb1, 0x81, 0xa4, 0x0d,
+	0x19, 0x48, 0x9b, 0xa0, 0x5f, 0x10, 0x62, 0xd1, 0xa0, 0x45, 0xac, 0x6b, 0x42, 0x79, 0x89, 0x29,
+	0xcd, 0x99, 0x0b, 0x42, 0xcc, 0xa0, 0x45, 0xce, 0x24, 0x15, 0xbd, 0x84, 0xbc, 0x47, 0x9d, 0xa6,
+	0xa8, 0x18, 0x4a, 0x7c, 0x42, 0xaf, 0x89, 0x1d, 0x3e, 0x4c, 0xee, 0x8d, 0x7e, 0x98, 0x2c, 0x86,
+	0x82, 0xa6, 0x92, 0x53, 0x2f, 0x93, 0x5f, 0x41, 0x76, 0x50, 0xd3, 0xf8, 0x68, 0x4d, 0x19, 0x9a,
+	0xd4, 0x70, 0x02, 0x79, 0xd6, 0xb5, 0xc4, 0x09, 0x24, 0xc3, 0xa2, 0xa4, 0x8d, 0x1d, 0xd7, 0x71,
+	0x9b, 0xa2, 0xcc, 0x46, 0xbd, 0x96, 0x58, 0x77, 0x9f, 0x10, 0xe5, 0x91, 0x19, 0x4a, 0xa1, 0xa7,
+	0x30, 0xdd, 0xa1, 0x4e, 0x83, 0x58, 0xe7, 0x8e, 0x2d, 0xaa, 0x6f, 0x84, 0x8a, 0x29, 0x81, 0x2c,
+	0x39, 0x36, 0x7a, 0x06, 0xf0, 0xda, 0xa3, 0x57, 0x84, 0x5a, 0x6d, 0xdc, 0x15, 0xc5, 0x38, 0x42,
+	0x6c, 0x5a, 0x42, 0x5f, 0xe0, 0x2e, 0x97, 0xbb, 0x26, 0xd4, 0xb9, 0xe8, 0x09, 0xb9, 0xa9, 0x3b,
+	0xe4, 0x24, 0x94, 0xcb, 0x7d, 0x0e, 0x4b, 0x4a, 0x8e, 0x62, 0xe6, 0x78, 0xd6, 0x79, 0xc7, 0xb7,
+	0x7c, 0x17, 0x77, 0xfc, 0x4b, 0x2f, 0xac, 0xde, 0x45, 0x09, 0x30, 0x39, 0xbf, 0xd4, 0xf1, 0x6b,
+	0x8a, 0x8b, 0xb6, 0x20, 0xd7, 0xc6, 0x5d, 0xcb, 0x0b, 0x58, 0x27, 0x60, 0x16, 0xf3, 0xae, 0x88,
+	0xeb, 0xab, 0x5a, 0xce, 0xb6, 0x71, 0xf7, 0x58, 0xd0, 0xeb, 0x82, 0x8c, 0x8a, 0xb0, 0xc2, 0xe3,
+	0xc2, 0x88, 0x8b, 0x45, 0xf7, 0x62, 0x46, 0x92, 0xa6, 0x66, 0x84, 0xa9, 0xe5, 0x18, 0x88, 0x97,
+	0x72, 0xdc, 0xdc, 0x17, 0xf0, 0x90, 0xa7, 0xa7, 0xe3, 0xb5, 0x9c, 0x46, 0x2f, 0x2c, 0xb1, 0xbe,
+	0x82, 0xb4, 0x30, 0x9c, 0xbf, 0x20, 0xe4, 0x44, 0x20, 0x54, 0xb5, 0x45, 0xe2, 0x1e, 0x6c, 0x70,
+	0x6f, 0x29, 0x71, 0xda, 0xe7, 0x01, 0xf5, 0xf1, 0x79, 0x8b, 0x88, 0x74, 0x77, 0x08, 0xb5, 0x9a,
+	0x38, 0xe6, 0x89, 0x7c, 0xb6, 0xe7, 0xa3, 0x4b, 0x7a, 0xa0, 0xb7, 0x54, 0x08, 0xd7, 0xdb, 0xb8,
+	0x6b, 0xc6, 0x74, 0x45, 0xa8, 0xc8, 0x20, 0x86, 0xc7, 0x71, 0x83, 0xa4, 0x4d, 0x5c, 0x26, 0xac,
+	0xb1, 0x6e, 0xdf, 0x58, 0x66, 0x74, 0xa2, 0x56, 0x62, 0x56, 0x84, 0x82, 0x13, 0x42, 0xeb, 0xdd,
+	0xc8, 0x04, 0x81, 0x27, 0xb7, 0x98, 0xe0, 0x8d, 0x1a, 0x19, 0xb9, 0xe3, 0xb5, 0xbf, 0x36, 0xcc,
+	0x08, 0xf6, 0xaf, 0x22, 0x33, 0xcf, 0xe0, 0x01, 0x8f, 0x50, 0xd2, 0x8c, 0x9c, 0x6f, 0xba, 0x48,
+	0xdb, 0x42, 0x13, 0xfb, 0x09, 0x0d, 0x65, 0xb5, 0x2f, 0xcc, 0x27, 0xe4, 0x6c, 0xb5, 0x18, 0xe5,
+	0xee, 0x58, 0x04, 0xe3, 0xda, 0x6c, 0xb9, 0x1f, 0xfd, 0x12, 0x66, 0xcf, 0xc5, 0x2c, 0xb2, 0xd4,
+	0x53, 0x0a, 0x89, 0xa7, 0xd4, 0x52, 0x94, 0xa5, 0xe4, 0xb4, 0x0a, 0x7c, 0x33, 0x7d, 0x1e, 0xfb,
+	0x57, 0xf8, 0xbd, 0x16, 0x7d, 0xbb, 0x38, 0x24, 0xbd, 0xe7, 0x14, 0xbb, 0xec, 0x6c, 0x17, 0x6d,
+	0x24, 0x37, 0xe2, 0xfe, 0x58, 0xd3, 0xe2, 0xfb, 0x30, 0x1f, 0xd8, 0xc9, 0x05, 0x58, 0xce, 0xb5,
+	0x34, 0x89, 0xaf, 0xbd, 0x4f, 0x61, 0xba, 0xbf, 0xea, 0xde, 0x31, 0xc6, 0xa6, 0x7c, 0xb5, 0xe0,
+	0x16, 0xe6, 0x20, 0x57, 0x6e, 0x11, 0x4c, 0xfb, 0xbe, 0x9d, 0xed, 0x16, 0xbe, 0x4f, 0x41, 0xee,
+	0xc6, 0xd3, 0x18, 0x19, 0x90, 0x6b, 0x60, 0xd7, 0x76, 0x6c, 0xd1, 0x3b, 0x6a, 0x6d, 0xba, 0xeb,
+	0x6b, 0x8b, 0x1e, 0x89, 0x84, 0xab, 0xd3, 0x7b, 0x3e, 0x5a, 0x3f, 0x81, 0xac, 0x84, 0x89, 0x52,
+	0xba, 0xc4, 0xfe, 0x65, 0xe2, 0x55, 0x25, 0xd1, 0x3c, 0xe8, 0x07, 0xd8, 0xbf, 0x44, 0x1f, 0x43,
+	0x8e, 0x92, 0xa6, 0xe3, 0x33, 0x42, 0xfb, 0xd7, 0x95, 0xfa, 0xca, 0xd1, 0x67, 0xa8, 0x48, 0x7d,
+	0x0c, 0x39, 0xf1, 0x39, 0x84, 0xcf, 0x13, 0x37, 0xf9, 0x78, 0xd5, 0xfb, 0x0c, 0x75, 0xb9, 0xfd,
+	0x59, 0x83, 0xa5, 0x5b, 0x57, 0x10, 0xf4, 0x19, 0x8c, 0x8b, 0x2d, 0x59, 0x13, 0xd5, 0xb0, 0x36,
+	0xb8, 0x25, 0x47, 0x50, 0xb5, 0x26, 0x0b, 0x30, 0xfa, 0x29, 0xdc, 0x6f, 0xf2, 0x02, 0x10, 0x07,
+	0x8f, 0xaf, 0x23, 0x37, 0x0a, 0xe4, 0x60, 0xcc, 0x94, 0x50, 0xbe, 0xd0, 0x7c, 0x04, 0xfa, 0x8d,
+	0x67, 0xb1, 0x7c, 0xd9, 0x64, 0x49, 0xf2, 0x41, 0x5c, 0x9a, 0x82, 0x09, 0x4b, 0xc8, 0x6d, 0x7d,
+	0x0b, 0xb3, 0x89, 0x8f, 0x31, 0x68, 0x15, 0x96, 0x6b, 0x46, 0xad, 0x56, 0x39, 0xae, 0x5a, 0xb5,
+	0x7a, 0xb1, 0x7e, 0x5a, 0xb3, 0x4e, 0xab, 0xb5, 0x13, 0xa3, 0x5c, 0xd9, 0xaf, 0x18, 0x7b, 0xfa,
+	0x18, 0x5a, 0x82, 0x85, 0x01, 0x7e, 0xb1, 0x5c, 0xaf, 0x9c, 0x19, 0xba, 0x86, 0x1e, 0xc0, 0xdc,
+	0x00, 0xab, 0xb2, 0x77, 0x64, 0xe8, 0xa9, 0x21, 0x32, 0xe5, 0xa3, 0xe3, 0x9a, 0xb1, 0xa7, 0xdf,
+	0xdb, 0xfa, 0xad, 0x06, 0x8b, 0xca, 0x81, 0x23, 0xe7, 0x82, 0x34, 0x7a, 0x8d, 0x16, 0x29, 0x36,
+	0x78, 0x7c, 0xd1, 0x26, 0x7c, 0x10, 0x4a, 0x1d, 0x55, 0xf6, 0x8d, 0xf2, 0xd7, 0xe5, 0x23, 0x43,
+	0x18, 0x3b, 0xae, 0x0e, 0xf8, 0xf4, 0x21, 0x14, 0x6e, 0x45, 0xbe, 0x28, 0x9a, 0x87, 0xd2, 0x0f,
+	0x0d, 0x15, 0x60, 0xf5, 0x56, 0x9c, 0xf0, 0x48, 0x4f, 0x6d, 0xfd, 0x21, 0x05, 0x73, 0x43, 0xd6,
+	0x1e, 0xb4, 0x01, 0x8f, 0x8f, 0xcd, 0x3d, 0xc3, 0xb4, 0x6a, 0xc6, 0xcb, 0x53, 0xa3, 0x5a, 0x36,
+	0x86, 0x87, 0x67, 0x1d, 0x1e, 0xdd, 0x06, 0x3b, 0xe5, 0x27, 0x16, 0x4e, 0x0c, 0x47, 0x94, 0x8f,
+	0xab, 0xb5, 0xd3, 0x17, 0xc6, 0x9e, 0x9e, 0x42, 0x4f, 0x60, 0xed, 0x16, 0x4c, 0xb1, 0x5a, 0x36,
+	0x8e, 0x8e, 0x78, 0xe8, 0x6e, 0x57, 0x64, 0x1a, 0xfb, 0xa7, 0xd5, 0x3d, 0x63, 0x4f, 0x1f, 0x47,
+	0x8f, 0x61, 0x65, 0x38, 0xa6, 0x66, 0xd4, 0xeb, 0x5c, 0xcd, 0x7d, 0x1e, 0xe6, 0x51, 0xb6, 0xac,
+	0x13, 0xa3, 0xba, 0x57, 0xa9, 0x3e, 0xd7, 0x27, 0xb6, 0x7a, 0xa0, 0x0f, 0x4e, 0x31, 0xee, 0x44,
+	0xbd, 0x58, 0x3b, 0xb4, 0x4a, 0xa7, 0x7b, 0xcf, 0x8d, 0xfa, 0xf0, 0x98, 0xac, 0xc1, 0xc3, 0x21,
+	0x18, 0xd3, 0xa8, 0x19, 0xe6, 0x99, 0x08, 0xc9, 0x3a, 0x3c, 0x1a, 0x02, 0xd8, 0xaf, 0x54, 0x8b,
+	0x47, 0x95, 0x6f, 0x78, 0x40, 0xb6, 0xfe, 0xa8, 0xc1, 0xc2, 0xd0, 0x2f, 0x4b, 0xf1, 0x2a, 0x79,
+	0x55, 0xa9, 0x1f, 0xec, 0x99, 0xc5, 0x57, 0xd6, 0x61, 0xa5, 0xba, 0x67, 0x9d, 0xed, 0x0e, 0xb8,
+	0xf1, 0x18, 0x56, 0x6e, 0x45, 0x56, 0x8f, 0xab, 0xbc, 0x40, 0x9e, 0xc0, 0xda, 0xad, 0x90, 0xe2,
+	0x8b, 0xe3, 0xd3, 0x6a, 0x5d, 0x4f, 0xc5, 0xab, 0xe8, 0x06, 0x48, 0x56, 0x51, 0xa2, 0xac, 0x07,
+	0x7a, 0x1c, 0x6d, 0xc1, 0x87, 0xa1, 0xf8, 0xa1, 0xf1, 0xb5, 0x55, 0x3e, 0x28, 0x56, 0x9f, 0x1b,
+	0xb7, 0xb8, 0x1c, 0x33, 0x35, 0x04, 0x5b, 0x33, 0xea, 0xba, 0x86, 0x3e, 0x80, 0xf5, 0x11, 0x98,
+	0xf2, 0x91, 0x51, 0x34, 0xf5, 0x54, 0xe9, 0xcb, 0x37, 0x6f, 0x57, 0xb5, 0x1f, 0xde, 0xae, 0x6a,
+	0xff, 0x7a, 0xbb, 0xaa, 0xfd, 0xee, 0xdd, 0xea, 0xd8, 0x0f, 0xef, 0x56, 0xc7, 0xfe, 0xf1, 0x6e,
+	0x75, 0xec, 0x9b, 0x8d, 0xa6, 0xc3, 0x2e, 0x83, 0xf3, 0xed, 0x86, 0xd7, 0xde, 0xa9, 0xd3, 0x80,
+	0x1c, 0x77, 0x88, 0xbb, 0xe3, 0x7a, 0x36, 0xd9, 0xe9, 0xee, 0x88, 0xef, 0xfa, 0xac, 0xd7, 0x21,
+	0xfe, 0xf9, 0x84, 0xf8, 0xc4, 0xfe, 0xd9, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x7c, 0xc8, 0x1b,
+	0xa7, 0xec, 0x17, 0x00, 0x00,
 }
 
 func (m *SessionNonceState) Marshal() (dAtA []byte, err error) {
@@ -1162,6 +1726,119 @@ func (m *StreamState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.XPendingTakeover != nil {
+		{
+			size := m.XPendingTakeover.Size()
+			i -= size
+			if _, err := m.XPendingTakeover.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	if m.XPendingSessionKeyChange != nil {
+		{
+			size := m.XPendingSessionKeyChange.Size()
+			i -= size
+			if _, err := m.XPendingSessionKeyChange.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	if m.StickyRunCount != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.StickyRunCount))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.StickyAnchorHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.StickyAnchorHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
+	if m.StickyAnchorSequence != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.StickyAnchorSequence))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa8
+	}
+	if m.XLastRecordWinner != nil {
+		{
+			size := m.XLastRecordWinner.Size()
+			i -= size
+			if _, err := m.XLastRecordWinner.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	if m.LastRecordHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.LastRecordHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.BoundChangeHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.BoundChangeHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
+	if len(m.BoundBuilder) > 0 {
+		i -= len(m.BoundBuilder)
+		copy(dAtA[i:], m.BoundBuilder)
+		i = encodeVarintSession(dAtA, i, uint64(len(m.BoundBuilder)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x8a
+	}
+	if m.PendingWithdrawEffectiveHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.PendingWithdrawEffectiveHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	{
+		size, err := m.PendingWithdrawAmount.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x7a
+	if m.PendingWithdrawKind != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.PendingWithdrawKind))
+		i--
+		dAtA[i] = 0x70
+	}
+	{
+		size, err := m.FrozenTotal.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x6a
+	{
+		size, err := m.Balance.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x62
 	if m.SessionKeySetHeight != 0 {
 		i = encodeVarintSession(dAtA, i, uint64(m.SessionKeySetHeight))
 		i--
@@ -1254,6 +1931,68 @@ func (m *StreamState_SessionKey) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	}
 	return len(dAtA) - i, nil
 }
+func (m *StreamState_LastRecordWinner) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamState_LastRecordWinner) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.LastRecordWinner)
+	copy(dAtA[i:], m.LastRecordWinner)
+	i = encodeVarintSession(dAtA, i, uint64(len(m.LastRecordWinner)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xa2
+	return len(dAtA) - i, nil
+}
+func (m *StreamState_PendingSessionKeyChange) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamState_PendingSessionKeyChange) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.PendingSessionKeyChange != nil {
+		{
+			size, err := m.PendingSessionKeyChange.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *StreamState_PendingTakeover) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamState_PendingTakeover) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.PendingTakeover != nil {
+		{
+			size, err := m.PendingTakeover.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xca
+	}
+	return len(dAtA) - i, nil
+}
 func (m *OrderSequenceState) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1274,6 +2013,11 @@ func (m *OrderSequenceState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.CancelEffectiveHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.CancelEffectiveHeight))
+		i--
+		dAtA[i] = 0x38
+	}
 	if m.CancelledHeight != 0 {
 		i = encodeVarintSession(dAtA, i, uint64(m.CancelledHeight))
 		i--
@@ -1666,6 +2410,189 @@ func (m *TaskBudgetState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *SessionKeyGrantV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SessionKeyGrantV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SessionKeyGrantV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.SpendCap.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSession(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	if m.ExpiryHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.ExpiryHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.SessionKey) > 0 {
+		i -= len(m.SessionKey)
+		copy(dAtA[i:], m.SessionKey)
+		i = encodeVarintSession(dAtA, i, uint64(len(m.SessionKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ClearSessionKeyV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClearSessionKeyV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ClearSessionKeyV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *PendingTakeoverV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PendingTakeoverV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingTakeoverV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ActivationHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.ActivationHeight))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.RegisteredHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.RegisteredHeight))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.OrderTaskHash) > 0 {
+		i -= len(m.OrderTaskHash)
+		copy(dAtA[i:], m.OrderTaskHash)
+		i = encodeVarintSession(dAtA, i, uint64(len(m.OrderTaskHash)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.OrderSequence != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.OrderSequence))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.CandidateBuilder) > 0 {
+		i -= len(m.CandidateBuilder)
+		copy(dAtA[i:], m.CandidateBuilder)
+		i = encodeVarintSession(dAtA, i, uint64(len(m.CandidateBuilder)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *PendingSessionKeyChangeV1) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PendingSessionKeyChangeV1) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingSessionKeyChangeV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.EffectiveHeight != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.EffectiveHeight))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.XGrant != nil {
+		{
+			size := m.XGrant.Size()
+			i -= size
+			if _, err := m.XGrant.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	if m.Kind != 0 {
+		i = encodeVarintSession(dAtA, i, uint64(m.Kind))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *PendingSessionKeyChangeV1_Grant) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingSessionKeyChangeV1_Grant) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Grant != nil {
+		{
+			size, err := m.Grant.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintSession(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	return len(dAtA) - i, nil
+}
 func encodeVarintSession(dAtA []byte, offset int, v uint64) int {
 	offset -= sovSession(v)
 	base := offset
@@ -1732,6 +2659,46 @@ func (m *StreamState) Size() (n int) {
 	if m.SessionKeySetHeight != 0 {
 		n += 1 + sovSession(uint64(m.SessionKeySetHeight))
 	}
+	l = m.Balance.Size()
+	n += 1 + l + sovSession(uint64(l))
+	l = m.FrozenTotal.Size()
+	n += 1 + l + sovSession(uint64(l))
+	if m.PendingWithdrawKind != 0 {
+		n += 1 + sovSession(uint64(m.PendingWithdrawKind))
+	}
+	l = m.PendingWithdrawAmount.Size()
+	n += 1 + l + sovSession(uint64(l))
+	if m.PendingWithdrawEffectiveHeight != 0 {
+		n += 2 + sovSession(uint64(m.PendingWithdrawEffectiveHeight))
+	}
+	l = len(m.BoundBuilder)
+	if l > 0 {
+		n += 2 + l + sovSession(uint64(l))
+	}
+	if m.BoundChangeHeight != 0 {
+		n += 2 + sovSession(uint64(m.BoundChangeHeight))
+	}
+	if m.LastRecordHeight != 0 {
+		n += 2 + sovSession(uint64(m.LastRecordHeight))
+	}
+	if m.XLastRecordWinner != nil {
+		n += m.XLastRecordWinner.Size()
+	}
+	if m.StickyAnchorSequence != 0 {
+		n += 2 + sovSession(uint64(m.StickyAnchorSequence))
+	}
+	if m.StickyAnchorHeight != 0 {
+		n += 2 + sovSession(uint64(m.StickyAnchorHeight))
+	}
+	if m.StickyRunCount != 0 {
+		n += 2 + sovSession(uint64(m.StickyRunCount))
+	}
+	if m.XPendingSessionKeyChange != nil {
+		n += m.XPendingSessionKeyChange.Size()
+	}
+	if m.XPendingTakeover != nil {
+		n += m.XPendingTakeover.Size()
+	}
 	return n
 }
 
@@ -1744,6 +2711,40 @@ func (m *StreamState_SessionKey) Size() (n int) {
 	if m.SessionKey != nil {
 		l = len(m.SessionKey)
 		n += 1 + l + sovSession(uint64(l))
+	}
+	return n
+}
+func (m *StreamState_LastRecordWinner) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.LastRecordWinner)
+	n += 2 + l + sovSession(uint64(l))
+	return n
+}
+func (m *StreamState_PendingSessionKeyChange) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PendingSessionKeyChange != nil {
+		l = m.PendingSessionKeyChange.Size()
+		n += 2 + l + sovSession(uint64(l))
+	}
+	return n
+}
+func (m *StreamState_PendingTakeover) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PendingTakeover != nil {
+		l = m.PendingTakeover.Size()
+		n += 2 + l + sovSession(uint64(l))
 	}
 	return n
 }
@@ -1772,6 +2773,9 @@ func (m *OrderSequenceState) Size() (n int) {
 	}
 	if m.CancelledHeight != 0 {
 		n += 1 + sovSession(uint64(m.CancelledHeight))
+	}
+	if m.CancelEffectiveHeight != 0 {
+		n += 1 + sovSession(uint64(m.CancelEffectiveHeight))
 	}
 	return n
 }
@@ -1921,6 +2925,90 @@ func (m *TaskBudgetState) Size() (n int) {
 	n += 2 + l + sovSession(uint64(l))
 	if m.BudgetStatus != 0 {
 		n += 2 + sovSession(uint64(m.BudgetStatus))
+	}
+	return n
+}
+
+func (m *SessionKeyGrantV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SessionKey)
+	if l > 0 {
+		n += 1 + l + sovSession(uint64(l))
+	}
+	if m.ExpiryHeight != 0 {
+		n += 1 + sovSession(uint64(m.ExpiryHeight))
+	}
+	l = m.SpendCap.Size()
+	n += 1 + l + sovSession(uint64(l))
+	return n
+}
+
+func (m *ClearSessionKeyV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *PendingTakeoverV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.CandidateBuilder)
+	if l > 0 {
+		n += 1 + l + sovSession(uint64(l))
+	}
+	if m.OrderSequence != 0 {
+		n += 1 + sovSession(uint64(m.OrderSequence))
+	}
+	l = len(m.OrderTaskHash)
+	if l > 0 {
+		n += 1 + l + sovSession(uint64(l))
+	}
+	if m.RegisteredHeight != 0 {
+		n += 1 + sovSession(uint64(m.RegisteredHeight))
+	}
+	if m.ActivationHeight != 0 {
+		n += 1 + sovSession(uint64(m.ActivationHeight))
+	}
+	return n
+}
+
+func (m *PendingSessionKeyChangeV1) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Kind != 0 {
+		n += 1 + sovSession(uint64(m.Kind))
+	}
+	if m.XGrant != nil {
+		n += m.XGrant.Size()
+	}
+	if m.EffectiveHeight != 0 {
+		n += 1 + sovSession(uint64(m.EffectiveHeight))
+	}
+	return n
+}
+
+func (m *PendingSessionKeyChangeV1_Grant) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Grant != nil {
+		l = m.Grant.Size()
+		n += 1 + l + sovSession(uint64(l))
 	}
 	return n
 }
@@ -2340,6 +3428,372 @@ func (m *StreamState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Balance", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Balance.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FrozenTotal", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.FrozenTotal.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PendingWithdrawKind", wireType)
+			}
+			m.PendingWithdrawKind = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PendingWithdrawKind |= SessionWithdrawKindV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PendingWithdrawAmount", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.PendingWithdrawAmount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PendingWithdrawEffectiveHeight", wireType)
+			}
+			m.PendingWithdrawEffectiveHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PendingWithdrawEffectiveHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 17:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BoundBuilder", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BoundBuilder = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 18:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BoundChangeHeight", wireType)
+			}
+			m.BoundChangeHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BoundChangeHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 19:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRecordHeight", wireType)
+			}
+			m.LastRecordHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LastRecordHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 20:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastRecordWinner", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XLastRecordWinner = &StreamState_LastRecordWinner{string(dAtA[iNdEx:postIndex])}
+			iNdEx = postIndex
+		case 21:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StickyAnchorSequence", wireType)
+			}
+			m.StickyAnchorSequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.StickyAnchorSequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 22:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StickyAnchorHeight", wireType)
+			}
+			m.StickyAnchorHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.StickyAnchorHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StickyRunCount", wireType)
+			}
+			m.StickyRunCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.StickyRunCount |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 24:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PendingSessionKeyChange", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PendingSessionKeyChangeV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.XPendingSessionKeyChange = &StreamState_PendingSessionKeyChange{v}
+			iNdEx = postIndex
+		case 25:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PendingTakeover", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &PendingTakeoverV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.XPendingTakeover = &StreamState_PendingTakeover{v}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipSession(dAtA[iNdEx:])
@@ -2530,6 +3984,25 @@ func (m *OrderSequenceState) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.CancelledHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CancelEffectiveHeight", wireType)
+			}
+			m.CancelEffectiveHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CancelEffectiveHeight |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3699,6 +5172,488 @@ func (m *TaskBudgetState) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.BudgetStatus |= TaskBudgetStatus(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SessionKeyGrantV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SessionKeyGrantV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SessionKeyGrantV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionKey = append(m.SessionKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.SessionKey == nil {
+				m.SessionKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiryHeight", wireType)
+			}
+			m.ExpiryHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiryHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SpendCap", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.SpendCap.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClearSessionKeyV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClearSessionKeyV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClearSessionKeyV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PendingTakeoverV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PendingTakeoverV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PendingTakeoverV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CandidateBuilder", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CandidateBuilder = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OrderSequence", wireType)
+			}
+			m.OrderSequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OrderSequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OrderTaskHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OrderTaskHash = append(m.OrderTaskHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.OrderTaskHash == nil {
+				m.OrderTaskHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RegisteredHeight", wireType)
+			}
+			m.RegisteredHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RegisteredHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ActivationHeight", wireType)
+			}
+			m.ActivationHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ActivationHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSession(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthSession
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PendingSessionKeyChangeV1) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSession
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PendingSessionKeyChangeV1: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PendingSessionKeyChangeV1: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			m.Kind = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Kind |= SessionKeyChangeKindV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Grant", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSession
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSession
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &SessionKeyGrantV1{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.XGrant = &PendingSessionKeyChangeV1_Grant{v}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveHeight", wireType)
+			}
+			m.EffectiveHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSession
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EffectiveHeight |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

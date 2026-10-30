@@ -379,156 +379,25 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	cdc := codec.NewProtoCodec(interfaceRegistry)
 	hubParams := hubtypes.DefaultHubParams()
 	require.NoError(t, applyHubParamsOverride(cdc, &hubParams, seed.HubParams))
-	// 14400 blocks is four hours under FAST_BLOCKS. The seed previously carried
-	// 60_480_000 - seven hundred days - which meant the epoch counter never
-	// advanced on a localnet, and a freshly registered cortex could never join.
-	// StakeService sets effective_active_bond to zero and effective_bond_epoch to
-	// current_epoch + ServiceBondEffectiveEpochDelay, and candidate eligibility
-	// reads effective_active_bond, so without a rollover a new operator stays at
-	// zero bond forever however much it staked.
-	//
-	// Shorter would onboard faster - the wait is uniform on [0, one epoch] - but
-	// the epoch-denominated retentions are all 30 epochs (builder set, candidate
-	// pool header, slot binding, vrf key history, daily support, support row,
-	// reward audit). Four hours puts those at five days, which outlives a
-	// debugging session; an hour would put them at thirty.
-	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
+	// Short epochs and windows exercise Phase 1 rollover and delayed actions.
+	require.Equal(t, uint64(120), hubParams.Epoch.EpochLengthBlocks)
 	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
-	require.Equal(t, uint64(4), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
-	require.Equal(t, uint64(60), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
-	// Freshness is epoch-based now; daily_support_window_blocks is gone.
-	//
-	// A rolling epoch also switches support expiry on, and support_fresh_until is
-	// current_epoch + support_window_epochs. At the protocol value of 2 that is
-	// eight hours, after which every support row goes stale and the network stops
-	// admitting tasks unless something keeps calling MsgBatchConfirmModelSupport.
-	// Trading "a new operator can never join" for "every operator drops out
-	// overnight" is not a trade a debugging network wants, so the seed widens the
-	// window to 30 days.
-	//
-	// This one is a governance parameter rather than genesis-only, so narrowing it
-	// back to exercise the expiry path costs a proposal rather than a fresh
-	// genesis - both behaviours are reachable on the same chain.
+	require.Equal(t, uint64(10), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
 	require.Equal(t, uint32(180), hubParams.Support.SupportWindowEpochs)
 	require.Equal(t, uint32(1024), hubParams.Reward.MaxRewardEpochItemsPerBlock)
 	require.Equal(t, uint32(32), hubParams.Support.MaxSupportExpiryItemsPerBlock)
 	requireGenesisSeedListsAllParams(t, cdc, &hubParams, seed.HubParams)
 	taskParams := tasktypes.DefaultTaskParams()
 	require.NoError(t, applyTaskParamsOverride(cdc, &taskParams, seed.TaskParams))
-	// Localnet runs with FAST_BLOCKS at roughly one second per block, where the
-	// former 8-block commit and reveal windows were under two seconds of wall
-	// clock. A cortex paused on a breakpoint missed them every time, and a missed
-	// Verifier deadline is an immediate jail, so debugging the node reliably
-	// jailed it.
-	//
-	// Every fault x/task can raise is a missed deadline — worker_infer_
-	// timeout, verifier_miss, commit_no_result — so wall clock on a breakpoint is
-	// the whole exposure. The windows are not interchangeable, though, and the
-	// budget belongs on the ones that are free:
-	//
-	//   - commit_window is a pure upper bound. verification_runtime.go opens the
-	//     reveal phase on REVEAL_PHASE_TRIGGER_ALL_COMMITS the moment the last
-	//     commit lands, so 100000 blocks — a day under FAST_BLOCKS — costs a
-	//     healthy task nothing. It is also where a breakpoint actually lands,
-	//     since committing is what runs verification.
-	//   - verify_open_deadline is the one window where a longer value is strictly
-	//     worse, and it used to be justified here as "an upper bound, widening it
-	//     buys more handraise retries". It buys none. freezeVerifierWindowClock
-	//     freezes the whole verifier clock off the receipt height, and selection
-	//     runs once, at handraise_close + delta_w. If fewer than
-	//     selected_verifier_count cortexes raised a hand by then, verifier_finalize
-	//     _runtime.go drops the queue key outright — "the union cannot grow after
-	//     the close height" — and the task just sits there until
-	//     receipt + verify_open_deadline finally fails it as
-	//     TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER and refunds.
-	//
-	//     So verify_open_deadline is not tolerance, it is how long a task that has
-	//     ALREADY failed takes to say so. At 150000 that was 41 hours of a hung
-	//     task per missed handraise, on a chain whose whole point is that a
-	//     breakpoint is cheap. 300 blocks is five minutes to the refund and still
-	//     twelve times the receipt+45 height selection actually needs, which is
-	//     ample against a deadline-sweep backlog (verifyDeadlineRetryBlocksV1 is 1,
-	//     so a capped sweep retries on the very next block).
-	//
-	//     The tolerance that a missed handraise actually needs goes into
-	//     self_rescue_margin_blocks instead — see the selection bound below.
-	//   - reveal_window used to be treated here as the one window that is NOT an
-	//     upper bound, on the grounds that settlement refuses any height <= the
-	//     reveal deadline. That branch does not exist: loadSettlementInputs gates
-	//     settlement on the challenge close height
-	//     (msg_server_settlement.go: "round 1 challenge window is still open"),
-	//     and the remote devnet confirmed it — round 1 closed at 16457 with a
-	//     reveal deadline of 16575, yet no MsgSettleTask could succeed before
-	//     18257 = 16457 + challenge_open_window_blocks. reveal_window is an upper
-	//     bound exactly like commit_window: applyVerifyResult closes the round the
-	//     moment the last reveal lands, so a healthy task never waits it out.
-	//
-	//     What it actually buys is tolerance. planVerifyResult hard-rejects a
-	//     reveal past the deadline ("reveal deadline has passed"), and
-	//     handleExpiredRevealDeadline does not close the round — it only moves the
-	//     index to verify_deadline_height. So a verifier that overruns by one
-	//     block can never close the round, and the task hangs until
-	//     open_verify_height + collection_window. At 120 blocks that turned a
-	//     two-minute overrun into a day of waiting, which is the exact opposite of
-	//     what a debug chain wants. Matching commit_window at 100000 lets the slow
-	//     verifier still reveal and close the round immediately.
-	//
-	//     The one coupling that remains is authorizeSettlementSubmitter: below the
-	//     reveal deadline, settlementBuilderSchedule returns rank 0 and is not yet
-	//     permissionless, so only Builder rank 0 may submit MsgSettleTask. That is
-	//     the frozen rank duty doing its job, and it costs nothing: if rank 0 stays
-	//     silent, processExpiredSettlementDeadlines settles the task anyway at
-	//     rounds_closed_height + settle_margin_blocks.
-	//
-	// collection_window must cover commit + reveal + settle_margin, and the whole
-	// chain has to stay under session_close_ttl_blocks, which is why collection is
-	// 200200 and the TTL had to move with it. ValidateSessionCloseHorizon is
-	// asserted directly below: it runs in InitGenesis rather than in Validate, so
-	// without that assertion a bad horizon here would only surface as a panic
-	// inside the lifecycle integration tests. These windows are the debug chain's
-	// only; DefaultTaskParams is untouched.
-	require.Equal(t, uint64(3000), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
-	require.Equal(t, uint64(100000), taskParams.Deadlines.CommitWindowBlocks)
-	require.Equal(t, uint64(100000), taskParams.Deadlines.RevealWindowBlocks)
-	require.Equal(t, uint64(200200), taskParams.Deadlines.CollectionWindowBlocks)
-	require.Equal(t, uint64(20), taskParams.Deadlines.SettleMarginBlocks)
-	require.Equal(t, uint64(15), taskParams.Deadlines.SelfRescueMarginBlocks)
-	require.NoError(t, tasktypes.ValidateVerifyOpenClock(
-		taskParams.Deadlines,
-		hubParams.Epoch.DeltaWBlocks,
-		hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks,
-	))
-	require.NoError(t, tasktypes.ValidateSessionCloseHorizon(
-		taskParams, hubtypes.ProfileChallengeOpenWindowMaxBlocks,
-	), "widening a deadline window without moving session_close_ttl_blocks would panic InitGenesis")
-	workerSelectionBlocks := hubParams.Builder.AssignmentBuilderProposalWindowBlocks + hubParams.Epoch.DeltaWBlocks
-	verifierSelectionBlocks := 2*hubParams.Epoch.DeltaWBlocks +
-		hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks +
-		taskParams.Deadlines.SelfRescueMarginBlocks
-	// These two spans are the only mandatory waits on the happy path besides the
-	// challenge window: both selections run once, at a height frozen off the
-	// receipt, so every block added here is a block added to every task that
-	// succeeds. The exchange rate for self_rescue_margin_blocks is exactly 1:1.
-	//
-	// It is still worth paying. The verifier handraise window is the one place in
-	// the lifecycle with no second chance at all — miss it and the task is dead,
-	// per the "union cannot grow" comment quoted above — while commit and reveal
-	// each tolerate a full day. 10 blocks of margin made that window 25 blocks,
-	// twenty-five seconds under FAST_BLOCKS, for the one deadline a cortex on a
-	// breakpoint cannot recover from. 30 makes it 45, and the whole selection
-	// budget 55 blocks, under a minute, against a challenge window of 300.
-	//
-	// The bound below was 36 with the rationale "three minutes at five seconds per
-	// block". FAST_BLOCKS is one second per block, so it was really enforcing
-	// thirty-six seconds, and it was later restated as one minute.
-	//
-	// The verifier window is now 60 blocks because the Cortex nodes were measured
-	// raising their hands 12 to 25 seconds after the receipt, past a 4 block
-	// window, which left the union empty and stalled every such task. Verifier
-	// selection is off the path to the first token, so the budget is 90 blocks:
-	// the extra wait only delays verification, never the first output.
-	require.LessOrEqual(t, workerSelectionBlocks+verifierSelectionBlocks, uint64(90),
-		"Worker and Verifier selection are mandatory waits on every successful task and must stay inside a minute and a half at FAST_BLOCKS")
+	require.Equal(t, uint64(60), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(20), taskParams.Deadlines.CommitWindowBlocks)
+	require.Equal(t, uint64(10), taskParams.Deadlines.RevealWindowBlocks)
+	require.Equal(t, uint64(60), taskParams.Deadlines.CollectionWindowBlocks)
+	require.Equal(t, uint64(10), taskParams.Deadlines.SettleMarginBlocks)
+	require.Equal(t, uint64(10), taskParams.Deadlines.SelfRescueMarginBlocks)
+	require.NoError(t, tasktypes.ValidateVerifyOpenClock(taskParams.Deadlines, hubParams.Epoch.DeltaWBlocks, hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks))
+	require.NoError(t, tasktypes.ValidateSessionCloseHorizon(taskParams, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
+	require.Less(t, 2*hubParams.Epoch.DeltaWBlocks+hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks+taskParams.Deadlines.SelfRescueMarginBlocks, taskParams.Deadlines.VerifyOpenDeadlineBlocks)
 	require.Equal(t, uint32(16), taskParams.Generation.StopSequenceMaxItems)
 	requireGenesisSeedListsAllParams(t, cdc, &taskParams, seed.TaskParams)
 }

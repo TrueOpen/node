@@ -35,6 +35,9 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		len(receipt.ServiceSignature) != 64 {
 		return nil, status.Error(codes.InvalidArgument, "infer receipt envelope is invalid")
 	}
+	if len(receipt.DispatchTicketHash) != types.Hash32Len {
+		return nil, invalidDispatchTicket("infer receipt dispatch ticket hash must be 32 bytes")
+	}
 	workerBytes, worker, err := m.k.canonicalAddress("worker_operator_address", receipt.WorkerOperatorAddress)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -107,7 +110,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	}
 	core, err := m.k.TaskCore.Get(ctx, taskKey)
 	if err != nil || !bytes.Equal(core.TaskId, receipt.TaskId) || !bytes.Equal(core.AcceptedTaskHash, receipt.TaskHash) ||
-		core.TaskPhase != types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED || core.ReceiptStatus != types.ReceiptStatus_RECEIPT_STATUS_NONE {
+		core.TaskPhase != types.TaskPhase_TASK_PHASE_INFER_PENDING || core.ReceiptStatus != types.ReceiptStatus_RECEIPT_STATUS_NONE {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "infer receipt task scope does not match")
 	}
 	assignment, err := m.k.ReadTaskAssignment(ctx, taskKey)
@@ -117,6 +120,9 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		len(assignment.ProfileExecutionSnapshotHash) != types.Hash32Len || assignment.CandidatePoolRefReleased ||
 		assignment.InferDeadlineHeight == 0 || height > assignment.InferDeadlineHeight {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "infer receipt does not match the timely winning assignment")
+	}
+	if !bytes.Equal(receipt.DispatchTicketHash, assignment.DispatchTicketHash) {
+		return nil, invalidDispatchTicket("infer receipt does not bind the accepted dispatch attempt")
 	}
 	budget, err := m.k.TaskBudget.Get(ctx, taskKey)
 	if err != nil || budget.MaxOutputTokens == 0 || receipt.GeneratedTokenCount > budget.MaxOutputTokens {

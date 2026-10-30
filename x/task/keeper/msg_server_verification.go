@@ -104,7 +104,7 @@ func (m msgServer) BatchSubmitVerifyCommit(ctx context.Context, req *types.MsgBa
 		}
 		results[index] = types.BatchItemResultV1{ItemIndex: uint32(index), ObjectId: append([]byte(nil), plan.keyBytes...), Status: mutation}
 	}
-	digest, err := verificationBatchDigest(sdkCtx.ChainID(), shared.BatchResultKindVerifyCommit, results)
+	digest, err := taskBatchDigest(sdkCtx.ChainID(), shared.BatchResultKindVerifyCommit, results)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (m msgServer) BatchSubmitVerifyResult(ctx context.Context, req *types.MsgBa
 		}
 		results[index] = types.BatchItemResultV1{ItemIndex: uint32(index), ObjectId: append([]byte(nil), plan.state.CommitKey...), Status: mutation}
 	}
-	digest, err := verificationBatchDigest(sdkCtx.ChainID(), shared.BatchResultKindVerifyResult, results)
+	digest, err := taskBatchDigest(sdkCtx.ChainID(), shared.BatchResultKindVerifyResult, results)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (m msgServer) BatchSubmitVerifyResult(ctx context.Context, req *types.MsgBa
 	return &types.MsgBatchSubmitVerifyResultResponse{Results: results, BatchDigest: digest}, nil
 }
 
-func verificationBatchDigest(chainID, kind string, results []types.BatchItemResultV1) ([]byte, error) {
+func taskBatchDigest(chainID, kind string, results []types.BatchItemResultV1) ([]byte, error) {
 	if !shared.IsBatchResultKind(kind) || kind == shared.BatchResultKindModelSupport {
 		return nil, fmt.Errorf("unsupported verification batch kind %q", kind)
 	}
@@ -218,8 +218,11 @@ func verificationBatchDigest(chainID, kind string, results []types.BatchItemResu
 	items := make([]shared.BatchResultDigestItemV1, len(results))
 	for index, result := range results {
 		if result.ItemIndex != uint32(index) || len(result.ObjectId) != types.Hash32Len ||
-			(result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED && result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP) {
+			(result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED && result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP && !(kind == shared.BatchResultKindDispatchRecord && result.Status == shared.MutationStatusV1_MUTATION_STATUS_V1_REJECTED)) {
 			return nil, fmt.Errorf("batch result item %d is non-canonical", index)
+		}
+		if (result.Status == shared.MutationStatusV1_MUTATION_STATUS_V1_REJECTED) != (result.RejectCode != types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_UNSPECIFIED) {
+			return nil, fmt.Errorf("batch result rejection code differs from its outcome")
 		}
 		items[index] = shared.BatchResultDigestItemV1{ObjectID: result.ObjectId, Status: uint32(result.Status)}
 	}

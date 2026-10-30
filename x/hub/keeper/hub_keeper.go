@@ -145,8 +145,6 @@ func (k Keeper) GetHubParams(ctx sdk.Context) types.HubParamsSnapshot {
 		UnbondingSlashSafetyMarginBlocks:      params.Service.UnbondingSlashSafetyMarginBlocks,
 		ObjectiveForgerySlashBps:              params.Service.ObjectiveForgerySlashBps,
 		CandidateSlotHardCapacity:             params.CandidatePool.CandidateSlotHardCapacity,
-		BuildersPerTask:                       params.Builder.BuildersPerTask,
-		AssignmentBuilderProposalWindowBlocks: params.Builder.AssignmentBuilderProposalWindowBlocks,
 		OpenVerifyBuilderProposalWindowBlocks: params.Builder.OpenVerifyBuilderProposalWindowBlocks,
 		SettlementBuilderGraceBlocks:          params.Builder.SettlementBuilderGraceBlocks,
 		FreezeFailureIndexRetentionBlocks:     params.Freeze.FreezeFailureIndexRetentionBlocks,

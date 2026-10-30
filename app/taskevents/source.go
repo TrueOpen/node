@@ -218,7 +218,7 @@ func (s *cometSource) eventsAtHeight(ctx context.Context, height int64) ([]chain
 		TxResults:           results.TxsResults,
 		FinalizeBlockEvents: results.FinalizeBlockEvents,
 	}
-	return eventsFromBlockObserved(blockEvents, func(eventType string, source string, txIndex uint32, eventIndex uint32) {
+	events := eventsFromBlockObserved(blockEvents, func(eventType string, source string, txIndex uint32, eventIndex uint32) {
 		s.logger.Error(
 			"skipping malformed or unsupported TrueOpen typed event",
 			"height", height,
@@ -227,7 +227,8 @@ func (s *cometSource) eventsAtHeight(ctx context.Context, height int64) ([]chain
 			"event_index", eventIndex,
 			"event_type", eventType,
 		)
-	}), nil
+	})
+	return enrichEventTargets(ctx, client, uint64(height), events)
 }
 
 func (s *cometSource) waitForClient(ctx context.Context) (cmtrpc.Client, error) {

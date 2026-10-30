@@ -117,7 +117,6 @@ var (
 	// after it, so every Task and Session remembers the params version it was
 	// created under and reads its values from the history instead of the live row.
 	ParamsHistoryKey        = MustVersionedStorePrefix("params_history", CurrentStoreSchemaVersion)
-	LegacyParamsVersionKey  = MustVersionedStorePrefix("legacy_params_version", CurrentStoreSchemaVersion)
 	TaskParamsVersionKey    = MustVersionedStorePrefix("task_params_version", CurrentStoreSchemaVersion)
 	SessionParamsVersionKey = MustVersionedStorePrefix("session_params_version", CurrentStoreSchemaVersion)
 
@@ -139,7 +138,6 @@ var (
 	// ---- Task core, assignment and handraise ----
 	TaskCoreKey                       = MustVersionedStorePrefix("task_core", CurrentStoreSchemaVersion)
 	TaskAssignmentKey                 = MustVersionedStorePrefix("task_assignment", CurrentStoreSchemaVersion)
-	AssignmentCandidateSetKey         = MustVersionedStorePrefix("assignment_candidate_set", CurrentStoreSchemaVersion)
 	TaskCandidateFactKey              = MustVersionedStorePrefix("task_candidate_fact", CurrentStoreSchemaVersion)
 	BuilderStageProposalKey           = MustVersionedStorePrefix("builder_stage_proposal", CurrentStoreSchemaVersion)
 	TaskStageHandraiseUnionKey        = MustVersionedStorePrefix("task_stage_handraise_union", CurrentStoreSchemaVersion)
@@ -192,7 +190,6 @@ var (
 	TaskFailureClassWindowPruneIndexKey = MustVersionedStorePrefix("task_failure_class_window_prune_index", CurrentStoreSchemaVersion)
 
 	// ---- Height indexes ----
-	AssignmentRandomnessIndexKey        = MustVersionedStorePrefix("assignment_randomness_index", CurrentStoreSchemaVersion)
 	InferDeadlineIndexKey               = MustVersionedStorePrefix("infer_deadline_index", CurrentStoreSchemaVersion)
 	VerifyOpenDeadlineIndexKey          = MustVersionedStorePrefix("verify_open_deadline_index", CurrentStoreSchemaVersion)
 	CommitDeadlineIndexKey              = MustVersionedStorePrefix("commit_deadline_index", CurrentStoreSchemaVersion)
@@ -533,3 +530,21 @@ const (
 // SignatureSchemeSecp256k1 aliases the shared literal so signed_order and the
 // shared framing layer can never drift into two spellings of one scheme.
 const SignatureSchemeSecp256k1 = shared.SignatureSchemeSecp256k1
+
+// ValueEvidenceReceiptKey orders a target's compact receipts by output position.
+type ValueEvidenceReceiptKey = collections.Quad[Hash32Key, uint32, AddrKey, uint64]
+
+func NewValueEvidenceReceiptKey(taskID Hash32Key, round uint32, target AddrKey, position uint64) ValueEvidenceReceiptKey {
+	return collections.Join4(taskID, round, target, position)
+}
+
+var (
+	ValueEvidenceReceiptStateKey = MustVersionedStorePrefix("value_evidence_receipt", CurrentStoreSchemaVersion)
+	ValueEvidenceWindowCloseKey  = MustVersionedStorePrefix("value_evidence_window_close", CurrentStoreSchemaVersion)
+)
+
+var (
+	ParamsVersionRefCountKey      = MustVersionedStorePrefix("params_version_ref_count", CurrentStoreSchemaVersion)
+	ParamsHistoryByHeightIndexKey = MustVersionedStorePrefix("params_history_by_height", CurrentStoreSchemaVersion)
+	ParamsHistoryPruneIndexKey    = MustVersionedStorePrefix("params_history_prune", CurrentStoreSchemaVersion)
+)

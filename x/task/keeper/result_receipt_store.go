@@ -66,12 +66,13 @@ func (k Keeper) resultReceiptToStore(state types.ResultReceiptState) (internalty
 		return internaltypes.ResultReceiptStoreState{}, err
 	}
 	return internaltypes.ResultReceiptStoreState{
-		CommitKey:                         append([]byte(nil), state.CommitKey...),
-		TaskId:                            append([]byte(nil), state.TaskId...),
-		VerifyRound:                       state.VerifyRound,
-		VerifierOperatorAddress:           append([]byte(nil), address...),
-		SelectedVerifierIndex:             state.SelectedVerifierIndex,
-		MetricRoot:                        append([]byte(nil), state.MetricRoot...),
+		CommitKey:               append([]byte(nil), state.CommitKey...),
+		TaskId:                  append([]byte(nil), state.TaskId...),
+		VerifyRound:             state.VerifyRound,
+		VerifierOperatorAddress: append([]byte(nil), address...),
+		SelectedVerifierIndex:   state.SelectedVerifierIndex,
+		MetricRoot:              append([]byte(nil), state.MetricRoot...),
+		MetricLeafCount:         state.MetricLeafCount, VerifierEvidenceKeyCommitment: bytes.Clone(state.VerifierEvidenceKeyCommitment), VerifierValueRoot: bytes.Clone(state.VerifierValueRoot),
 		MetricSummary:                     metricSummaryToStore(state.MetricSummary),
 		MetricSummaryHash:                 append([]byte(nil), state.MetricSummaryHash...),
 		AggregateProofHash:                append([]byte(nil), state.AggregateProofHash...),
@@ -95,12 +96,13 @@ func (k Keeper) ProjectResultReceiptStore(stored internaltypes.ResultReceiptStor
 		return types.ResultReceiptState{}, err
 	}
 	return types.ResultReceiptState{
-		CommitKey:                         append([]byte(nil), stored.CommitKey...),
-		TaskId:                            append([]byte(nil), stored.TaskId...),
-		VerifyRound:                       stored.VerifyRound,
-		VerifierOperatorAddress:           address,
-		SelectedVerifierIndex:             stored.SelectedVerifierIndex,
-		MetricRoot:                        append([]byte(nil), stored.MetricRoot...),
+		CommitKey:               append([]byte(nil), stored.CommitKey...),
+		TaskId:                  append([]byte(nil), stored.TaskId...),
+		VerifyRound:             stored.VerifyRound,
+		VerifierOperatorAddress: address,
+		SelectedVerifierIndex:   stored.SelectedVerifierIndex,
+		MetricRoot:              append([]byte(nil), stored.MetricRoot...),
+		MetricLeafCount:         stored.MetricLeafCount, VerifierEvidenceKeyCommitment: bytes.Clone(stored.VerifierEvidenceKeyCommitment), VerifierValueRoot: bytes.Clone(stored.VerifierValueRoot),
 		MetricSummary:                     summary,
 		MetricSummaryHash:                 append([]byte(nil), stored.MetricSummaryHash...),
 		AggregateProofHash:                append([]byte(nil), stored.AggregateProofHash...),

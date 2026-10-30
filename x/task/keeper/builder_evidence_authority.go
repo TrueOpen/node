@@ -3,16 +3,12 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
+	"github.com/TrueOpen/wire/dispatch"
 
-	"github.com/TrueOpen/wire/bus"
-
-	hubtypes "github.com/TrueOpen/node/x/hub/types"
-	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -22,78 +18,49 @@ var (
 )
 
 type builderEvidenceTaskAuthority struct {
-	core    types.TaskCoreState
-	builder string
-	// frozenSlashBps is carried with the authority rather than re-read at the
-	// fact boundary: the rate belongs to the same selection row that proves this
-	// Builder was on duty, so the two can never be sourced from different Tasks.
+	core           types.TaskCoreState
+	builder        string
 	frozenSlashBps uint32
 }
 
-func (k Keeper) verifyBuilderEvidenceEnvelope(ctx context.Context, chainID string, raw []byte) (bus.VerifiedEvidenceEnvelope, error) {
-	return bus.VerifyEvidenceEnvelope(raw, bus.EvidenceVerifyOptions{
+func (k Keeper) verifyBuilderEvidence(ctx context.Context, chainID string, raw []byte) (dispatch.VerifiedBuilderEvidenceV2, error) {
+	return dispatch.VerifyBuilderEvidenceV2(raw, dispatch.EvidenceVerifyOptions{
 		ChainID: chainID,
-		LookupKey: func(participantType int32, operatorAddress string, authorizationNonce uint64) ([]byte, bus.ProofKeyStatus, error) {
-			if participantType != bus.ParticipantBuilder {
-				return nil, 0, fmt.Errorf("builder evidence sender participant type must be BUILDER")
+		LookupProofKey: func(signer dispatch.ServiceProofSigner) (dispatch.ProofKeyBinding, error) {
+			if signer.ParticipantType != dispatch.ProofParticipantBuilder {
+				return dispatch.ProofKeyBinding{}, fmt.Errorf("builder evidence signer must be BUILDER")
 			}
-			builder, err := k.canonicalBusOperator(operatorAddress)
-			if err != nil {
-				return nil, 0, err
-			}
-			binding, err := k.hubKeeper.GetBuilderEvidenceProofKey(ctx, builder, authorizationNonce)
-			if err != nil {
-				return nil, 0, err
-			}
-			if binding.ParticipantType != shared.ParticipantTypeBuilder || binding.OperatorAddress != builder ||
-				binding.AuthorizationNonce != authorizationNonce {
-				return nil, 0, fmt.Errorf("Builder proof key does not match the signed binding")
-			}
-			publicKey, err := hex.DecodeString(binding.ServicePubkey)
-			if err != nil || len(publicKey) != 33 || hex.EncodeToString(publicKey) != binding.ServicePubkey {
-				return nil, 0, fmt.Errorf("Builder proof key is not canonical compressed secp256k1")
-			}
-			switch binding.Status {
-			case hubtypes.ServiceKeyStatusActive:
-				return publicKey, bus.ProofKeyActive, nil
-			case hubtypes.ServiceKeyStatusRevoked:
-				return publicKey, bus.ProofKeyRevoked, nil
-			default:
-				return nil, 0, fmt.Errorf("Builder proof key status is not usable")
-			}
+			return k.dispatchProofKey(ctx, signer)
 		},
 	})
 }
 
-func (k Keeper) canonicalBusOperator(address string) (string, error) {
-	raw, err := bus.OperatorAddressCodecBytes(address)
+func (k Keeper) canonicalEvidenceOperator(address string) (string, error) {
+	raw, err := dispatch.AddressBytes(address)
 	if err != nil {
 		return "", err
 	}
 	canonical, err := k.addressCodec.BytesToString(raw)
-	if err != nil {
-		return "", fmt.Errorf("canonicalize Bus operator: %w", err)
+	if err != nil || canonical != address {
+		return "", fmt.Errorf("evidence operator is not canonical")
 	}
 	return canonical, nil
 }
 
-func (k Keeper) loadBuilderEvidenceTaskAuthority(ctx context.Context, envelope bus.VerifiedEvidenceEnvelope) (builderEvidenceTaskAuthority, error) {
-	if envelope.Fields.SenderParticipantType != bus.ParticipantBuilder || len(envelope.Scope.TaskID) != types.Hash32Len {
-		return builderEvidenceTaskAuthority{}, fmt.Errorf("verified envelope is not attributable to one Builder Task")
-	}
-	builder, err := k.canonicalBusOperator(envelope.Fields.SenderOperatorAddress)
+func (k Keeper) loadBuilderEvidenceTaskAuthority(ctx context.Context, message dispatch.SignedMessageV1) (builderEvidenceTaskAuthority, error) {
+	builder, err := k.canonicalEvidenceOperator(message.Binding.BuilderAddress)
 	if err != nil {
 		return builderEvidenceTaskAuthority{}, err
 	}
-	taskKey := types.NewTaskKey(envelope.Scope.TaskID)
+	taskKey := types.NewTaskKey(message.Scope.TaskID[:])
 	core, err := k.TaskCore.Get(ctx, taskKey)
 	if err != nil {
 		return builderEvidenceTaskAuthority{}, fmt.Errorf("builder evidence Task core is unavailable: %w", err)
 	}
-	if !bytes.Equal(core.TaskId, envelope.Scope.TaskID) {
+	if !bytes.Equal(core.TaskId, message.Scope.TaskID[:]) {
 		return builderEvidenceTaskAuthority{}, fmt.Errorf("builder evidence Task core does not match its key")
 	}
-	selection, err := k.loadActiveTaskBuilderSelection(ctx, taskKey, envelope.Scope.TaskID)
+	selection, err := k.loadActiveTaskBuilderSelection(ctx, taskKey, core.TaskId)
 	if err != nil {
 		return builderEvidenceTaskAuthority{}, fmt.Errorf("builder evidence Task selection is unavailable: %w", err)
 	}
@@ -105,49 +72,47 @@ func (k Keeper) loadBuilderEvidenceTaskAuthority(ctx context.Context, envelope b
 		}
 	}
 	if !selected {
-		return builderEvidenceTaskAuthority{}, fmt.Errorf("envelope signer was not selected for the Task")
+		return builderEvidenceTaskAuthority{}, fmt.Errorf("message signer was not selected for the Task")
 	}
-	return builderEvidenceTaskAuthority{
-		core:           core,
-		builder:        builder,
-		frozenSlashBps: selection.BuilderFaultSlashBpsSnapshot,
-	}, nil
+	// The frozen Task responsibility selects the eligible current or previous
+	// generation independently of today's live submission identity.
+	if _, err := k.hubKeeper.GetBuilderEvidenceProofKey(ctx, builder, message.Binding.ServiceAuthorizationNonce, core.SessionId, core.TaskId); err != nil {
+		return builderEvidenceTaskAuthority{}, fmt.Errorf("Builder Task evidence context: %w", err)
+	}
+	return builderEvidenceTaskAuthority{core: core, builder: builder, frozenSlashBps: selection.BuilderFaultSlashBpsSnapshot}, nil
 }
 
-func validateBuilderEvidenceCommonScope(authority builderEvidenceTaskAuthority, envelope bus.VerifiedEvidenceEnvelope) error {
-	if len(envelope.Scope.TaskHash) != 0 && !bytes.Equal(envelope.Scope.TaskHash, authority.core.AcceptedTaskHash) {
+func validateBuilderEvidenceCommonScope(authority builderEvidenceTaskAuthority, message dispatch.SignedMessageV1) error {
+	if !bytes.Equal(message.Scope.TaskHash[:], authority.core.AcceptedTaskHash) {
 		return fmt.Errorf("%w: task_hash", errBuilderEvidenceScopeMismatch)
 	}
-	if len(envelope.Scope.ModelID) != 0 && !bytes.Equal(envelope.Scope.ModelID, authority.core.ModelId) {
+	if message.Scope.ModelID != nil && !bytes.Equal(message.Scope.ModelID[:], authority.core.ModelId) {
 		return fmt.Errorf("%w: model_id", errBuilderEvidenceScopeMismatch)
 	}
 	return nil
 }
 
-func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority builderEvidenceTaskAuthority, envelope bus.VerifiedEvidenceEnvelope) error {
-	if err := validateBuilderEvidenceCommonScope(authority, envelope); err != nil {
+func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority builderEvidenceTaskAuthority, message dispatch.SignedMessageV1) error {
+	if err := validateBuilderEvidenceCommonScope(authority, message); err != nil {
 		return err
 	}
 	taskKey := types.NewTaskKey(authority.core.TaskId)
-	scope := envelope.Scope
-	switch scope.Kind {
-	case bus.KindOrderBroadcast:
-		return k.validateBuilderOrderBroadcast(authority.core, envelope)
-	case bus.KindWorkerHandraise:
-		return k.validateBuilderCandidateActor(ctx, taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK, scope.PayloadActor)
-	case bus.KindWorkerAssignmentNotify, bus.KindOutputAvailable:
-		return k.validateBuilderWorkerActor(ctx, taskKey, scope.PayloadActor)
-	case bus.KindOpenVerify:
-		// A round the Task never opened is a missing stage prerequisite, not a
-		// contradiction of the Task's identity: round 1 is the original
-		// verification, while the current public V1 surface has no authority behind
-		// a challenge round. The protocol calls exactly this case a
-		// "premature OPEN_VERIFY", which is what WRONG_STAGE is for.
-		if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
+	scope := message.Scope
+	switch types.StreamMessageKind(scope.MessageKind) {
+	case types.StreamMessageKind_STREAM_MESSAGE_KIND_OPEN_VERIFY:
+		if scope.VerifyRound != types.VerifyRoundV1 {
 			return fmt.Errorf("%w: OPEN_VERIFY verify_round", errBuilderEvidenceWrongStage)
 		}
-		if err := k.validateBuilderWorkerActor(ctx, taskKey, scope.PayloadActor); err != nil {
+		assignment, err := k.ReadTaskAssignment(ctx, taskKey)
+		if errors.Is(err, collections.ErrNotFound) {
+			return fmt.Errorf("%w: recorded Worker assignment", errBuilderEvidenceWrongStage)
+		}
+		if err != nil {
 			return err
+		}
+		actor, err := k.canonicalEvidenceOperator(scope.PayloadActor)
+		if err != nil || actor != assignment.WinnerWorker {
+			return fmt.Errorf("%w: OPEN_VERIFY Worker actor", errBuilderEvidenceScopeMismatch)
 		}
 		receipt, err := k.ReadInferReceipt(ctx, taskKey)
 		if errors.Is(err, collections.ErrNotFound) {
@@ -156,157 +121,25 @@ func (k Keeper) validateBuilderEvidenceAction(ctx context.Context, authority bui
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(receipt.TaskId, authority.core.TaskId) || receipt.WinnerWorker == "" {
-			return fmt.Errorf("OPEN_VERIFY InferReceipt authority is inconsistent")
-		}
-		if scope.PayloadActor == nil {
-			return fmt.Errorf("%w: OPEN_VERIFY Worker actor", errBuilderEvidenceScopeMismatch)
-		}
-		actor, err := k.canonicalBusOperator(*scope.PayloadActor)
-		if err != nil || actor != receipt.WinnerWorker {
+		if !bytes.Equal(receipt.TaskId, authority.core.TaskId) || receipt.WinnerWorker != actor {
 			return fmt.Errorf("%w: OPEN_VERIFY InferReceipt Worker", errBuilderEvidenceScopeMismatch)
 		}
 		return nil
-	case bus.KindVerifierHandraise:
-		if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
-			return fmt.Errorf("%w: VERIFIER_HANDRAISE verify_round", errBuilderEvidenceWrongStage)
+	case types.StreamMessageKind_STREAM_MESSAGE_KIND_VERIFIER_ASSIGNMENT_NOTIFY:
+		if scope.VerifyRound != types.VerifyRoundV1 && scope.VerifyRound != types.ChallengeVerifyRoundV1 {
+			return fmt.Errorf("%w: verifier assignment verify_round", errBuilderEvidenceWrongStage)
 		}
-		return k.validateBuilderCandidateActor(ctx, taskKey, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY, scope.PayloadActor)
-	case bus.KindVerifierAssignmentNotify:
-		return k.validateBuilderVerifierAssignment(ctx, taskKey, scope, false)
-	case bus.KindVerifyResult:
-		return k.validateBuilderVerifierAssignment(ctx, taskKey, scope, true)
+		_, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, scope.VerifyRound))
+		if errors.Is(err, collections.ErrNotFound) {
+			return fmt.Errorf("%w: finalized Verifier assignment", errBuilderEvidenceWrongStage)
+		}
+		return err
 	default:
-		return fmt.Errorf("unsupported Builder evidence Bus kind %d", scope.Kind)
+		return fmt.Errorf("unsupported Builder evidence message kind %d", scope.MessageKind)
 	}
 }
 
-func (k Keeper) validateBuilderOrderBroadcast(core types.TaskCoreState, envelope bus.VerifiedEvidenceEnvelope) error {
-	if len(envelope.OrderBytes) == 0 {
-		return fmt.Errorf("ORDER_BROADCAST did not expose exact TaskOrderV3 bytes")
-	}
-	var order types.TaskOrderV3
-	if err := order.Unmarshal(envelope.OrderBytes); err != nil {
-		return fmt.Errorf("decode ORDER_BROADCAST TaskOrderV3: %w", err)
-	}
-	digest, err := types.TaskOrderHash(order)
-	if err != nil {
-		return fmt.Errorf("recompute ORDER_BROADCAST task_hash: %w", err)
-	}
-	actor, err := k.canonicalBusOperator(order.UserAddress)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(digest[:], core.AcceptedTaskHash) || !bytes.Equal(order.SessionId, core.SessionId) ||
-		order.OrderSequence != core.OrderSequence || !bytes.Equal(order.ModelId, core.ModelId) || actor != core.UserAddress {
-		return fmt.Errorf("%w: ORDER_BROADCAST TaskOrder authority", errBuilderEvidenceScopeMismatch)
-	}
-	if envelope.Scope.PayloadActor == nil {
-		return fmt.Errorf("%w: ORDER_BROADCAST user actor", errBuilderEvidenceScopeMismatch)
-	}
-	scopeActor, err := k.canonicalBusOperator(*envelope.Scope.PayloadActor)
-	if err != nil || scopeActor != core.UserAddress {
-		return fmt.Errorf("%w: ORDER_BROADCAST payload actor", errBuilderEvidenceScopeMismatch)
-	}
-	return nil
-}
-
-func (k Keeper) validateBuilderWorkerActor(ctx context.Context, taskKey types.TaskKey, actor *string) error {
-	if actor == nil {
-		return fmt.Errorf("%w: Worker actor is absent", errBuilderEvidenceScopeMismatch)
-	}
-	canonical, err := k.canonicalBusOperator(*actor)
-	if err != nil {
-		return err
-	}
-	assignment, err := k.ReadTaskAssignment(ctx, taskKey)
-	if errors.Is(err, collections.ErrNotFound) {
-		return fmt.Errorf("%w: finalized Worker assignment", errBuilderEvidenceWrongStage)
-	}
-	if err != nil {
-		return err
-	}
-	if assignment.WinnerWorker != canonical {
-		return fmt.Errorf("%w: Worker actor", errBuilderEvidenceScopeMismatch)
-	}
-	return nil
-}
-
-func (k Keeper) validateBuilderCandidateActor(ctx context.Context, taskKey types.TaskKey, stage types.TaskCandidateStage, actor *string) error {
-	if actor == nil {
-		return fmt.Errorf("%w: candidate actor is absent", errBuilderEvidenceScopeMismatch)
-	}
-	canonical, err := k.canonicalBusOperator(*actor)
-	if err != nil {
-		return err
-	}
-	iter, err := k.TaskCandidateFact.Iterate(ctx, collections.NewSuperPrefixedTripleRange[types.Hash32Key, int32, uint32](taskKey, int32(stage)))
-	if err != nil {
-		return err
-	}
-	defer iter.Close()
-	for ; iter.Valid(); iter.Next() {
-		stored, err := iter.Value()
-		if err != nil {
-			return err
-		}
-		fact, err := k.ProjectTaskCandidateFactStore(stored)
-		if err != nil {
-			return err
-		}
-		if fact.OperatorAddress == canonical {
-			return nil
-		}
-	}
-	return fmt.Errorf("%w: retained candidate fact", errBuilderEvidenceWrongStage)
-}
-
-func (k Keeper) validateBuilderVerifierAssignment(ctx context.Context, taskKey types.TaskKey, scope bus.BusActionScopeV2, requireCommit bool) error {
-	if scope.VerifyRound == nil || *scope.VerifyRound != types.VerifyRoundV1 {
-		return fmt.Errorf("%w: verifier action verify_round", errBuilderEvidenceWrongStage)
-	}
-	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, *scope.VerifyRound))
-	if errors.Is(err, collections.ErrNotFound) {
-		return fmt.Errorf("%w: finalized Verifier assignment", errBuilderEvidenceWrongStage)
-	}
-	if err != nil {
-		return err
-	}
-	if !requireCommit {
-		return nil
-	}
-	if scope.PayloadActor == nil {
-		return fmt.Errorf("%w: Verifier actor is absent", errBuilderEvidenceScopeMismatch)
-	}
-	actor, err := k.canonicalBusOperator(*scope.PayloadActor)
-	if err != nil {
-		return err
-	}
-	selected := false
-	for _, verifier := range assignment.SelectedVerifiers {
-		if verifier.OperatorAddress == actor {
-			selected = true
-			break
-		}
-	}
-	if !selected {
-		return fmt.Errorf("%w: selected Verifier", errBuilderEvidenceScopeMismatch)
-	}
-	commitKey, err := types.DeriveCommitKey(sdkChainID(ctx), taskKey, *scope.VerifyRound, actor)
-	if err != nil {
-		return err
-	}
-	hasCommit, err := k.CommitState.Has(ctx, types.NewCommitKey(commitKey[:]))
-	if err != nil {
-		return err
-	}
-	if !hasCommit {
-		return fmt.Errorf("%w: accepted Verifier commit", errBuilderEvidenceWrongStage)
-	}
-	return nil
-}
-
-func (k Keeper) validateInvalidBuilderProtocolFault(ctx context.Context, authority builderEvidenceTaskAuthority, envelope bus.VerifiedEvidenceEnvelope, violation types.BuilderProtocolViolation) error {
+func (k Keeper) validateInvalidBuilderProtocolFault(ctx context.Context, authority builderEvidenceTaskAuthority, envelope dispatch.SignedMessageV1, violation types.BuilderProtocolViolation) error {
 	scopeErr := validateBuilderEvidenceCommonScope(authority, envelope)
 	switch violation {
 	case types.BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_WRONG_TASK_SCOPE:
@@ -316,7 +149,7 @@ func (k Keeper) validateInvalidBuilderProtocolFault(ctx context.Context, authori
 		if scopeErr != nil {
 			return scopeErr
 		}
-		return fmt.Errorf("verified envelope does not contain the asserted wrong-task-scope violation")
+		return fmt.Errorf("verified message does not contain the asserted wrong-task-scope violation")
 	case types.BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_WRONG_STAGE:
 		if scopeErr != nil {
 			return scopeErr
@@ -328,8 +161,8 @@ func (k Keeper) validateInvalidBuilderProtocolFault(ctx context.Context, authori
 		if actionErr != nil {
 			return actionErr
 		}
-		return fmt.Errorf("verified envelope does not contain the asserted wrong-stage violation")
+		return fmt.Errorf("verified message does not contain the asserted wrong-stage violation")
 	default:
-		return fmt.Errorf("protocol violation %s requires payload authority not exposed by BusActionScopeV2", violation.String())
+		return fmt.Errorf("protocol violation %s requires payload authority not exposed by StreamActionScopeV1", violation.String())
 	}
 }

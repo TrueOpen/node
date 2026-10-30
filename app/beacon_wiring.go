@@ -75,9 +75,6 @@ func (app *App) wireBeaconHooks(logger log.Logger, nodeHome string, vrfKeyRequir
 					return nil, err
 				}
 			}
-			if err := app.TaskKeeper.InitializeSessionKeyParams(sdk.WrapSDKContext(ctx)); err != nil {
-				return nil, err
-			}
 			return response, nil
 		},
 	)

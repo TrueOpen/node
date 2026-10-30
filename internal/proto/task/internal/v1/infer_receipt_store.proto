@@ -27,4 +27,5 @@ message InferReceiptStoreState {
   uint64 expiry_height = 13;
   uint64 receipt_height = 14;
   uint64 output_leaf_count = 15;
+  bytes dispatch_ticket_hash = 16;
 }

@@ -18,17 +18,23 @@ import (
 	"fmt"
 
 	"github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 func (k Keeper) initVrfKeyGenesis(ctx context.Context, genState types.GenesisState) error {
 	for _, state := range genState.VrfKeys {
+		if state.ParticipantType == shared.ParticipantType_PARTICIPANT_TYPE_BUILDER {
+			if _, err := k.GetBuilderState(ctx, state.OperatorAddress); err != nil {
+				return fmt.Errorf("VRF key Builder identity missing: %w", err)
+			}
+		}
 		if err := k.StoreVrfKey(ctx, state); err != nil {
 			return err
 		}
 		if state.XPendingVrfPubkey == nil {
 			continue
 		}
-		if err := k.VrfKeyActivationIndex.Set(ctx, types.NewVrfKeyActivationKey(state.GetPendingFromEpoch(), state.OperatorAddress)); err != nil {
+		if err := k.VrfKeyActivationIndex.Set(ctx, types.NewVrfKeyActivationKey(state.GetPendingFromEpoch(), state.ParticipantType, state.OperatorAddress)); err != nil {
 			return err
 		}
 	}
@@ -40,7 +46,7 @@ func (k Keeper) initVrfKeyGenesis(ctx context.Context, genState types.GenesisSta
 		if err != nil {
 			return fmt.Errorf("VRF key history prune epoch overflows for operator %s: %w", row.OperatorAddress, err)
 		}
-		if err := k.VrfKeyPruneIndex.Set(ctx, types.NewVrfKeyPruneKey(pruneEpoch, row.OperatorAddress, row.EffectiveFromEpoch)); err != nil {
+		if err := k.VrfKeyPruneIndex.Set(ctx, types.NewVrfKeyPruneKey(pruneEpoch, row.ParticipantType, row.OperatorAddress, row.EffectiveFromEpoch)); err != nil {
 			return err
 		}
 	}
@@ -59,11 +65,13 @@ func (k Keeper) initVrfKeyGenesis(ctx context.Context, genState types.GenesisSta
 // superfluous".
 type vrfActivationLookupKey struct {
 	epoch    uint64
+	role     int32
 	operator string
 }
 
 type vrfPruneLookupKey struct {
 	pruneEpoch         uint64
+	role               int32
 	operator           string
 	effectiveFromEpoch uint64
 }
@@ -90,13 +98,13 @@ func (k Keeper) EnsureVrfKeyActivationIndexInvariant(ctx context.Context) error 
 			return err
 		}
 		key, err := iter.Key()
-		if err != nil || key != state.OperatorAddress {
+		if err != nil || key.K1() != int32(state.ParticipantType) || key.K2() != state.OperatorAddress {
 			return fmt.Errorf("VRF key/address mismatch")
 		}
 		if state.XPendingVrfPubkey == nil {
 			continue
 		}
-		expected[vrfActivationLookupKey{epoch: state.GetPendingFromEpoch(), operator: state.OperatorAddress}] = struct{}{}
+		expected[vrfActivationLookupKey{epoch: state.GetPendingFromEpoch(), role: int32(state.ParticipantType), operator: state.OperatorAddress}] = struct{}{}
 	}
 
 	indexIter, err := k.VrfKeyActivationIndex.Iterate(ctx, nil)
@@ -109,7 +117,7 @@ func (k Keeper) EnsureVrfKeyActivationIndexInvariant(ctx context.Context) error 
 		if err != nil {
 			return err
 		}
-		lookup := vrfActivationLookupKey{epoch: key.K1(), operator: key.K2()}
+		lookup := vrfActivationLookupKey{epoch: key.K1(), role: key.K2(), operator: key.K3()}
 		if _, ok := expected[lookup]; !ok {
 			return fmt.Errorf("vrf key activation index has a row for operator %s at epoch %d with no pending rotation", lookup.operator, lookup.epoch)
 		}
@@ -145,7 +153,7 @@ func (k Keeper) EnsureVrfKeyPruneIndexInvariant(ctx context.Context) error {
 			return err
 		}
 		key, err := iter.Key()
-		if err != nil || key.K1() != row.OperatorAddress || key.K2() != row.EffectiveFromEpoch {
+		if err != nil || key.K1() != int32(row.ParticipantType) || key.K2() != row.OperatorAddress || key.K3() != row.EffectiveFromEpoch {
 			return fmt.Errorf("VRF history key/address mismatch")
 		}
 		pruneEpoch, err := checkedAdd(row.RetiredAtEpoch, uint64(params.Beacon.MaxVrfKeyHistoryEpochs))
@@ -153,7 +161,7 @@ func (k Keeper) EnsureVrfKeyPruneIndexInvariant(ctx context.Context) error {
 			return fmt.Errorf("VRF key history prune epoch overflows for operator %s: %w", row.OperatorAddress, err)
 		}
 		expected[vrfPruneLookupKey{
-			pruneEpoch: pruneEpoch, operator: row.OperatorAddress, effectiveFromEpoch: row.EffectiveFromEpoch,
+			pruneEpoch: pruneEpoch, role: int32(row.ParticipantType), operator: row.OperatorAddress, effectiveFromEpoch: row.EffectiveFromEpoch,
 		}] = struct{}{}
 	}
 
@@ -167,7 +175,7 @@ func (k Keeper) EnsureVrfKeyPruneIndexInvariant(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		lookup := vrfPruneLookupKey{pruneEpoch: key.K1(), operator: key.K2(), effectiveFromEpoch: key.K3()}
+		lookup := vrfPruneLookupKey{pruneEpoch: key.K1(), role: key.K2(), operator: key.K3(), effectiveFromEpoch: key.K4()}
 		if _, ok := expected[lookup]; !ok {
 			return fmt.Errorf("vrf key prune index has an extra row for operator %s effective at epoch %d", lookup.operator, lookup.effectiveFromEpoch)
 		}

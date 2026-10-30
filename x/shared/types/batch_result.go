@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	BatchMutationAppliedV1 = uint32(1)
-	BatchMutationNoopV1    = uint32(2)
+	BatchMutationAppliedV1  = uint32(1)
+	BatchMutationNoopV1     = uint32(2)
+	BatchMutationRejectedV1 = uint32(3)
 )
 
 // BatchResultDigestItemV1 is the language-neutral digest projection of one
@@ -38,8 +39,8 @@ func BatchResultDigestV1(chainID, kind string, items []BatchResultDigestItemV1) 
 		if len(item.ObjectID) != sha256.Size || bytes.Equal(item.ObjectID, make([]byte, sha256.Size)) {
 			return nil, fmt.Errorf("batch result object_id at item %d must be a non-zero Hash32", index)
 		}
-		if item.Status != BatchMutationAppliedV1 && item.Status != BatchMutationNoopV1 {
-			return nil, fmt.Errorf("batch result status at item %d is not APPLIED or NOOP", index)
+		if item.Status != BatchMutationAppliedV1 && item.Status != BatchMutationNoopV1 && !(kind == BatchResultKindDispatchRecord && item.Status == BatchMutationRejectedV1) {
+			return nil, fmt.Errorf("batch result status at item %d is not allowed for its batch kind", index)
 		}
 		elements = append(elements, FlatCanonicalFrameV1(item.ObjectID, EnumBE(item.Status)))
 	}

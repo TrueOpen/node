@@ -28,18 +28,20 @@ func (k Keeper) participantController(ctx context.Context, participantType, oper
 }
 
 type participantIdentityState struct {
-	ParticipantType          shared.ParticipantType
-	OperatorAddress          string
-	ServiceAddress           string
-	ServicePubkey            []byte
-	AuthorizationNonce       uint64
-	ServiceKeyStatus         types.ServiceKeyStatus
-	CurrentDescriptorVersion uint64
-	UpdatedHeight            uint64
+	ParticipantType            shared.ParticipantType
+	OperatorAddress            string
+	ServiceAddress             string
+	ServicePubkey              []byte
+	AuthorizationNonce         uint64
+	ServiceKeyStatus           types.ServiceKeyStatus
+	CurrentDescriptorVersion   uint64
+	UpdatedHeight              uint64
+	PreviousServicePubkey      []byte
+	PreviousAuthorizationNonce uint64
+	PreviousRetiredHeight      uint64
 
-	// Online-duty counters: a service-key rotation is only
-	// accepted while all three are zero. They live on the participant primary
-	// row (CortexNodeState / BuilderState), not in a second store.
+	// Responsibility counters remain on the participant primary. Current duties
+	// do not postpone a scheduled key activation.
 	ActiveTaskLiabilityCount       uint32
 	PendingStageDutyCount          uint32
 	PendingEvidenceSubmissionCount uint32
@@ -67,6 +69,9 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 			ServiceAddress: state.CurrentServiceAddress, ServicePubkey: append([]byte(nil), state.CurrentServicePubkey...),
 			AuthorizationNonce: state.ServiceAuthorizationNonce, ServiceKeyStatus: state.ServiceKeyStatus,
 			CurrentDescriptorVersion: state.CurrentDescriptorVersion, UpdatedHeight: state.UpdatedHeight,
+			PreviousServicePubkey:          bytes.Clone(state.GetPreviousServicePubkey()),
+			PreviousAuthorizationNonce:     state.GetPreviousServiceAuthorizationNonce(),
+			PreviousRetiredHeight:          state.GetPreviousRetiredHeight(),
 			ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
 			PendingStageDutyCount:          state.PendingStageDutyCount,
 			PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
@@ -84,6 +89,9 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 			ServiceAddress: state.CurrentServiceAddress, ServicePubkey: append([]byte(nil), state.CurrentServicePubkey...),
 			AuthorizationNonce: state.ServiceAuthorizationNonce, ServiceKeyStatus: state.CurrentServiceKeyStatus,
 			CurrentDescriptorVersion: state.CurrentDescriptorVersion, UpdatedHeight: state.RegisteredHeight,
+			PreviousServicePubkey:          bytes.Clone(state.GetPreviousServicePubkey()),
+			PreviousAuthorizationNonce:     state.GetPreviousServiceAuthorizationNonce(),
+			PreviousRetiredHeight:          state.GetPreviousRetiredHeight(),
 			ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
 			PendingStageDutyCount:          state.PendingStageDutyCount,
 			PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
@@ -106,6 +114,9 @@ func (k Keeper) persistParticipantIdentity(
 		return fmt.Errorf("service_authorization_nonce must be > 0")
 	}
 	if err := validateServiceKeyStatus(identity.ServiceKeyStatus); err != nil {
+		return err
+	}
+	if err := types.ValidatePreviousServiceKeyBinding(identity.AuthorizationNonce, identity.ServicePubkey, identity.PreviousServicePubkey, identity.PreviousAuthorizationNonce, identity.PreviousRetiredHeight); err != nil {
 		return err
 	}
 	if len(identity.ServicePubkey) != 33 || identity.ServiceAddress == "" {
@@ -139,6 +150,15 @@ func (k Keeper) persistParticipantIdentity(
 		state.CurrentServiceAddress = identity.ServiceAddress
 		state.CurrentServicePubkey = append([]byte(nil), identity.ServicePubkey...)
 		state.ServiceAuthorizationNonce = identity.AuthorizationNonce
+		if identity.PreviousAuthorizationNonce != 0 {
+			state.XPreviousServicePubkey = &types.CortexNodeState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(identity.PreviousServicePubkey)}
+			state.XPreviousServiceAuthorizationNonce = &types.CortexNodeState_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: identity.PreviousAuthorizationNonce}
+			state.XPreviousRetiredHeight = &types.CortexNodeState_PreviousRetiredHeight{PreviousRetiredHeight: identity.PreviousRetiredHeight}
+		} else {
+			state.XPreviousServicePubkey = nil
+			state.XPreviousServiceAuthorizationNonce = nil
+			state.XPreviousRetiredHeight = nil
+		}
 		state.ServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
 		state.UpdatedHeight = identity.UpdatedHeight
@@ -153,6 +173,15 @@ func (k Keeper) persistParticipantIdentity(
 		state.CurrentServiceAddress = identity.ServiceAddress
 		state.CurrentServicePubkey = append([]byte(nil), identity.ServicePubkey...)
 		state.ServiceAuthorizationNonce = identity.AuthorizationNonce
+		if identity.PreviousAuthorizationNonce != 0 {
+			state.XPreviousServicePubkey = &types.BuilderState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(identity.PreviousServicePubkey)}
+			state.XPreviousServiceAuthorizationNonce = &types.BuilderState_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: identity.PreviousAuthorizationNonce}
+			state.XPreviousRetiredHeight = &types.BuilderState_PreviousRetiredHeight{PreviousRetiredHeight: identity.PreviousRetiredHeight}
+		} else {
+			state.XPreviousServicePubkey = nil
+			state.XPreviousServiceAuthorizationNonce = nil
+			state.XPreviousRetiredHeight = nil
+		}
 		state.CurrentServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
 		if err := k.StoreBuilder(ctx, identity.OperatorAddress, state); err != nil {
@@ -240,6 +269,12 @@ func (k Keeper) registerServiceKey(ctx context.Context, participantType, operato
 }
 
 func (k Keeper) requireServiceAddressAvailable(ctx context.Context, serviceAddress string) error {
+	if reserved, err := k.PendingServiceAddressIndex.Has(ctx, serviceAddress); err != nil {
+		return err
+	} else if reserved {
+		return fmt.Errorf("service address is reserved by a pending rotation")
+	}
+
 	for _, otherType := range []shared.ParticipantType{
 		shared.ParticipantType_PARTICIPANT_TYPE_CORTEX,
 		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
@@ -275,6 +310,30 @@ func (k Keeper) loadActiveCurrentServiceKey(ctx context.Context, participantType
 	return identity, enumValue, nil
 }
 
+func serviceKeySnapshot(identity participantIdentityState, participantType string) types.CurrentServiceKeySnapshot {
+	return types.CurrentServiceKeySnapshot{
+		ParticipantType: participantType, OperatorAddress: identity.OperatorAddress,
+		ServiceAddress: identity.ServiceAddress, ServicePubkey: hex.EncodeToString(identity.ServicePubkey),
+		AuthorizationNonce:         identity.AuthorizationNonce,
+		Status:                     identity.ServiceKeyStatus,
+		PreviousServicePubkey:      bytes.Clone(identity.PreviousServicePubkey),
+		PreviousAuthorizationNonce: identity.PreviousAuthorizationNonce,
+		PreviousRetiredHeight:      identity.PreviousRetiredHeight,
+	}
+}
+
+// evidenceProofSnapshot resolves a nonce only after the caller has validated its
+// frozen Task responsibility. Its result grants no current submission rights.
+func evidenceProofSnapshot(binding types.CurrentServiceKeySnapshot, nonce uint64) (types.CurrentServiceKeySnapshot, error) {
+	proof, err := binding.ResolveProofKey(nonce)
+	if err != nil {
+		return types.CurrentServiceKeySnapshot{}, err
+	}
+	binding.ServicePubkey = hex.EncodeToString(proof.PublicKey)
+	binding.AuthorizationNonce = proof.ServiceAuthorizationNonce
+	return binding, nil
+}
+
 func (k Keeper) GetCurrentServiceKey(ctx context.Context, participantType, operatorAddress string) (types.CurrentServiceKeySnapshot, error) {
 	identity, enumValue, err := k.loadActiveCurrentServiceKey(ctx, participantType, operatorAddress)
 	if err != nil {
@@ -284,60 +343,35 @@ func (k Keeper) GetCurrentServiceKey(ctx context.Context, participantType, opera
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, err
 	}
-	return types.CurrentServiceKeySnapshot{
-		ParticipantType: typeName, OperatorAddress: identity.OperatorAddress,
-		ServiceAddress: identity.ServiceAddress, ServicePubkey: hex.EncodeToString(identity.ServicePubkey),
-		AuthorizationNonce: identity.AuthorizationNonce, UpdatedHeight: identity.UpdatedHeight, Status: identity.ServiceKeyStatus,
-	}, nil
+	return serviceKeySnapshot(identity, typeName), nil
 }
 
-// GetBuilderObjectiveEvidenceCurrentBinding exposes the retained Builder
-// binding needed to construct the kind-5 cleanup locator. Unlike the general
-// current-key lookup it deliberately accepts REVOKED: revoke closes new work
-// but does not release a responsibility already acquired by this same nonce.
-func (k Keeper) GetBuilderObjectiveEvidenceCurrentBinding(
-	ctx context.Context,
-	operatorAddress string,
-) (types.CurrentServiceKeySnapshot, error) {
-	identity, err := k.loadParticipantIdentity(
-		ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, operatorAddress,
-	)
-	if err != nil {
-		return types.CurrentServiceKeySnapshot{}, fmt.Errorf("Builder objective-evidence binding not found: %w", err)
-	}
-	if identity.AuthorizationNonce == 0 {
-		return types.CurrentServiceKeySnapshot{}, errorsmod.Wrap(
-			types.ErrInvariantBroken, "Builder objective-evidence binding has a zero authorization nonce",
-		)
-	}
-	if identity.ServiceKeyStatus != types.ServiceKeyStatusActive && identity.ServiceKeyStatus != types.ServiceKeyStatusRevoked {
-		return types.CurrentServiceKeySnapshot{}, errorsmod.Wrap(
-			types.ErrInvariantBroken, "Builder objective-evidence binding has an invalid status",
-		)
-	}
-	return types.CurrentServiceKeySnapshot{
-		ParticipantType:    shared.ParticipantTypeBuilder,
-		OperatorAddress:    identity.OperatorAddress,
-		ServiceAddress:     identity.ServiceAddress,
-		ServicePubkey:      hex.EncodeToString(identity.ServicePubkey),
-		AuthorizationNonce: identity.AuthorizationNonce,
-		UpdatedHeight:      identity.UpdatedHeight,
-		Status:             identity.ServiceKeyStatus,
-	}, nil
-}
-
-// GetBuilderEvidenceProofKey resolves the current Builder binding without the
-// live-authorization ACTIVE check. A same-nonce REVOKED binding remains usable
-// only as historical proof material; a rotated nonce fails closed.
-func (k Keeper) GetBuilderEvidenceProofKey(ctx context.Context, operatorAddress string, authorizationNonce uint64) (types.CurrentServiceKeySnapshot, error) {
-	binding, err := k.GetBuilderObjectiveEvidenceCurrentBinding(ctx, operatorAddress)
+// GetBuilderEvidenceProofKey selects current or previous authority from the
+// frozen Task responsibility. A retained revoked identity grants no live rights.
+func (k Keeper) GetBuilderEvidenceProofKey(ctx context.Context, operatorAddress string, authorizationNonce uint64, sessionID, taskID []byte) (types.CurrentServiceKeySnapshot, error) {
+	binding, err := k.GetDispatchServiceProofKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, operatorAddress)
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, err
 	}
-	if authorizationNonce == 0 || binding.AuthorizationNonce != authorizationNonce {
-		return types.CurrentServiceKeySnapshot{}, fmt.Errorf("Builder proof key authorization nonce is not current")
+
+	prepared, err := k.prepareBusObjectiveEvidenceResponsibility(shared.BusObjectiveEvidenceResponsibilityV1{
+		SchemaVersion:   busObjectiveEvidenceResponsibilitySchemaVersion,
+		BuilderOperator: operatorAddress, SessionId: sessionID, TaskId: taskID,
+		ServiceAuthorizationNonce: authorizationNonce,
+	})
+	if err != nil {
+		return types.CurrentServiceKeySnapshot{}, err
 	}
-	return binding, nil
+	state, err := k.ReadServiceKeyResponsibilityValue(ctx, types.NewServiceKeyResponsibilityKey(
+		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, prepared.operator, prepared.id,
+	))
+	if err != nil {
+		return types.CurrentServiceKeySnapshot{}, fmt.Errorf("Builder evidence responsibility is unavailable: %w", err)
+	}
+	if !busObjectiveEvidenceResponsibilityMatches(state, prepared) {
+		return types.CurrentServiceKeySnapshot{}, fmt.Errorf("Builder evidence nonce does not match the frozen Task responsibility")
+	}
+	return evidenceProofSnapshot(binding, authorizationNonce)
 }
 
 func workerOutputEvidenceResponsibilityID(sessionID, taskID []byte, operatorAddress string) ([]byte, error) {
@@ -393,15 +427,11 @@ func (k Keeper) GetWorkerEvidenceProofKey(
 	if err != nil {
 		return types.CurrentServiceKeySnapshot{}, errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence proof-only identity is unavailable")
 	}
-	if identity.AuthorizationNonce != state.ServiceAuthorizationNonce || identity.PendingEvidenceSubmissionCount == 0 ||
+	if !types.ServiceKeyNonceMatches(identity.AuthorizationNonce, identity.PreviousAuthorizationNonce, state.ServiceAuthorizationNonce) || identity.PendingEvidenceSubmissionCount == 0 ||
 		identity.ServiceKeyStatus != types.ServiceKeyStatusActive && identity.ServiceKeyStatus != types.ServiceKeyStatusRevoked {
 		return types.CurrentServiceKeySnapshot{}, errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence proof-only binding is invalid")
 	}
-	return types.CurrentServiceKeySnapshot{
-		ParticipantType: shared.ParticipantTypeCortexNode, OperatorAddress: identity.OperatorAddress,
-		ServiceAddress: identity.ServiceAddress, ServicePubkey: hex.EncodeToString(identity.ServicePubkey),
-		AuthorizationNonce: identity.AuthorizationNonce, UpdatedHeight: identity.UpdatedHeight, Status: identity.ServiceKeyStatus,
-	}, nil
+	return evidenceProofSnapshot(serviceKeySnapshot(identity, shared.ParticipantTypeCortexNode), state.ServiceAuthorizationNonce)
 }
 
 func (k Keeper) VerifyCurrentParticipantServiceDigest(ctx context.Context, participantType, operatorAddress string, signature, signingDigest []byte, height uint64) error {
@@ -607,7 +637,8 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 		if err != nil {
 			return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(types.ErrInvariantBroken, "responsibility owner is missing")
 		}
-		if builder.BuilderAddress != prepared.operator || builder.ServiceAuthorizationNonce != prepared.nonce {
+		validNonce := types.ServiceKeyNonceMatches(builder.ServiceAuthorizationNonce, builder.GetPreviousServiceAuthorizationNonce(), prepared.nonce)
+		if builder.BuilderAddress != prepared.operator || !validNonce {
 			return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(
 				types.ErrInvariantBroken, "responsibility does not match the Builder's current binding",
 			)
@@ -645,7 +676,8 @@ func (k Keeper) AcquireBusObjectiveEvidenceResponsibility(
 			types.ErrInvariantBroken, "Builder does not match its store key",
 		)
 	}
-	if builder.ServiceAuthorizationNonce != prepared.nonce {
+	expectedNonce := builder.ServiceAuthorizationNonce
+	if expectedNonce != prepared.nonce {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, fmt.Errorf(
 			"service_authorization_nonce does not match the Builder's current binding",
 		)
@@ -731,7 +763,8 @@ func (k Keeper) ReleaseBusObjectiveEvidenceResponsibility(
 	if err != nil {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(types.ErrInvariantBroken, "responsibility owner is missing")
 	}
-	if builder.BuilderAddress != prepared.operator || builder.ServiceAuthorizationNonce != prepared.nonce {
+	validNonce := types.ServiceKeyNonceMatches(builder.ServiceAuthorizationNonce, builder.GetPreviousServiceAuthorizationNonce(), prepared.nonce)
+	if builder.BuilderAddress != prepared.operator || !validNonce {
 		return shared.BusObjectiveEvidenceResponsibilityReceiptV1{}, errorsmod.Wrap(
 			types.ErrInvariantBroken, "responsibility does not match the Builder's current binding",
 		)
@@ -802,11 +835,18 @@ func (k Keeper) ReserveServiceKeyResponsibility(ctx context.Context, responsibil
 	if err != nil {
 		return fmt.Errorf("current service key not found for responsibility: %w", err)
 	}
-	// Stamp the acquiring generation onto the row. A revoke keeps the same nonce, so
-	// the post-revoke duty above still stamps the value it would have had and stays
-	// an exact replay; a rotation moves it, which the equality below turns into a
-	// conflict rather than a fresh unblocked row for the same responsibility id.
+	// New duties use current; replay preserves the original immutable generation.
 	responsibility.ServiceAuthorizationNonce = identity.AuthorizationNonce
+	key, err := serviceKeyResponsibilityKey(responsibility.ParticipantType, operatorAddress, responsibility.ResponsibilityId)
+	if err != nil {
+		return err
+	}
+	if existing, err := k.ReadServiceKeyResponsibilityValue(cache, key); err == nil {
+		responsibility.ServiceAuthorizationNonce = existing.ServiceAuthorizationNonce
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+
 	if responsibility.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE {
 		if responsibility.ParticipantType != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX {
 			return fmt.Errorf("WORKER_OUTPUT_EVIDENCE responsibility must be owned by a Cortex node")
@@ -824,7 +864,7 @@ func (k Keeper) ReserveServiceKeyResponsibility(ctx context.Context, responsibil
 	}
 	if responsibility.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE {
 		node, err := k.ReadCortexNodeStore(cache, operatorAddress)
-		if err != nil || node.ServiceAuthorizationNonce != responsibility.ServiceAuthorizationNonce {
+		if err != nil || !types.ServiceKeyNonceMatches(node.ServiceAuthorizationNonce, node.GetPreviousServiceAuthorizationNonce(), responsibility.ServiceAuthorizationNonce) {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence responsibility owner is unavailable")
 		}
 		if applied {
@@ -922,7 +962,7 @@ func (k Keeper) ReleaseServiceKeyResponsibility(ctx context.Context, participant
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence responsibility has the wrong owner type")
 		}
 		node, err := k.ReadCortexNodeStore(cache, operatorAddress)
-		if err != nil || node.ServiceAuthorizationNonce != responsibility.ServiceAuthorizationNonce || node.PendingEvidenceSubmissionCount == 0 {
+		if err != nil || !types.ServiceKeyNonceMatches(node.ServiceAuthorizationNonce, node.GetPreviousServiceAuthorizationNonce(), responsibility.ServiceAuthorizationNonce) || node.PendingEvidenceSubmissionCount == 0 {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "worker evidence pending count cannot be released")
 		}
 		if err := k.releaseServiceKeyResponsibility(cache, responsibility); err != nil {
@@ -956,11 +996,7 @@ func serviceKeyResponsibilitiesEqual(a, b types.ServiceKeyResponsibilityState) b
 		bytes.Equal(a.SessionId, b.SessionId) &&
 		bytes.Equal(a.TaskId, b.TaskId) &&
 		a.CreatedHeight == b.CreatedHeight &&
-		// The nonce is what separates an exact acquire replay from the same
-		// responsibility id presented under a different service-key generation. It is
-		// deliberately outside the id preimage, so leaving it out here would be the
-		// same as minting a second row per generation: the rotation would NOOP into
-		// the old row instead of being reported as the conflict it is.
+		// Existing responsibilities retain their original generation across rotation.
 		a.ServiceAuthorizationNonce == b.ServiceAuthorizationNonce
 }
 
@@ -1019,10 +1055,7 @@ func (k Keeper) ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID
 			responsibility.ResponsibilityKind == types.ServiceKeyResponsibilityKind_SERVICE_KEY_RESPONSIBILITY_KIND_WORKER_OUTPUT_EVIDENCE {
 			continue
 		}
-		if err := k.ServiceKeyResponsibility.Remove(ctx, primaryKey); err != nil {
-			return err
-		}
-		if err := k.ServiceKeyResponsibilityByTaskIndex.Remove(ctx, key); err != nil {
+		if err := k.releaseServiceKeyResponsibility(ctx, responsibility); err != nil {
 			return err
 		}
 	}
@@ -1030,6 +1063,7 @@ func (k Keeper) ReleaseServiceKeyResponsibilities(ctx context.Context, sessionID
 }
 
 func (k Keeper) releaseServiceKeyResponsibility(ctx context.Context, responsibility types.ServiceKeyResponsibilityState) error {
+
 	primaryKey, err := serviceKeyResponsibilityKey(
 		responsibility.ParticipantType, responsibility.OperatorAddress, responsibility.ResponsibilityId,
 	)
@@ -1049,21 +1083,6 @@ func (k Keeper) releaseServiceKeyResponsibility(ctx context.Context, responsibil
 	return nil
 }
 
-func (k Keeper) hasPendingServiceKeyResponsibility(ctx context.Context, participantType shared.ParticipantType, operatorAddress string) (bool, error) {
-	if err := requireParticipantType(participantType); err != nil {
-		return false, err
-	}
-	iter, err := k.ServiceKeyResponsibility.Iterate(
-		ctx,
-		collections.NewSuperPrefixedTripleRange[int32, string, shared.Hash32Key](int32(participantType), operatorAddress),
-	)
-	if err != nil {
-		return false, err
-	}
-	defer iter.Close()
-	return iter.Valid(), nil
-}
-
 func (k Keeper) AcquirePendingStageDuty(ctx context.Context, operatorAddress string) error {
 	node, err := k.GetCortexNodeState(ctx, operatorAddress)
 	if err != nil {
@@ -1074,6 +1093,15 @@ func (k Keeper) AcquirePendingStageDuty(ctx context.Context, operatorAddress str
 	}
 	node.PendingStageDutyCount++
 	return k.StoreCortexNode(ctx, node.OperatorAddress, node)
+}
+
+func (k Keeper) hasPendingServiceKeyResponsibility(ctx context.Context, role shared.ParticipantType, operator string) (bool, error) {
+	iter, err := k.ServiceKeyResponsibility.Iterate(ctx, collections.NewSuperPrefixedTripleRange[int32, string, shared.Hash32Key](int32(role), operator))
+	if err != nil {
+		return false, err
+	}
+	defer iter.Close()
+	return iter.Valid(), nil
 }
 
 func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress string) error {
@@ -1100,8 +1128,18 @@ func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress str
 	if node.PendingStageDutyCount == 0 {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "pending stage duty count underflow")
 	}
+	bond, err := k.ReadServiceBondValue(ctx, operatorAddress)
+	if err != nil {
+		return err
+	}
 	node.PendingStageDutyCount--
-	return k.StoreCortexNode(ctx, node.OperatorAddress, node)
+	if err := k.StoreCortexNode(ctx, node.OperatorAddress, node); err != nil {
+		return err
+	}
+	if bond.Status == types.ServiceBondStatusExited || bond.Status == types.ServiceBondStatusTombstoned {
+		return k.removeCortexIdentityOnTerminalBond(ctx, operatorAddress)
+	}
+	return nil
 }
 
 // removeCortexIdentityOnTerminalBond releases the reusable online identity
@@ -1109,6 +1147,10 @@ func (k Keeper) ReleasePendingStageDuty(ctx context.Context, operatorAddress str
 // retained audit rows remain; only the online primary, its current-address
 // projection, and the current descriptor are owned by the live participant.
 func (k Keeper) removeCortexIdentityOnTerminalBond(ctx context.Context, operatorAddress string) error {
+	if err := k.cancelPendingServiceKeyRotation(ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress); err != nil {
+		return err
+	}
+
 	bond, err := k.ReadServiceBondValue(ctx, operatorAddress)
 	if err != nil {
 		return err
@@ -1159,39 +1201,4 @@ func (k Keeper) removeServiceDescriptorIfPresent(ctx context.Context, participan
 		return nil
 	}
 	return err
-}
-
-// ensureServiceKeyCanChange is the rotation gate: one prefix
-// scan on int32(participant_type) plus the three zero-counter checks the
-// protocol names explicitly. The predecessor had to scan a second, legacy
-// "CORTEX" string prefix as well, because back then a participant could reach
-// the store under two spellings; A-15a removed the spelling axis from the key
-// entirely, so one scan is now exhaustive by construction.
-func (k Keeper) ensureServiceKeyCanChange(ctx context.Context, participantType shared.ParticipantType, operatorAddress string) error {
-	pending, err := k.hasPendingServiceKeyResponsibility(ctx, participantType, operatorAddress)
-	if err != nil {
-		return err
-	}
-	if pending {
-		return errorsmod.Wrap(types.ErrPendingResponsibility, "service key cannot change while responsibilities are pending")
-	}
-	identity, err := k.loadParticipantIdentity(ctx, participantType, operatorAddress)
-	if err != nil {
-		return err
-	}
-	if identity.PendingEvidenceSubmissionCount != 0 {
-		return errorsmod.Wrapf(
-			types.ErrPendingResponsibility,
-			"service key cannot change while %d evidence submissions are pending",
-			identity.PendingEvidenceSubmissionCount,
-		)
-	}
-	if identity.ActiveTaskLiabilityCount != 0 || identity.PendingStageDutyCount != 0 {
-		return errorsmod.Wrapf(
-			types.ErrPendingResponsibility,
-			"service key cannot change while %d task liabilities and %d candidate stage duties are open",
-			identity.ActiveTaskLiabilityCount, identity.PendingStageDutyCount,
-		)
-	}
-	return nil
 }

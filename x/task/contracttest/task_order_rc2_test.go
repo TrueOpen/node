@@ -10,11 +10,11 @@ import (
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
-func TestTaskOrderHashMatchesWireRC2(t *testing.T) {
+func TestTaskOrderHashMatchesPublishedWire(t *testing.T) {
 	order := wireCoreTaskOrder(t)
 	digest, err := tasktypes.TaskOrderHash(order)
 	require.NoError(t, err)
-	require.Equal(t, "d48c7062a64fcf6932aee1a935d9b0f30a04d954f40caa87f5ccf32a3696d59c", hex.EncodeToString(digest[:]))
+	require.Equal(t, "057fee505c662a2480239af6ff4925b4ccce4b2f0caac392c6d91a6132a0ba6e", hex.EncodeToString(digest[:]))
 }
 
 func wireCoreTaskOrder(t *testing.T) tasktypes.TaskOrderV3 {

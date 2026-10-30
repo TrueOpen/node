@@ -113,7 +113,7 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 	if err != nil || len(publicKey) != 33 || hex.EncodeToString(publicKey) != binding.ServicePubkey {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Worker evidence proof key is non-canonical")
 	}
-	chunkDigest, err := types.OutputChunkSigningDigest(sdkCtx.ChainID(), core.AcceptedTaskHash, evidence.Seq, evidence.StreamedMmrRoot)
+	chunkDigest, err := types.OutputChunkSigningDigest(sdkCtx.ChainID(), core.AcceptedTaskHash, assignment.DispatchTicketHash, evidence.Seq, evidence.StreamedMmrRoot)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 	}

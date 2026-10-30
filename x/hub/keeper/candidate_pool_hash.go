@@ -21,6 +21,9 @@ func (k Keeper) loadCandidatePoolSnapshot(ctx context.Context, snapshotID shared
 	if err != nil {
 		return types.CandidatePoolSnapshotState{}, err
 	}
+	if err := snapshot.ValidateWorkerWeightPolicy(); err != nil {
+		return types.CandidatePoolSnapshotState{}, err
+	}
 	if snapshot.SchemaVersion != 1 || !equalCandidateBytes(snapshot.SnapshotId, rawID) || len(snapshot.PoolHash) != 32 || len(snapshot.ActiveBitmapHash) != 32 || len(snapshot.MemberSetHash) != 32 || snapshot.SlotCapacity == 0 || snapshot.ActiveCount > snapshot.SlotCapacity || snapshot.EffectiveHeight >= snapshot.ExpiresHeight {
 		return types.CandidatePoolSnapshotState{}, fmt.Errorf("candidate pool snapshot header is invalid")
 	}

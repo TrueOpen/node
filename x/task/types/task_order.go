@@ -97,53 +97,8 @@ func AcceptedTaskOrderOpeningHash(order TaskOrderV3, generationParamsDigest []by
 	return [32]byte(digest), nil
 }
 
-func TaskBuilderSeed(chainID string, taskID, builderSetHash, sessionAnchorBlockHash []byte) ([32]byte, error) {
-	var zero [32]byte
-	if chainID == "" || !utf8.ValidString(chainID) || len(taskID) != Hash32Len || len(builderSetHash) != Hash32Len || len(sessionAnchorBlockHash) != Hash32Len {
-		return zero, fmt.Errorf("task builder seed scope is invalid")
-	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainTaskBuildersV1)).
-		Raw(chainIDBytes(chainID), taskID, builderSetHash, sessionAnchorBlockHash).
-		Sum()
-	if err != nil {
-		return zero, err
-	}
-	return [32]byte(digest), nil
-}
-
-// TaskBuilderRank is the provisional cross-repository mapping from the frozen
-// task_builder_seed to one Builder rank. Ranks sort as raw bytes ascending, then
-// canonical address ascending as the impossible-hash-collision tie-break.
-func TaskBuilderRank(seed [32]byte, builderAddress string) ([32]byte, error) {
-	operator, err := CanonicalOperatorAddressBytes("builder_operator_address", builderAddress)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	return canonicalTaskDigestV1(shared.DomainTaskBuilderRankV1, seed[:], operator)
-}
-
-// canonicalTaskOrderFields enumerates the thirty TRUEOPEN_TASK_ORDER_V1 preimage
-// fields in proto field-number order. Two of the thirty look like exceptions to
-// the typed-encoding table and are not; both are frozen, both are mirrored
-// by nexus and cortex, and both are pinned by golden vectors in
-// testdata/task_domains_v1.json.
-//
-//  1. THE EIGHT Amount FIELDS (14-21) FRAME DECIMAL TEXT, NOT u64_be.
-//     shared.Amount is `{ string atomic_units = 1 }`, so the nested-message rule
-//     plus the string rule produce one inner field of UTF-8 bytes:
-//     CanonicalFrameBytes(utf8(atomic_units)). ParseAmount below is what makes
-//     that text canonical (non-empty, no leading zero, digits only, fits u64)
-//     before it is framed. Replacing this with shared.Uint64BE would be a
-//     one-line change that silently moves task_hash for every order.
-//
-//  2. deadline_policy (24) IS A ONE-FIELD FRAME, NOT A BARE EnumBE.
-//     DeadlinePolicyV1 is `{ DeadlineLatencyClass latency_class = 1 }`, so the
-//     nested-message rule still applies to it. canonicalOrderLightFields must
-//     spell this the same way; the two projections of one message may never
-//     disagree about how one field is encoded.
-//
-// Neither point licenses text elsewhere: a field typed uint32/uint64 in proto is
-// always fixed-width big endian.
+// canonicalTaskOrderFields preserves proto field order. Amounts remain nested
+// canonical decimal messages; the deadline policy is a nested enum message.
 func canonicalTaskOrderFields(order TaskOrderV3) ([]shared.CanonicalFieldV1, error) {
 	if err := validateTaskOrderScalarScope(order); err != nil {
 		return nil, err
@@ -182,8 +137,7 @@ func canonicalTaskOrderFields(order TaskOrderV3) ([]shared.CanonicalFieldV1, err
 	)...)
 	fields = append(fields, shared.NestedCanonicalFieldV1(deadline))
 	fields = append(fields, shared.RawCanonicalFieldsV1(
-		shared.Uint64BE(order.TimeoutBucketVersion), shared.Uint64BE(order.SessionAnchorHeight),
-		order.SessionAnchorBlockHash, []byte(order.BuilderSetId), order.BuilderSetHash,
+		shared.Uint64BE(order.TimeoutBucketVersion), shared.Uint64BE(order.SessionAnchorHeight), []byte(order.BuilderSetId), order.BuilderSetHash,
 		shared.EnumBE(uint32(order.PayloadMode)), order.InputKeyCommitment, order.UserRecipientPubkey,
 	)...)
 	return fields, nil
@@ -216,8 +170,7 @@ func canonicalOrderLightFields(order TaskOrderV3, generationParamsDigest []byte)
 	)
 	fields = append(fields, shared.NestedCanonicalFieldV1(deadline))
 	fields = append(fields, shared.RawCanonicalFieldsV1(
-		shared.Uint64BE(order.TimeoutBucketVersion),
-		shared.Uint64BE(order.SessionAnchorHeight), order.SessionAnchorBlockHash,
+		shared.Uint64BE(order.TimeoutBucketVersion), shared.Uint64BE(order.SessionAnchorHeight),
 		[]byte(order.BuilderSetId), order.BuilderSetHash,
 	)...)
 	return fields, nil
@@ -264,7 +217,7 @@ func validateTaskOrderScalarScope(order TaskOrderV3) error {
 		len(order.InputHash) != Hash32Len || order.InputSizeBytes == 0 || order.OutputBudgetBucket == 0 ||
 		order.EarliestSubmitHeight == 0 || order.OrderExpireHeight == 0 || order.EarliestSubmitHeight >= order.OrderExpireHeight ||
 		!isDeadlineLatencyClassV1(order.DeadlinePolicy.LatencyClass) ||
-		order.TimeoutBucketVersion == 0 || order.SessionAnchorHeight == 0 || len(order.SessionAnchorBlockHash) != Hash32Len ||
+		order.TimeoutBucketVersion == 0 ||
 		order.BuilderSetId == "" || !utf8.ValidString(order.BuilderSetId) || len(order.BuilderSetHash) != Hash32Len {
 		return fmt.Errorf("task order scalar scope is invalid")
 	}
@@ -303,5 +256,3 @@ func isDeadlineLatencyClassV1(value DeadlineLatencyClass) bool {
 		return false
 	}
 }
-
-func chainIDBytes(value string) []byte { return []byte(value) }

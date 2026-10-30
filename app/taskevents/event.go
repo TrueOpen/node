@@ -66,10 +66,6 @@ type blockData struct {
 	FinalizeBlockEvents []abci.Event
 }
 
-func eventsFromBlock(block blockData) []chainEvent {
-	return eventsFromBlockObserved(block, nil)
-}
-
 type skippedEventObserver func(eventType string, source string, txIndex uint32, eventIndex uint32)
 
 func eventsFromBlockObserved(block blockData, observeSkipped skippedEventObserver) []chainEvent {
@@ -135,7 +131,16 @@ func normalizeEvent(event abci.Event) (chainEvent, bool) {
 	if err != nil {
 		return chainEvent{}, false
 	}
-	return classifyTypedEvent(payload)
+	normalized, known := classifyTypedEvent(payload)
+	if !known {
+		return chainEvent{}, false
+	}
+	targets, err := shared.CanonicalEventTargets(normalized.Targets)
+	if err != nil {
+		return chainEvent{}, false
+	}
+	normalized.Targets = targets
+	return normalized, true
 }
 
 type eventPosition struct {

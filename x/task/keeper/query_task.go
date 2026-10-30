@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	hubtypes "github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
@@ -206,12 +205,7 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 		return 0, 0, false, err
 	}
 	switch core.TaskPhase {
-	case types.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING:
-		if assignment.AssignmentRandomnessHeight == 0 {
-			return 0, 0, false, nil
-		}
-		return types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT, assignment.AssignmentRandomnessHeight, true, nil
-	case types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED:
+	case types.TaskPhase_TASK_PHASE_INFER_PENDING:
 		if assignment.InferDeadlineHeight == 0 {
 			return 0, 0, false, nil
 		}
@@ -452,11 +446,11 @@ func (q *queryServer) TaskAssignment(ctx context.Context, req *types.QueryTaskAs
 func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmentState) types.TaskAssignmentViewV1 {
 	view := types.TaskAssignmentViewV1{
 		TaskId:                       append([]byte(nil), assignment.TaskId...),
-		AssignAcceptHeight:           assignment.AssignAcceptHeight,
-		AssignmentRandomnessHeight:   assignment.AssignmentRandomnessHeight,
+		RecordHeight:                 assignment.RecordHeight,
+		DispatchRecordHash:           append([]byte(nil), assignment.DispatchRecordHash...),
+		DispatchTicketHash:           append([]byte(nil), assignment.DispatchTicketHash...),
 		CandidatePoolSnapshotId:      append([]byte(nil), assignment.CandidatePoolSnapshotId...),
 		CandidatePoolHash:            append([]byte(nil), assignment.CandidatePoolHash...),
-		AssignmentCandidateSetHash:   append([]byte(nil), assignment.AssignmentCandidateSetHash...),
 		ProfileExecutionSnapshotHash: append([]byte(nil), assignment.ProfileExecutionSnapshotHash...),
 		JudgmentFunctionVersion:      assignment.JudgmentFunctionVersion,
 		EvidenceSchemaHash:           append([]byte(nil), assignment.EvidenceSchemaHash...),
@@ -471,75 +465,13 @@ func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmen
 	if assignment.WinnerWorker != "" {
 		view.XWinnerWorker = &types.TaskAssignmentViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}
 	}
-	if len(assignment.WinnerDrawDigest) == types.Hash32Len {
-		view.XWinnerDrawDigest = &types.TaskAssignmentViewV1_WinnerDrawDigest{WinnerDrawDigest: append([]byte(nil), assignment.WinnerDrawDigest...)}
-	}
 	if assignment.WinnerConfirmHeight != 0 {
 		view.XWinnerConfirmHeight = &types.TaskAssignmentViewV1_WinnerConfirmHeight{WinnerConfirmHeight: assignment.WinnerConfirmHeight}
 	}
 	if assignment.InferDeadlineHeight != 0 {
 		view.XInferDeadlineHeight = &types.TaskAssignmentViewV1_InferDeadlineHeight{InferDeadlineHeight: assignment.InferDeadlineHeight}
 	}
-	if assignment.AssignmentFailReason != types.AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_UNSPECIFIED {
-		view.XAssignmentFailReason = &types.TaskAssignmentViewV1_AssignmentFailReason{AssignmentFailReason: assignment.AssignmentFailReason}
-	}
 	return view
-}
-
-// AssignmentRandomness is `QueryAssignmentRandomness`: the frozen height,
-// beacon and draw digest only. field 7 projects `winner_draw_digest`, whose sole
-// producer is the `TRUEOPEN_WINNER_DRAW_V1` preimage.
-func (q *queryServer) AssignmentRandomness(ctx context.Context, req *types.QueryAssignmentRandomnessRequest) (*types.QueryAssignmentRandomnessResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request is required")
-	}
-	taskKey, err := requireQueryHash32("task_id", req.TaskId)
-	if err != nil {
-		return nil, err
-	}
-	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
-	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			return nil, status.Error(codes.NotFound, "task assignment not found")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	view := types.AssignmentRandomnessViewV1{
-		TaskId:                     append([]byte(nil), assignment.TaskId...),
-		AssignmentRandomnessHeight: assignment.AssignmentRandomnessHeight,
-		AssignmentCandidateSetHash: append([]byte(nil), assignment.AssignmentCandidateSetHash...),
-	}
-	if assignment.AssignmentRandomnessHeight != 0 && shared.IsBlockHeightV1(assignment.AssignmentRandomnessHeight) {
-		beacon, ok := q.k.hubKeeper.GetBeaconForDomain(
-			sdkContextFrom(ctx), shared.DomainWeightedDrawV1, int64(assignment.AssignmentRandomnessHeight),
-		)
-		if !ok || len(beacon.Randomness) != types.Hash32Len {
-			return nil, status.Error(codes.Internal, "assignment beacon is unavailable")
-		}
-		view.BeaconRandomness = append([]byte(nil), beacon.Randomness...)
-		// beacon_proof_digest is optional since wire v0.2.1 and carries protobuf
-		// presence, so the dev-only placeholder source projects it as absent
-		// rather than as an empty or zero32 value. proposer_vrf_v1 is the only
-		// source that produces one, and GetBeaconForDomain already refuses a
-		// snapshot whose digest is not exactly 32 bytes.
-		if len(beacon.ProofDigest) == types.Hash32Len {
-			view.XBeaconProofDigest = &types.AssignmentRandomnessViewV1_BeaconProofDigest{
-				BeaconProofDigest: append([]byte(nil), beacon.ProofDigest...),
-			}
-		} else if beacon.SourceTag != hubtypes.BeaconSourcePlaceholderBlockHashV1 {
-			return nil, status.Error(codes.Internal, "assignment beacon proof digest is unavailable")
-		}
-	}
-	if assignment.WinnerWorker != "" {
-		view.XWinnerWorker = &types.AssignmentRandomnessViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}
-	}
-	if len(assignment.WinnerDrawDigest) == types.Hash32Len {
-		view.XWinnerDrawDigest = &types.AssignmentRandomnessViewV1_WinnerDrawDigest{WinnerDrawDigest: append([]byte(nil), assignment.WinnerDrawDigest...)}
-	}
-	if assignment.WinnerConfirmHeight != 0 {
-		view.XWinnerConfirmHeight = &types.AssignmentRandomnessViewV1_WinnerConfirmHeight{WinnerConfirmHeight: assignment.WinnerConfirmHeight}
-	}
-	return &types.QueryAssignmentRandomnessResponse{Randomness: view}, nil
 }
 
 // TaskBudget is `QueryTaskBudget`: the single authoritative ledger row. A
@@ -608,7 +540,6 @@ func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuil
 			return nil, status.Error(codes.Internal, "PRUNED task builder selection still has resident members")
 		}
 		if selection.SelectedTaskBuilderCount == 0 || len(selection.BuilderSetHash) != types.Hash32Len ||
-			len(selection.SessionAnchorBlockHash) != types.Hash32Len ||
 			selection.BuilderSetId == "" || selection.CreatedHeight == 0 {
 			return nil, status.Error(codes.Internal, "PRUNED task builder selection lost a retained header field")
 		}
@@ -620,7 +551,6 @@ func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuil
 	// internal field and is deliberately not in the view schema.
 	return &types.QueryTaskBuildersResponse{Selection: types.TaskBuilderSelectionViewV1{
 		TaskId:                   append([]byte(nil), selection.TaskId...),
-		SessionAnchorBlockHash:   append([]byte(nil), selection.SessionAnchorBlockHash...),
 		BuilderSetId:             selection.BuilderSetId,
 		BuilderSetHash:           append([]byte(nil), selection.BuilderSetHash...),
 		SelectedTaskBuilders:     append([]string(nil), selection.SelectedTaskBuilders...),

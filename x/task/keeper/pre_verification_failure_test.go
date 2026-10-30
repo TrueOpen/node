@@ -44,9 +44,8 @@ func TestPreVerificationFailureCommitmentsAreDeterministic(t *testing.T) {
 
 func TestPreVerificationVerdictUsesDeadlineKind(t *testing.T) {
 	tests := map[types.DeadlineKindV1]types.TaskVerdict{
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT: types.TaskVerdict_TASK_VERDICT_ASSIGN_TIMEOUT,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:      types.TaskVerdict_TASK_VERDICT_WORKER_TIMEOUT,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:       types.TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER: types.TaskVerdict_TASK_VERDICT_WORKER_TIMEOUT,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:  types.TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE,
 	}
 	for kind, want := range tests {
 		got, err := preVerificationVerdict(kind)

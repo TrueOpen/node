@@ -217,7 +217,29 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 	}
 	var slash ApplyServiceSlashResult
 	var slashable bool
-	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(taskID) != "" {
+	if faultType == types.FaultTypeWorkerDispatchIneligible || faultType == types.FaultTypeWorkerDispatchContradiction {
+		if duty != shared.DutyWorker {
+			return roleFaultApplyResult{}, fmt.Errorf("dispatch fault must name Worker duty")
+		}
+		if faultType == types.FaultTypeWorkerDispatchIneligible {
+			if slashBps != 0 {
+				return roleFaultApplyResult{}, fmt.Errorf("dispatch ineligibility is count-only")
+			}
+		} else {
+			bond, err := k.GetServiceBondState(ctx, roleAddress)
+			if err != nil {
+				return roleFaultApplyResult{}, err
+			}
+			requested := types.SlashByFraction(bond.ActiveBond, uint64(slashBps), types.ObjectiveForgerySlashDenom)
+			slashable = requested > 0
+			if slashable {
+				slash, err = k.applyServiceSlashInCache(ctx, ApplyServiceSlashRequest{OperatorAddress: roleAddress, Duty: duty, TaskID: prospective.TaskId, Requested: requested, Height: height, SummaryID: prospective.FaultId, SourceKind: types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT, SourceID: prospective.FaultId, Destination: types.SlashDestination_SLASH_DESTINATION_TREASURY})
+				if err != nil {
+					return roleFaultApplyResult{}, err
+				}
+			}
+		}
+	} else if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(taskID) != "" {
 		canonicalTaskID, idErr := parseTaskLiabilityID(taskID)
 		if idErr != nil {
 			return roleFaultApplyResult{}, idErr
@@ -630,6 +652,8 @@ func (k Keeper) IsTombstoned(ctx context.Context, roleAddress string) (bool, err
 
 func shouldJailForFault(faultType string) bool {
 	switch strings.TrimSpace(faultType) {
+	case types.FaultTypeWorkerDispatchIneligible, types.FaultTypeWorkerDispatchContradiction:
+		return true
 	case types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult, types.FaultTypeResultNoSettleReveal, types.FaultTypeValueOutlier, types.FaultTypeCommitRevealMismatch, types.FaultTypeWorkerRevealTimeout, types.FaultTypeObjectiveForgery, types.FaultTypeRoundDivergence:
 		return true
 	default:
@@ -741,7 +765,7 @@ func (k Keeper) buildRoleFaultState(ctx context.Context, operatorAddress, role, 
 // nothing in the tree could see either pair swap.
 func roleFaultID(
 	chainID string, taskID, operatorAddress []byte,
-	duty shared.Duty, faultClass types.FaultKind, evidenceDigest []byte,
+	duty shared.Duty, faultClass shared.FaultKind, evidenceDigest []byte,
 ) ([]byte, error) {
 	return shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainRoleFaultV1)).Raw(
 		[]byte(chainID),
@@ -769,23 +793,27 @@ func decodePayloadHash32(name, value string) ([]byte, error) {
 	return raw, nil
 }
 
-func classifyRoleFaultType(faultType string) (types.FaultKind, shared.FailureClassificationSource, error) {
+func classifyRoleFaultType(faultType string) (shared.FaultKind, shared.FailureClassificationSource, error) {
 	switch strings.TrimSpace(faultType) {
+	case types.FaultTypeWorkerDispatchIneligible:
+		return shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_INELIGIBLE, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE, nil
+	case types.FaultTypeWorkerDispatchContradiction:
+		return shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_CONTRADICTION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE, nil
 	case types.FaultTypeWorkerInferTimeout, types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult,
 		types.FaultTypeResultNoSettleReveal, types.FaultTypeWorkerRevealTimeout:
-		return types.FaultKind_FAULT_KIND_TIMEOUT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE, nil
+		return shared.FaultKind_FAULT_KIND_TIMEOUT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE, nil
 	case types.FaultTypeValueOutlier:
-		return types.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
+		return shared.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
 	case types.FaultTypeCommitRevealMismatch:
-		return types.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
+		return shared.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
 	case types.FaultTypeObjectiveForgery:
-		return types.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND, nil
+		return shared.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND, nil
 	case types.FaultTypeRoundDivergence:
 		// Wire v0.3 has no distinct ROUND_DIVERGENCE FaultKind; the frozen
 		// invalid-result value is the only compatible role-fault carrier.
-		return types.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND, nil
+		return shared.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND, nil
 	default:
-		return types.FaultKind_FAULT_KIND_UNSPECIFIED, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_UNSPECIFIED, fmt.Errorf("unsupported fault_type %q", faultType)
+		return shared.FaultKind_FAULT_KIND_UNSPECIFIED, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_UNSPECIFIED, fmt.Errorf("unsupported fault_type %q", faultType)
 	}
 }
 

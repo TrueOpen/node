@@ -77,6 +77,7 @@ func seedOwnedTaskLiabilityForTest(
 		ActiveBitmapHash: hubHashBytes("owned-liability-bitmap-" + taskID),
 		MemberSetHash:    hubHashBytes("owned-liability-members-" + taskID),
 		EffectiveHeight:  height, ExpiresHeight: height + 100, TaskRefCount: 1,
+		PublishedHeight: height, WorkerStakeWeightPpm: 300_000, WorkerPerformanceWeightPpm: 700_000,
 	}))
 	binding, err := f.keeper.ReadCandidateSlotBinding(f.ctx, types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion))
 	require.NoError(t, err)

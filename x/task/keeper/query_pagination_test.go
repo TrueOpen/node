@@ -94,8 +94,10 @@ func TestSessionsByOwnerCanonicalPageTokenDoesNotSkipRows(t *testing.T) {
 		sessionKey := types.NewSessionStoreKey(sessionID)
 		require.NoError(t, f.keeper.WriteStream(f.ctx, sessionKey, types.StreamState{
 			SessionId: sessionID, OwnerUserAddress: owner,
+			BoundBuilder: owner, BoundChangeHeight: 1, Balance: shared.NewAmount(0), FrozenTotal: shared.NewAmount(0), PendingWithdrawAmount: shared.NewAmount(0),
 			Status: types.SessionStatus_SESSION_STATUS_ACTIVE,
-		}))
+
+			PendingWithdrawKind: types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE}))
 		require.NoError(t, f.keeper.SessionByOwnerIndex.Set(f.ctx, types.NewSessionByOwnerKey(ownerBytes, sessionKey)))
 	}
 
@@ -156,7 +158,7 @@ func TestRoleActiveTasksCanonicalPageTokenBindsDuty(t *testing.T) {
 	for _, taskID := range taskIDs {
 		taskKey := types.NewTaskKey(taskID)
 		require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{
-			TaskId: taskID, TaskPhase: types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
+			TaskId: taskID, TaskPhase: types.TaskPhase_TASK_PHASE_INFER_PENDING,
 		}))
 		require.NoError(t, f.keeper.WriteTaskAssignment(f.ctx, taskKey, types.TaskAssignmentState{
 			TaskId: taskID, WinnerWorker: operator,

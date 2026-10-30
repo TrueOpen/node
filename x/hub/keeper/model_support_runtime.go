@@ -792,6 +792,9 @@ func (k Keeper) applyModelSupportMutation(
 	if err := k.WriteModelSupportIndexes(ctx, newSupport, currentEpoch, uint64(params.Support.ModelSupportRowRetentionEpochs)); err != nil {
 		return err
 	}
+	if err := k.refreshCandidateWeightInputs(ctx, newSupport.OperatorAddress); err != nil {
+		return err
+	}
 	newStatus := modelSupportStatus(&newSupport, currentEpoch)
 	mustEmitHubEvent(ctx, &types.EventModelSupportUpdated{
 		Operator: newSupport.OperatorAddress, ModelId: newSupport.ModelId, SuspendReason: newSupport.SuspendReason,

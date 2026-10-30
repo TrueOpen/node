@@ -231,6 +231,9 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 	// that now, and candidateHashKey has already rejected a zero-length id.
 	var activeKey shared.Hash32Key
 	for _, state := range genState.CandidatePoolSnapshots {
+		if err := state.ValidateWorkerWeightPolicy(); err != nil {
+			return err
+		}
 		key, err := candidateHashKey(state.SnapshotId)
 		if err != nil {
 			return fmt.Errorf("candidate snapshot: %w", err)

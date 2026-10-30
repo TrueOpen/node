@@ -51,6 +51,7 @@ func TestLocalnetGenesisSeedBootsReadyForTasks(t *testing.T) {
 		Address: userAccount.GetAddress().String(),
 		Coins: sdk.NewCoins(
 			sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(100_000_000_000_000)),
+			sdk.NewCoin("uusdc", sdkmath.NewInt(10_000_000)),
 		),
 	}
 	appState, err := simtestutil.GenesisStateWithValSet(
@@ -96,7 +97,7 @@ func TestLocalnetGenesisSeedBootsReadyForTasks(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	ctx := application.NewContextLegacy(true, cmtproto.Header{Height: 7})
+	ctx := application.NewContextLegacy(true, cmtproto.Header{ChainID: chainID, Height: 7})
 	builderSet, err := application.HubKeeper.BuilderSet.Get(ctx, 1)
 	require.NoError(t, err)
 	require.Len(t, builderSet.ActiveBuilders, 3)
@@ -146,7 +147,7 @@ func TestLocalnetGenesisSeedBootsReadyForTasks(t *testing.T) {
 
 	session, err := taskkeeper.NewMsgServerImpl(application.TaskKeeper).CreateSession(
 		ctx,
-		&tasktypes.MsgCreateSession{SignerAddress: userAccount.GetAddress().String()},
+		&tasktypes.MsgCreateSession{SignerAddress: userAccount.GetAddress().String(), InitialBuilder: seed.Builders[0].Address, InitialDeposit: shared.NewAmount(1_000_000)},
 	)
 	require.NoError(t, err)
 	// MsgCreateSessionResponse.status is the shared

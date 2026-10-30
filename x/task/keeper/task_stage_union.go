@@ -82,7 +82,7 @@ func taskStageUnionBitmapHash(
 	if chainID == "" || len(taskID) != types.Hash32Len || len(snapshotID) != types.Hash32Len {
 		return zero, fmt.Errorf("union bitmap scope is incomplete")
 	}
-	if stage != types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK && stage != types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY {
+	if stage != types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY {
 		return zero, fmt.Errorf("candidate stage is invalid")
 	}
 	ordered := append([]taskBitmapSegment(nil), segments...)

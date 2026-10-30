@@ -13,11 +13,22 @@ type msgRegistration struct {
 }
 
 var msgRegistrations = []msgRegistration{
+	{&MsgSubmitVerifierValueEvidence{}, "trueopen/x/task/MsgSubmitVerifierValueEvidence"},
+	{&MsgWithdrawSession{}, "trueopen/x/task/MsgWithdrawSession"},
+	{&MsgDepositSession{}, "trueopen/x/task/MsgDepositSession"},
+	{&MsgRespondDispatchChallenge{}, "trueopen/x/task/MsgRespondDispatchChallenge"},
+	{&MsgChallengeDispatchDoubleDispatch{}, "trueopen/x/task/MsgChallengeDispatchDoubleDispatch"},
+	{&MsgReportDispatchRosterUnavailable{}, "trueopen/x/task/MsgReportDispatchRosterUnavailable"},
+	{&MsgChallengeDispatchSkip{}, "trueopen/x/task/MsgChallengeDispatchSkip"},
+	{&MsgChallengeDispatchDraw{}, "trueopen/x/task/MsgChallengeDispatchDraw"},
+	{&MsgChallengeDispatchOmission{}, "trueopen/x/task/MsgChallengeDispatchOmission"},
+	{&MsgRebutDispatchCompensation{}, "trueopen/x/task/MsgRebutDispatchCompensation"},
+	{&MsgClaimDispatchCompensation{}, "trueopen/x/task/MsgClaimDispatchCompensation"},
+	{&MsgRecordDispatch{}, "trueopen/x/task/MsgRecordDispatch"},
 	{&MsgUpdateTaskParams{}, "trueopen/x/task/MsgUpdateTaskParams"},
 	{&MsgCreateSession{}, "trueopen/x/task/MsgCreateSession"},
 	{&MsgUpdateSessionKey{}, "trueopen/x/task/MsgUpdateSessionKey"},
 	{&MsgCancelOrder{}, "trueopen/x/task/MsgCancelOrder"},
-	{&MsgSubmitWorkerHandraises{}, "trueopen/x/task/MsgSubmitWorkerHandraises"},
 	{&MsgSubmitInferReceipt{}, "trueopen/x/task/MsgSubmitInferReceipt"},
 	{&MsgSubmitWorkerEvidence{}, "trueopen/x/task/MsgSubmitWorkerEvidence"},
 	{&MsgSubmitVerifierHandraises{}, "trueopen/x/task/MsgSubmitVerifierHandraises"},
@@ -39,7 +50,6 @@ var msgRegistrations = []msgRegistration{
 // no alias, no compatibility decoder and no placeholder type URL for them.
 //
 //	MsgSessionSweep, MsgSweepExpiredTask            -> MsgSweepDeadline
-//	MsgAssign                                       -> MsgSubmitWorkerHandraises
 //	MsgOpenVerify                                   -> MsgSubmitVerifierHandraises
 //	MsgInferReceiptCommitOnly                       -> MsgSubmitInferReceipt
 //	MsgSettle                                       -> MsgSettleTask

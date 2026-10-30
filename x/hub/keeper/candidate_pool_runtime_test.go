@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"testing"
 
@@ -17,6 +18,17 @@ import (
 )
 
 const candidatePoolTestChainID = "trueopen-candidate-test"
+
+type candidateWeightProvider struct {
+	policy shared.WorkerCandidateWeightPolicy
+	err    error
+	reads  int
+}
+
+func (p *candidateWeightProvider) GetWorkerCandidateWeightPolicy(context.Context, uint64) (shared.WorkerCandidateWeightPolicy, error) {
+	p.reads++
+	return p.policy, p.err
+}
 
 func initCandidatePoolFixture(t *testing.T) *fixture {
 	t.Helper()

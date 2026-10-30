@@ -206,6 +206,17 @@ func TestGoldenVectorsMatchDomainRegistryFieldOrder(t *testing.T) {
 			require.Equal(t, len(vector.Fields), named,
 				"%s: a vector must name all of its fields or none of them, never some", label)
 
+			if spec.Discriminator == "oneof_tag" {
+				for _, field := range vector.Fields {
+					if field.Name == "oneof_tag" && field.Value != nil {
+						derived := fmt.Sprintf("oneof_tag=%d", *field.Value)
+						if vector.Variant != "" {
+							require.Equal(t, derived, vector.Variant)
+						}
+						vector.Variant = derived
+					}
+				}
+			}
 			assertRegistryFieldOrder(t, spec, label, vector.Variant, vector.Fields, stillFlattened)
 			nameChecked++
 			if len(spec.Variants) != 0 {
@@ -229,9 +240,6 @@ func TestGoldenVectorsMatchDomainRegistryFieldOrder(t *testing.T) {
 	// has exactly one answer that both the registry and the fixtures agree on.
 	for _, spec := range shared.DomainRegistryV1 {
 		if len(spec.Variants) == 0 {
-			continue
-		}
-		if _, external := wireOwnedDomainVectorCoverage[spec.Domain]; external {
 			continue
 		}
 		if _, external := wirePublishedDomainVectorCoverage[spec.Domain]; external {
@@ -671,26 +679,18 @@ var domainVectorCoverageAllowlistV1 = map[string]string{
 	shared.DomainSetBridgeLimitV1:         "Wire bridge action vectors missing",
 }
 
-// wireOwnedDomainVectorCoverage records domains whose normative producer and
-// cross-language vectors live in the exact Wire Go module/release pinned by
-// wire_pin_test.go. They are not copied into Node's V1 fixture schema: Node calls
-// these Wire producers directly, and duplicating their vectors here would create
-// a second release artifact with no independent implementation.
-var wireOwnedDomainVectorCoverage = map[string]string{
-	shared.DomainBusEnvelopeV2:            "Wire bus signing vectors",
-	shared.DomainBuilderEvidenceContentV2: "Wire bus BuilderEvidenceV2 linked vectors",
-	shared.DomainBuilderEvidenceIDV2:      "Wire bus BuilderEvidenceV2 linked vectors",
-	shared.DomainBuilderFaultV2:           "Wire bus BuilderEvidenceV2 linked vectors",
-}
-
 // wirePublishedDomainVectorCoverage records cross-language vectors published
 // as assets of the exact pinned Wire release when Node owns either the producer
 // or no producer at all. They are not copied into Node merely to satisfy this
 // scan; the release pin is their byte-level authority.
 var wirePublishedDomainVectorCoverage = map[string]string{
+	"TRUEOPEN_NEXUS_BUILDER_SYNC_V1":           "Wire testdata/v1/task/builder_sync_v1.json; Nexus owns this transport producer",
+	"TRUEOPEN_SDK_BODY_GET_DISPATCH_ROSTER_V1": "Wire testdata/v1/task/sdk_request_body_v1.json; Nexus owns this request body",
+	"TRUEOPEN_SDK_BODY_RESUME_OUTPUT_V1":       "Wire testdata/v1/task/sdk_request_body_v1.json; Nexus owns this request body",
+	"TRUEOPEN_VERIFIER_VALUE_EVIDENCE_V1":      "Wire testdata/v1/task/value_evidence_v1.json; Node uses the pinned shared digest and tests funded attribution separately",
+
 	shared.DomainBridgeDeploymentManifestV1:    "Wire testdata/v1/hub/bridge_vrf_v1.json",
 	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V2": "Wire testdata/v1/task/builder_confirmation_v1.json",
-	shared.DomainInferReceiptV3:                "Wire testdata/v1/task/infer_receipt_v3.json",
 	shared.DomainModelIDV1:                     "Wire testdata/v1/hub/model_id_v1.json, bound to DeriveModelIDV1 by TestModelIDMatchesWireVectors",
 	"TRUEOPEN_OUTPUT_STREAM_HEADER_V1":         "Wire testdata/v1/task/output_stream_header_v1.json",
 	"TRUEOPEN_PREFILL_TOKEN_METRIC_LEAF_V3":    "Wire testdata/v1/task/metric_leaf_v3.json",
@@ -715,24 +715,20 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	shared.DomainMintBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json",
 	shared.DomainOutputChunkV1:                     "Wire testdata/v1/task/output_mmr_v1.json",
 	// Neither domain has a producer here: the stream terminator is signed by the
-	// selected Worker's service key and the NATS binding by Cortex's.
-	"TRUEOPEN_OUTPUT_FIN_V1":        "Wire testdata/v1/task/output_mmr_v1.json",
-	"TRUEOPEN_NATS_USER_BINDING_V1": "Wire testdata/v1/bus/nats_user_binding_v1_vectors.json",
-	shared.DomainUSDCRouteV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainVRFKeyPoPV1:        "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	// selected Worker's service key.
+	"TRUEOPEN_OUTPUT_FIN_V1": "Wire testdata/v1/task/output_mmr_v1.json",
+	shared.DomainUSDCRouteV1: "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainVRFKeyPoPV1: "Wire testdata/v1/hub/bridge_vrf_v1.json",
 }
 
 // domainsCoveredWithoutFieldOrder is the gap between "a fixture names this domain"
 // and "the differential above can check this domain's field order". It is frozen so
 // the gap cannot grow silently.
 //
-// It is EMPTY. Its last entry was TRUEOPEN_TASK_BUILDER_RANK_V1, whose fixture
-// published (seed, address) -> rank pairs with no per-vector preimage: the rank
-// values were pinned and the field order was not, so swapping the producer's two
-// fields would have moved every rank and agreed with a regenerated file. The
-// fixture now publishes both named fields and its preimage.
+// Linked equivocation cases do not publish a single top-level preimage. Their
+// producer tests verify the signed materials separately.
 var domainsCoveredWithoutFieldOrder = map[string]string{
-	shared.DomainOutputChunkEquivocationV1: "Wire v0.3.x fixture publishes linked equivocation cases without a top-level preimage_hex",
+	shared.DomainOutputChunkEquivocationV1: "Wire linked equivocation cases have no top-level preimage_hex",
 }
 
 // TestDomainRegistryV1HFieldsVectorCoverageIsFrozen walks every registered H_FIELDS_V1
@@ -756,10 +752,6 @@ func TestDomainRegistryV1HFieldsVectorCoverageIsFrozen(t *testing.T) {
 	got := make([]string, 0, len(want))
 	for _, spec := range shared.DomainRegistryV1 {
 		if spec.Framing != shared.FramingHFieldsV1 {
-			continue
-		}
-		if reason, ok := wireOwnedDomainVectorCoverage[spec.Domain]; ok {
-			require.NotEmpty(t, reason, "%s needs an actionable external-vector reason", spec.Domain)
 			continue
 		}
 		if reason, ok := wirePublishedDomainVectorCoverage[spec.Domain]; ok {
@@ -810,9 +802,6 @@ func TestDomainVectorCoverageWithoutFieldOrderIsFrozen(t *testing.T) {
 		if _, ok := differential[domain]; ok {
 			continue
 		}
-		if _, external := wireOwnedDomainVectorCoverage[domain]; external {
-			continue
-		}
 		got = append(got, domain)
 	}
 	sort.Strings(got)
@@ -820,7 +809,7 @@ func TestDomainVectorCoverageWithoutFieldOrderIsFrozen(t *testing.T) {
 	require.Equal(t, want, got,
 		"a domain is named by a fixture but has no vector the differential can check")
 	require.Len(t, differential, len(shared.DomainRegistryV1)-
-		len(domainVectorCoverageAllowlistV1)-len(want)-len(wireOwnedDomainVectorCoverage)-
+		len(domainVectorCoverageAllowlistV1)-len(want)-
 		len(wirePublishedDomainVectorCoverage)-domainRegistryNonHFieldsV1Count,
 		"every H_FIELDS_V1 domain is exactly one of: checked by the differential, weakly covered, or allowlisted")
 }

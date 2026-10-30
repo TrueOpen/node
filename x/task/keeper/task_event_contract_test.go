@@ -33,25 +33,25 @@ import (
 //     tests now pin the registered EventRevealPhaseStarted and
 //     EventCommitDeadlineClosed payloads for both reveal triggers.
 //
-// TestEmitWorkerAssignmentFinalizedEvent below replaces the deleted
+// TestEmitDispatchRecordedEvent below replaces the deleted
 // TestEmitAssignmentFinalizedEvent: EventAssignmentFinalized became
 // EventWorkerAssignmentFinalized (event code 11) and TaskAssignment became
 // TaskAssignmentState keyed by task_id alone with winner_worker.
 
-func TestEmitWorkerAssignmentFinalizedEvent(t *testing.T) {
+func TestEmitDispatchRecordedEvent(t *testing.T) {
 	f := initInternalFixture(t)
 	sessionID := bytes.Repeat([]byte{0x01}, types.Hash32Len)
 	taskID := bytes.Repeat([]byte{0x02}, types.Hash32Len)
 	legalSetHash := bytes.Repeat([]byte{0x03}, types.Hash32Len)
 
-	want := &types.EventWorkerAssignmentFinalized{
-		SessionId:                  sessionID,
-		TaskId:                     taskID,
-		WinnerWorker:               "worker-assignment",
-		AssignmentCandidateSetHash: legalSetHash,
-		RandomnessHeight:           101,
-		ReservedAmount:             shared.NewAmount(1234),
-		InferDeadline:              121,
+	want := &types.EventDispatchRecorded{
+		SessionId:          sessionID,
+		TaskId:             taskID,
+		WinnerWorker:       "worker-assignment",
+		DispatchRecordHash: legalSetHash,
+		ReferenceHeight:    101,
+		ReservedAmount:     shared.NewAmount(1234),
+		InferDeadline:      121,
 	}
 	require.NoError(t, emitTypedEvent(f.ctx, want))
 	require.Equal(t, want, lastTypedEvent(t, f.ctx, want))

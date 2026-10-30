@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"github.com/TrueOpen/wire/dispatch"
 	"math"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
@@ -34,13 +35,12 @@ func DecodeWorkerEvidenceV1(raw []byte) (WorkerEvidenceV1, error) {
 	return evidence, nil
 }
 
-func OutputChunkSigningDigest(chainID string, taskHash []byte, seq uint64, streamedMMRRoot []byte) ([32]byte, error) {
-	if chainID == "" || len(taskHash) != Hash32Len || len(streamedMMRRoot) != Hash32Len {
+// OutputChunkSigningDigest binds the signed prefix to its accepted dispatch.
+func OutputChunkSigningDigest(chainID string, taskHash, ticketHash []byte, seq uint64, streamedMMRRoot []byte) ([32]byte, error) {
+	if chainID == "" || len(taskHash) != 32 || len(ticketHash) != 32 || len(streamedMMRRoot) != 32 {
 		return [32]byte{}, fmt.Errorf("output chunk signing scope is invalid")
 	}
-	return canonicalTaskDigestV1(
-		shared.DomainOutputChunkV1, []byte(chainID), taskHash, shared.Uint64BE(seq), streamedMMRRoot,
-	)
+	return dispatch.OutputChunkDigest(chainID, [32]byte(taskHash), [32]byte(ticketHash), seq, [32]byte(streamedMMRRoot)), nil
 }
 
 func OutputChunkEquivocationDigest(evidence OutputChunkEquivocationV1) ([32]byte, error) {

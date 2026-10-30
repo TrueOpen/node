@@ -59,7 +59,6 @@ type DomainVariantV1 struct {
 // Domain keys are kept as typed Go names for producers. Metadata is loaded from
 // the pinned registry below instead of being copied into another handwritten map.
 const (
-	DomainAssignmentLegalSetV1            = "TRUEOPEN_ASSIGNMENT_LEGAL_SET_V1"
 	DomainBatchResultV1                   = "TRUEOPEN_BATCH_RESULT_V1"
 	DomainBeaconAggregateV1               = "TRUEOPEN_BEACON_AGGREGATE_V1"
 	DomainBeaconCheckpointV1              = "TRUEOPEN_BEACON_CHECKPOINT_V1"
@@ -75,8 +74,6 @@ const (
 	DomainBuilderSetMembersV1             = "TRUEOPEN_BUILDER_SET_MEMBERS_V1"
 	DomainBuilderSetV1                    = "TRUEOPEN_BUILDER_SET_V1"
 	DomainBurnBondV1                      = "TRUEOPEN_BURN_BOND_V1"
-	DomainBusEnvelopeV2                   = "TRUEOPEN_BUS_ENVELOPE_V2"
-	DomainBusPayloadV2                    = "TRUEOPEN_BUS_PAYLOAD_V2"
 	DomainCandidateActiveBitmapV1         = "TRUEOPEN_CANDIDATE_ACTIVE_BITMAP_V1"
 	DomainCandidateMembershipV1           = "TRUEOPEN_CANDIDATE_MEMBERSHIP_V1"
 	DomainCandidateMemberSetV1            = "TRUEOPEN_CANDIDATE_MEMBER_SET_V1"
@@ -157,8 +154,6 @@ const (
 	DomainSetBridgeFreezeV1               = "TRUEOPEN_SET_BRIDGE_FREEZE_V1"
 	DomainSetBridgeLimitV1                = "TRUEOPEN_SET_BRIDGE_LIMIT_V1"
 	DomainSupportModelsV1                 = "TRUEOPEN_SUPPORT_MODELS_V1"
-	DomainTaskBuildersV1                  = "TRUEOPEN_TASK_BUILDERS_V1"
-	DomainTaskBuilderRankV1               = "TRUEOPEN_TASK_BUILDER_RANK_V1"
 	DomainTaskGenerationParamsV1          = "TRUEOPEN_TASK_GENERATION_PARAMS_V1"
 	DomainTaskIDV1                        = "TRUEOPEN_TASK_ID_V1"
 	DomainTaskOrderV3                     = "TRUEOPEN_TASK_ORDER_V3"
@@ -185,21 +180,19 @@ const (
 	DomainVerifyRoundIDV1                 = "TRUEOPEN_VERIFY_ROUND_ID_V1"
 	DomainVRFKeyPoPV1                     = "TRUEOPEN_VRF_KEY_POP_V1"
 	DomainWeightedDrawV1                  = "TRUEOPEN_WEIGHTED_DRAW_V1"
-	DomainWinnerDrawV1                    = "TRUEOPEN_WINNER_DRAW_V1"
-	DomainWorkerHandraiseV1               = "TRUEOPEN_WORKER_HANDRAISE_V1"
-	DomainWorkerProposalV1                = "TRUEOPEN_WORKER_PROPOSAL_V1"
 	DomainWorkerValueCommitmentV3         = "TRUEOPEN_WORKER_VALUE_COMMITMENT_V3"
 )
 
 const (
-	BatchResultKindModelSupport = "MODEL_SUPPORT"
-	BatchResultKindVerifyCommit = "VERIFY_COMMIT"
-	BatchResultKindVerifyResult = "VERIFY_RESULT"
+	BatchResultKindModelSupport   = "MODEL_SUPPORT"
+	BatchResultKindVerifyCommit   = "VERIFY_COMMIT"
+	BatchResultKindVerifyResult   = "VERIFY_RESULT"
+	BatchResultKindDispatchRecord = "DISPATCH_RECORD"
 )
 
 func IsBatchResultKind(kind string) bool {
 	switch kind {
-	case BatchResultKindModelSupport, BatchResultKindVerifyCommit, BatchResultKindVerifyResult:
+	case BatchResultKindModelSupport, BatchResultKindVerifyCommit, BatchResultKindVerifyResult, BatchResultKindDispatchRecord:
 		return true
 	default:
 		return false

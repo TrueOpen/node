@@ -32,18 +32,18 @@ import (
 //	|    12 | CHALLENGE_CLOSE   | ChallengeDeadlineLocator       |            25 |
 //	|    13 | EVIDENCE_CLEANUP  | TaskDeadlineLocator            |           110 |
 var deadlineKindPriority = map[types.DeadlineKindV1]uint32{
-	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:        40,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:     20,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:          50,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:          60,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:            70,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:           80,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:      90,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:      100,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:           45,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: 25,
-	types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: 30,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:                        30,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:                      40,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:                   20,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:                        50,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:                        60,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:                          70,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:                         80,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:                    100,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:                         45,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE:               25,
+	types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:                     110,
 }
 
 // DeadlineKindPriority resolves the frozen kind_priority. Unknown values
@@ -190,17 +190,6 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 
 	var visited, advanced uint64
 	switch locator.DeadlineKind {
-	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:
-		assignment, loadErr := k.ReadTaskAssignment(ctx, taskKey)
-		if loadErr != nil {
-			return nil, loadErr
-		}
-		visited, advanced, err = k.sweepSpecificTaskDeadline(
-			ctx, k.AssignmentRandomnessIndex, taskKey, assignment.AssignmentRandomnessHeight, currentHeight,
-			func(ctx context.Context, taskID types.TaskKey, deadline uint64) (deadlineSweepOutcome, uint64, error) {
-				return k.finalizeAssignmentRandomness(ctx, taskID, deadline, currentHeight)
-			},
-		)
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:
 		assignment, loadErr := k.ReadTaskAssignment(ctx, taskKey)
 		if loadErr != nil {
@@ -336,6 +325,21 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 				}
 				return deadlineSweepStale, taskDeadlineConservativeBytesV1, nil
 			})
+	case types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE:
+		summary, loadErr := k.TaskRoundSummary.Get(ctx, taskKey)
+		if loadErr != nil || summary.XVerifierValueEvidenceCloseHeight == nil {
+			return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "value evidence window is unavailable")
+		}
+		deadline := summary.GetVerifierValueEvidenceCloseHeight()
+		if currentHeight <= deadline {
+			return nil, types.ErrDeadlineExpired
+		}
+		visited, advanced, err = k.sweepSpecificTaskDeadline(ctx, k.ValueEvidenceWindowCloseIndex, taskKey, deadline, currentHeight, func(ctx context.Context, taskID types.TaskKey, deadline uint64) (deadlineSweepOutcome, uint64, error) {
+			if err := k.closeValueEvidenceWindow(ctx, taskID, deadline, currentHeight); err != nil {
+				return deadlineSweepPending, 0, err
+			}
+			return deadlineSweepAdvanced, uint64(summary.Size()), nil
+		})
 	case types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE:
 		summary, loadErr := k.TaskRoundSummary.Get(ctx, taskKey)
 		if loadErr != nil || summary.XChallengeCloseHeight == nil {
@@ -386,20 +390,33 @@ func (k Keeper) sweepSessionLifecycleLocator(ctx context.Context, locator *types
 		if err != nil {
 			return nil, err
 		}
-		if sweep.SweptCount == 0 {
+		withdrawVisited, withdrawAdvanced, err := k.sweepSessionWithdrawalByID(ctx, sessionKey, currentHeight)
+		if err != nil {
+			return nil, err
+		}
+		if sweep.SweptCount+withdrawVisited == 0 {
 			return nil, errorsmod.Wrapf(types.ErrInvalidTaskStatus, "session %s has no due lifecycle row", hex32(sessionKey))
 		}
-		return sweepDeadlineResponse(sweep.SweptCount, sweep.MarkedIdleCount+sweep.ClosedCount), nil
+		return sweepDeadlineResponse(sweep.SweptCount+withdrawVisited, sweep.MarkedIdleCount+sweep.ClosedCount+sweep.WithdrawRequestedCount+withdrawAdvanced), nil
 
 	case *types.SessionLifecycleLocator_Batch:
 		if target.Batch == nil || target.Batch.MaxItems == 0 {
 			return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "batch max_items must be positive")
 		}
-		sweep, err := k.SweepExpiredSessionLifecycle(ctx, currentHeight, uint64(target.Batch.MaxItems))
+		params, err := k.Params.Get(ctx)
 		if err != nil {
 			return nil, err
 		}
-		return sweepDeadlineResponse(sweep.SweptCount, sweep.MarkedIdleCount+sweep.ClosedCount), nil
+		limit := min(uint64(target.Batch.MaxItems), uint64(params.Session.MaxSessionSweepPerBlock))
+		sweep, err := k.SweepExpiredSessionLifecycle(ctx, currentHeight, limit)
+		if err != nil {
+			return nil, err
+		}
+		withdrawVisited, withdrawAdvanced, err := k.sweepSessionWithdrawalBatch(ctx, currentHeight, limit-sweep.SweptCount)
+		if err != nil {
+			return nil, err
+		}
+		return sweepDeadlineResponse(sweep.SweptCount+withdrawVisited, sweep.MarkedIdleCount+sweep.ClosedCount+sweep.WithdrawRequestedCount+withdrawAdvanced), nil
 
 	default:
 		return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "exactly one session lifecycle target is required")

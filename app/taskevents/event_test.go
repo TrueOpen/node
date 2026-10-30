@@ -32,12 +32,12 @@ func TestEventPositionCursorRoundTripAndOrder(t *testing.T) {
 
 func TestEventsFromBlockParsesCommittedTypedEvents(t *testing.T) {
 	tx := cmttypes.Tx("signed transaction")
-	assignment := &tasktypes.EventWorkerAssignmentFinalized{
-		SessionId: []byte("session"), TaskId: []byte("task"), WinnerWorker: "worker",
+	assignment := &tasktypes.EventDispatchRecorded{
+		SessionId: []byte("session"), TaskId: []byte("task"), WinnerWorker: sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String(),
 	}
 	timeout := &tasktypes.EventWorkerTimeout{SessionId: []byte("session"), TaskId: []byte("task")}
-	failed := &tasktypes.EventAssignmentFailed{SessionId: []byte("session"), TaskId: []byte("failed-task")}
-	events := eventsFromBlock(blockData{
+	failed := &tasktypes.EventWorkerTimeout{SessionId: []byte("session"), TaskId: []byte("failed-task")}
+	events := eventsFromBlockObserved(blockData{
 		Height:    12,
 		BlockHash: []byte("ABC"),
 		Txs:       cmttypes.Txs{tx, cmttypes.Tx("failed")},
@@ -46,13 +46,13 @@ func TestEventsFromBlockParsesCommittedTypedEvents(t *testing.T) {
 			{Code: 9, Events: []abci.Event{typedABCIEvent(t, failed)}},
 		},
 		FinalizeBlockEvents: []abci.Event{typedABCIEvent(t, timeout)},
-	})
+	}, nil)
 
 	require.Len(t, events, 2)
-	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED, events[0].Code)
+	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, events[0].Code)
 	require.Equal(t, "TX", events[0].Source)
 	require.NotEmpty(t, events[0].TxHash)
-	require.Equal(t, []*shared.EventTarget{{Role: shared.EventRole_EVENT_ROLE_WORKER, Address: "worker"}}, events[0].Targets)
+	require.Equal(t, []*shared.EventTarget{{Role: shared.EventRole_EVENT_ROLE_WORKER, Address: sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()}}, events[0].Targets)
 	require.True(t, proto.Equal(assignment, events[0].Payload))
 	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_TIMEOUT, events[1].Code)
 	require.Equal(t, "BLOCK", events[1].Source)
@@ -91,12 +91,12 @@ func TestMalformedTrueOpenEventIsObservableButUnrelatedEventIsIgnored(t *testing
 }
 
 func TestNormalizeProtocolEventUsesTypedTarget(t *testing.T) {
-	want := &hubtypes.EventModelSupportUpdated{Operator: "operator", ModelId: bytes.Repeat([]byte{0x6d}, 32), SupportVersion: 2}
+	want := &hubtypes.EventModelSupportUpdated{Operator: sdk.AccAddress(bytes.Repeat([]byte{0x31}, 20)).String(), ModelId: bytes.Repeat([]byte{0x6d}, 32), SupportVersion: 2}
 	event, ok := normalizeEvent(typedABCIEvent(t, want))
 	require.True(t, ok)
 	require.Equal(t, eventKindProtocol, event.Kind)
 	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_MODEL_SUPPORT_UPDATED, event.Code)
-	require.Equal(t, []*shared.EventTarget{{Role: shared.EventRole_EVENT_ROLE_OPERATOR, Address: "operator"}}, event.Targets)
+	require.Equal(t, []*shared.EventTarget{{Role: shared.EventRole_EVENT_ROLE_OPERATOR, Address: want.Operator}}, event.Targets)
 	require.True(t, proto.Equal(want, event.Payload))
 }
 
@@ -106,9 +106,9 @@ func TestNormalizeEventRemovesOnlyCosmosBlockModeMarker(t *testing.T) {
 			Epoch: 1, SnapshotId: make([]byte, 32), PoolHash: make([]byte, 32), ActiveCount: 4,
 			EffectiveHeight: 5, ExpiresHeight: 10,
 		},
-		&tasktypes.EventWorkerAssignmentFinalized{
-			SessionId: make([]byte, 32), TaskId: make([]byte, 32), WinnerWorker: "worker",
-			AssignmentCandidateSetHash: make([]byte, 32), RandomnessHeight: 5,
+		&tasktypes.EventDispatchRecorded{
+			SessionId: make([]byte, 32), TaskId: make([]byte, 32), WinnerWorker: sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String(),
+			DispatchRecordHash: make([]byte, 32), DispatchTicketHash: make([]byte, 32), ReferenceHeight: 5,
 			ReservedAmount: shared.NewAmount(10), InferDeadline: 20,
 		},
 		&tasktypes.EventVerifierAssignmentFinalized{

@@ -26,9 +26,8 @@ func initAppConfig() (string, interface{}) {
 	// The following code snippet is just for reference.
 	type CustomAppConfig struct {
 		serverconfig.Config `mapstructure:",squash"`
-		TaskEventGRPC       taskevents.Config            `mapstructure:"task-event-grpc"`
-		Beacon              nodeapp.BeaconNodeConfig     `mapstructure:"beacon"`
-		SessionKey          nodeapp.SessionKeyNodeConfig `mapstructure:"session-key-rules"`
+		TaskEventGRPC       taskevents.Config        `mapstructure:"task-event-grpc"`
+		Beacon              nodeapp.BeaconNodeConfig `mapstructure:"beacon"`
 	}
 
 	// Optionally allow the chain developer to overwrite the SDK's default
@@ -94,11 +93,6 @@ max-concurrent-replays = {{ .TaskEventGRPC.MaxConcurrentReplays }}
 # must set false; committed chain params still enforce every proposal.
 vrf-key-required = {{ .Beacon.VrfKeyRequired }}
 
-[session-key-rules]
-# Consensus deployment setting: all validators and replay nodes must agree.
-# First block with registration enabled (H+1 after halting at H).
-# Zero disables legacy-chain bootstrap; positive fresh genesis is already active.
-activation-height = {{ .SessionKey.ActivationHeight }}
 `
 	// Edit the default template file
 	//

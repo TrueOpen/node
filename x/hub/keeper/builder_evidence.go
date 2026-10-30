@@ -6,14 +6,14 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/TrueOpen/wire/bus"
+	"github.com/TrueOpen/wire/dispatch"
 
 	"github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 // canonicalBuilderEvidence is the Hub-local execution form of the shared fact.
-// It contains no Bus envelope, payload, raw signature, or Task-owned authority
+// It contains no retired transport envelope, payload, raw signature, or Task-owned authority
 // material. IDs are always recomputed from the local chain ID.
 type canonicalBuilderEvidence struct {
 	BuilderOperator string
@@ -53,11 +53,11 @@ func (k Keeper) canonicalBuilderEvidenceFact(chainID string, fact shared.Builder
 
 	var content [32]byte
 	copy(content[:], fact.CanonicalEvidenceDigest)
-	evidenceID, err := bus.EvidenceID(chainID, builder, int32(fact.EvidenceKind), fact.ScopeId, content)
+	evidenceID, err := dispatch.EvidenceID(chainID, builder, int32(fact.EvidenceKind), fact.ScopeId, content)
 	if err != nil {
 		return canonicalBuilderEvidence{}, err
 	}
-	faultID, err := bus.FaultID(chainID, builder, int32(fact.EvidenceKind), fact.ScopeId, content)
+	faultID, err := dispatch.FaultID(chainID, builder, int32(fact.EvidenceKind), fact.ScopeId, content)
 	if err != nil {
 		return canonicalBuilderEvidence{}, err
 	}
@@ -72,7 +72,7 @@ func (k Keeper) canonicalBuilderEvidenceFact(chainID string, fact shared.Builder
 	}, nil
 }
 
-// ApplyBuilderObjectiveEvidence is the Task -> Hub fault-kernel boundary. Task has already verified the exact Bus bytes,
+// ApplyBuilderObjectiveEvidence is the Task -> Hub fault-kernel boundary. Task has already verified the exact typed message bytes,
 // proof key, signature, payload scope, and Task authority before this call.
 func (k Keeper) ApplyBuilderObjectiveEvidence(ctx context.Context, fact shared.BuilderObjectiveEvidenceFactV2) (shared.BuilderObjectiveEvidenceReceiptV2, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)

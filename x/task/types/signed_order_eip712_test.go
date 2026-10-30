@@ -128,8 +128,7 @@ func accountSigningVectorOrder(t *testing.T) TaskOrderV3 {
 		EarliestSubmitHeight: 1000, OrderExpireHeight: 2000,
 		DeadlinePolicy:       DeadlinePolicyV1{LatencyClass: DeadlineLatencyClass_DEADLINE_LATENCY_CLASS_STANDARD},
 		TimeoutBucketVersion: 1, SessionAnchorHeight: 1,
-		SessionAnchorBlockHash: bytes.Repeat([]byte{0x43}, Hash32Len),
-		BuilderSetId:           "builder-set-golden", BuilderSetHash: bytes.Repeat([]byte{0x44}, Hash32Len),
+		BuilderSetId: "builder-set-golden", BuilderSetHash: bytes.Repeat([]byte{0x44}, Hash32Len),
 		PayloadMode:        PayloadModeV1_PAYLOAD_MODE_V1_PLAINTEXT,
 		InputKeyCommitment: make([]byte, Hash32Len),
 	}

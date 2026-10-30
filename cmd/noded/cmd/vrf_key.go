@@ -14,6 +14,7 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"path/filepath"
 	"strconv"
 
@@ -74,7 +75,7 @@ func newVrfPoPCmd() *cobra.Command {
 		Use:   "vrf-pop [operator-address] [vrf-authorization-nonce]",
 		Short: "Produce the proof-of-possession MsgRegisterVrfKey requires",
 		Long: "Produce the ECVRF proof-of-possession over the TRUEOPEN_VRF_KEY_POP_V1 digest\n" +
-			"(chain_id, operator, vrf_pubkey, nonce) using the local vrf_key.json.\n\n" +
+			"(chain_id, participant_type, operator, vrf_pubkey, nonce) using the local vrf_key.json.\n\n" +
 			"The nonce must be exactly one greater than the operator's currently\n" +
 			"registered vrf_authorization_nonce (1 for a first registration); the chain\n" +
 			"rejects anything else.",
@@ -104,7 +105,15 @@ func newVrfPoPCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			digest, err := hubtypes.VrfKeyPoPDigest(chainID, args[0], pubkey, nonce)
+			roleName, err := cmd.Flags().GetString("participant-type")
+			if err != nil {
+				return err
+			}
+			role, ok := shared.ParticipantType_value[roleName]
+			if !ok || !hubtypes.IsVrfParticipantType(shared.ParticipantType(role)) {
+				return fmt.Errorf("participant-type must be PARTICIPANT_TYPE_VALIDATOR or PARTICIPANT_TYPE_BUILDER")
+			}
+			digest, err := hubtypes.VrfKeyPoPDigest(chainID, shared.ParticipantType(role), args[0], pubkey, nonce)
 			if err != nil {
 				return err
 			}
@@ -118,6 +127,7 @@ func newVrfPoPCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagHome, app.DefaultNodeHome, "The node home directory")
 	cmd.Flags().String(flags.FlagChainID, "", "The chain-id the key is being registered on")
+	cmd.Flags().String("participant-type", "PARTICIPANT_TYPE_VALIDATOR", "VRF participant role: PARTICIPANT_TYPE_VALIDATOR or PARTICIPANT_TYPE_BUILDER")
 	return cmd
 }
 

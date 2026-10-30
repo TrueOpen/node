@@ -37,7 +37,14 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 	}
 	key := types.NewOrderSequenceStateKey(sessionKey, orderSequence)
 	if existing, err := k.OrderSequence.Get(ctx, key); err == nil {
-		return errorsmod.Wrapf(types.ErrInvalidOrderSequence, "order_sequence already %s", existing.Status)
+		if existing.Status != types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED && existing.Status != types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING {
+			return errorsmod.Wrapf(types.ErrInvalidOrderSequence, "order_sequence already %s", existing.Status)
+		}
+		if existing.Status == types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING {
+			if err := k.OrderCancelIndex.Remove(ctx, collections.Join3(existing.CancelEffectiveHeight, sessionID, orderSequence)); err != nil {
+				return err
+			}
+		}
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
@@ -67,6 +74,9 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 	stream.OpenPendingCount = uint32(nextPending)
 	stream.LastActiveHeight = height
 	stream.Status = types.SessionStatus_SESSION_STATUS_ACTIVE
+	if err := k.voidPendingTakeover(ctx, &stream, types.SessionTakeoverVoidReasonV1_SESSION_TAKEOVER_VOID_REASON_V1_ORDER_RECORDED); err != nil {
+		return err
+	}
 	return k.replaceStreamState(ctx, previous, stream)
 }
 

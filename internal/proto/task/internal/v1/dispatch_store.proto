@@ -1,0 +1,129 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// CandidateMemberStoreV1 shares the raw20 identity representation across dispatch facts.
+message CandidateMemberStoreV1 {
+  bytes candidate_pool_snapshot_id = 1;
+  uint32 slot = 2;
+  uint64 slot_version = 3;
+  bytes operator_address = 4;
+}
+
+// DispatchAttemptStoreV1 retains compact attempt identity, never signed envelopes.
+message DispatchAttemptStoreV1 {
+  bytes dispatch_ticket_hash = 1;
+  uint32 rank = 2;
+  CandidateMemberStoreV1 member = 3;
+  int32 outcome = 4;
+  bytes reject_digest_or_zero32 = 5;
+  uint32 timeout_tier_or_zero = 6;
+}
+
+// DispatchRoundStoreV1 owns the only retained attempt vector for its round.
+message DispatchRoundStoreV1 {
+  uint32 dispatch_round = 1;
+  bytes handraise_root_digest = 2;
+  bytes roster_hash = 3;
+  repeated DispatchAttemptStoreV1 attempts = 4;
+}
+
+// DispatchStickySnapshotStoreV1 preserves the pre-admission sticky authority.
+message DispatchStickySnapshotStoreV1 {
+  bytes last_record_winner = 1;
+  uint64 anchor_sequence = 2;
+  uint64 anchor_height = 3;
+  uint32 run_count = 4;
+}
+
+// DispatchRecordStoreState stores operator identities as raw20 and hashes as raw32.
+message DispatchRecordStoreState {
+  bytes task_id = 1;
+  bytes dispatch_record_hash = 2;
+  bytes dispatch_ticket_hash = 3;
+  bytes builder_address = 4;
+  uint64 reference_height = 5;
+  bytes candidate_pool_snapshot_id = 6;
+  uint64 vrf_epoch = 7;
+  uint64 earliest_submit_height = 8;
+  bytes vrf_output = 9;
+  bytes vrf_proof = 10;
+  int32 randomness_scheme = 11;
+  repeated DispatchRoundStoreV1 rounds = 12;
+  uint32 winner_round = 13;
+  uint64 sticky_anchor_sequence = 14;
+  uint32 sticky_run_count = 15;
+  bool sticky_applied = 16;
+  DispatchStickySnapshotStoreV1 sticky_snapshot = 17;
+  CandidateMemberStoreV1 winner = 18;
+  uint64 recorded_height = 19;
+  bytes accepted_entry_digest = 20;
+  uint64 claim_window_close_height = 21;
+  uint64 service_authorization_nonce = 22;
+  uint64 bound_change_height = 23;
+}
+
+// TakeoverEntryReceiptStoreState retains exact replay identity across binding generations.
+message TakeoverEntryReceiptStoreState {
+  bytes takeover_entry_digest = 1;
+  bytes session_id = 2;
+  uint64 order_sequence = 3;
+  bytes order_task_hash = 4;
+  bytes candidate_operator = 5;
+  uint64 bound_change_height_at_registration = 6;
+  uint64 registered_height = 7;
+  uint64 activation_height = 8;
+  uint64 order_expire_height = 9;
+}
+
+// DispatchCompensationClaimStoreState uses raw20 identities and checked uint64 amounts.
+message DispatchCompensationClaimStoreState {
+  bytes dispatch_ticket_hash = 1;
+  bytes task_id = 2;
+  bytes session_id = 3;
+  uint64 order_sequence = 4;
+  bytes builder_address = 5;
+  string builder_set_id = 6;
+  bytes worker_operator_address = 7;
+  uint64 amount = 8;
+  int32 status = 9;
+  uint64 claimed_height = 10;
+  uint64 rebuttal_deadline_height = 11;
+  uint64 paid_amount = 12;
+  uint64 unfilled_amount = 13;
+  bytes rebutted_by_or_empty = 14;
+  uint64 resolved_height = 15;
+  uint64 claim_window_close_height = 16;
+  // Original verified claim order height; independent of any accepted record.
+  uint64 earliest_submit_height = 17;
+}
+
+// DispatchWinnerIneligibleStoreState keeps the authenticated winner-specific rejection.
+message DispatchWinnerIneligibleStoreState {
+  bytes dispatch_ticket_hash = 1;
+  bytes task_id = 2;
+  bytes worker_operator_address = 3;
+  int32 reason = 4;
+  uint64 rejected_height = 5;
+  uint64 claim_window_close_height = 6;
+}
+
+// DispatchChallengeStoreState preserves presence for zero-valued round and rank selectors.
+message DispatchChallengeStoreState {
+  bytes challenge_id = 1;
+  bytes task_id = 2;
+  int32 kind = 3;
+  bytes challenger_address = 4;
+  bytes builder_address = 5;
+  optional bytes challenged_ticket_hash = 6;
+  optional uint32 dispatch_round = 7;
+  optional uint32 attempt_rank = 8;
+  bytes victim_operator_address = 9;
+  optional bytes dispatch_record_hash = 10;
+  uint64 proof_deadline_height = 11;
+  int32 status = 12;
+  optional bytes fault_id = 13;
+  uint64 opened_height = 14;
+  uint64 resolved_height = 15;
+}

@@ -89,13 +89,13 @@ func TestTaskEventServerStreamingRoundTrip(t *testing.T) {
 	waitForSubscribers(t, server.broker, 1)
 	server.broker.PublishBlock(1, []chainEvent{{
 		Height: 1, Source: "BLOCK", Kind: eventKindTask, SessionID: eventTestSessionID(), TaskID: eventTestTaskID(),
-		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED,
-		Payload: &tasktypes.EventWorkerAssignmentFinalized{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
+		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED,
+		Payload: &tasktypes.EventDispatchRecorded{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
 	}})
 
 	response, err := stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED, response.GetEvent().Code)
+	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, response.GetEvent().Code)
 	require.Equal(t, uint64(1), response.GetEvent().ChainHeight)
 }
 
@@ -195,13 +195,13 @@ func TestReplayCursorIsExclusive(t *testing.T) {
 	config.Enabled = true
 	first := chainEvent{
 		Height: 5, Source: "TX", Kind: eventKindTask, SessionID: eventTestSessionID(), TaskID: eventTestTaskID(),
-		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_HANDRAISES_ACCEPTED,
-		Payload: &tasktypes.EventWorkerHandraisesAccepted{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
+		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED,
+		Payload: &tasktypes.EventDispatchRecorded{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
 	}
 	second := chainEvent{
 		Height: 5, Source: "TX", EventIndex: 1, Kind: eventKindTask, SessionID: eventTestSessionID(), TaskID: eventTestTaskID(),
-		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED,
-		Payload: &tasktypes.EventWorkerAssignmentFinalized{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
+		Code:    shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED,
+		Payload: &tasktypes.EventDispatchRecorded{SessionId: eventTestSessionID(), TaskId: eventTestTaskID()},
 	}
 	server := NewServer(log.NewNopLogger(), config)
 	server.source = &staticSource{latest: 5, events: []chainEvent{first, second}}
@@ -214,7 +214,7 @@ func TestReplayCursorIsExclusive(t *testing.T) {
 	require.NoError(t, err)
 	response, err := stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED, response.GetEvent().Code)
+	require.Equal(t, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, response.GetEvent().Code)
 }
 
 func TestTaskAndRoleStreamsReturnIdenticalEvent(t *testing.T) {
@@ -237,12 +237,12 @@ func TestTaskAndRoleStreamsReturnIdenticalEvent(t *testing.T) {
 	require.NoError(t, err)
 	waitForSubscribers(t, server.broker, 2)
 
-	payload := &tasktypes.EventWorkerAssignmentFinalized{
+	payload := &tasktypes.EventDispatchRecorded{
 		SessionId: eventTestSessionID(), TaskId: eventTestTaskID(), WinnerWorker: operator,
 	}
 	server.broker.PublishBlock(1, []chainEvent{{
 		Height: 1, Source: "BLOCK", Kind: eventKindTask, SessionID: eventTestSessionID(), TaskID: eventTestTaskID(),
-		Code: shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED,
+		Code: shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED,
 		Targets: []*shared.EventTarget{{
 			Role: shared.EventRole_EVENT_ROLE_WORKER, Address: payload.WinnerWorker,
 		}},
@@ -256,7 +256,7 @@ func TestTaskAndRoleStreamsReturnIdenticalEvent(t *testing.T) {
 	require.True(t, proto.Equal(taskResponse.GetEvent(), roleResponse.GetEvent()))
 }
 
-func TestBuilderRoleStreamReceivesHandraiseAcceptance(t *testing.T) {
+func TestBuilderRoleStreamReceivesDispatchRecording(t *testing.T) {
 	config := DefaultConfig()
 	config.Enabled = true
 	server := NewServer(log.NewNopLogger(), config)
@@ -274,14 +274,14 @@ func TestBuilderRoleStreamReceivesHandraiseAcceptance(t *testing.T) {
 	require.NoError(t, err)
 	waitForSubscribers(t, server.broker, 1)
 
-	payload := &tasktypes.EventWorkerHandraisesAccepted{
-		SessionId:       eventTestSessionID(),
-		TaskId:          eventTestTaskID(),
-		XBuilderOrEmpty: &tasktypes.EventWorkerHandraisesAccepted_BuilderOrEmpty{BuilderOrEmpty: builder},
+	payload := &tasktypes.EventDispatchRecorded{
+		SessionId: eventTestSessionID(),
+		TaskId:    eventTestTaskID(),
+		Builder:   builder,
 	}
 	server.broker.PublishBlock(1, []chainEvent{{
 		Height: 1, Source: "BLOCK", Kind: eventKindTask, SessionID: eventTestSessionID(), TaskID: eventTestTaskID(),
-		Code: shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_HANDRAISES_ACCEPTED,
+		Code: shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED,
 		Targets: []*shared.EventTarget{{
 			Role: shared.EventRole_EVENT_ROLE_BUILDER, Address: builder,
 		}},
@@ -290,7 +290,7 @@ func TestBuilderRoleStreamReceivesHandraiseAcceptance(t *testing.T) {
 
 	response, err := stream.Recv()
 	require.NoError(t, err)
-	require.True(t, proto.Equal(payload, response.GetEvent().GetPayload().GetWorkerHandraisesAccepted()))
+	require.True(t, proto.Equal(payload, response.GetEvent().GetPayload().GetDispatchRecorded()))
 }
 
 func TestFilteredStreamReceivesBlockCheckpoint(t *testing.T) {

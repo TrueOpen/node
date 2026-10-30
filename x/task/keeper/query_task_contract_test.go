@@ -19,15 +19,9 @@ import (
 // QueryTask / QueryTaskStage / QueryTaskAssignment: TaskCoreState is the
 // only primary of the six sub-statuses, and while the draw is still pending the
 // three winner fields must be *absent* rather than defaulted.
-func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
+func TestQueryTaskProjectsRecordedWorker(t *testing.T) {
 	f := initFixture(t)
 	genesis := taskGenesisV1(t, genesisChainID(f))
-	genesis.TaskCores[0].TaskPhase = tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING
-	genesis.TaskCores[0].AssignmentStatus = tasktypes.AssignmentStatus_ASSIGNMENT_STATUS_RANDOMNESS_PENDING
-	genesis.TaskAssignments[0].WinnerWorker = ""
-	genesis.TaskAssignments[0].WinnerDrawDigest = nil
-	genesis.TaskAssignments[0].WinnerConfirmHeight = 0
-	genesis.TaskAssignments[0].InferDeadlineHeight = 0
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
 
 	server := keeper.NewQueryServerImpl(f.keeper)
@@ -37,23 +31,22 @@ func TestQueryTaskProjectsTaskCoreAndHidesPendingWinner(t *testing.T) {
 	require.NoError(t, err)
 	active := task.Task.GetActive()
 	require.NotNil(t, active)
-	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING, active.Core.TaskPhase)
+	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING, active.Core.TaskPhase)
 	require.Equal(t, genesis.TaskCores[0].AcceptedTaskHash, active.Core.AcceptedTaskHash)
 	require.NotNil(t, active.Assignment)
 	require.Equal(t, genesis.TaskAssignments[0].GenerationParamsDigest, active.Assignment.GenerationParamsDigest)
 	require.Equal(t, genesis.TaskAssignments[0].MinStakeSnapshot, active.Assignment.MinStakeSnapshot)
-	require.Nil(t, active.Assignment.XWinnerWorker, "a pending draw must not project a winner")
-	require.Nil(t, active.Assignment.XWinnerDrawDigest)
-	require.Nil(t, active.Assignment.XWinnerConfirmHeight)
+	require.NotNil(t, active.Assignment.XWinnerWorker)
+	require.NotNil(t, active.Assignment.XWinnerConfirmHeight)
 
 	stage, err := server.TaskStage(f.ctx, &tasktypes.QueryTaskStageRequest{TaskId: taskID})
 	require.NoError(t, err)
-	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING, stage.Stage.TaskPhase)
+	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING, stage.Stage.TaskPhase)
 	// DeadlineKindV1 value 9 WORKER_ASSIGNMENT is the assignment randomness expiry.
 	require.Equal(t,
-		tasktypes.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT,
+		tasktypes.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER,
 		stage.Stage.GetNextDeadlineKind())
-	require.Equal(t, genesis.TaskAssignments[0].AssignmentRandomnessHeight, stage.Stage.GetNextDeadlineHeight())
+	require.Equal(t, genesis.TaskAssignments[0].InferDeadlineHeight, stage.Stage.GetNextDeadlineHeight())
 
 	assignment, err := server.TaskAssignment(f.ctx, &tasktypes.QueryTaskAssignmentRequest{TaskId: taskID})
 	require.NoError(t, err)
@@ -420,7 +413,6 @@ func TestQueryTaskBuildersTriStateSemantics(t *testing.T) {
 	require.Equal(t, selection.SelectedTaskBuildersHash, response.Selection.SelectedTaskBuildersHash)
 	require.Equal(t, selection.BuilderSetId, response.Selection.BuilderSetId)
 	require.Equal(t, selection.BuilderSetHash, response.Selection.BuilderSetHash)
-	require.Equal(t, selection.SessionAnchorBlockHash, response.Selection.SessionAnchorBlockHash)
 	require.Equal(t, selection.CreatedHeight, response.Selection.CreatedHeight)
 
 	// ACTIVE with an empty member array is Internal, not an empty page.

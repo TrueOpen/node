@@ -5,13 +5,14 @@ import (
 	"math"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
+	"github.com/TrueOpen/wire/dispatch"
+	"github.com/cosmos/gogoproto/proto"
 )
 
 // These aliases keep the public Task types surface tied to the shared registry.
 // Digest producers below use the shared constants directly.
 const (
 	DomainInferReceiptV3      = shared.DomainInferReceiptV3
-	DomainWorkerHandraiseV1   = shared.DomainWorkerHandraiseV1
 	DomainVerifierHandraiseV1 = shared.DomainVerifierHandraiseV1
 	DomainCommitV1            = shared.DomainCommitV1
 	DomainResultV3            = shared.DomainResultV3
@@ -58,34 +59,17 @@ func SelectedTaskBuildersHash(chainID string, taskID []byte, builderSetID string
 // from the wire. Both are deleted outright with no alias: an alias would let a
 // caller keep producing a digest the frozen wire can never accept.
 
-// InferReceiptV3 is the only stage wire with schema_version 2. Handraises and
-// VerifyCommit remain at 1, while ResultReceipt remains at 2. Digest derivation
-// stays total; handlers enforce the exact version before admitting a message.
+// Receipt schemas and service messages retain their independently frozen versions.
 const (
 	InferReceiptSchemaVersionV3      uint32 = 3
 	VerifyCommitSchemaVersionV1      uint32 = 1
 	ResultReceiptSchemaVersionV3     uint32 = 3
-	WorkerHandraiseSchemaVersionV1   uint32 = 1
 	VerifierHandraiseSchemaVersionV1 uint32 = 1
 )
 
-// InferReceiptSigningDigest is the one ordered preimage of both
-// infer_receipt_signing_digest and infer_receipt_hash - the protocol defines
-// them as a single equality, so a second "business hash" must never be derived:
-//
-//	infer_receipt_hash = infer_receipt_signing_digest =
-//	  H_FIELDS_V1("TRUEOPEN_INFER_RECEIPT_V2",
-//	    schema_version, chain_id, task_id, task_hash,
-//	    worker_operator_address, service_authorization_nonce,
-//	    generation_params_digest, output_hash, output_size_bytes,
-//	    evidence_commitments_hash, expiry_height, generated_token_count,
-//	    output_leaf_count)
-//
-// Thirteen fields; service_signature (wire field 12) is excluded. The tenth field is
-// NOT a wire field: required_evidence_commitments (wire field 10) enters only through
-// the Keeper-derived EvidenceCommitmentsHash, so the signature still covers the whole
-// typed list. worker_operator_address is framed as address codec bytes, not Bech32
-// text.
+// InferReceiptSigningDigest derives the receipt hash and its signing digest from
+// the same frozen projection. Evidence enters through EvidenceCommitmentsHash;
+// the final field binds the accepted dispatch attempt. The signature is excluded.
 func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 	chainID, err := canonicalUTF8Field("chain_id", receipt.ChainId)
 	if err != nil {
@@ -108,6 +92,10 @@ func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 	outputHash, err := canonicalHash32("output_hash", receipt.OutputHash)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	dispatchTicketHash, err := canonicalHash32("dispatch_ticket_hash", receipt.DispatchTicketHash)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -134,6 +122,7 @@ func InferReceiptSigningDigest(receipt InferReceiptV3) ([32]byte, error) {
 		receipt.WorkerTokenKeyCommitment,
 		receipt.WorkerValueKeyCommitment,
 		receipt.CiphertextOutputRoot,
+		dispatchTicketHash,
 	)
 }
 
@@ -179,148 +168,11 @@ func VerifyCommitSigningDigest(commit VerifyCommitV1) ([32]byte, error) {
 	)
 }
 
-// WorkerHandraiseSigningDigest is
-// H_FIELDS_V1("TRUEOPEN_WORKER_HANDRAISE_V1", canonical WorkerHandraiseV1 excluding
-// service_signature) with the eleven registered fields:
-//
-//	schema_version, chain_id, task_id, task_hash, model_id, profile_version,
-//	member, duty, service_authorization_nonce, expiry_height, recipient_pubkey
-//
-// member is a required nested CandidateMemberRefV1 and is therefore framed
-// recursively, and duty is framed as uint32_be per the enum rule.
-// The protocol pins duty = WORKER for this wire; that equality is an admission check and is
-// left to the handler so the derivation stays total, exactly as for schema_version.
-func WorkerHandraiseSigningDigest(handraise WorkerHandraiseV1) ([32]byte, error) {
-	chainID, err := canonicalUTF8Field("chain_id", handraise.ChainId)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	taskID, err := canonicalHash32("task_id", handraise.TaskId)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	taskHash, err := canonicalHash32("task_hash", handraise.TaskHash)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	modelID, err := canonicalHash32("model_id", handraise.ModelId)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	member, err := CanonicalCandidateMemberRefTypedFrameV1(handraise.Member)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	duty, err := canonicalDuty(handraise.Duty)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainWorkerHandraiseV1)).Raw(
-		shared.Uint32BE(handraise.SchemaVersion),
-		chainID,
-		taskID,
-		taskHash,
-		modelID,
-		shared.Uint32BE(handraise.ProfileVersion),
-	).Nested(member).Raw(
-		shared.EnumBE(duty),
-		shared.Uint64BE(handraise.ServiceAuthorizationNonce),
-		shared.Uint64BE(handraise.ExpiryHeight),
-		handraise.RecipientPubkey,
-	).Sum()
-	if err != nil {
-		return [32]byte{}, err
-	}
-	return [32]byte(digest), nil
-}
-
-// VerifierHandraiseSigningDigest is
-// H_FIELDS_V1("TRUEOPEN_VERIFIER_HANDRAISE_V1", canonical VerifierHandraiseV1 excluding
-// service_signature) with the thirteen registered fields:
-//
-//	schema_version, chain_id, task_id, verify_round, infer_receipt_hash, output_hash,
-//	model_id, profile_version, member, duty, service_authorization_nonce,
-//	expiry_height, recipient_pubkey
-//
-// Same framing rules as WorkerHandraiseSigningDigest; the protocol pins duty = VERIFIER for
-// this wire.
+// VerifierHandraiseSigningDigest uses the canonical shared wire projection.
 func VerifierHandraiseSigningDigest(handraise VerifierHandraiseV1) ([32]byte, error) {
-	chainID, err := canonicalUTF8Field("chain_id", handraise.ChainId)
+	raw, err := proto.Marshal(&handraise)
 	if err != nil {
 		return [32]byte{}, err
 	}
-	taskID, err := canonicalHash32("task_id", handraise.TaskId)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	inferReceiptHash, err := canonicalHash32("infer_receipt_hash", handraise.InferReceiptHash)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	outputHash, err := canonicalHash32("output_hash", handraise.OutputHash)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	modelID, err := canonicalHash32("model_id", handraise.ModelId)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	member, err := CanonicalCandidateMemberRefTypedFrameV1(handraise.Member)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	duty, err := canonicalDuty(handraise.Duty)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainVerifierHandraiseV1)).Raw(
-		shared.Uint32BE(handraise.SchemaVersion),
-		chainID,
-		taskID,
-		shared.Uint32BE(handraise.VerifyRound),
-		inferReceiptHash,
-		outputHash,
-		modelID,
-		shared.Uint32BE(handraise.ProfileVersion),
-	).Nested(member).Raw(
-		shared.EnumBE(duty),
-		shared.Uint64BE(handraise.ServiceAuthorizationNonce),
-		shared.Uint64BE(handraise.ExpiryHeight),
-		handraise.RecipientPubkey,
-	).Sum()
-	if err != nil {
-		return [32]byte{}, err
-	}
-	return [32]byte(digest), nil
-}
-
-func CanonicalCandidateMemberRefTypedFrameV1(member CandidateMemberRefV1) (shared.CanonicalFrameV1, error) {
-	snapshotID, err := canonicalHash32("member.candidate_pool_snapshot_id", member.CandidatePoolSnapshotId)
-	if err != nil {
-		return shared.CanonicalFrameV1{}, err
-	}
-	operator, err := CanonicalOperatorAddressBytes("member.operator_address", member.OperatorAddress)
-	if err != nil {
-		return shared.CanonicalFrameV1{}, err
-	}
-	return shared.FlatCanonicalFrameV1(
-		snapshotID,
-		shared.Uint32BE(member.Slot),
-		shared.Uint64BE(member.SlotVersion),
-		operator,
-	), nil
-}
-
-// canonicalDuty rejects the unspecified and unknown Duty values the typed
-// encoding requires to be rejected. It does not enforce which of the two live duties belongs to which wire;
-// see WorkerHandraiseSigningDigest.
-func canonicalDuty(duty shared.Duty) (uint32, error) {
-	switch duty {
-	case shared.Duty_DUTY_WORKER, shared.Duty_DUTY_VERIFIER:
-		return uint32(duty), nil
-	case shared.Duty_DUTY_UNSPECIFIED:
-		return 0, fmt.Errorf("duty must not be DUTY_UNSPECIFIED")
-	default:
-		return 0, fmt.Errorf("duty %d is not a registered Duty value", int32(duty))
-	}
+	return dispatch.SigningDigest("task.v1.VerifierHandraiseV1", raw)
 }

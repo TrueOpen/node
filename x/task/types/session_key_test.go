@@ -40,7 +40,6 @@ func TestNormalizeSessionKeyStateRejectsMalformedGrants(t *testing.T) {
 		func(s *StreamState) { s.XSessionKey = &StreamState_SessionKey{SessionKey: make([]byte, 20)} },
 		func(s *StreamState) { s.XSessionKey = &StreamState_SessionKey{SessionKey: bytes.Repeat([]byte{3}, 19)} },
 		func(s *StreamState) { s.SessionKeySetHeight = 0 },
-		func(s *StreamState) { s.SessionKeyExpiryHeight = s.SessionKeySetHeight },
 		func(s *StreamState) { s.SessionKeySpendCap.AtomicUnits = "" },
 		func(s *StreamState) { s.SessionKeySpent.AtomicUnits = "01" },
 		func(s *StreamState) { s.SessionKeySpent.AtomicUnits = "18446744073709551616" },

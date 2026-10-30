@@ -9,6 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 // ProcessVrfKeyHistoryPrunes removes retired VRF keys after their configured
@@ -31,7 +32,7 @@ func (k Keeper) ProcessVrfKeyHistoryPrunes(ctx context.Context, currentEpoch, vi
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		cacheCtx, write := sdkCtx.CacheContext()
 		cache := sdk.WrapSDKContext(cacheCtx)
-		historyKey := types.NewVrfKeyHistoryKey(key.K2(), key.K3())
+		historyKey := types.NewVrfKeyHistoryKey(shared.ParticipantType(key.K2()), key.K3(), key.K4())
 		history, err := k.GetVrfKeyHistory(cache, historyKey)
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
@@ -43,7 +44,7 @@ func (k Keeper) ProcessVrfKeyHistoryPrunes(ctx context.Context, currentEpoch, vi
 		if err != nil {
 			return budget.resultWithError(err)
 		}
-		if history.OperatorAddress != key.K2() || history.EffectiveFromEpoch != key.K3() || expectedPruneEpoch != key.K1() {
+		if int32(history.ParticipantType) != key.K2() || history.OperatorAddress != key.K3() || history.EffectiveFromEpoch != key.K4() || expectedPruneEpoch != key.K1() {
 			return budget.resultWithError(errorsmod.Wrap(types.ErrInvariantBroken, "VRF key prune index does not match retained history"))
 		}
 		if err := k.VrfKeyHistory.Remove(cache, historyKey); err != nil {
@@ -59,13 +60,13 @@ func (k Keeper) ProcessVrfKeyHistoryPrunes(ctx context.Context, currentEpoch, vi
 	return visited, consumed, nil
 }
 
-func dueVrfKeyPruneKeys(ctx context.Context, index collections.KeySet[types.VrfKeyPruneKeyTriple], currentEpoch, limit uint64) ([]types.VrfKeyPruneKeyTriple, error) {
+func dueVrfKeyPruneKeys(ctx context.Context, index collections.KeySet[types.VrfKeyPruneKeyQuad], currentEpoch, limit uint64) ([]types.VrfKeyPruneKeyQuad, error) {
 	iter, err := index.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer iter.Close()
-	keys := make([]types.VrfKeyPruneKeyTriple, 0, limit)
+	keys := make([]types.VrfKeyPruneKeyQuad, 0, limit)
 	for ; iter.Valid() && uint64(len(keys)) < limit; iter.Next() {
 		key, err := iter.Key()
 		if err != nil {

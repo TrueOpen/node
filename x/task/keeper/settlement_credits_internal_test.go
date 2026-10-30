@@ -189,7 +189,7 @@ func TestFaultSummaryCommitsAppliedHubReceiptFields(t *testing.T) {
 	fault := taskRoleFaultRecord{
 		faultID:         bytes.Repeat([]byte{0x72}, types.Hash32Len),
 		operatorAddress: settlementTestAddress(t, 0x73), duty: shared.DutyVerifier,
-		faultClass:           hubtypes.FaultKind_FAULT_KIND_TIMEOUT,
+		faultClass:           shared.FaultKind_FAULT_KIND_TIMEOUT,
 		classificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT,
 		evidenceDigest:       bytes.Repeat([]byte{0x74}, types.Hash32Len),
 		jailDelta:            1, status: hubtypes.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED,

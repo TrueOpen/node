@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrueOpen/node/x/hub/keeper"
 	"github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 type recordingServiceRegistrar struct {
@@ -80,6 +81,10 @@ func (validatorSnapshotProviderStub) GetValidatorSnapshotMemberBySigner(sdk.Cont
 
 type taskSafetyWindowProviderStub struct{}
 
+func (taskSafetyWindowProviderStub) GetWorkerCandidateWeightPolicy(context.Context, uint64) (shared.WorkerCandidateWeightPolicy, error) {
+	return shared.WorkerCandidateWeightPolicy{StakeWeightPPM: 300_000, PerformanceWeightPPM: 700_000}, nil
+}
+
 func (taskSafetyWindowProviderStub) GetTaskSafetyWindows(context.Context) (types.TaskSafetyWindows, error) {
 	return types.TaskSafetyWindows{}, nil
 }
@@ -102,10 +107,11 @@ func TestRegisterServicesRequiresAllCrossModuleDependencies(t *testing.T) {
 func TestRegisterServicesExposesActiveMsgAndQueryRoutes(t *testing.T) {
 	registrar := &recordingServiceRegistrar{}
 	appModule := NewAppModule(nil, keeper.Keeper{}, types.MsgServerDependencies{
-		FreezeTaskValidator:       freezeTaskValidatorStub{},
-		ValidatorSnapshotProvider: validatorSnapshotProviderStub{},
-		TaskSafetyWindowProvider:  taskSafetyWindowProviderStub{},
-		RoleFaultConsumerGate:     roleFaultConsumerGateStub{},
+		FreezeTaskValidator:           freezeTaskValidatorStub{},
+		ValidatorSnapshotProvider:     validatorSnapshotProviderStub{},
+		TaskSafetyWindowProvider:      taskSafetyWindowProviderStub{},
+		RoleFaultConsumerGate:         roleFaultConsumerGateStub{},
+		WorkerCandidateWeightProvider: taskSafetyWindowProviderStub{},
 	})
 
 	require.NoError(t, appModule.RegisterServices(registrar))

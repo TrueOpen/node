@@ -24,10 +24,13 @@ const (
 	QueryRPCHubModelsV1               = "/hub.v1.Query/Models"
 	QueryRPCHubServiceUnbondingsV1    = "/hub.v1.Query/ServiceUnbondings"
 
-	QueryRPCTaskDataUnavailableReportsV1 = "/task.v1.Query/DataUnavailableReports"
-	QueryRPCTaskRoleActiveTasksV1        = "/task.v1.Query/RoleActiveTasks"
-	QueryRPCTaskSessionsByOwnerV1        = "/task.v1.Query/SessionsByOwner"
-	QueryRPCTaskGasReimbursementsV1      = "/task.v1.Query/TaskGasReimbursements"
+	QueryRPCTaskValueEvidenceV1               = "/task.v1.Query/VerifierValueEvidence"
+	QueryRPCTaskDispatchChallengesByBuilderV1 = "/task.v1.Query/DispatchChallengesByBuilder"
+	QueryRPCTaskDispatchClaimsByBuilderV1     = "/task.v1.Query/DispatchCompensationClaimsByBuilder"
+	QueryRPCTaskDataUnavailableReportsV1      = "/task.v1.Query/DataUnavailableReports"
+	QueryRPCTaskRoleActiveTasksV1             = "/task.v1.Query/RoleActiveTasks"
+	QueryRPCTaskSessionsByOwnerV1             = "/task.v1.Query/SessionsByOwner"
+	QueryRPCTaskGasReimbursementsV1           = "/task.v1.Query/TaskGasReimbursements"
 )
 
 // QueryPageSelectorV1 is one paginated RPC's contribution to
@@ -42,43 +45,23 @@ type QueryPageSelectorV1 struct {
 	Note string
 }
 
-// QueryPageSelectorSchemaV1 is the closed set of paginated Query RPCs and, for
-// each one, its ordered selector fields.
-//
-// The tail is derived mechanically: canonical selectors exclude the page field
-// and encode the remaining request fields as typed fields in ascending field
-// number order. So each entry below is the RPC's request message minus its page
-// field, in field-number order.
-//
-// This is production data, not test data, and it is the single table behind three
-// consumers. QueryPageDigestsV1 refuses to mint a digest pair for an RPC that is
-// not a key here and refuses a selector list whose length disagrees with the
-// entry, so a paginated Query that forgets to register cannot reach a page token
-// at all. DomainRegistryV1[TRUEOPEN_QUERY_SELECTOR_V1].Variants is a projection of
-// it rather than a second copy. And the repository-root differential freezes both
-// against the proto descriptors and against the golden vectors, so the one thing
-// this table may not become is an independent opinion about the RPC set.
-//
-// An empty Fields is a real shape, not a missing one. The two discovery RPCs
-// have no request fields other than page, so the selector digest binds only
-// chain_id and rpc_method_digest, and no placeholder input may be padded in for
-// an empty selector.
-var QueryPageSelectorSchemaV1 = map[string]QueryPageSelectorV1{
-	QueryRPCHubBuildersV1: {Note: "the discovery RPCs take only page, so the " +
-		"selector binds chain_id and the RPC digest and nothing else; padding it with a placeholder " +
-		"input would let a token minted for one scope verify under another"},
-	QueryRPCHubCandidatePoolMembersV1: {Fields: []string{"snapshot_id"}},
-	QueryRPCHubEmergencyFreezeVotesV1: {Fields: []string{"freeze_signal_id"}},
-	QueryRPCHubFreezeSignalsV1:        {Fields: []string{"model_id", "profile_version", "status"}},
-	QueryRPCHubModelsV1: {Note: "the discovery RPCs take only page, so the " +
-		"selector binds chain_id and the RPC digest and nothing else; padding it with a placeholder " +
-		"input would let a token minted for one scope verify under another"},
-	QueryRPCHubServiceUnbondingsV1: {Fields: []string{"operator_address", "status"}},
+// QueryPageSelectorSchemaV1 is derived from the pinned wire registry. The same
+// descriptor-checked selector order governs runtime arity checks and page tokens.
+// Discovery RPCs keep an empty selector; they never add placeholder fields.
+var QueryPageSelectorSchemaV1 = queryPageSelectorSchemaV1()
 
-	QueryRPCTaskDataUnavailableReportsV1: {Fields: []string{"task_id", "verify_round"}},
-	QueryRPCTaskRoleActiveTasksV1:        {Fields: []string{"operator_address", "duty"}},
-	QueryRPCTaskSessionsByOwnerV1:        {Fields: []string{"user_address"}},
-	QueryRPCTaskGasReimbursementsV1:      {Fields: []string{"task_id"}},
+func queryPageSelectorSchemaV1() map[string]QueryPageSelectorV1 {
+	schema := make(map[string]QueryPageSelectorV1)
+	for _, variant := range DomainRegistryV1[DomainQuerySelectorV1].Variants {
+		if variant.Key == "" || len(variant.Fields) == 0 && variant.Note == "" {
+			panic("invalid paginated Query selector in pinned wire registry")
+		}
+		if _, exists := schema[variant.Key]; exists {
+			panic("duplicate paginated Query selector in pinned wire registry")
+		}
+		schema[variant.Key] = QueryPageSelectorV1{Fields: append([]string(nil), variant.Fields...), Note: variant.Note}
+	}
+	return schema
 }
 
 // QueryRPCDigestV1 is the sole producer of TRUEOPEN_QUERY_RPC_V1: H_FIELDS_V1 over

@@ -29,7 +29,7 @@ legacy snake-case mirror and no public raw-attribute fallback.
 The ABCI event type is the protobuf fully qualified message name, for example:
 
 ```text
-task.v1.EventWorkerAssignmentFinalized
+task.v1.EventDispatchRecorded
 task.v1.EventInferReceiptAccepted
 task.v1.EventTaskParamsUpdated
 hub.v1.EventModelSupportUpdated
@@ -52,7 +52,7 @@ attribute values:
   "method": "subscribe",
   "id": 1,
   "params": {
-    "query": "tm.event='Tx' AND task.v1.EventWorkerAssignmentFinalized.task_id EXISTS"
+    "query": "tm.event='Tx' AND task.v1.EventDispatchRecorded.task_id EXISTS"
   }
 }
 ```
@@ -68,10 +68,10 @@ by committed chain position.
 
 ## Stable routing facts
 
-Task-scoped payloads contain non-empty `session_id` and `task_id`. Discovery
-targets are carried by the owning stream envelope:
+The owning stream derives Task and Session locators from committed payloads
+and state. Discovery targets are carried by the stream envelope:
 
-- `EventWorkerAssignmentFinalized` targets the selected Worker.
+- `EventDispatchRecorded` targets the winner and dispatch Builder.
 - Task discovery events use `TaskEventService`; Hub account/operator/validator
   events use `HubEventService`.
 - account, operator, and validator protocol events use repeated `EventTarget`
@@ -79,6 +79,11 @@ targets are carried by the owning stream envelope:
 
 Repeated addresses are protobuf repeated fields. CSV address lists are not part
 of the public event contract.
+
+Dispatch, compensation, challenges, deferred Session actions and value evidence
+use their own typed events. Reconcile pending Builder work through
+`DispatchChallengesByBuilder` and `DispatchCompensationClaimsByBuilder`; completed
+rows disappear from these open-only queries.
 
 Reward and support processing is deliberately represented by separate facts:
 

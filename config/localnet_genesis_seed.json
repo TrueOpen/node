@@ -17,16 +17,15 @@
     },
     "builder": {
       "builder_set_cap": 15,
-      "builders_per_task": 3,
-      "builder_set_update_lead_blocks": "100",
-      "assignment_builder_proposal_window_blocks": "4",
-      "open_verify_builder_proposal_window_blocks": "60",
+      "builder_set_update_lead_blocks": "10",
+      "open_verify_builder_proposal_window_blocks": "10",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
       "max_builder_set_prune_items_per_block": 32,
       "builder_fault_retention_blocks": "604800",
-      "max_builder_fault_prune_items_per_block": 256
+      "max_builder_fault_prune_items_per_block": 256,
+      "max_builder_set_id_bytes": 128
     },
     "model": {
       "supported_tool_call_parsers": [],
@@ -53,7 +52,7 @@
     "candidate_pool": {
       "candidate_slot_hard_capacity": 4096,
       "candidate_bitmap_segment_bytes": 512,
-      "candidate_pool_build_lead_blocks": "100",
+      "candidate_pool_build_lead_blocks": "10",
       "max_candidate_pool_build_members_per_block": 1024,
       "max_candidate_pool_prune_items_per_block": 32,
       "candidate_pool_header_retention_epochs": 30,
@@ -63,9 +62,9 @@
       "candidate_pool_query_hard_limit": 1000
     },
     "epoch": {
-      "epoch_length_blocks": "14400",
+      "epoch_length_blocks": "120",
       "delta_w_blocks": "1",
-      "delta_m_blocks": "100"
+      "delta_m_blocks": "10"
     },
     "freeze": {
       "freeze_risk_window_blocks": "100",
@@ -218,7 +217,7 @@
     "schema_version": 1,
     "session": {
       "max_order_sequences_per_active_session": 4096,
-      "session_idle_ttl_blocks": 30000,
+      "session_idle_ttl_blocks": 600,
       "session_close_ttl_blocks": 600000,
       "session_order_retention_blocks": 60480,
       "max_session_history_prune_items_per_block": 256,
@@ -226,15 +225,21 @@
       "max_session_terminal_summary_prune_items_per_block": 256,
       "max_session_sweep_per_block": 1024,
       "cancel_order_min_gas": 50000,
-      "max_session_key_blocks": 604800
+      "max_session_key_blocks": 604800,
+      "session_withdraw_delay_blocks": 30,
+      "session_change_delay_blocks": 30,
+      "session_min_prefund": {
+        "atomic_units": "1000000"
+      },
+      "max_active_sessions_per_account": 16
     },
     "deadlines": {
-      "verify_open_deadline_blocks": 3000,
-      "commit_window_blocks": 100000,
-      "reveal_window_blocks": 100000,
-      "collection_window_blocks": 200200,
-      "settle_margin_blocks": 20,
-      "self_rescue_margin_blocks": 15,
+      "verify_open_deadline_blocks": 60,
+      "commit_window_blocks": 20,
+      "reveal_window_blocks": 10,
+      "collection_window_blocks": 60,
+      "settle_margin_blocks": 10,
+      "self_rescue_margin_blocks": 10,
       "max_deadline_sweep_per_block": 1024
     },
     "proposals": {
@@ -273,7 +278,11 @@
       "leaf_ordering_version_supported": [],
       "max_output_mmr_leaves": "65536",
       "min_output_stream_frame_bytes": 16,
-      "max_worker_evidence_bytes_v1": "1048576"
+      "max_worker_evidence_bytes_v1": "1048576",
+      "encryption_activation_height": 0,
+      "verifier_value_evidence_window_blocks": 120,
+      "max_verifier_value_evidence_positions": 64,
+      "max_verifier_value_evidence_bytes": 1048576
     },
     "cleanup": {
       "max_task_cleanup_items_per_block": 1024,
@@ -326,6 +335,111 @@
       "commit_window_blocks": "30",
       "reveal_window_blocks": "20",
       "max_round_effect_items_per_block": 1024
+    },
+    "dispatch": {
+      "record_deadline_blocks": 20,
+      "max_dispatch_entries_per_record": 16,
+      "max_dispatch_record_bytes": 1048576,
+      "max_skips": 8,
+      "sticky_window_blocks": 120,
+      "sticky_max_orders": 8,
+      "dispatch_compensation_claim_window_blocks": 60,
+      "dispatch_compensation_rebuttal_blocks": 30,
+      "dispatch_challenge_window_blocks": 60,
+      "dispatch_challenge_response_blocks": 30,
+      "dispatch_record_retention_blocks": 1440,
+      "max_dispatch_roster_bytes": 1048576,
+      "max_pending_per_session": 4,
+      "builder_max_inflight_per_session": 4,
+      "order_freshness_margin_blocks": 3,
+      "max_prerecord_output_tokens": 32,
+      "prefill_compensation_by_model_tier": [
+        {
+          "resource_tier": 1,
+          "amount": {
+            "atomic_units": "1000"
+          }
+        },
+        {
+          "resource_tier": 2,
+          "amount": {
+            "atomic_units": "2000"
+          }
+        },
+        {
+          "resource_tier": 3,
+          "amount": {
+            "atomic_units": "4000"
+          }
+        },
+        {
+          "resource_tier": 4,
+          "amount": {
+            "atomic_units": "8000"
+          }
+        },
+        {
+          "resource_tier": 5,
+          "amount": {
+            "atomic_units": "16000"
+          }
+        }
+      ],
+      "dispatch_fault_penalty_by_kind": [
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_OMISSION",
+          "amount": {
+            "atomic_units": "10000"
+          }
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_DRAW",
+          "amount": {
+            "atomic_units": "10000"
+          }
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_SKIP",
+          "amount": {
+            "atomic_units": "10000"
+          }
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE",
+          "amount": {
+            "atomic_units": "10000"
+          }
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH",
+          "amount": {
+            "atomic_units": "10000"
+          }
+        }
+      ],
+      "dispatch_challenge_gas_cap_by_kind": [
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_OMISSION",
+          "gas_cap": 10000000
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_DRAW",
+          "gas_cap": 10000000
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_SKIP",
+          "gas_cap": 10000000
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE",
+          "gas_cap": 10000000
+        }
+      ],
+      "builder_compensation_account_min_balance": {
+        "atomic_units": "1000000"
+      },
+      "dispatch_evidence_retention_blocks": 1440,
+      "worker_dispatch_contradiction_slash_bps": 300
     }
   },
   "builders": [

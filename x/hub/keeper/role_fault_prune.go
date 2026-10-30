@@ -94,7 +94,12 @@ func (k Keeper) processRoleFaultPrune(ctx context.Context, key types.RoleFaultPr
 	if k.roleFaultConsumers == nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "role fault consumer gate is unavailable")
 	}
-	closed, err := k.roleFaultConsumers.RoleFaultConsumersClosed(ctx, state.TaskId, state.EvidenceDigest)
+	// Dispatch rejection/contradiction faults can precede a funded Task and
+	// have no Task settlement consumer. Their own audited retention suffices.
+	closed := state.FaultClass == shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_INELIGIBLE || state.FaultClass == shared.FaultKind_FAULT_KIND_WORKER_DISPATCH_CONTRADICTION
+	if !closed {
+		closed, err = k.roleFaultConsumers.RoleFaultConsumersClosed(ctx, state.TaskId, state.EvidenceDigest)
+	}
 	if err != nil {
 		return err
 	}

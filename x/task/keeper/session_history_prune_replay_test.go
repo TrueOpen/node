@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -23,8 +24,10 @@ func closedSessionWithTerminalOrder(t *testing.T, f *internalFixture, tag byte) 
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
+		BoundBuilder: sessionTestOwner(t, f), BoundChangeHeight: 1, Balance: shared.NewAmount(0), FrozenTotal: shared.NewAmount(0), PendingWithdrawAmount: shared.NewAmount(0),
 		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+
+		PendingWithdrawKind: types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE}))
 	require.NoError(t, f.keeper.OrderSequence.Set(
 		f.ctx, types.NewOrderSequenceStateKey(sessionKey, 0), types.OrderSequenceState{
 			SessionId: sessionID, OrderSequence: 0, TaskId: taskID,

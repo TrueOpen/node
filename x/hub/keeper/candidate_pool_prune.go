@@ -163,6 +163,22 @@ func (k Keeper) activateReadyCandidatePool(ctx context.Context, height, limit ui
 			return visited, getErr
 		}
 		snapshot.Status = candidateSnapshotActive
+		if k.workerCandidateWeights == nil {
+			return visited, fmt.Errorf("Worker candidate weight provider is required")
+		}
+		reference, err := checkedMulForCandidatePool(snapshot.Epoch, normalizedEpochLengthBlocks(params))
+		if err != nil {
+			return visited, err
+		}
+		policy, err := k.workerCandidateWeights.GetWorkerCandidateWeightPolicy(ctx, reference)
+		if err != nil {
+			return visited, err
+		}
+		if err := policy.Validate(); err != nil {
+			return visited, err
+		}
+		snapshot.WorkerStakeWeightPpm = policy.StakeWeightPPM
+		snapshot.WorkerPerformanceWeightPpm = policy.PerformanceWeightPPM
 		snapshot.PublishedHeight = height
 		if err := k.CandidatePoolSnapshot.Set(ctx, indexKey.K2(), snapshot); err != nil {
 			return visited, err
@@ -283,6 +299,12 @@ func (k Keeper) processCandidateSnapshotPrunes(ctx context.Context, currentHeigh
 				}
 				continue
 			}
+			if removed, err := k.pruneCandidateProfileAddition(ctx, snapshot.Epoch); err != nil {
+				return visited, err
+			} else if removed {
+				visited++
+				continue
+			}
 			visited++
 			snapshot.Status = candidateSnapshotPruned
 			snapshot.PrunedHeight = currentHeight
@@ -387,6 +409,12 @@ func (k Keeper) cleanFailedCandidateDraft(ctx context.Context, cursor types.Cand
 			}
 			continue
 		}
+		if removed, err := k.pruneCandidateProfileAddition(ctx, cursor.TargetEpoch); err != nil {
+			return visited, err
+		} else if removed {
+			visited++
+			continue
+		}
 		visited++
 		status.Status = types.CandidatePoolBuildStatus_CANDIDATE_POOL_BUILD_STATUS_FAILED_CAPACITY
 		status.UpdatedHeight = height
@@ -476,7 +504,7 @@ func (k Keeper) firstCandidateEpochMember(ctx context.Context, epoch uint64) (ty
 	if err != nil {
 		return types.CandidatePoolMemberState{}, false, err
 	}
-	state, err := k.ProjectCandidatePoolMemberStore(value)
+	state, err := k.ProjectCandidatePoolMemberStore(ctx, value)
 	return state, err == nil, err
 }
 

@@ -32,7 +32,34 @@ func (k Keeper) RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDi
 	if err != nil || !final {
 		return false, err
 	}
-	matched, err := k.hasFinalFailureEvidence(ctx, taskKey, evidenceDigest)
+	if exists, err := k.TaskCore.Has(ctx, taskKey); err != nil {
+		return false, err
+	} else if !exists {
+		return true, nil
+	}
+	valueReceipts, err := mapHasRow(ctx, k.ValueEvidenceReceipt, collections.NewPrefixedQuadRange[types.Hash32Key, uint32, types.AddrKey, uint64](taskKey))
+	if err != nil {
+		return false, err
+	}
+	workerReceipts, err := mapHasRow(ctx, k.WorkerEvidenceReceipt, collections.NewPrefixedQuadRange[types.Hash32Key, string, int32, uint64](taskKey))
+	if err != nil {
+		return false, err
+	}
+	// Compact proof receipts still name their first fault. Retire those receipts
+	// before the independent Hub fault row can disappear.
+	if valueReceipts || workerReceipts {
+		return false, nil
+	}
+	cleaned := false
+	if cursor, err := k.TaskCleanupCursor.Get(ctx, taskKey); err == nil {
+		cleaned = cursor.Phase >= types.TaskCleanupPhase_TASK_CLEANUP_PHASE_ACTIVE_INDEXES_AND_LIABILITIES
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return false, err
+	}
+	matched := cleaned
+	if !matched {
+		matched, err = k.hasFinalFailureEvidence(ctx, taskKey, evidenceDigest)
+	}
 	if err != nil || !matched {
 		return false, err
 	}
@@ -129,4 +156,13 @@ func (k Keeper) hasFinalFailureEvidence(ctx context.Context, taskKey types.TaskK
 		}
 	}
 	return matched, nil
+}
+
+func mapHasRow[K, V any](ctx context.Context, table collections.Map[K, V], prefix collections.Ranger[K]) (bool, error) {
+	iter, err := table.Iterate(ctx, prefix)
+	if err != nil {
+		return false, err
+	}
+	defer iter.Close()
+	return iter.Valid(), nil
 }

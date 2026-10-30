@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -36,8 +37,7 @@ func updateParams(t *testing.T, f *internalFixture, change func(*types.TaskParam
 }
 
 // A Task or Session keeps running under the params it was created under, however
-// many updates follow, while rows that predate versioning run under the version
-// the first update replaced.
+// many updates follow. Fresh Genesis has no pre-versioning compatibility branch.
 func TestParamsForRowFollowsTheVersionItWasCreatedUnder(t *testing.T) {
 	f := initInternalFixture(t)
 	v0, err := f.keeper.Params.Get(f.ctx)
@@ -47,7 +47,7 @@ func TestParamsForRowFollowsTheVersionItWasCreatedUnder(t *testing.T) {
 	}
 	session := func(marker byte) types.SessionStoreKey { return bytes.Repeat([]byte{marker}, types.Hash32Len) }
 
-	pinnedAtV0, sessionAtV0, legacyTask := task(0x11), session(0x21), task(0x12)
+	pinnedAtV0, sessionAtV0 := task(0x11), session(0x21)
 	require.NoError(t, f.keeper.PinTaskParams(f.ctx, pinnedAtV0))
 	require.NoError(t, f.keeper.PinSessionParams(f.ctx, sessionAtV0))
 
@@ -75,7 +75,6 @@ func TestParamsForRowFollowsTheVersionItWasCreatedUnder(t *testing.T) {
 		{"pinned before any update", pinnedAtV0, v0},
 		{"pinned under the first update", pinnedAtV1, v1},
 		{"pinned under the second update", pinnedAtV2, v2},
-		{"predates versioning", legacyTask, v0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := f.keeper.ParamsForTask(f.ctx, tc.key)
@@ -113,8 +112,10 @@ func TestSessionLifecycleIndexSurvivesATtlChange(t *testing.T) {
 	require.NoError(t, f.keeper.PinSessionParams(f.ctx, sessionKey))
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 5,
+		BoundBuilder: sessionTestOwner(t, f), BoundChangeHeight: 1, Balance: shared.NewAmount(0), FrozenTotal: shared.NewAmount(0), PendingWithdrawAmount: shared.NewAmount(0),
 		Status: types.SessionStatus_SESSION_STATUS_ACTIVE,
-	}))
+
+		PendingWithdrawKind: types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE}))
 	countRows := func() int {
 		iter, err := f.keeper.SessionLifecycleIndex.Iterate(f.ctx, nil)
 		require.NoError(t, err)

@@ -28,12 +28,14 @@ func genesisWithVrfKeys(t *testing.T) (gs types.GenesisState, active, rotating s
 	gs = *types.DefaultGenesis()
 	gs.VrfKeys = []types.VrfKeyState{
 		{
+			ParticipantType:       validatorVrfRole,
 			OperatorAddress:       active,
 			ActiveVrfPubkey:       vrfPubkey(0x01),
 			ActiveFromEpoch:       0,
 			VrfAuthorizationNonce: 1,
 		},
 		{
+			ParticipantType:       validatorVrfRole,
 			OperatorAddress:       rotating,
 			ActiveVrfPubkey:       vrfPubkey(0x02),
 			ActiveFromEpoch:       0,
@@ -68,12 +70,12 @@ func TestVrfKeyGenesisRebuildsTheActivationIndex(t *testing.T) {
 	gs, _, rotating := genesisWithVrfKeys(t)
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
 
-	has, err := f.keeper.VrfKeyActivationIndex.Has(f.ctx, types.NewVrfKeyActivationKey(4, rotating))
+	has, err := f.keeper.VrfKeyActivationIndex.Has(f.ctx, types.NewVrfKeyActivationKey(4, validatorVrfRole, rotating))
 	require.NoError(t, err)
 	require.True(t, has, "a pending rotation must rebuild its activation index row")
 
-	require.NoError(t, f.keeper.ActivateDueVrfKeys(f.ctx, 4))
-	state, err := f.keeper.GetVrfKey(f.ctx, rotating)
+	activateVrfKeysForTest(t, f, 4)
+	state, err := f.keeper.GetVrfKey(f.ctx, validatorVrfRole, rotating)
 	require.NoError(t, err)
 	require.Equal(t, vrfPubkey(0x03), state.ActiveVrfPubkey, "the rebuilt index must make the rotation actually take effect at its epoch")
 	require.Nil(t, state.XPendingVrfPubkey)
@@ -85,7 +87,7 @@ func TestVrfKeyGenesisRoundTrips(t *testing.T) {
 	f := initFixture(t)
 	gs, _, rotating := genesisWithVrfKeys(t)
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
-	stored, err := f.keeper.VrfKey.Get(f.ctx, rotating)
+	stored, err := f.keeper.VrfKey.Get(f.ctx, types.NewParticipantKey(validatorVrfRole, rotating))
 	require.NoError(t, err)
 	encoded, err := stored.Marshal()
 	require.NoError(t, err)
@@ -114,7 +116,7 @@ func TestEnsureVrfKeyActivationIndexInvariantCatchesBothDirections(t *testing.T)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
 
 		// The active operator has no pending rotation, yet carries an index row.
-		require.NoError(t, f.keeper.VrfKeyActivationIndex.Set(f.ctx, types.NewVrfKeyActivationKey(9, active)))
+		require.NoError(t, f.keeper.VrfKeyActivationIndex.Set(f.ctx, types.NewVrfKeyActivationKey(9, validatorVrfRole, active)))
 		require.ErrorContains(t, f.keeper.EnsureVrfKeyActivationIndexInvariant(f.ctx), "no pending rotation")
 	})
 
@@ -123,7 +125,7 @@ func TestEnsureVrfKeyActivationIndexInvariantCatchesBothDirections(t *testing.T)
 		gs, _, rotating := genesisWithVrfKeys(t)
 		require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
 
-		require.NoError(t, f.keeper.VrfKeyActivationIndex.Remove(f.ctx, types.NewVrfKeyActivationKey(4, rotating)))
+		require.NoError(t, f.keeper.VrfKeyActivationIndex.Remove(f.ctx, types.NewVrfKeyActivationKey(4, validatorVrfRole, rotating)))
 		require.ErrorContains(t, f.keeper.EnsureVrfKeyActivationIndexInvariant(f.ctx), "missing operator")
 	})
 }
@@ -136,13 +138,13 @@ func TestVrfKeyGenesisValidationRejectsUnusableRows(t *testing.T) {
 
 	t.Run("neither an active nor a pending public key", func(t *testing.T) {
 		gs := *types.DefaultGenesis()
-		gs.VrfKeys = []types.VrfKeyState{{OperatorAddress: operator, VrfAuthorizationNonce: 1}}
+		gs.VrfKeys = []types.VrfKeyState{{ParticipantType: validatorVrfRole, OperatorAddress: operator, VrfAuthorizationNonce: 1}}
 		require.Error(t, gs.Validate())
 	})
 
 	t.Run("the same operator appears twice", func(t *testing.T) {
 		gs := *types.DefaultGenesis()
-		row := types.VrfKeyState{OperatorAddress: operator, ActiveVrfPubkey: vrfPubkey(0x01), VrfAuthorizationNonce: 1}
+		row := types.VrfKeyState{ParticipantType: validatorVrfRole, OperatorAddress: operator, ActiveVrfPubkey: vrfPubkey(0x01), VrfAuthorizationNonce: 1}
 		gs.VrfKeys = []types.VrfKeyState{row, row}
 		require.Error(t, gs.Validate())
 	})
@@ -150,6 +152,7 @@ func TestVrfKeyGenesisValidationRejectsUnusableRows(t *testing.T) {
 	t.Run("history row has no matching VrfKeyState", func(t *testing.T) {
 		gs := *types.DefaultGenesis()
 		gs.VrfKeyHistory = []types.VrfKeyHistoryState{{
+			ParticipantType:    validatorVrfRole,
 			OperatorAddress:    operator,
 			VrfPubkey:          vrfPubkey(0x01),
 			EffectiveFromEpoch: 1,

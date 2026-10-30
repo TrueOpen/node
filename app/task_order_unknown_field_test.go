@@ -16,7 +16,7 @@ import (
 )
 
 // TestTxDecoderRejectsUnknownTaskOrderFields pins the transport half of the
-// Task protocol's unknown-field rule. TaskOrderV1.Unmarshal alone skips unknown
+// Task protocol's unknown-field rule. TaskOrderV3.Unmarshal alone skips unknown
 // fields, so consensus depends on the standard SDK TxDecoder walking nested Any
 // messages before unmarshalling them.
 func TestTxDecoderRejectsUnknownTaskOrderFields(t *testing.T) {
@@ -45,9 +45,10 @@ func taskOrderTransportTx(t *testing.T, orderBytes []byte) []byte {
 	t.Helper()
 	signedOrder := appendProtoMessageField(nil, 1, orderBytes)
 	scope := appendProtoMessageField(nil, 1, signedOrder)
-	message := appendProtoMessageField(nil, 1, scope)
+	entry := appendProtoMessageField(nil, 1, scope)
+	message := appendProtoMessageField(nil, 1, entry)
 	bodyBytes, err := proto.Marshal(&txtypes.TxBody{Messages: []*codectypes.Any{{
-		TypeUrl: "/task.v1.MsgSubmitWorkerHandraises",
+		TypeUrl: "/task.v1.MsgRecordDispatch",
 		Value:   message,
 	}}})
 	require.NoError(t, err)

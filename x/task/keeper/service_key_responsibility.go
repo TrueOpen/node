@@ -294,9 +294,13 @@ func (k Keeper) builderStageResponsibilityScope(
 	core types.TaskCoreState,
 	selection types.TaskBuilderSelectionState,
 ) (string, string, []string, error) {
-	buildersPerTask := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).BuildersPerTask
+	set, err := k.hubKeeper.GetBuilderSetByID(sdk.UnwrapSDKContext(ctx), selection.BuilderSetId)
+	if err != nil {
+		return "", "", nil, err
+	}
+	buildersPerTask := set.ActiveBuilderCount
 	if buildersPerTask == 0 {
-		return "", "", nil, fmt.Errorf("builders_per_task is unavailable")
+		return "", "", nil, fmt.Errorf("frozen BuilderSet membership is unavailable")
 	}
 	if len(core.SessionId) != types.Hash32Len || len(core.TaskId) != types.Hash32Len ||
 		!bytes.Equal(core.TaskId, selection.TaskId) {

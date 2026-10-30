@@ -51,7 +51,7 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 	fault, err := f.keeper.ApplyWorkerObjectiveEvidence(f.ctx, fact)
 	require.NoError(t, err)
 	require.Equal(t, shared.DutyWorker, fault.Duty)
-	require.Equal(t, types.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
+	require.Equal(t, shared.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
 	require.Equal(t, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE, fault.ClassificationSource)
 	require.True(t, bytes.Equal(fact.EvidenceDigest, fault.EvidenceDigest))
 	after, err := f.keeper.ReadServiceBondValue(f.ctx, identity.Address)
@@ -95,7 +95,7 @@ func TestWorkerObjectiveEvidenceCanSlashBeforeTaskFinality(t *testing.T) {
 		EvidenceDigest: hubHashBytes("active-worker-equivocation"), FrozenSlashBps: 300,
 	})
 	require.NoError(t, err)
-	require.Equal(t, types.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
+	require.Equal(t, shared.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
 	reservation, err := f.keeper.GetTaskLiabilityReservation(f.ctx, request.TaskID, shared.DutyWorker, identity.Address)
 	require.NoError(t, err)
 	require.False(t, reservation.Reserved)

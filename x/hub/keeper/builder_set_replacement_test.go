@@ -315,9 +315,9 @@ func TestExecuteReplaceBuilderSetV1RejectsUnusableActions(t *testing.T) {
 			mutate:  func(f *builderSetReplacementFixture, a *types.ReplaceBuilderSetV1) { a.EffectiveHeight = f.leadFor - 1 },
 			message: "lead height",
 		},
-		"member count below builders_per_task": {
-			mutate:  func(f *builderSetReplacementFixture, a *types.ReplaceBuilderSetV1) { a.Members = f.members[1:3] },
-			message: "outside",
+		"empty member set": {
+			mutate:  func(_ *builderSetReplacementFixture, a *types.ReplaceBuilderSetV1) { a.Members = nil },
+			message: "members must not be empty",
 		},
 		"unsorted members": {
 			mutate: func(f *builderSetReplacementFixture, a *types.ReplaceBuilderSetV1) {

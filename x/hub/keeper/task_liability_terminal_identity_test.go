@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TrueOpen/node/x/hub/keeper"
 	"github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
@@ -35,6 +37,7 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	// The liability that has to outlive the identity.
 	_, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, survivor)
 	require.NoError(t, err)
+	require.NoError(t, f.keeper.AcquirePendingStageDuty(f.ctx, identity.Address))
 
 	// A second liability on the same operator. Its fault is what escalates the
 	// jail ladder, mirroring the localnet trace where the deadline that tombstoned
@@ -81,6 +84,10 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	proofOnly, err := f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceKeyStatusRevoked, proofOnly.ServiceKeyStatus)
+	replacement := hubIdentity(t, 216)
+	rotationProof := serviceKeyRotationProofBytes(sdk.UnwrapSDKContext(f.ctx).ChainID(), shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, sdk.MustAccAddressFromBech32(identity.Address), replacement.PubKey, 1, 2)
+	_, err = keeper.NewMsgServerImpl(f.keeper).RotateServiceKey(f.ctx, &types.MsgRotateServiceKey{ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, OperatorAddress: identity.Address, ExpectedCurrentServiceAuthorizationNonce: 1, NewServicePubkey: replacement.PubKey, NewServiceKeyProof: hubSign(t, replacement, rotationProof)})
+	require.ErrorContains(t, err, "terminal participant", "a proof-only terminal identity cannot register a replacement")
 	orphan, err := f.keeper.ReadTaskLiabilityValue(f.ctx, survivorKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReserved, orphan.Status)
@@ -93,6 +100,10 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	closed, err := f.keeper.ReadTaskLiabilityValue(f.ctx, survivorKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReleased, closed.Status)
+	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.True(t, hasNode, "the remaining stage duty keeps the proof-only identity")
+	require.NoError(t, f.keeper.ReleasePendingStageDuty(f.ctx, identity.Address))
 	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.False(t, hasNode, "the proof-only identity retires with its final hold")

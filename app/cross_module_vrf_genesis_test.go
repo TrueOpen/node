@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 func TestGenesisValidatorVrfKeyCoverage(t *testing.T) {
@@ -80,6 +81,7 @@ func genesisVrfCoverageFixture(t *testing.T, required bool) (*App, sdk.Context, 
 func setGenesisVrfKey(t *testing.T, application *App, ctx sdk.Context, operator string, activeFromEpoch uint64, pending bool) {
 	t.Helper()
 	state := hubtypes.VrfKeyState{
+		ParticipantType:       shared.ParticipantType_PARTICIPANT_TYPE_VALIDATOR,
 		OperatorAddress:       operator,
 		ActiveVrfPubkey:       bytes.Repeat([]byte{0x41}, hubtypes.VrfPubkeyLen),
 		ActiveFromEpoch:       activeFromEpoch,

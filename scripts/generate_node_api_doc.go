@@ -361,80 +361,49 @@ func defaultBehavior(rpc rpcDoc) string {
 }
 
 var purposeByRPC = map[string]string{
-	"hub.UpdateHubParams":                  "Governance update of the Hub parameters; affects identity, bonding, Builder, rewards and the safety windows.",
-	"hub.RegisterModelProfile":             "Atomically registers a Model/Profile projection; the CLI uses noded tx hub register-model-profile --profile-file <projection.json> --from <account>, which computes and signs the registration digest automatically.",
-	"hub.ClaimEarnings":                    "Transfers generic claimable earnings past the finality window into the account.",
-	"hub.ClaimServiceReward":               "Claims the Worker/Verifier service reward bucket.",
-	"hub.ClaimBuilderReward":               "Claims the reward of a completed Builder reward epoch.",
-	"hub.ClaimInfrastructureReward":        "Claims the infrastructure/reference service reward.",
-	"hub.RegisterBuilder":                  "Registers the Builder identity and its basic metadata.",
-	"hub.BondBuilder":                      "Increases the Builder bond, forming the economic collateral required to take part in stage selection.",
-	"hub.BeginBuilderUnbonding":            "Creates a Builder unbonding record and waits out the liability window.",
-	"hub.WithdrawBuilderUnbonded":          "Withdraws a Builder unbonding once it is mature and no liability is pending.",
-	"hub.RotateServiceKey":                 "Atomically replaces the sole current service signing public key of a Cortex/Builder once liabilities have drained.",
-	"hub.RevokeServiceKey":                 "Immediately revokes the operator's sole current service key even while liabilities are in flight; the liabilities are retained and a replacement rotate stays blocked.",
-	"hub.UpdateServiceDescriptor":          "Publishes a versioned descriptor of service connection endpoints, capability digests and the like.",
-	"hub.SetModelStatus":                   "Governance enable/disable of a model registration status.",
-	"hub.SetProfileStatus":                 "Governance enable/disable of a specific Integration Profile version.",
-	"hub.StakeService":                     "Adds service bond for a Cortex node.",
-	"hub.BeginServiceUnstake":              "Creates a Cortex service unbonding record and freezes the corresponding amount.",
-	"hub.WithdrawServiceUnbonded":          "Withdraws the service bond once it is mature and no task liability remains.",
-	"hub.DeclareModelSupport":              "A Cortex Node declares node-level model/profile capability.",
-	"hub.BatchConfirmModelSupport":         "A relayer submits, in batch, model support refreshes signed by Cortex Node service keys.",
-	"hub.SubmitFreezeSignal":               "Submits an emergency freeze signal for a model/profile.",
-	"hub.EmergencyFreezeVote":              "Votes on a freeze signal and performs the status switch once the threshold is met.",
-	"hub.UpdateReferenceBucket":            "Maintains the versioned on-chain fee boundaries; price discovery stays off chain.",
-	"hub.RunBuilderRewardEpoch":            "Advances Builder epoch reward settlement in bounded steps.",
-	"hub.RunTreasuryEpoch":                 "Advances Treasury epoch allocation in bounded steps.",
-	"task.UpdateTaskParams":                "Governance update of the Task parameters; any change of consensus behaviour must bump integration_rule_version in the same move.",
-	"task.CreateSession":                   "A user creates a task session carrying escrow and a nonce.",
-	"task.CancelOrder":                     "Cancels an order that has not been executed yet, in a stage that permits it, and releases the corresponding budget.",
-	"task.SessionSweep":                    "Cleans up expired sessions/orders in bounded steps and issues the refunds.",
-	"task.Assign":                          "A Stage1 Builder submits the handraise subset bound to the Hub's published WORKER pool together with the order budget; on success the task waits for a future beacon to weight-select the Worker.",
-	"task.OpenVerify":                      "Accepts the Cortex Worker inference receipt and freezes the Stage2 verifiers, windows and rule version.",
-	"task.InferReceiptCommitOnly":          "Submits the Worker receipt commitment without disclosing the full output.",
-	"task.Settle":                          "Submits the Stage3 light settlement and closes the frozen budget; the metering rules are currently unfrozen, so business fees and gas payouts are zero and the budget is refunded in full.",
-	"task.Commit":                          "A single formal Verifier submits its verification commitment.",
-	"task.BatchCommit":                     "Submits several verification commitments in one batch; used for Builder relay.",
-	"task.Result":                          "Submits the verification result receipt matching a commit.",
-	"task.BatchResult":                     "Submits verification results in batch, reducing the number of relay transactions.",
-	"task.WorkerReveal":                    "The Worker reveals the output preimage / result material inside the prescribed window.",
-	"task.SubmitFullResultReveal":          "A Verifier submits the full result evidence, for settlement and challenge auditing.",
-	"task.SweepExpiredTask":                "Explicitly advances the failure classification, refund and liability release of a timed-out task.",
-	"task.UserChallenge":                   "A user locks a challenge bond and creates a challenge supported by the Integration Profile.",
-	"task.ChallengeCommit":                 "A challenge verifier submits its challenge commit.",
-	"task.ChallengeResult":                 "A challenge verifier submits the result matching its commit.",
-	"task.SubmitChallengeFullResultReveal": "Submits the full challenge evidence reveal.",
-	"task.UpdateTimeoutBucket":             "Controlled maintenance of the deadline bucket, repairing/advancing the provable timeout index.",
-}
-
-var stageByRPC = map[string]string{
-	"task.Assign":                 "Stage1; on success it freezes the Hub pool reference, the order-level legal set, the budget caps, the rule version and the randomness height; the Worker and the absolute infer deadline are finalized by a later EndBlock.",
-	"task.OpenVerify":             "The start of Stage2; binds the accepted InferReceipt and the formal Verifier set.",
-	"task.InferReceiptCommitOnly": "The Cortex receipt commitment step between Stage1 and Stage2.",
-	"task.Commit":                 "The Stage2 commit window.",
-	"task.BatchCommit":            "The Stage2 commit window, submitted in batch by a relay.",
-	"task.Result":                 "The Stage2 result window.",
-	"task.BatchResult":            "The Stage2 result window, submitted in batch by a relay.",
-	"task.WorkerReveal":           "The Stage2 worker reveal window.",
-	"task.SubmitFullResultReveal": "The Stage2 full reveal window.",
-	"task.Settle":                 "Stage3; submitted only by the current service address of the frozen Stage3 Builder.",
+	"hub.UpdateHubParams":                      "Governance update of the Hub parameters; affects identity, bonding, Builder, rewards and the safety windows.",
+	"hub.RegisterModelProfile":                 "Atomically registers a Model/Profile projection; the CLI uses noded tx hub register-model-profile --profile-file <projection.json> --from <account>, which computes and signs the registration digest automatically.",
+	"hub.ClaimEarnings":                        "Transfers generic claimable earnings past the finality window into the account.",
+	"hub.RegisterBuilder":                      "Registers the Builder identity and its basic metadata.",
+	"hub.RotateServiceKey":                     "Registers a service-key replacement for the fixed E+2 epoch start; activation retains exactly one previous proof generation and never waits for current duties or maintenance budgets.",
+	"hub.RevokeServiceKey":                     "Immediately revokes the operator's sole current service key even while liabilities are in flight; the liabilities are retained and a replacement rotate stays blocked.",
+	"hub.UpdateServiceDescriptor":              "Publishes a versioned descriptor of service connection endpoints, capability digests and the like.",
+	"hub.SetModelStatus":                       "Governance enable/disable of a model registration status.",
+	"hub.SetProfileStatus":                     "Governance enable/disable of a specific Integration Profile version.",
+	"hub.StakeService":                         "Adds service bond for a Cortex node.",
+	"hub.BeginServiceUnstake":                  "Creates a Cortex service unbonding record and freezes the corresponding amount.",
+	"hub.WithdrawServiceUnbonded":              "Withdraws the service bond once it is mature and no task liability remains.",
+	"hub.DeclareModelSupport":                  "A Cortex Node declares node-level model/profile capability.",
+	"hub.BatchConfirmModelSupport":             "A relayer submits, in batch, model support refreshes signed by Cortex Node service keys.",
+	"hub.SubmitFreezeSignal":                   "Submits an emergency freeze signal for a model/profile.",
+	"hub.EmergencyFreezeVote":                  "Votes on a freeze signal and performs the status switch once the threshold is met.",
+	"task.UpdateTaskParams":                    "Governance updates the current version and commitment while existing Tasks and Sessions retain their applicable parameter versions.",
+	"task.CreateSession":                       "Creates a prefunded Session bound to an eligible initial Builder, optionally registering a delegated session key in the same owner-authorized transaction.",
+	"task.CancelOrder":                         "Registers a delayed cancellation of the next unrecorded sequence; admission before its effective height can consume that sequence first.",
+	"hub.FundBuilderCompensation":              "Funds a Builder compensation account through a signed bank transfer; anyone may fund it.",
+	"hub.CandidatePoolSnapshotMember":          "Returns the retained epoch membership and frozen profile-specific Worker weight without consulting current scoring inputs.",
+	"hub.BuilderCompensationAccount":           "Returns the Builder compensation balance and independent funding, compensation and penalty totals.",
+	"task.RecordDispatch":                      "Accepts independently validated signed dispatch or takeover entries; recording freezes Session funds and liability, while a takeover entry only registers a pending binding change.",
+	"task.DepositSession":                      "The Session owner deposits additional funds into escrow; delegated session keys cannot manage custody.",
+	"task.WithdrawSession":                     "The Session owner requests a delayed amount withdrawal or CLOSE; CLOSE waits for in-flight Tasks and refunds the remaining balance.",
+	"task.ClaimDispatchCompensation":           "Registers a signed ticket and acceptance for compensation after the record deadline; the claim remains rebuttable before its delayed payment.",
+	"task.RebutDispatchCompensation":           "An authorized Builder returns signed rejection, timeout or revocation facts to dismiss a pending compensation claim.",
+	"task.SubmitVerifierValueEvidence":         "Verifies bounded committed value openings, records compact attribution receipts and defers the single merged economic consequence to final settlement.",
+	"task.VerifierValueEvidence":               "Pages compact accepted evidence receipts by Task, round and target using a height-bound cursor.",
+	"task.DispatchRecord":                      "Returns the accepted dispatch record by Task order or record commitment.",
+	"task.DispatchChallenge":                   "Returns one dispatch challenge and its retained resolution.",
+	"task.DispatchCompensationClaim":           "Returns the authoritative compensation claim and payment outcome for a ticket.",
+	"task.DispatchWinnerIneligible":            "Returns the authenticated winner self-ineligibility marker that excludes compensation.",
+	"task.DispatchChallengesByBuilder":         "Pages only unresolved dispatch challenges for Builder recovery.",
+	"task.DispatchCompensationClaimsByBuilder": "Pages only claims awaiting rebuttal for Builder recovery.",
+	"task.SettleTask":                          "Closes a funded Task through the sole settlement path after challenge/evidence windows and round effects close; disqualified earnings and liability faults are applied once.",
 }
 
 var behaviorByRPC = map[string]string{
 	"hub.RegisterModelProfile":    "Computes the registration digest over the frozen projection; an identical digest returns the original receipt without charging again, a conflicting projection fails closed; a new registration writes the Model/Profile/receipt and transfers into the Treasury in the same transaction.",
 	"hub.DeclareModelSupport":     "Requires operator_address to be the sole Cosmos signer; a first declaration or a logically stale re-declaration establishes a support window, a live capability-only change preserves freshness, and a live declaration of the same value is a NOOP; daily freshness is advanced independently by MsgBatchConfirmModelSupport.",
-	"task.Assign":                 "Loads the Hub current pool, validates each handraise's membership binding / current service signature, and copies the weight facts the pool already froze rather than recomputing performance/jail live; validates that priority+tx+infer+verify does not exceed max_fee, then writes the escrow budget, the assignment, the legal set and the randomness index. Task liability is reserved only when the winner is finalized later.",
-	"task.OpenVerify":             "Validates the Worker duty signature over the full receipt fields and consistency with any existing receipt-only commitment; freezes the parameter/rule version, the sample aggregation and each reveal window, and selects the formal Verifiers.",
-	"task.Settle":                 "Rejects legacy full W/V payloads and unfrozen metering; settles atomically after validating the accepted receipt, the budget caps, the zero business payout, the full refund with gas disabled, and total conservation.",
-	"task.UserChallenge":          "Accepts only USER_REVALIDATION and requires requested_evidence to be empty; checks the Integration Profile, the challenge ceiling and the formal verifier flow before locking the bond.",
-	"task.UpdateTimeoutBucket":    "Permits only the gov authority, or the timeout_bucket_authority configured under the Integration Profile; version increases strictly, and effective_height is not earlier than the current height and cannot move backwards from the latest version of the same key.",
-	"task.BatchCommit":            "Runs the deterministic validation item by item and isolates invalid items; the caller must read the per-item results in the response rather than only the transaction code.",
-	"task.BatchResult":            "Runs the deterministic validation item by item and isolates invalid items; valid items are persisted and invalid ones come back with a reason.",
 	"hub.WithdrawServiceUnbonded": "Validates the mature height, pending TaskLiability and the not-yet-withdrawn status; after the transfer it records withdrawn_amount and debug_rule_version to prevent a repeated withdrawal.",
 	"hub.ClaimEarnings":           "Allows only claimable earnings to be claimed; pending settlement earnings cannot be claimed before the finality/challenge window closes.",
-	"hub.RunBuilderRewardEpoch":   "Processes in bounded steps using a persisted cursor; it is safe to call repeatedly until the epoch completes.",
-	"hub.RunTreasuryEpoch":        "Allocates in bounded steps using the epoch state and preserves module account fund conservation.",
 }
 
 func fatalf(format string, args ...any) {
@@ -481,7 +450,7 @@ func writeRPC(b *strings.Builder, rpc rpcDoc) {
 	}
 	fmt.Fprintf(b, "- Request/response: `%s` -> `%s`\n", rpc.method.Input().FullName(), rpc.method.Output().FullName())
 	fmt.Fprintf(b, "- Purpose: %s\n", lookup(purposeByRPC, key, defaultPurpose(rpc)))
-	fmt.Fprintf(b, "- Stage: %s\n", lookup(stageByRPC, key, defaultStage(rpc)))
+	fmt.Fprintf(b, "- Stage: %s\n", defaultStage(rpc))
 	fmt.Fprintf(b, "- Keeper behaviour: %s\n\n", lookup(behaviorByRPC, key, defaultBehavior(rpc)))
 
 	b.WriteString("Request parameters:\n\n")
@@ -689,9 +658,6 @@ func describeField(message protoreflect.MessageDescriptor, path fieldPath, reque
 	case strings.Contains(name, "nonce"):
 		source = "Query SessionNonce / the account sequence before calling, or derive it from the deterministic nonce generation rule of the protocol message to be signed."
 		validation = "Must be exactly the nonce expected on chain and may be consumed only once, which prevents replay."
-	case name == "signature_scheme":
-		source = "Use the protocol's fixed string secp256k1; it declares the user order signature algorithm, not the signature value."
-		validation = "Must currently equal secp256k1 exactly; an empty value and any other algorithm are rejected."
 	case name == "support_signature":
 		source = "Use the Cortex Node's current service private key to sign the node-level model/profile declaration, which carries no duty."
 		validation = "Verified against the node's current ServiceKey and the node-level declaration domain; an empty signature, an old key, a wrong chain-id, or a replayed field are all rejected."
@@ -758,8 +724,6 @@ func responseConstraint(containingMessage, name string, field protoreflect.Field
 		return "Returns next_key/total; pass next_key through when paging on, to avoid a full scan."
 	case strings.HasSuffix(containingMessage, ".CandidatePoolSnapshot") && name == "candidates":
 		return "An ACTIVE pool returns its full body in one response, up to 4096 entries; members are in ascending byte-lex order of the canonical operator address. The body of an invalidated/expired header is empty."
-	case strings.HasSuffix(containingMessage, ".AssignmentCandidateSetState") && name == "candidates":
-		return "Returns the complete legal handraise set of this Task in one response, up to 210 entries; members are in ascending byte-lex order of the canonical worker operator address, which lets legal_set_hash and the winner be recomputed from it."
 	case field.IsList():
 		return "The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once."
 	case field.Kind() == protoreflect.BytesKind && field.HasPresence():
@@ -852,7 +816,6 @@ var fieldMeaningByName = map[string]string{
 	"max_fee":                  "The ceiling on the total task fee the user authorized.",
 	"tx_fee_reserve":           "The frozen budget for task transaction gas reimbursement.",
 	"assignment_priority_fee":  "The frozen priority fee of the Stage1 assignment Builder.",
-	"worker_handraise_set":     "The canonical JSON array of Worker candidate handraises; each entry identifies a stable identity by worker_operator_address and carries the service_signature of the current key.",
 	"verifier_handraise_list":  "The canonical JSON array of Verifier candidate handraises; each entry identifies a stable identity by verifier_operator_address and carries the service_signature of the current key.",
 	"maintenance_fee":          "The settlement maintenance fee, bounded by what remains of the total budget after the other caps are deducted.",
 	"claimable":                "The currently claimable earnings balance.",
@@ -875,6 +838,18 @@ type fieldRule struct {
 }
 
 var requestFieldRules = map[string]fieldRule{
+	"task.v1.SignedOrderV2.signature_scheme": {
+		source:     "Use the fixed eip712 signature scheme for the signed user order.",
+		validation: "Must equal eip712 exactly; an empty or different scheme is rejected.",
+	},
+	"task.v1.SignedOrderV2.signature_chain_id": {
+		source:     "Use the positive EIP-712 domain chain ID used to sign user_signature; order.chain_id separately identifies the Cosmos chain.",
+		validation: "Must be positive and produce the exact domain used to recover the order signer.",
+	},
+	"task.v1.SignedOrderV2.user_signature": {
+		source:     "Sign the EIP-712 order digest with the Session owner's wallet or its registered session key.",
+		validation: "The recovered signer must be the owner or authorized session key; order scope, key expiry, anchor and spend-cap checks still apply.",
+	},
 	"hub.v1.MsgDeclareModelSupport.operator_address": {
 		source:     "Filled in and signed as a standard Cosmos Tx by the operator's offline/external account tooling; cortexd does not load the operator private key.",
 		validation: "Must be the sole Cosmos signer and must correspond to a registered ServiceBond principal; a FeeGrant may only pay the gas and cannot change the authorizing identity.",

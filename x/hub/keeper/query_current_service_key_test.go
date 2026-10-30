@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	gateway "github.com/cosmos/gogogateway"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -220,7 +221,7 @@ func assertCurrentServiceKeyJSONContract(
 
 func assertCurrentServiceKeyGatewayContract(t *testing.T, ctx context.Context, queries types.QueryServer, operator string) {
 	t.Helper()
-	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, &gateway.JSONPb{
 		OrigName:     true,
 		EmitDefaults: true,
 	}))

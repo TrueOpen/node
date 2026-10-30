@@ -190,18 +190,18 @@ func TestEndBlockDeadlineByteBudgetIsSharedAcrossQueues(t *testing.T) {
 // All twelve Wire v0.3 kind_priority values, and only those, resolve.
 func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 	expected := map[types.DeadlineKindV1]uint32{
-		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:        40,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:     20,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:          50,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:          60,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:            70,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:           80,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:      90,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:      100,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:           45,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: 25,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:                        30,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:                      40,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:                   20,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:                        50,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:                        60,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:                          70,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:                         80,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:                    100,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:                         45,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE:               25,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:                     110,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: 30,
 	}
 	require.Len(t, deadlineKindPriority, len(expected))
 	for kind, priority := range expected {

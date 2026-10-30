@@ -26,6 +26,12 @@ func (s BuilderState) Validate() error {
 		s.ServiceAuthorizationNonce == 0 || s.CurrentDescriptorVersion == 0 || s.RegisteredHeight == 0 {
 		return fmt.Errorf("builder %s has invalid current service binding", s.BuilderAddress)
 	}
+	if (s.XPreviousServicePubkey == nil) != (s.XPreviousServiceAuthorizationNonce == nil) || (s.XPreviousServicePubkey == nil) != (s.XPreviousRetiredHeight == nil) || s.XPreviousServicePubkey != nil && len(s.GetPreviousServicePubkey()) == 0 {
+		return fmt.Errorf("previous service key fields must be present together")
+	}
+	if err := ValidatePreviousServiceKeyBinding(s.ServiceAuthorizationNonce, s.CurrentServicePubkey, s.GetPreviousServicePubkey(), s.GetPreviousServiceAuthorizationNonce(), s.GetPreviousRetiredHeight()); err != nil {
+		return err
+	}
 	// The pubkey must derive the service address it is stored next to. Genesis
 	// already applied this rule (genesis.go ValidateCurrentServiceKeyBinding) but
 	// the row-level check did not, so a corrupted row could travel through every

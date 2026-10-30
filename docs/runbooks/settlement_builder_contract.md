@@ -1,139 +1,42 @@
-# Settlement builder query contract
+# Settlement Builder contract
 
-This runbook defines the Node-owned inputs for Cortex and other builders that
-construct `task.v1.MsgSettle`. Comet event attributes are notifications,
-not accounting authority.
+Settlement uses `task.v1.MsgSettleTask`, carrying only `task_id` and the
+Cosmos transaction's `submitter_address`. Keeper derives settlement facts,
+allocations, refunds and fault consequences from accepted state.
 
-## Public v1 queries
+## Read authoritative state
 
-`TaskBudget` returns the committed per-task accounting row:
+Use one committed height for related queries. `Task`, `TaskBudget`,
+`TaskAssignment`, `InferReceipt`, `TaskBuilders`, `VerificationRound` and
+`ResultReceipt` expose accepted inputs. After settlement, `SettlementFacts`
+and `Settlement` return the retained immutable result. Their current REST
+paths and field definitions are in [the generated API reference](../static/node-api.md).
 
-```text
-GET /TrueOpen/task/v1/task_budget/{session_id}/{task_id}
-```
+Events notify a state change; they do not authorize a payout. Pin a historical
+read with standard Cosmos `x-cosmos-block-height` metadata when reproducing a
+committed decision, and requery current state before submitting a transaction.
 
-`SettlementBuildFacts` returns the aggregate pre-settlement snapshot. Optional
-query parameters `settlement_id`, `task_verdict`, `settlement_status`,
-and `outlier_verifier` request a Keeper-derived settlement package:
+## Eligibility and closure
 
-```text
-GET /TrueOpen/task/v1/settlement_build_facts/{session_id}/{task_id}
-```
+The current service account of the scheduled frozen Task Builder may settle
+during its grace period. After all Builder grace periods, settlement becomes
+permissionless until the deadline. The bounded deadline runner uses the same
+settlement implementation when no transaction completes it.
 
-The aggregate response is versioned by
-`contract_version = TRUEOPEN_SETTLEMENT_BUILD_FACTS_V1`. It contains the frozen
-assignment, infer receipt, verifier assignment, task budget, worker reveal
-receipt, every formal verifier's commit/result/full-reveal state, and the
-canonical references and hashes consumed by Keeper settlement validation.
-When a complete proposal is supplied and the task is ready,
-`has_derived_fields = true` and `derived_fields` contains the exact fee,
-refund, payout/fault hashes, evidence root, challenge boundary, and signing
-bytes that transaction validation recomputes.
+Settlement waits for the challenge boundary, any second round, actual closure
+of the bounded value-evidence window, and completion of round economic effects.
+A stale readiness observation can fail without writing state. Retrying an
+already completed settlement returns its terminal receipt.
 
-The REST JSON fixture for Cortex is:
+## Funds and faults
 
-```text
-x/task/keeper/testdata/settlement_build_facts_v1.json
-```
+Dispatch admission freezes funds already held in the Session. Final settlement
+deducts the accepted bill and gas reimbursements, releases unused reservation
+back to the Session, and never asks the owner for another Task funding transfer.
+A pending CLOSE waits for in-flight Tasks before paying the remaining balance.
 
-## Snapshot and height rules
-
-A latest query reads committed height `H` and returns `snapshot_height = H`.
-Every nested state value in one response comes from that same ABCI snapshot.
-For historical reads, set the standard Cosmos `x-cosmos-block-height` metadata
-and verify that the response reports the requested height.
-Historical responses are audit/reproduction artifacts only:
-`settlement_ready` describes readiness at that historical height, not
-permission to submit against the current chain tip.
-
-`expected_settlement_height` is `H + 1`.
-`expected_challenge_close_height` is:
-
-```text
-expected_settlement_height + challenge_window_blocks
-```
-
-Those expected values are valid only if `MsgSettle` is included in the next
-block. `must_requery_if_not_included` is therefore always true. If the
-transaction misses that height, Cortex must query again, rebuild the
-height-bound hashes/signing bytes, and re-sign. It must not reuse a response
-from a different height.
-An earlier transaction in block `H + 1` can also change accepted result or
-reveal state before settlement executes. Keeper will reject the stale hashes
-without writing settlement state; Cortex must wait for the block to commit and
-restart from a fresh query.
-
-`settlement_ready = true` means the committed snapshot has a reserved budget,
-valid worker receipt, at least two accepted verifier results, no existing
-settlement/root, and a next-block height within the verify deadline. A false
-value is accompanied by stable machine-readable `readiness_failures`.
-
-## Canonical ordering and hashes
-
-`verifier_facts` follows the exact frozen `formal_verifier_set` order.
-`formal_verifier_index` is part of each `result_receipt_leaf_hash`; clients must
-not sort these leaves lexically. `commit_height_refs` and
-`full_result_reveal_refs` are already in the order accepted by Keeper.
-`missing_or_timeout_verifiers` is lexically sorted because that is the
-canonical `MsgSettle` representation.
-
-The following response fields are authoritative and must be copied without
-substitution:
-
-```text
-worker_reveal_receipt_ref
-result_receipt_refs_hash
-registered_full_result_refs_hash
-leaf_ordering_version
-evidence_schema_hash
-judgment_function_version
-canonical_encoding_version
-settlement_signing_domain
-```
-
-`settlement_signing_bytes` is the exact 32-byte payload to sign. The REST
-gateway encodes it as base64. `settlement_signing_hash` is the lowercase hex
-encoding of those same bytes and is provided for logging/comparison; it is not
-a second SHA-256 operation.
-
-`evidence_schema_hash` and `judgment_function_version` come from the immutable
-`TaskAssignment.profile_execution_snapshot.verification_profile`. Keeper
-rejects a settlement that supplies different values.
-
-## MsgSettle field ownership
-
-`field_policy` is machine-readable and uses the protobuf snake_case field
-names:
-
-- `caller_supplied_fields` are identities, builder proof, settlement identity,
-  verdict/status, judgment output, and signature material.
-- `copy_from_snapshot_fields` are accepted chain facts or next-height values.
-- `keeper_recomputed_fields` must be supplied with the exact deterministic
-  value Keeper recomputes and validates.
-- `handler_written_empty_fields` must be empty; Keeper writes them.
-- `deprecated_empty_fields` are rejected compatibility payloads.
-
-Current integration rules keep business actual fees, payouts, maintenance fee,
-and gas reimbursement disabled. Keeper recomputes them, requires the full
-unused task budget refund, and rejects SDK or Cortex accounting estimates.
-The compatibility fields `max_fee`, `assignment_height`,
-`open_verify_height`, `trace_commit_root`,
-`checkpoint_commit_root`, and `batch_log_root` may be left at their
-zero value; if populated, they must be copied exactly from the snapshot.
-
-## Builder sequence
-
-1. Query `SettlementBuildFacts` once at committed height `H`.
-2. Stop if `settlement_ready` is false.
-3. Judge the accepted reveal/result facts using the returned frozen profile.
-4. Re-query at the same current committed height with `settlement_id`,
-   `task_verdict`, `settlement_status`, and optional
-   `outlier_verifier`.
-5. Require `has_derived_fields = true`, copy the returned derived fields into
-   `MsgSettle`, and sign the returned `settlement_signing_bytes`.
-6. Submit for height `H + 1`.
-7. If it is not included at `H + 1`, discard the build package and restart at
-   step 1.
-
-Never reconstruct budget, accepted-result, payout, or receipt facts from
-Comet events or local Nexus/Cortex messages.
+A committed value contradiction changes attribution and earning eligibility,
+not the verdict or verifier denominator. A fault also disproved by round 2
+uses one merged consequence with the greater frozen slash rate. An evidence-only
+fine goes to Treasury. Keeper retains compact receipts and commitments, not raw
+leaves, signatures or model output.

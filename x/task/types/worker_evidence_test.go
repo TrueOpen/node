@@ -13,6 +13,7 @@ func TestOutputChunkEquivocationPublishedVector(t *testing.T) {
 	var fixture struct {
 		Positive struct {
 			ChainID         string `json:"chain_id"`
+			TicketHash      string `json:"accepted_dispatch_ticket_hash_hex"`
 			TaskID          string `json:"task_id_hex"`
 			TaskHash        string `json:"task_hash_hex"`
 			AcceptedReceipt string `json:"accepted_infer_receipt_hash_hex"`
@@ -52,7 +53,7 @@ func TestOutputChunkEquivocationPublishedVector(t *testing.T) {
 	digest, err := OutputChunkEquivocationDigest(evidence)
 	require.NoError(t, err)
 	require.Equal(t, p.EvidenceDigest, hex.EncodeToString(digest[:]))
-	chunkDigest, err := OutputChunkSigningDigest(p.ChainID, decode(p.TaskHash), p.Seq, evidence.StreamedMmrRoot)
+	chunkDigest, err := OutputChunkSigningDigest(p.ChainID, decode(p.TaskHash), decode(p.TicketHash), p.Seq, evidence.StreamedMmrRoot)
 	require.NoError(t, err)
 	require.Equal(t, p.ChunkDigest, hex.EncodeToString(chunkDigest[:]))
 	conflict, err := VerifyOutputChunkEquivocationProof(p.OutputLeafCount, decode(p.OutputHash), p.Seq, evidence.StreamedMmrRoot, proofs)

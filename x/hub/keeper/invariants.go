@@ -40,6 +40,8 @@ const (
 	InvariantParameterBucket          = "parameter_bucket"
 	InvariantTreasurySpendReceipt     = "treasury_spend_receipt"
 	InvariantRewardEpoch              = "reward_epoch"
+	InvariantServiceKeyRotations      = "service_key_rotations"
+	InvariantBuilderCompensation      = "builder_compensation"
 )
 
 type InvariantCheck struct {
@@ -67,6 +69,8 @@ type candidateSlotBindingKey struct {
 
 func (k Keeper) InvariantChecks() []InvariantCheck {
 	return []InvariantCheck{
+		{InvariantServiceKeyRotations, "pending service key indexes match their primaries", k.EnsureServiceKeyRotationInvariant},
+		{InvariantBuilderCompensation, "Builder compensation custody equals all account balances", k.EnsureBuilderCompensationInvariant},
 		{InvariantRewardsEarnings, "rewards balance equals claimable plus pending earnings", k.EnsureRewardsEarningsInvariant},
 		{InvariantServiceBond, "service bond balance equals active bonds plus unwithdrawn unbondings", k.EnsureServiceBondInvariant},
 		{InvariantSupportAggregates, "profile support aggregates equal the sum of their support rows", k.EnsureSupportAggregateInvariant},
@@ -526,7 +530,7 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "slash summary does not match its store key")
 		}
-		id := hex.EncodeToString(state.SlashSummaryId)
+		id := fmt.Sprintf("%d/%s/%d", state.SourceKind, hex.EncodeToString(state.SlashSummaryId), state.EffectIndex)
 		if _, duplicate := ids[id]; duplicate {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "duplicate slash summary id")
@@ -579,6 +583,9 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 
 	for key := range summaries {
 		switch key.kind {
+		case types.SlashSourceKind_SLASH_SOURCE_KIND_CHALLENGE_EFFECT:
+			// Task owns the bounded effect vector and its cleanup clock.
+			continue
 		case types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT:
 			if _, exists := roleFaultSources[key.source]; !exists {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "orphan role-fault slash summary")

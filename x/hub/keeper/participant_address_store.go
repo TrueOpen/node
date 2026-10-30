@@ -51,9 +51,12 @@ func (k Keeper) cortexNodeStateToStore(state types.CortexNodeState) (internaltyp
 		ServiceKeyStatus:          int32(state.ServiceKeyStatus),
 		CurrentDescriptorVersion:  state.CurrentDescriptorVersion,
 		RegisteredHeight:          state.RegisteredHeight, UpdatedHeight: state.UpdatedHeight,
-		ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
-		PendingStageDutyCount:          state.PendingStageDutyCount,
-		PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
+		ActiveTaskLiabilityCount:          state.ActiveTaskLiabilityCount,
+		PendingStageDutyCount:             state.PendingStageDutyCount,
+		PendingEvidenceSubmissionCount:    state.PendingEvidenceSubmissionCount,
+		PreviousServicePubkey:             bytes.Clone(state.GetPreviousServicePubkey()),
+		PreviousServiceAuthorizationNonce: state.GetPreviousServiceAuthorizationNonce(),
+		PreviousRetiredHeight:             state.GetPreviousRetiredHeight(),
 	}, nil
 }
 
@@ -67,7 +70,7 @@ func (k Keeper) ProjectCortexNodeStore(stored internaltypes.CortexNodeStoreState
 	if err != nil {
 		return types.CortexNodeState{}, err
 	}
-	return types.CortexNodeState{
+	projected := types.CortexNodeState{
 		SchemaVersion: stored.SchemaVersion, OperatorAddress: operator,
 		CurrentServiceAddress:     service,
 		CurrentServicePubkey:      append([]byte(nil), stored.CurrentServicePubkey...),
@@ -78,7 +81,16 @@ func (k Keeper) ProjectCortexNodeStore(stored internaltypes.CortexNodeStoreState
 		ActiveTaskLiabilityCount:       stored.ActiveTaskLiabilityCount,
 		PendingStageDutyCount:          stored.PendingStageDutyCount,
 		PendingEvidenceSubmissionCount: stored.PendingEvidenceSubmissionCount,
-	}, nil
+	}
+	if err := types.ValidatePreviousServiceKeyBinding(stored.ServiceAuthorizationNonce, stored.CurrentServicePubkey, stored.PreviousServicePubkey, stored.PreviousServiceAuthorizationNonce, stored.PreviousRetiredHeight); err != nil {
+		return types.CortexNodeState{}, err
+	}
+	if stored.PreviousServiceAuthorizationNonce != 0 {
+		projected.XPreviousServicePubkey = &types.CortexNodeState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(stored.PreviousServicePubkey)}
+		projected.XPreviousServiceAuthorizationNonce = &types.CortexNodeState_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: stored.PreviousServiceAuthorizationNonce}
+		projected.XPreviousRetiredHeight = &types.CortexNodeState_PreviousRetiredHeight{PreviousRetiredHeight: stored.PreviousRetiredHeight}
+	}
+	return projected, nil
 }
 
 func (k Keeper) ReadCortexNodeStore(ctx context.Context, address string) (types.CortexNodeState, error) {
@@ -143,15 +155,18 @@ func (k Keeper) builderStateToStore(state types.BuilderState) (internaltypes.Bui
 	}
 	return internaltypes.BuilderStoreState{
 		SchemaVersion: state.SchemaVersion, BuilderAddress: operator,
-		CurrentServiceAddress:          service,
-		CurrentServicePubkey:           append([]byte(nil), state.CurrentServicePubkey...),
-		CurrentServiceKeyStatus:        int32(state.CurrentServiceKeyStatus),
-		ServiceAuthorizationNonce:      state.ServiceAuthorizationNonce,
-		CurrentDescriptorVersion:       state.CurrentDescriptorVersion,
-		RegisteredHeight:               state.RegisteredHeight,
-		ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
-		PendingStageDutyCount:          state.PendingStageDutyCount,
-		PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
+		CurrentServiceAddress:             service,
+		CurrentServicePubkey:              append([]byte(nil), state.CurrentServicePubkey...),
+		CurrentServiceKeyStatus:           int32(state.CurrentServiceKeyStatus),
+		ServiceAuthorizationNonce:         state.ServiceAuthorizationNonce,
+		CurrentDescriptorVersion:          state.CurrentDescriptorVersion,
+		RegisteredHeight:                  state.RegisteredHeight,
+		ActiveTaskLiabilityCount:          state.ActiveTaskLiabilityCount,
+		PendingStageDutyCount:             state.PendingStageDutyCount,
+		PendingEvidenceSubmissionCount:    state.PendingEvidenceSubmissionCount,
+		PreviousServicePubkey:             bytes.Clone(state.GetPreviousServicePubkey()),
+		PreviousServiceAuthorizationNonce: state.GetPreviousServiceAuthorizationNonce(),
+		PreviousRetiredHeight:             state.GetPreviousRetiredHeight(),
 	}, nil
 }
 
@@ -165,7 +180,7 @@ func (k Keeper) ProjectBuilderStore(stored internaltypes.BuilderStoreState) (typ
 	if err != nil {
 		return types.BuilderState{}, err
 	}
-	return types.BuilderState{
+	projected := types.BuilderState{
 		SchemaVersion: stored.SchemaVersion, BuilderAddress: operator,
 		CurrentServiceAddress:          service,
 		CurrentServicePubkey:           append([]byte(nil), stored.CurrentServicePubkey...),
@@ -176,7 +191,16 @@ func (k Keeper) ProjectBuilderStore(stored internaltypes.BuilderStoreState) (typ
 		ActiveTaskLiabilityCount:       stored.ActiveTaskLiabilityCount,
 		PendingStageDutyCount:          stored.PendingStageDutyCount,
 		PendingEvidenceSubmissionCount: stored.PendingEvidenceSubmissionCount,
-	}, nil
+	}
+	if err := types.ValidatePreviousServiceKeyBinding(stored.ServiceAuthorizationNonce, stored.CurrentServicePubkey, stored.PreviousServicePubkey, stored.PreviousServiceAuthorizationNonce, stored.PreviousRetiredHeight); err != nil {
+		return types.BuilderState{}, err
+	}
+	if stored.PreviousServiceAuthorizationNonce != 0 {
+		projected.XPreviousServicePubkey = &types.BuilderState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(stored.PreviousServicePubkey)}
+		projected.XPreviousServiceAuthorizationNonce = &types.BuilderState_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: stored.PreviousServiceAuthorizationNonce}
+		projected.XPreviousRetiredHeight = &types.BuilderState_PreviousRetiredHeight{PreviousRetiredHeight: stored.PreviousRetiredHeight}
+	}
+	return projected, nil
 }
 
 func (k Keeper) GetBuilderState(ctx context.Context, address string) (types.BuilderState, error) {

@@ -16,7 +16,10 @@ const VrfPubkeyLen = 32
 // the same nonce with the same key is the same proof, and the same nonce with a
 // different key is a different alpha and therefore a conflict rather than a
 // silent overwrite.
-func VrfKeyPoPDigest(chainID, operatorAddress string, vrfPubkey []byte, authorizationNonce uint64) ([32]byte, error) {
+func VrfKeyPoPDigest(chainID string, role shared.ParticipantType, operatorAddress string, vrfPubkey []byte, authorizationNonce uint64) ([32]byte, error) {
+	if !IsVrfParticipantType(role) {
+		return [32]byte{}, fmt.Errorf("VRF participant_type must be VALIDATOR or BUILDER")
+	}
 	if chainID == "" {
 		return [32]byte{}, fmt.Errorf("chain_id must not be empty")
 	}
@@ -31,7 +34,7 @@ func VrfKeyPoPDigest(chainID, operatorAddress string, vrfPubkey []byte, authoriz
 		return [32]byte{}, fmt.Errorf("vrf_authorization_nonce must be greater than zero")
 	}
 	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainVRFKeyPoPV1)).Raw(
-		[]byte(chainID), operator, append([]byte(nil), vrfPubkey...), shared.Uint64BE(authorizationNonce),
+		[]byte(chainID), shared.EnumBE(uint32(role)), operator, append([]byte(nil), vrfPubkey...), shared.Uint64BE(authorizationNonce),
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err
@@ -43,6 +46,9 @@ func VrfKeyPoPDigest(chainID, operatorAddress string, vrfPubkey []byte, authoriz
 // private key is kept out of every message, state and query, so the only thing stored is
 // the public point and the epoch it becomes authoritative in.
 func ValidateVrfKeyState(state VrfKeyState) error {
+	if !IsVrfParticipantType(state.ParticipantType) {
+		return fmt.Errorf("VRF participant_type must be VALIDATOR or BUILDER")
+	}
 	if state.OperatorAddress == "" {
 		return fmt.Errorf("vrf key operator_address is required")
 	}
@@ -68,4 +74,9 @@ func ValidateVrfKeyState(state VrfKeyState) error {
 		return fmt.Errorf("vrf key vrf_authorization_nonce must be greater than zero")
 	}
 	return nil
+}
+
+// IsVrfParticipantType separates dispatch randomness from validator beacons.
+func IsVrfParticipantType(role shared.ParticipantType) bool {
+	return role == shared.ParticipantType_PARTICIPANT_TYPE_VALIDATOR || role == shared.ParticipantType_PARTICIPANT_TYPE_BUILDER
 }

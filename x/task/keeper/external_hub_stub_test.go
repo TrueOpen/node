@@ -12,6 +12,8 @@ import (
 
 type stubHubKeeper struct{ tasktypes.HubKeeper }
 
+func (stubHubKeeper) RestoreDispatchFaultPruneIndex(context.Context, uint64) error { return nil }
+
 func (stubHubKeeper) AcquireBeaconConsumerRef(context.Context, uint64, types.BeaconConsumerKind, string) error {
 	return nil
 }
@@ -92,7 +94,7 @@ func (stubHubKeeper) DeleteOneClosedTaskLiability(context.Context, string) (bool
 func (stubHubKeeper) GetCurrentServiceKey(_ context.Context, participantType, operatorAddress string) (types.CurrentServiceKeySnapshot, error) {
 	return types.CurrentServiceKeySnapshot{ParticipantType: participantType, OperatorAddress: operatorAddress, ServiceAddress: operatorAddress, Status: types.ServiceKeyStatusActive}, nil
 }
-func (stubHubKeeper) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64) (types.CurrentServiceKeySnapshot, error) {
+func (stubHubKeeper) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64, sessionID, taskID []byte) (types.CurrentServiceKeySnapshot, error) {
 	return types.CurrentServiceKeySnapshot{ParticipantType: shared.ParticipantTypeBuilder, OperatorAddress: operatorAddress, AuthorizationNonce: authorizationNonce, Status: types.ServiceKeyStatusActive}, nil
 }
 func (stubHubKeeper) ApplyBuilderObjectiveEvidence(_ context.Context, fact shared.BuilderObjectiveEvidenceFactV2) (shared.BuilderObjectiveEvidenceReceiptV2, error) {
@@ -124,3 +126,12 @@ func (stubHubKeeper) GetBeaconForDomain(sdk.Context, string, int64) (types.Beaco
 // not called hexTaskKey any more: the result is a []byte digest, so it must never
 // reach a %s verb or be used as a Go map key without an explicit hex rendering.
 func taskKeyOf(taskID []byte) tasktypes.TaskKey { return tasktypes.NewTaskKey(taskID) }
+
+func (stubHubKeeper) ReadBusObjectiveEvidenceResponsibility(_ context.Context, operator string, sessionID, taskID []byte) (shared.BusObjectiveEvidenceResponsibilityReceiptV1, error) {
+	return shared.BusObjectiveEvidenceResponsibilityReceiptV1{BuilderOperator: operator, TaskId: taskID, ServiceAuthorizationNonce: 1, Active: true, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
+}
+
+func (stubHubKeeper) DeleteOneRoundSlashSummary(context.Context, []byte, []byte) (bool, error) {
+	return false, nil
+}
+func (stubHubKeeper) HasTaskRoleFaults(context.Context, []byte) (bool, error) { return false, nil }

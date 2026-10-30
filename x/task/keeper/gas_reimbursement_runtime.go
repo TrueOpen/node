@@ -33,8 +33,8 @@ func (k Keeper) recordTaskGasReimbursementIntent(
 	itemIndex uint32,
 	kind types.TaskReimbursementKindV1,
 ) error {
-	if len(taskID) != types.Hash32Len || kind < types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE ||
-		kind > types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT {
+	if len(taskID) != types.Hash32Len || kind < types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT ||
+		kind > types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_DISPATCH_RECORD {
 		return fmt.Errorf("task gas reimbursement intent is invalid")
 	}
 	txBytes := sdkContextFrom(ctx).TxBytes()
@@ -163,8 +163,8 @@ func (k Keeper) loadTaskGasReimbursementIntents(ctx context.Context, txHash []by
 			return nil, fmt.Errorf("task gas reimbursement intent encoding is invalid")
 		}
 		kind := types.TaskReimbursementKindV1(binary.BigEndian.Uint32(value))
-		if kind < types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE ||
-			kind > types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT {
+		if kind < types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT ||
+			kind > types.TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_DISPATCH_RECORD {
 			return nil, fmt.Errorf("task gas reimbursement intent kind is invalid")
 		}
 		intents = append(intents, taskGasReimbursementIntent{

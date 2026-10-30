@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -82,7 +83,14 @@ func TestSessionGenesisRoundTripAllowsCancelledSequenceWithoutTaskID(t *testing.
 	genesis.Streams = []tasktypes.StreamState{{
 		SessionId: sessionID, OwnerUserAddress: genesisUser, NextExpectedSequence: 1,
 		LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_ACTIVE,
-	}}
+
+		BoundBuilder:          genesisBuilder,
+		BoundChangeHeight:     1,
+		PendingWithdrawKind:   tasktypes.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0)},
+	}
 	genesis.OrderSequences = []tasktypes.OrderSequenceState{{
 		SessionId: sessionID, OrderSequence: 0,
 		Status: tasktypes.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCELLED, CancelledHeight: 5,
@@ -127,7 +135,14 @@ func TestSessionGenesisRejectsDoneOrEmptyRootPruneCursor(t *testing.T) {
 			genesis.Streams = []tasktypes.StreamState{{
 				SessionId: sessionID, OwnerUserAddress: genesisUser, NextExpectedSequence: 1,
 				LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_CLOSED,
-			}}
+
+				BoundBuilder:          genesisBuilder,
+				BoundChangeHeight:     1,
+				PendingWithdrawKind:   tasktypes.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+				Balance:               shared.NewAmount(0),
+				FrozenTotal:           shared.NewAmount(0),
+				PendingWithdrawAmount: shared.NewAmount(0)},
+			}
 			genesis.SessionHistoryPruneCursors = []tasktypes.SessionHistoryPruneCursorState{{
 				SessionId: sessionID, NextOrderSequence: tc.next, RollingSequenceRoot: tc.root,
 			}}

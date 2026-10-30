@@ -1,0 +1,28 @@
+syntax = "proto3";
+package hub.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/hub/internal/types";
+
+// BuilderCompensationAccountStoreState uses raw20 and checked atomic uint64 amounts.
+message BuilderCompensationAccountStoreState {
+  bytes builder_address = 1;
+  uint64 balance = 2;
+  uint64 total_funded = 3;
+  uint64 total_paid = 4;
+  uint64 total_penalized = 5;
+}
+
+// DispatchFaultStoreState retains compact fault facts without signed material.
+message DispatchFaultStoreState {
+  bytes builder_address = 1;
+  bytes fault_id = 2;
+  int32 kind = 3;
+  bytes task_id = 4;
+  bytes dispatch_record_hash = 5;
+  bytes challenged_ticket_hash_or_zero32 = 6;
+  uint64 penalty_amount = 7;
+  uint64 unfilled_amount = 8;
+  bytes compensated_worker = 9;
+  uint64 compensated_amount = 10;
+  uint64 fault_height = 11;
+}

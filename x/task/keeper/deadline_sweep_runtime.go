@@ -263,7 +263,7 @@ func (k Keeper) handleExpiredInferDeadline(ctx context.Context, taskID types.Tas
 	if err != nil || !found {
 		return deadlineSweepStale, rowBytes, err
 	}
-	if core.TaskPhase != types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED ||
+	if core.TaskPhase != types.TaskPhase_TASK_PHASE_INFER_PENDING ||
 		core.ReceiptStatus == types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED {
 		return deadlineSweepStale, rowBytes, nil
 	}

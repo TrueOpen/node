@@ -92,6 +92,7 @@ var (
 		// hub-owned accounts
 		{Account: hubtypes.ModuleName},
 		{Account: hubtypes.RewardsModuleName},
+		{Account: hubtypes.BuilderCompensationModuleName},
 		{Account: hubtypes.EmissionModuleName},
 		{Account: hubtypes.TreasuryModuleName},
 		{Account: hubtypes.ServiceBondModuleName},
@@ -118,6 +119,7 @@ var (
 		// invariants such as escrow == sum(reserved).
 		hubtypes.ModuleName,
 		hubtypes.RewardsModuleName,
+		hubtypes.BuilderCompensationModuleName,
 		hubtypes.EmissionModuleName,
 		hubtypes.TreasuryModuleName,
 		hubtypes.ServiceBondModuleName,

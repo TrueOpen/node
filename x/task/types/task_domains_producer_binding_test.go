@@ -1,9 +1,7 @@
 package types_test
 
 import (
-	"bytes"
 	"encoding/hex"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,13 +23,10 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 		"infer_evidence_commitments_v1_pair":           "digest",
 		"infer_evidence_commitments_v1_pair_reordered": "reject",
 		"verify_commit_v1":                             "digest",
-		"worker_handraise_v1":                          "digest",
 		"verifier_handraise_v1":                        "digest",
 		"task_id_v1":                                   "digest",
 		"metric_summary_v1_optional_presence":          "digest",
 		"data_unavailable_aggregate_v1_optional_slots": "digest",
-		"assignment_legal_set_v1":                      "digest",
-		"task_builders_v1":                             "digest",
 		"commit_key_v1":                                "digest",
 		"selected_task_builders_v1":                    "digest",
 	}
@@ -64,24 +59,6 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 					ServiceAuthorizationNonce: producerTaskUint(t, vector, 5, "service_authorization_nonce"),
 					CommitHash:                producerTaskBytes(t, vector, 6, "commit_hash"),
 					ExpiryHeight:              producerTaskUint(t, vector, 7, "expiry_height"),
-				})
-				require.NoError(t, err)
-				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
-				bound[vector.Name] = "digest"
-
-			case "worker_handraise_v1":
-				got, err := types.WorkerHandraiseSigningDigest(types.WorkerHandraiseV1{
-					SchemaVersion:             uint32(producerTaskUint(t, vector, 0, "schema_version")),
-					ChainId:                   producerTaskString(t, vector, 1, "chain_id"),
-					TaskId:                    producerTaskBytes(t, vector, 2, "task_id"),
-					TaskHash:                  producerTaskBytes(t, vector, 3, "task_hash"),
-					ModelId:                   producerTaskBytes(t, vector, 4, "model_id"),
-					ProfileVersion:            uint32(producerTaskUint(t, vector, 5, "profile_version")),
-					Member:                    producerTaskMember(t, vector, 6),
-					Duty:                      shared.Duty(producerTaskUint(t, vector, 7, "duty")),
-					ServiceAuthorizationNonce: producerTaskUint(t, vector, 8, "service_authorization_nonce"),
-					ExpiryHeight:              producerTaskUint(t, vector, 9, "expiry_height"),
-					RecipientPubkey:           producerTaskBytes(t, vector, 10, "recipient_pubkey"),
 				})
 				require.NoError(t, err)
 				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
@@ -144,46 +121,6 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 				require.Equal(t, vector.DigestHex, hex.EncodeToString(got))
 				bound[vector.Name] = "digest"
 
-			case "assignment_legal_set_v1":
-				elements := producerTaskRepeated(t, vector, 7, "candidates", 6, "candidate_count")
-				taskID := producerTaskBytes(t, vector, 1, "task_id")
-				facts := make([]types.TaskCandidateFactState, 0, len(elements))
-				for _, element := range elements {
-					facts = append(facts, producerTaskCandidate(t, element, taskID))
-				}
-				// Production sorts by slot; reverse the fixture order so the adapter
-				// cannot accidentally validate an order-preserving stub.
-				for left, right := 0, len(facts)-1; left < right; left, right = left+1, right-1 {
-					facts[left], facts[right] = facts[right], facts[left]
-				}
-				got, err := types.AssignmentCandidateSetHash(
-					producerTaskString(t, vector, 0, "chain_id"),
-					types.AssignmentCandidateSetState{
-						SchemaVersion:           types.AssignmentCandidateSchemaVersionV1,
-						TaskId:                  taskID,
-						TaskHash:                producerTaskBytes(t, vector, 2, "task_hash"),
-						CandidatePoolSnapshotId: producerTaskBytes(t, vector, 3, "candidate_pool_snapshot_id"),
-						CandidatePoolHash:       producerTaskBytes(t, vector, 4, "candidate_pool_hash"),
-						UnionBitmapHash:         producerTaskBytes(t, vector, 5, "union_bitmap_hash"),
-						CandidateCount:          uint32(producerTaskUint(t, vector, 6, "candidate_count")),
-					},
-					facts,
-				)
-				require.NoError(t, err)
-				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
-				bound[vector.Name] = "digest"
-
-			case "task_builders_v1":
-				got, err := types.TaskBuilderSeed(
-					producerTaskString(t, vector, 0, "chain_id"),
-					producerTaskBytes(t, vector, 1, "task_id"),
-					producerTaskBytes(t, vector, 2, "builder_set_hash"),
-					producerTaskBytes(t, vector, 3, "session_anchor_block_hash"),
-				)
-				require.NoError(t, err)
-				require.Equal(t, vector.DigestHex, hex.EncodeToString(got[:]))
-				bound[vector.Name] = "digest"
-
 			case "commit_key_v1":
 				got, err := types.DeriveCommitKey(
 					producerTaskString(t, vector, 0, "chain_id"),
@@ -227,7 +164,7 @@ func TestTaskDomainFixtureBindsProductionHelpers(t *testing.T) {
 func loadProducerTaskFixture(t *testing.T) domainfixture.Fixture {
 	t.Helper()
 	fixture := domainfixture.Load(t, "testdata/task_domains_v1.json")
-	require.Len(t, fixture.Vectors, 14)
+	require.Len(t, fixture.Vectors, 11)
 	return fixture
 }
 
@@ -404,40 +341,4 @@ func producerTaskOptionalBytes(t *testing.T, field producerTaskField) []byte {
 	require.Len(t, field.Fields, 1)
 	require.Equal(t, "bytes", field.Fields[0].Type)
 	return producerTaskHex(t, field.Fields[0])
-}
-
-func producerTaskCandidate(t *testing.T, frame producerTaskField, taskID []byte) types.TaskCandidateFactState {
-	t.Helper()
-	require.Equal(t, "frame", frame.Type)
-	require.Len(t, frame.Fields, 13)
-	u64 := func(index int, name, kind string) uint64 {
-		field := producerTaskNested(t, frame, index, name, kind)
-		require.NotNil(t, field.Value)
-		return *field.Value
-	}
-	amount := func(index int, name string) shared.Amount {
-		return shared.Amount{AtomicUnits: strconv.FormatUint(u64(index, name, "uint64"), 10)}
-	}
-	operator := producerTaskNested(t, frame, 2, "operator_address", "address")
-	return types.TaskCandidateFactState{
-		SchemaVersion:                  types.AssignmentCandidateSchemaVersionV1,
-		TaskId:                         taskID,
-		Stage:                          types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK,
-		Duty:                           shared.Duty_DUTY_WORKER,
-		Slot:                           uint32(u64(0, "slot", "uint32")),
-		SlotVersion:                    u64(1, "slot_version", "uint64"),
-		OperatorAddress:                operator.Bech32,
-		CandidateWeight:                uint32(u64(3, "candidate_weight", "uint32")),
-		ActiveBondSnapshot:             amount(4, "active_bond_snapshot"),
-		AvailableBondSnapshot:          amount(5, "available_bond_snapshot"),
-		RequiredTaskLiabilitySnapshot:  amount(6, "required_task_liability_snapshot"),
-		MinStakeSnapshot:               amount(7, "min_stake_snapshot"),
-		PerformanceScoreSnapshotPpm:    uint32(u64(8, "performance_score_snapshot_ppm", "uint32")),
-		PerformanceMethodVersion:       uint32(u64(9, "performance_method_version", "uint32")),
-		CandidateJailFactorSnapshotPpm: uint32(u64(10, "candidate_jail_factor_snapshot_ppm", "uint32")),
-		BondVersionSnapshot:            u64(11, "bond_version_snapshot", "uint64"),
-		SupportVersionSnapshot:         u64(12, "support_version_snapshot", "uint64"),
-		CapabilityVersionSnapshot:      1,
-		HandraiseSigningDigest:         bytes.Repeat([]byte{0x11}, types.Hash32Len),
-	}
 }

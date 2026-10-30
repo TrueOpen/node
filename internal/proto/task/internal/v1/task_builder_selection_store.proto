@@ -6,7 +6,8 @@ option go_package = "github.com/TrueOpen/node/x/task/internal/types";
 // TaskBuilderSelectionStoreState stores selected Builder addresses as codec bytes.
 message TaskBuilderSelectionStoreState {
   bytes task_id = 1;
-  bytes session_anchor_block_hash = 2;
+  reserved 2;
+  reserved "session_anchor_block_hash";
   string builder_set_id = 3;
   bytes builder_set_hash = 4;
   repeated bytes selected_task_builders = 5;

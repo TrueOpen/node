@@ -27,16 +27,10 @@ func (m *msgServer) UpdateTaskParams(ctx context.Context, req *types.MsgUpdateTa
 	if err != nil {
 		return nil, err
 	}
-	if current.Session.MaxSessionKeyBlocks == 0 {
-		if req.Params.Session.MaxSessionKeyBlocks != 0 {
-			return nil, errorsmod.Wrap(types.ErrSessionKeyInvalid, "registration is not activated")
-		}
-		if err := types.ValidateHistoricalTaskParams(req.Params); err != nil {
-			return nil, err
-		}
-	} else if err := req.Params.Validate(); err != nil {
+	if err := req.Params.Validate(); err != nil {
 		return nil, err
 	}
+
 	meta, err := m.k.GetTaskParamsMeta(ctx)
 	if err != nil {
 		return nil, err
@@ -156,6 +150,9 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
 	}
+	if err := m.k.validateInitialSessionFunding(ctx, ownerBytes, req); err != nil {
+		return nil, err
+	}
 	nonceState, err := m.k.ReadSessionNonce(ctx, owner)
 	if err != nil {
 		if !errors.Is(err, collections.ErrNotFound) {
@@ -193,12 +190,18 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 		LastActiveHeight:   height,
 		Status:             types.SessionStatus_SESSION_STATUS_ACTIVE,
 		SessionKeySpendCap: shared.NewAmount(0), SessionKeySpent: shared.NewAmount(0),
+		Balance: shared.NewAmount(0), FrozenTotal: shared.NewAmount(0),
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		PendingWithdrawAmount: shared.NewAmount(0), BoundBuilder: req.InitialBuilder, BoundChangeHeight: height,
 	}
 	if req.SessionKey != nil {
 		if err := m.k.validateSessionKeyGrant(ctx, req.SessionKey, ownerBytes, height); err != nil {
 			return nil, err
 		}
 		setSessionKey(&stream, req.SessionKey, height)
+	}
+	if err := m.k.depositSessionFunds(ctx, ownerBytes, &stream, req.InitialDeposit); err != nil {
+		return nil, err
 	}
 	// Pinned before the first lifecycle index row is written: that row's key is
 	// computed from this session's own TTLs.
@@ -217,6 +220,12 @@ func (m *msgServer) createSession(ctx context.Context, req *types.MsgCreateSessi
 		return nil, err
 	}
 	if err := emitTypedEvent(ctx, &types.EventSessionCreated{SessionId: sessionID, Owner: owner, Nonce: nonce}); err != nil {
+		return nil, err
+	}
+	if err := emitTypedEvent(ctx, &types.EventSessionDeposited{SessionId: sessionID, Owner: owner, Amount: req.InitialDeposit, Balance: stream.Balance}); err != nil {
+		return nil, err
+	}
+	if err := emitTypedEvent(ctx, &types.EventSessionBuilderBound{SessionId: sessionID, NewBuilder: stream.BoundBuilder, Trigger: types.SessionBuilderBoundTriggerV1_SESSION_BUILDER_BOUND_TRIGGER_V1_CREATE, BoundChangeHeight: height}); err != nil {
 		return nil, err
 	}
 	if req.SessionKey != nil {
@@ -243,77 +252,4 @@ func (m *msgServer) CancelOrder(ctx context.Context, req *types.MsgCancelOrder) 
 	}
 	commit()
 	return response, nil
-}
-
-func (m *msgServer) cancelOrder(ctx context.Context, req *types.MsgCancelOrder) (*types.MsgCancelOrderResponse, error) {
-	sessionKey, err := sessionStoreKey(req.SessionId)
-	if err != nil {
-		return nil, err
-	}
-	_, owner, err := m.k.canonicalAddress("signer_address", req.SignerAddress)
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
-	}
-	stream, err := m.k.ReadStream(ctx, sessionKey)
-	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "session not found")
-		}
-		return nil, err
-	}
-	if stream.OwnerUserAddress != owner {
-		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, "session owner mismatch")
-	}
-	if stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
-		return nil, errorsmod.Wrap(types.ErrInvalidSessionID, "closed session cannot cancel an order")
-	}
-	params, err := m.k.ParamsForSession(ctx, sessionKey)
-	if err != nil {
-		return nil, err
-	}
-	if stream.NextExpectedSequence >= uint64(params.Session.MaxOrderSequencesPerActiveSession) || req.OrderSequence != stream.NextExpectedSequence {
-		return nil, errorsmod.Wrap(types.ErrInvalidOrderSequence, "order_sequence is not the next unused sequence")
-	}
-	key := types.NewOrderSequenceStateKey(sessionKey, req.OrderSequence)
-	if existing, err := m.k.OrderSequence.Get(ctx, key); err == nil {
-		return nil, errorsmod.Wrapf(types.ErrInvalidOrderSequence, "order sequence already %s", existing.Status)
-	} else if !errors.Is(err, collections.ErrNotFound) {
-		return nil, err
-	}
-	gasMeter := sdk.UnwrapSDKContext(ctx).GasMeter()
-	if gasMeter.GasRemaining() < params.Session.CancelOrderMinGas {
-		return nil, errorsmod.Wrapf(types.ErrInvalidOrderSequence,
-			"cancel order requires at least %d remaining gas", params.Session.CancelOrderMinGas)
-	}
-	gasMeter.ConsumeGas(params.Session.CancelOrderMinGas, "cancel order guard")
-	height, err := currentBlockHeight(ctx)
-	if err != nil {
-		return nil, err
-	}
-	previous := stream
-	if err := m.k.OrderSequence.Set(ctx, key, types.OrderSequenceState{
-		SessionId:       append([]byte(nil), req.SessionId...),
-		OrderSequence:   req.OrderSequence,
-		Status:          types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCELLED,
-		CancelledHeight: height,
-	}); err != nil {
-		return nil, err
-	}
-	stream.NextExpectedSequence++
-	stream.LastActiveHeight = height
-	stream.Status = types.SessionStatus_SESSION_STATUS_ACTIVE
-	if err := m.k.replaceStreamState(ctx, previous, stream); err != nil {
-		return nil, err
-	}
-	if err := emitTypedEvent(ctx, &types.EventOrderCancelled{
-		SessionId:     req.SessionId,
-		OrderSequence: req.OrderSequence,
-	}); err != nil {
-		return nil, err
-	}
-	return &types.MsgCancelOrderResponse{
-		CancelledSequence:    req.OrderSequence,
-		NextExpectedSequence: stream.NextExpectedSequence,
-		Status:               shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED,
-	}, nil
 }

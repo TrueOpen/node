@@ -19,7 +19,6 @@ const (
 	DefaultMaxSupportExpiryItemsPerBlock     = uint32(32)
 	DefaultMaxUnbondingMaturityItemsPerBlock = uint32(1024)
 	DefaultBuilderSetCap                     = uint32(15)
-	DefaultBuildersPerTask                   = uint32(3)
 	DefaultBeaconRetentionBlocks             = uint64(60_480)
 	DefaultBeaconCheckpointIntervalBlocks    = uint64(1024)
 	DefaultMaxBeaconPruneItemsPerBlock       = uint32(256)
@@ -110,9 +109,7 @@ func DefaultHubParams() HubParamsV2 {
 		},
 		Builder: BuilderParamsV1{
 			BuilderSetCap:                         DefaultBuilderSetCap,
-			BuildersPerTask:                       DefaultBuildersPerTask,
 			BuilderSetUpdateLeadBlocks:            100,
-			AssignmentBuilderProposalWindowBlocks: 100,
 			OpenVerifyBuilderProposalWindowBlocks: 100,
 			SettlementBuilderGraceBlocks:          2,
 			BuilderSetRetentionEpochs:             30,
@@ -253,8 +250,8 @@ func (p HubParamsV2) Validate() error {
 		p.Service.MinStakeGracePeriodBlocks == 0 {
 		return fmt.Errorf("service parameters are invalid")
 	}
-	if p.Builder.BuilderSetCap < p.Builder.BuildersPerTask || p.Builder.BuildersPerTask != 3 ||
-		p.Builder.BuilderSetUpdateLeadBlocks == 0 || p.Builder.AssignmentBuilderProposalWindowBlocks == 0 ||
+	if p.Builder.BuilderSetCap == 0 ||
+		p.Builder.BuilderSetUpdateLeadBlocks == 0 ||
 		p.Builder.OpenVerifyBuilderProposalWindowBlocks == 0 || p.Builder.SettlementBuilderGraceBlocks == 0 ||
 		p.Builder.BuilderSetRetentionEpochs == 0 || p.Builder.BuilderSetHeaderRetentionEpochs == 0 ||
 		p.Builder.MaxBuilderSetPruneItemsPerBlock == 0 || p.Builder.BuilderFaultRetentionBlocks == 0 ||
@@ -625,8 +622,8 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsScalar(shared.Uint64BE(p.Service.MinStakeGracePeriodBlocks)),
 		),
 		hubParamsMessage(
-			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetCap)), hubParamsScalar(shared.Uint32BE(p.Builder.BuildersPerTask)),
-			hubParamsScalar(shared.Uint64BE(p.Builder.BuilderSetUpdateLeadBlocks)), hubParamsScalar(shared.Uint64BE(p.Builder.AssignmentBuilderProposalWindowBlocks)),
+			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetCap)),
+			hubParamsScalar(shared.Uint64BE(p.Builder.BuilderSetUpdateLeadBlocks)),
 			hubParamsScalar(shared.Uint64BE(p.Builder.OpenVerifyBuilderProposalWindowBlocks)), hubParamsScalar(shared.Uint64BE(p.Builder.SettlementBuilderGraceBlocks)),
 			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetRetentionEpochs)), hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetHeaderRetentionEpochs)),
 			hubParamsScalar(shared.Uint32BE(p.Builder.MaxBuilderSetPruneItemsPerBlock)), hubParamsScalar(shared.Uint64BE(p.Builder.BuilderFaultRetentionBlocks)),

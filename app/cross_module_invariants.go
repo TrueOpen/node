@@ -21,6 +21,12 @@ import (
 // owned by different modules. Module Genesis validators cannot prove these
 // relationships independently.
 func (app *App) EnsureCrossModuleReferences(ctx context.Context) error {
+	if err := app.ensureValueEvidenceFaultReferences(ctx); err != nil {
+		return err
+	}
+	if err := app.ensureRoundSlashReferences(ctx); err != nil {
+		return err
+	}
 	if err := app.ensureTaskLiabilityReferences(ctx); err != nil {
 		return err
 	}
@@ -66,7 +72,7 @@ func (app *App) EnsureGenesisValidatorVrfKeyCoverage(ctx context.Context) error 
 			return true
 		}
 		operator := sdk.AccAddress(operatorBytes).String()
-		state, err := app.HubKeeper.GetVrfKey(ctx, operator)
+		state, err := app.HubKeeper.GetVrfKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_VALIDATOR, operator)
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
 				coverageErr = fmt.Errorf("genesis validator %s has no active VRF key in app_state.hub.vrf_keys", operator)
@@ -126,7 +132,7 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 		fault, err := app.HubKeeper.ReadRoleFaultValue(ctx, hubtypes.NewRoleFaultKey(receipt.FaultId))
 		if err != nil || !bytes.Equal(fault.FaultId, receipt.FaultId) || !bytes.Equal(fault.TaskId, receipt.TaskId) ||
 			fault.OperatorAddress != receipt.WorkerOperatorAddress || fault.Duty != shared.Duty_DUTY_WORKER ||
-			fault.FaultClass != hubtypes.FaultKind_FAULT_KIND_EQUIVOCATION ||
+			fault.FaultClass != shared.FaultKind_FAULT_KIND_EQUIVOCATION ||
 			fault.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE {
 			evidenceReceipts.Close()
 			return fmt.Errorf("Worker evidence receipt has no matching Hub objective RoleFault")
@@ -469,7 +475,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 		}
 		seenBuilders := make(map[string]struct{}, len(selection.SelectedTaskBuilders))
 		for _, builder := range selection.SelectedTaskBuilders {
-			binding, err := app.HubKeeper.GetBuilderObjectiveEvidenceCurrentBinding(ctx, builder)
+			binding, err := app.HubKeeper.GetDispatchServiceProofKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder)
 			if err != nil || binding.ParticipantType != shared.ParticipantTypeBuilder ||
 				binding.OperatorAddress != builder || binding.AuthorizationNonce == 0 {
 				selections.Close()
@@ -480,10 +486,19 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 				return fmt.Errorf("Task %s repeats objective-evidence Builder %s", taskHex, builder)
 			}
 			seenBuilders[binding.OperatorAddress] = struct{}{}
+			frozen, err := app.HubKeeper.ReadBusObjectiveEvidenceResponsibility(ctx, builder, core.SessionId, core.TaskId)
+			if err != nil {
+				selections.Close()
+				return fmt.Errorf("Task %s Builder %s has no frozen evidence responsibility: %w", taskHex, builder, err)
+			}
+			if !hubtypes.ServiceKeyNonceMatches(binding.AuthorizationNonce, binding.PreviousAuthorizationNonce, frozen.ServiceAuthorizationNonce) {
+				selections.Close()
+				return fmt.Errorf("Task %s Builder %s BUS objective-evidence responsibility has no exact Task-owned authority", taskHex, builder)
+			}
 			locator := shared.BusObjectiveEvidenceResponsibilityV1{
 				SchemaVersion: 1, BuilderOperator: builder,
 				SessionId: append([]byte(nil), core.SessionId...), TaskId: append([]byte(nil), core.TaskId...),
-				ServiceAuthorizationNonce: binding.AuthorizationNonce,
+				ServiceAuthorizationNonce: frozen.ServiceAuthorizationNonce,
 			}
 			responsibilityID, err := app.HubKeeper.BusObjectiveEvidenceResponsibilityID(locator)
 			if err != nil {
@@ -498,7 +513,7 @@ func (app *App) ensureBusObjectiveEvidenceResponsibilities(ctx context.Context) 
 			expected[id] = expectedBusObjectiveEvidenceResponsibility{
 				operatorAddress: builder, responsibilityID: responsibilityID,
 				sessionID: append([]byte(nil), core.SessionId...), taskID: append([]byte(nil), core.TaskId...),
-				nonce: binding.AuthorizationNonce, createdHeight: selection.CreatedHeight,
+				nonce: frozen.ServiceAuthorizationNonce, createdHeight: selection.CreatedHeight,
 			}
 		}
 	}

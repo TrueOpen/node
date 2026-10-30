@@ -279,7 +279,7 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 		VerifyRound: receipt.VerifyRound, SelectedVerifierIndex: selectedIndex,
 		VerifierOperatorAddress: operator, InferReceiptHash: infer.InferReceiptHash,
 		ProfileExecutionSnapshotHash: taskAssignment.ProfileExecutionSnapshotHash,
-		GenerationParamsDigest: receipt.GenerationParamsDigest, VerifierValueRoot: receipt.VerifierValueRoot,
+		GenerationParamsDigest:       receipt.GenerationParamsDigest, VerifierValueRoot: receipt.VerifierValueRoot,
 		MetricRoot:      receipt.MetricRoot,
 		MetricLeafCount: uint32(metricLeafCount), MetricSummaryHash: metricSummaryHash[:],
 		AggregateProofHash:                receipt.AggregateProofHash,
@@ -306,7 +306,8 @@ func (k Keeper) planVerifyResultWithAuthority(ctx context.Context, receipt types
 	state := types.ResultReceiptState{
 		CommitKey: commitKey[:], TaskId: append([]byte(nil), receipt.TaskId...), VerifyRound: receipt.VerifyRound,
 		VerifierOperatorAddress: operator, SelectedVerifierIndex: selectedIndex,
-		MetricRoot:    append([]byte(nil), receipt.MetricRoot...),
+		MetricRoot:      append([]byte(nil), receipt.MetricRoot...),
+		MetricLeafCount: receipt.MetricLeafCount, VerifierEvidenceKeyCommitment: bytes.Clone(receipt.VerifierEvidenceKeyCommitment), VerifierValueRoot: bytes.Clone(receipt.VerifierValueRoot),
 		MetricSummary: receipt.MetricSummary, MetricSummaryHash: metricSummaryHash[:],
 		AggregateProofHash:                append([]byte(nil), receipt.AggregateProofHash...),
 		VerifierEvidenceBundleHash:        append([]byte(nil), receipt.VerifierEvidenceBundleHash...),
@@ -333,7 +334,7 @@ func (k Keeper) requireVerificationSubmitter(
 	if err != nil {
 		return fmt.Errorf("Task Builder selection unavailable")
 	}
-	if _, err := k.authorizeOpenTaskBuilder(ctx, selection, submitter); err != nil {
+	if _, err := k.authorizeTaskBuilder(ctx, selection, submitter); err != nil {
 		return err
 	}
 	return nil
@@ -342,6 +343,14 @@ func (k Keeper) requireVerificationSubmitter(
 func (k Keeper) applyVerifyResult(ctx context.Context, plan verifyResultPlan) error {
 	if plan.isReplay {
 		return nil
+	}
+	commit, err := k.ReadCommit(ctx, plan.key)
+	if err != nil {
+		return err
+	}
+	commit.XVerifierValueRoot = &types.CommitState_VerifierValueRoot{VerifierValueRoot: bytes.Clone(plan.state.VerifierValueRoot)}
+	if err = k.WriteCommit(ctx, plan.key, commit); err != nil {
+		return err
 	}
 	if err := k.WriteResultReceipt(ctx, plan.key, plan.state); err != nil {
 		return err
@@ -523,6 +532,7 @@ func resultReplayMatches(state types.ResultReceiptState, receipt types.ResultRec
 		proto.Equal(&state.MetricSummary, &receipt.MetricSummary) && bytes.Equal(state.MetricSummaryHash, summaryHash) &&
 		bytes.Equal(state.AggregateProofHash, receipt.AggregateProofHash) &&
 		bytes.Equal(state.VerifierEvidenceBundleHash, receipt.VerifierEvidenceBundleHash) &&
+		state.MetricLeafCount == receipt.MetricLeafCount && bytes.Equal(state.VerifierValueRoot, receipt.VerifierValueRoot) && bytes.Equal(state.VerifierEvidenceKeyCommitment, receipt.VerifierEvidenceKeyCommitment) &&
 		state.VerifierEvidenceManifestSizeBytes == receipt.VerifierEvidenceManifestSizeBytes && bytes.Equal(state.Salt, receipt.Salt) &&
 		bytes.Equal(state.ResultReceiptSigningDigest, digest) && bytes.Equal(state.SignatureDigest, signatureDigest)
 }

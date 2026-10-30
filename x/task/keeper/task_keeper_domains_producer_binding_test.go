@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TrueOpen/node/internal/testutil/domainfixture"
@@ -88,23 +89,6 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 		mark(v.Name)
 	})
 
-	t.Run("winnerDrawDigest", func(t *testing.T) {
-		v := vector("winner_draw_v1")
-		domainfixture.RequireProducer(t, v, "winnerDrawDigest")
-		got, err := winnerDrawDigest(
-			v.String(t, 0, "chain_id"), v.Bytes(t, 1, "task_id"),
-			v.Bytes(t, 2, "assignment_candidate_set_hash"), v.Uint(t, 3, "assignment_randomness_height"),
-			v.Bytes(t, 4, "beacon_randomness"), v.Uint(t, 5, "accepted_draw_counter"),
-			types.TaskCandidateFactState{
-				Slot: uint32(v.Uint(t, 6, "winner_slot")), SlotVersion: v.Uint(t, 7, "winner_slot_version"),
-				OperatorAddress: v.Address(t, 8, "winner_worker"),
-			},
-		)
-		require.NoError(t, err)
-		domainfixture.RequireDigest(t, v, got[:])
-		mark(v.Name)
-	})
-
 	t.Run("PaidRolesHash", func(t *testing.T) {
 		v := vector("paid_roles_v1")
 		domainfixture.RequireProducer(t, v, "PaidRolesHash")
@@ -144,8 +128,14 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 			uint32(v.Uint(t, 4, "slot_capacity")), inputs.SegmentBytes,
 			uint32(v.Uint(t, 6, "union_count")), segments,
 		)
-		require.NoError(t, err)
-		domainfixture.RequireDigest(t, v, got[:])
+		if types.TaskCandidateStage(v.Uint(t, 2, "stage")) != types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY {
+			// The generic byte example includes the retired Worker stage; fresh
+			// execution rejects it. Verifier-stage production is tested separately.
+			require.ErrorContains(t, err, "candidate stage is invalid")
+		} else {
+			require.NoError(t, err)
+			domainfixture.RequireDigest(t, v, got[:])
+		}
 		mark(v.Name)
 	})
 
@@ -210,7 +200,7 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 				faultID:              taskKeeperFieldBytes(t, element, 0, "fault_id", where),
 				operatorAddress:      taskKeeperFieldAddress(t, element, 1, "operator_address", where),
 				duty:                 shared.Duty(taskKeeperFieldUint(t, element, 2, "duty", where)),
-				faultClass:           hubtypes.FaultKind(taskKeeperFieldUint(t, element, 3, "fault_class", where)),
+				faultClass:           shared.FaultKind(taskKeeperFieldUint(t, element, 3, "fault_class", where)),
 				classificationSource: shared.FailureClassificationSource(taskKeeperFieldUint(t, element, 4, "classification_source", where)),
 				evidenceDigest:       taskKeeperFieldBytes(t, element, 5, "evidence_digest", where),
 				jailDelta:            uint32(taskKeeperFieldUint(t, element, 6, "jail_delta", where)),
@@ -276,21 +266,6 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 		domainfixture.RequireDigest(t, fold, got)
 		mark(leaf.Name)
 		mark(fold.Name)
-	})
-
-	t.Run("workerProposalDigest", func(t *testing.T) {
-		v := vector("worker_proposal_v1")
-		domainfixture.RequireProducer(t, v, "workerProposalDigest")
-		require.Equal(t, uint64(types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK), v.Uint(t, 3, "stage"))
-		require.Empty(t, v.Bytes(t, 7, "data_ready_attestation_or_empty"))
-		got, err := workerProposalDigest(
-			v.String(t, 0, "chain_id"), v.Bytes(t, 1, "task_id"), v.Bytes(t, 2, "task_hash"),
-			v.Bytes(t, 4, "candidate_pool_snapshot_id"), v.Bytes(t, 5, "candidate_pool_hash"),
-			v.Address(t, 6, "proposer_operator_or_empty"), taskKeeperHandraises(t, v),
-		)
-		require.NoError(t, err)
-		domainfixture.RequireDigest(t, v, got[:])
-		mark(v.Name)
 	})
 
 	t.Run("verifierProposalDigest", func(t *testing.T) {
@@ -531,9 +506,65 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 	classification := vector("classification_evidence_digest_v1")
 	require.Equal(t, "task_evidence_root_or_zero32", classification.Field(t, 7, "task_evidence_root_or_zero32").Name)
 	require.Equal(t, "bytes", classification.Field(t, 9, "superseded_by_challenge_id_or_zero32").Type)
-	terminal := vector("task_terminal_summary_v1")
-	require.Len(t, terminal.Fields, 35,
-		"remove the exception only after the fixture represents the current 45-field producer")
+	t.Run("taskTerminalSummaryHash", func(t *testing.T) {
+		v := vector("task_terminal_summary_v1")
+		f := initInternalFixture(t)
+		f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithChainID(v.String(t, 0, "chain_id")))
+		state := types.TaskTerminalSummaryState{
+			TaskId:                              v.Bytes(t, 1, "task_id"),
+			SessionId:                           v.Bytes(t, 2, "session_id"),
+			OrderSequence:                       v.Uint(t, 3, "order_sequence"),
+			TaskHash:                            v.Bytes(t, 4, "task_hash"),
+			TerminalPhase:                       types.TaskPhase(v.Uint(t, 5, "terminal_phase")),
+			Verdict:                             types.TaskVerdict(v.Uint(t, 6, "verdict")),
+			FailureClass:                        types.TaskFailureClass(v.Uint(t, 7, "failure_class")),
+			SettlementStatus:                    types.SettlementStatus(v.Uint(t, 8, "settlement_status")),
+			FinalityStatus:                      shared.TaskFinalityStatusV1(v.Uint(t, 9, "finality_status")),
+			EffectiveVerifyRound:                uint32(v.Uint(t, 10, "effective_verify_round")),
+			ModelId:                             v.Bytes(t, 11, "model_id"),
+			ProfileVersion:                      uint32(v.Uint(t, 12, "profile_version")),
+			TaskType:                            shared.TaskType(v.Uint(t, 13, "task_type")),
+			CandidatePoolSnapshotId:             v.Bytes(t, 14, "candidate_pool_snapshot_id"),
+			CandidatePoolHash:                   v.Bytes(t, 15, "candidate_pool_hash"),
+			DispatchRecordHash:                  v.Bytes(t, 16, "dispatch_record_hash"),
+			CandidatePoolRefReleased:            v.BoolValue(t, 17, "candidate_pool_ref_released"),
+			Round1SelectedVerifiersHashOrZero32: v.Bytes(t, 19, "round1_selected_verifiers_hash_or_zero32"),
+			Round2SelectedVerifiersHashOrZero32: v.Bytes(t, 20, "round2_selected_verifiers_hash_or_zero32"),
+			BuilderSetVersion:                   v.Uint(t, 21, "builder_set_version"),
+			BuilderSetId:                        v.String(t, 22, "builder_set_id"),
+			BuilderSetHash:                      v.Bytes(t, 23, "builder_set_hash"),
+			SelectedTaskBuildersHash:            v.Bytes(t, 24, "selected_task_builders_hash"),
+			ProfileExecutionSnapshotHash:        v.Bytes(t, 25, "profile_execution_snapshot_hash"),
+			GenerationParamsDigest:              v.Bytes(t, 26, "generation_params_digest"),
+			InferReceiptRefOrZero32:             v.Bytes(t, 27, "infer_receipt_ref_or_zero32"),
+			GeneratedTokenCount:                 v.Uint(t, 28, "generated_token_count"),
+			SettlementId:                        v.Bytes(t, 29, "settlement_id"),
+			SettlementFactsCutoffHeight:         v.Uint(t, 30, "settlement_facts_cutoff_height"),
+			SettlementHeight:                    v.Uint(t, 31, "settlement_height"),
+			TaskFinalityHeight:                  v.Uint(t, 32, "task_finality_height"),
+			SettlementFactsHash:                 v.Bytes(t, 33, "settlement_facts_hash"),
+			SettlementPlanHash:                  v.Bytes(t, 34, "settlement_plan_hash"),
+			SettlementBillHashOrZero32:          v.Bytes(t, 35, "settlement_bill_hash_or_zero32"),
+			TaskRoundSummaryHash:                v.Bytes(t, 36, "task_round_summary_hash"),
+			Round1FactsHashOrZero32:             v.Bytes(t, 37, "round1_facts_hash_or_zero32"),
+			Round2FactsHashOrZero32:             v.Bytes(t, 38, "round2_facts_hash_or_zero32"),
+			RoundEffectRoot:                     v.Bytes(t, 40, "round_effect_root"),
+			Round2FundingResolutionHashOrZero32: v.Bytes(t, 41, "round2_funding_resolution_hash_or_zero32"),
+			FaultSummaryHash:                    v.Bytes(t, 42, "fault_summary_hash"),
+			CreatedHeight:                       v.Uint(t, 43, "created_height"),
+			CompactedHeight:                     v.Uint(t, 44, "compacted_height"),
+		}
+		winner := v.Field(t, 18, "winner_worker")
+		if winner.Present != nil && *winner.Present {
+			require.Len(t, winner.Fields, 1)
+			state.XWinnerWorker = &types.TaskTerminalSummaryState_WinnerWorker{WinnerWorker: winner.Fields[0].Bech32}
+		}
+		state.XRound2Outcome = &types.TaskTerminalSummaryState_Round2Outcome{Round2Outcome: shared.RoundOutcomeV1(v.Uint(t, 39, "round2_outcome_or_unspecified"))}
+		got, err := f.keeper.taskTerminalSummaryHash(f.ctx, state)
+		require.NoError(t, err)
+		domainfixture.RequireDigest(t, v, got)
+		mark(v.Name)
+	})
 
 	cluster := vector("consensus_cluster_v1")
 	domainfixture.RequireProducer(t, cluster, "ConsensusClusterHash")
@@ -543,7 +574,6 @@ func TestTaskKeeperDomainFixtureBindsProducers(t *testing.T) {
 	exceptions := map[string]string{
 		classification.Name: "fixture fields 7/9 describe the retired task-evidence-root/Hash32 challenge-id shape; the current producer frames settlement_facts_hash and Uint32(superseded_by)",
 		cluster.Name:        "fixture cluster members have seven fields; the current producer appends generated_token_count as field eight",
-		terminal.Name:       "fixture is the retired 35-field summary; the Phase 0 producer hashes 45 fields and requires commitments the vector does not publish",
 	}
 	domainfixture.RequireBoundSet(t, vectors, bound, exceptions)
 }

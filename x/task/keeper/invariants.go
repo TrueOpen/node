@@ -14,12 +14,7 @@ import (
 )
 
 const (
-	// InvariantEscrowReserved is the first of the two funding equations that
-	// the protocol declares the *only* authoritative
-	// money statements of this module:
-	//
-	//	bank.balance(trueopen_escrow) == sum(TaskBudgetState.reserved_amount
-	//	                                  where budget_status = RESERVED)
+	// InvariantEscrowReserved checks escrow custody against funded Session balances.
 	InvariantEscrowReserved = "escrow_reserved"
 
 	// InvariantSessionOpenPending is the second one:
@@ -48,7 +43,10 @@ type InvariantCheck struct {
 
 func (k Keeper) InvariantChecks() []InvariantCheck {
 	return []InvariantCheck{
-		{InvariantEscrowReserved, "task escrow balance equals the sum of RESERVED task budgets", k.EnsureEscrowReservedInvariant},
+		{"parameter_versions", "fixed object versions, history and derived counts/time indexes agree", k.EnsureParamsVersionInvariant},
+		{"value_evidence", "compact value receipts and window indexes agree with accepted task authority", k.EnsureValueEvidenceInvariant},
+		{"dispatch_indexes", "dispatch primaries, open indexes, replay scopes and retention are bidirectional", k.EnsureDispatchInvariant},
+		{InvariantEscrowReserved, "task escrow balance equals the sum of Session balances", k.EnsureEscrowReservedInvariant},
 		{InvariantSessionOpenPending, "every stream open_pending_count equals its RESERVED task budget count", k.EnsureSessionOpenPendingInvariant},
 		{InvariantDeadlineIndexNonZeroHeight, "no deadline index row sits at height 0", k.EnsureDeadlineIndexNonZeroHeightInvariant},
 	}
@@ -70,7 +68,7 @@ func (k Keeper) EnsureDeadlineIndexNonZeroHeightInvariant(ctx context.Context) e
 		name string
 		set  collections.KeySet[types.DeadlineIndexKey]
 	}{
-		{"assignment_randomness_index", k.AssignmentRandomnessIndex},
+		{"value_evidence_window_close", k.ValueEvidenceWindowCloseIndex},
 		{"infer_deadline_index", k.InferDeadlineIndex},
 		{"verify_open_deadline_index", k.VerifyOpenDeadlineIndex},
 		{"commit_deadline_index", k.CommitDeadlineIndex},
@@ -122,9 +120,14 @@ func (k Keeper) EnsureCurrentStoreSchema(ctx context.Context) error {
 // []byte cannot be a Go map key, and the hex form is also what the invariant
 // messages below print. It is an in-memory aggregation key only — nothing here
 // reaches the store with it.
-func (k Keeper) reservedTaskBudgetTotals(ctx context.Context) (uint64, map[string]uint32, error) {
+type reservedSessionTotals struct {
+	count  uint32
+	amount uint64
+}
+
+func (k Keeper) reservedTaskBudgetTotals(ctx context.Context) (uint64, map[string]reservedSessionTotals, error) {
 	total := uint64(0)
-	perSession := map[string]uint32{}
+	perSession := map[string]reservedSessionTotals{}
 
 	iter, err := k.TaskBudget.Iterate(ctx, nil)
 	if err != nil {
@@ -162,19 +165,46 @@ func (k Keeper) reservedTaskBudgetTotals(ctx context.Context) (uint64, map[strin
 			return 0, nil, err
 		}
 		sessionHex := hex32(sessionKey)
-		if perSession[sessionHex] == ^uint32(0) {
+		if perSession[sessionHex].count == ^uint32(0) {
 			return 0, nil, errorsmod.Wrap(types.ErrInvariantBroken, "session RESERVED budget count overflow")
 		}
-		perSession[sessionHex]++
+		entry := perSession[sessionHex]
+		entry.count++
+		entry.amount, overflow = checkedAddUint64(entry.amount, reserved)
+		if overflow {
+			return 0, nil, errorsmod.Wrap(types.ErrInvariantBroken, "Session reserved amount overflows")
+		}
+		perSession[sessionHex] = entry
 	}
 	return total, perSession, nil
 }
 
 // EnsureEscrowReservedInvariant checks the escrow funding equation above.
 func (k Keeper) EnsureEscrowReservedInvariant(ctx context.Context) error {
-	total, _, err := k.reservedTaskBudgetTotals(ctx)
+	var total uint64
+	iter, err := k.Stream.Iterate(ctx, nil)
 	if err != nil {
 		return err
+	}
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		stored, err := iter.Value()
+		if err != nil {
+			return err
+		}
+		stream, err := k.ProjectStreamStore(stored)
+		if err != nil {
+			return err
+		}
+		balance, err := shared.ParseAmount(stream.Balance)
+		if err != nil {
+			return err
+		}
+		next, overflow := checkedAddUint64(total, balance)
+		if overflow {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "Session balance total overflows")
+		}
+		total = next
 	}
 	denom := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).BusinessDenom
 	if denom == "" {
@@ -217,10 +247,14 @@ func (k Keeper) EnsureSessionOpenPendingInvariant(ctx context.Context) error {
 		}
 		sessionHex := hex32(sessionKey)
 		reservedRows := perSession[sessionHex]
-		if stream.OpenPendingCount != reservedRows {
+		frozen, err := shared.ParseAmount(stream.FrozenTotal)
+		if err != nil || frozen != reservedRows.amount {
+			return errorsmod.Wrapf(types.ErrInvariantBroken, "Session %s frozen_total does not match RESERVED budgets", sessionHex)
+		}
+		if stream.OpenPendingCount != reservedRows.count {
 			return errorsmod.Wrapf(types.ErrInvariantBroken,
 				"session %s open_pending_count %d does not match its %d RESERVED task budgets",
-				sessionHex, stream.OpenPendingCount, reservedRows)
+				sessionHex, stream.OpenPendingCount, reservedRows.count)
 		}
 		// IDLE/CLOSED requires open_pending_count == 0.
 		if stream.OpenPendingCount != 0 && stream.Status != types.SessionStatus_SESSION_STATUS_ACTIVE {
@@ -231,7 +265,7 @@ func (k Keeper) EnsureSessionOpenPendingInvariant(ctx context.Context) error {
 	}
 	for sessionHex, reservedRows := range perSession {
 		return errorsmod.Wrapf(types.ErrInvariantBroken,
-			"session %s has %d RESERVED task budgets but no stream row", sessionHex, reservedRows)
+			"session %s has %d RESERVED task budgets but no stream row", sessionHex, reservedRows.count)
 	}
 	return nil
 }

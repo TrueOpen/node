@@ -26,6 +26,10 @@ type internalFixture struct {
 
 type internalStubHubKeeper struct{ types.HubKeeper }
 
+func (internalStubHubKeeper) RestoreDispatchFaultPruneIndex(context.Context, uint64) error {
+	return nil
+}
+
 func (internalStubHubKeeper) AcquireBeaconConsumerRef(context.Context, uint64, hubtypes.BeaconConsumerKind, string) error {
 	return nil
 }
@@ -126,7 +130,7 @@ func stubAppliedRoleFault(fact hubtypes.TaskRoleFaultFact) hubtypes.RoleFaultSta
 	return hubtypes.RoleFaultState{
 		FaultId: faultID[:], TaskId: append([]byte(nil), fact.TaskID...),
 		OperatorAddress: fact.OperatorAddress, Duty: fact.Duty,
-		FaultClass:           hubtypes.FaultKind_FAULT_KIND_TIMEOUT,
+		FaultClass:           shared.FaultKind_FAULT_KIND_TIMEOUT,
 		ClassificationSource: fact.ClassificationSource,
 		EvidenceDigest:       append([]byte(nil), fact.EvidenceDigest...),
 		RecordedHeight:       fact.Height,
@@ -146,11 +150,7 @@ func (internalStubHubKeeper) GetCurrentServiceKey(_ context.Context, participant
 	return hubtypes.CurrentServiceKeySnapshot{ParticipantType: participantType, OperatorAddress: operatorAddress, ServiceAddress: operatorAddress, AuthorizationNonce: 1, Status: hubtypes.ServiceKeyStatusActive}, nil
 }
 
-func (internalStubHubKeeper) GetBuilderObjectiveEvidenceCurrentBinding(_ context.Context, operatorAddress string) (hubtypes.CurrentServiceKeySnapshot, error) {
-	return hubtypes.CurrentServiceKeySnapshot{ParticipantType: shared.ParticipantTypeBuilder, OperatorAddress: operatorAddress, ServiceAddress: operatorAddress, AuthorizationNonce: 1, Status: hubtypes.ServiceKeyStatusActive}, nil
-}
-
-func (internalStubHubKeeper) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64) (hubtypes.CurrentServiceKeySnapshot, error) {
+func (internalStubHubKeeper) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64, sessionID, taskID []byte) (hubtypes.CurrentServiceKeySnapshot, error) {
 	return hubtypes.CurrentServiceKeySnapshot{ParticipantType: shared.ParticipantTypeBuilder, OperatorAddress: operatorAddress, AuthorizationNonce: authorizationNonce, Status: hubtypes.ServiceKeyStatusActive}, nil
 }
 
@@ -216,7 +216,6 @@ func (internalStubHubKeeper) GetHubParams(sdk.Context) hubtypes.HubParamsSnapsho
 		// stub that drops it turns each refund into "business denom is unavailable".
 		BusinessDenom:                     params.Phase0.BusinessDenom,
 		CandidateSlotHardCapacity:         params.CandidatePool.CandidateSlotHardCapacity,
-		BuildersPerTask:                   params.Builder.BuildersPerTask,
 		FreezeFailureIndexRetentionBlocks: params.Freeze.FreezeFailureIndexRetentionBlocks,
 		MaxQueryPageTokenBytes:            params.QueryEvent.MaxQueryPageTokenBytes,
 		MaxQueryPageLimit:                 params.QueryEvent.MaxQueryPageLimit,
@@ -264,3 +263,14 @@ func initInternalFixtureWithHub(t *testing.T, hub types.HubKeeper) *internalFixt
 // TestTaskBudgetIsSoleLedgerAndFullRefundIsIdempotent). The deleted versions
 // built StreamState/OrderSequenceState with string session_id / task_id and the
 // deleted TaskAssignment alias, which keying by task_id alone removed.
+
+func (internalStubHubKeeper) ReadBusObjectiveEvidenceResponsibility(_ context.Context, operator string, sessionID, taskID []byte) (shared.BusObjectiveEvidenceResponsibilityReceiptV1, error) {
+	return shared.BusObjectiveEvidenceResponsibilityReceiptV1{BuilderOperator: operator, TaskId: taskID, ServiceAuthorizationNonce: 1, Active: true, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
+}
+
+func (internalStubHubKeeper) DeleteOneRoundSlashSummary(context.Context, []byte, []byte) (bool, error) {
+	return false, nil
+}
+func (internalStubHubKeeper) HasTaskRoleFaults(context.Context, []byte) (bool, error) {
+	return false, nil
+}

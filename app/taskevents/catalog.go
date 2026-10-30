@@ -35,12 +35,6 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_REVEAL_PHASE_STARTED)
 	case *tasktypes.EventTaskFailureClassUpdated:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_TASK_FAILURE_CLASS_UPDATED)
-	case *tasktypes.EventWorkerHandraisesAccepted:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_HANDRAISES_ACCEPTED,
-			eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilderOrEmpty())...)
-	case *tasktypes.EventWorkerAssignmentFinalized:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_ASSIGNMENT_FINALIZED,
-			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWinnerWorker())...)
 	case *tasktypes.EventInferReceiptAccepted:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_INFER_RECEIPT_ACCEPTED,
 			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)
@@ -67,8 +61,6 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_TASK_SETTLED)
 	case *tasktypes.EventDeadlineSwept:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DEADLINE_SWEPT)
-	case *tasktypes.EventAssignmentFailed:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ASSIGNMENT_FAILED)
 	case *tasktypes.EventWorkerTimeout:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_TIMEOUT,
 			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)
@@ -95,6 +87,39 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	case *tasktypes.EventWorkerEvidenceAccepted:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_WORKER_EVIDENCE_ACCEPTED,
 			eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorkerOperatorAddress())...)
+
+	case *tasktypes.EventVerifierValueEvidenceAccepted:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_VALUE_EVIDENCE_ACCEPTED, eventTargets(dutyEventRole(event.GetFaultedDuty()), event.GetTargetOperator())...)
+	case *tasktypes.EventDispatchRecorded:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWinnerWorker())...)...)
+	case *tasktypes.EventSessionBuilderBound:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_BUILDER_BOUND, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetNewBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetOldBuilderOrEmpty())...)...)
+	case *tasktypes.EventSessionTakeoverRegistered:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_REGISTERED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBoundBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)...)
+	case *tasktypes.EventSessionTakeoverVoided:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_VOIDED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)...)
+	case *tasktypes.EventDispatchCompensationClaimed:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_CLAIMED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+	case *tasktypes.EventDispatchCompensationPaid:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_PAID, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+	case *tasktypes.EventDispatchCompensationRebutted:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_REBUTTED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+	case *tasktypes.EventDispatchChallengeOpened:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_OPENED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_OPERATOR, event.GetChallenger())...)...)
+	case *tasktypes.EventDispatchChallengeResolved:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_RESOLVED, nil...)
+	case *tasktypes.EventBuilderDispatchFaultRecorded:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BUILDER_DISPATCH_FAULT_RECORDED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetCompensatedWorkerOrEmpty())...)...)
+	case *tasktypes.EventSessionDeposited:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_DEPOSITED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)...)
+	case *tasktypes.EventSessionWithdrawRequested:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_REQUESTED, nil...)
+	case *tasktypes.EventSessionWithdrawEffective:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_EFFECTIVE, nil...)
+	case *tasktypes.EventSessionKeyChangeRequested:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_CHANGE_REQUESTED, nil...)
+	case *tasktypes.EventOrderCancelRequested:
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ORDER_CANCEL_REQUESTED, nil...)
 
 	// ---- Hub-owned payloads (ProtocolEvent envelope) ----
 	case *hubtypes.EventModelProfileRegistered:
@@ -212,6 +237,14 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	case *hubtypes.EventBridgeSignerRotated:
 		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BRIDGE_SIGNER_ROTATED,
 			eventTargets(shared.EventRole_EVENT_ROLE_OPERATOR, event.GetOperator())...)
+	case *hubtypes.EventBuilderCompensationFunded:
+		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BUILDER_COMPENSATION_FUNDED, eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...)
+	case *hubtypes.EventBuilderVrfKeyRegistered:
+		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BUILDER_VRF_KEY_REGISTERED, eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...)
+	case *hubtypes.EventServiceKeyRotationRegistered:
+		pending := event.GetPendingRotation()
+		targets := eventTargets(shared.EventRole_EVENT_ROLE_OPERATOR, pending.OperatorAddress)
+		return protocolEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SERVICE_KEY_ROTATION_REGISTERED, targets...)
 	default:
 		return chainEvent{}, false
 	}
@@ -306,10 +339,6 @@ func setTaskEventPayload(envelope *tasktypes.TaskEvent, payload proto.Message) b
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_RevealPhaseStarted{RevealPhaseStarted: event}
 	case *tasktypes.EventTaskFailureClassUpdated:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_TaskFailureClassUpdated{TaskFailureClassUpdated: event}
-	case *tasktypes.EventWorkerHandraisesAccepted:
-		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_WorkerHandraisesAccepted{WorkerHandraisesAccepted: event}
-	case *tasktypes.EventWorkerAssignmentFinalized:
-		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_WorkerAssignmentFinalized{WorkerAssignmentFinalized: event}
 	case *tasktypes.EventInferReceiptAccepted:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_InferReceiptAccepted{InferReceiptAccepted: event}
 	case *tasktypes.EventVerifierAssignmentFinalized:
@@ -326,8 +355,6 @@ func setTaskEventPayload(envelope *tasktypes.TaskEvent, payload proto.Message) b
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_TaskSettled{TaskSettled: event}
 	case *tasktypes.EventDeadlineSwept:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DeadlineSwept{DeadlineSwept: event}
-	case *tasktypes.EventAssignmentFailed:
-		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_AssignmentFailed{AssignmentFailed: event}
 	case *tasktypes.EventWorkerTimeout:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_WorkerTimeout{WorkerTimeout: event}
 	case *tasktypes.EventVerifyOpenTimeout:
@@ -346,6 +373,38 @@ func setTaskEventPayload(envelope *tasktypes.TaskEvent, payload proto.Message) b
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_TaskGasReimbursementRecorded{TaskGasReimbursementRecorded: event}
 	case *tasktypes.EventWorkerEvidenceAccepted:
 		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_WorkerEvidenceAccepted{WorkerEvidenceAccepted: event}
+	case *tasktypes.EventVerifierValueEvidenceAccepted:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted{VerifierValueEvidenceAccepted: event}
+	case *tasktypes.EventDispatchRecorded:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchRecorded{DispatchRecorded: event}
+	case *tasktypes.EventSessionBuilderBound:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionBuilderBound{SessionBuilderBound: event}
+	case *tasktypes.EventSessionTakeoverRegistered:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionTakeoverRegistered{SessionTakeoverRegistered: event}
+	case *tasktypes.EventSessionTakeoverVoided:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionTakeoverVoided{SessionTakeoverVoided: event}
+	case *tasktypes.EventDispatchCompensationClaimed:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchCompensationClaimed{DispatchCompensationClaimed: event}
+	case *tasktypes.EventDispatchCompensationPaid:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchCompensationPaid{DispatchCompensationPaid: event}
+	case *tasktypes.EventDispatchCompensationRebutted:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchCompensationRebutted{DispatchCompensationRebutted: event}
+	case *tasktypes.EventDispatchChallengeOpened:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchChallengeOpened{DispatchChallengeOpened: event}
+	case *tasktypes.EventDispatchChallengeResolved:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_DispatchChallengeResolved{DispatchChallengeResolved: event}
+	case *tasktypes.EventBuilderDispatchFaultRecorded:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded{BuilderDispatchFaultRecorded: event}
+	case *tasktypes.EventSessionDeposited:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionDeposited{SessionDeposited: event}
+	case *tasktypes.EventSessionWithdrawRequested:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionWithdrawRequested{SessionWithdrawRequested: event}
+	case *tasktypes.EventSessionWithdrawEffective:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionWithdrawEffective{SessionWithdrawEffective: event}
+	case *tasktypes.EventSessionKeyChangeRequested:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_SessionKeyChangeRequested{SessionKeyChangeRequested: event}
+	case *tasktypes.EventOrderCancelRequested:
+		typed.TypedEvent = &tasktypes.TaskProtocolEventPayloadV1_OrderCancelRequested{OrderCancelRequested: event}
 	default:
 		return false
 	}
@@ -442,6 +501,12 @@ func setProtocolEventPayload(envelope *hubtypes.ProtocolEvent, payload proto.Mes
 		typed.TypedEvent = &hubtypes.ProtocolEventPayloadV1_BridgeLimitsActivated{BridgeLimitsActivated: event}
 	case *hubtypes.EventBridgeSignerRotated:
 		typed.TypedEvent = &hubtypes.ProtocolEventPayloadV1_BridgeSignerRotated{BridgeSignerRotated: event}
+	case *hubtypes.EventBuilderCompensationFunded:
+		typed.TypedEvent = &hubtypes.ProtocolEventPayloadV1_BuilderCompensationFunded{BuilderCompensationFunded: event}
+	case *hubtypes.EventBuilderVrfKeyRegistered:
+		typed.TypedEvent = &hubtypes.ProtocolEventPayloadV1_BuilderVrfKeyRegistered{BuilderVrfKeyRegistered: event}
+	case *hubtypes.EventServiceKeyRotationRegistered:
+		typed.TypedEvent = &hubtypes.ProtocolEventPayloadV1_ServiceKeyRotationRegistered{ServiceKeyRotationRegistered: event}
 	default:
 		return false
 	}

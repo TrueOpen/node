@@ -59,6 +59,7 @@ func TestBeaconPaths(t *testing.T) {
 	operator := hubAddress(t, 0x42)
 	registeredPubkey := vrfPubkey(0x9A)
 	require.NoError(t, f2.keeper.StoreVrfKey(f2.ctx, types.VrfKeyState{
+		ParticipantType:       validatorVrfRole,
 		OperatorAddress:       operator,
 		ActiveVrfPubkey:       registeredPubkey,
 		ActiveFromEpoch:       0,

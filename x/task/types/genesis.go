@@ -31,18 +31,13 @@ func DefaultGenesis() *GenesisState {
 // cross-row and cross-module checks that require collections, Hub snapshots, or
 // recomputed indexes.
 func (gs GenesisState) Validate() error {
-	return gs.validate(false)
-}
-
-// ValidateLegacyGenesis is restricted to replay before a configured activation.
-func (gs GenesisState) ValidateLegacyGenesis() error { return gs.validate(true) }
-
-func (gs GenesisState) validate(legacy bool) error {
-	validateParams := gs.Params.Validate
-	if legacy {
-		validateParams = func() error { return ValidateHistoricalTaskParams(gs.Params) }
+	if err := ValidateParamsVersionGenesis(gs); err != nil {
+		return err
 	}
-	if err := validateParams(); err != nil {
+	if err := validateDispatchGenesisRows(gs); err != nil {
+		return err
+	}
+	if err := gs.Params.Validate(); err != nil {
 		return err
 	}
 	if gs.ParamsMeta.ParamsVersion != 0 {
@@ -64,9 +59,6 @@ func (gs GenesisState) validate(legacy bool) error {
 		return err
 	}
 	if err := validateTaskBudgets(gs.TaskBudgets, assignments, cores); err != nil {
-		return err
-	}
-	if err := validateAssignmentCandidateSets(gs.AssignmentCandidateSets, assignments); err != nil {
 		return err
 	}
 	if err := validateInferReceipts(gs.InferReceipts, assignments, gs.TaskBudgets, gs.Params.Evidence.MaxOutputMmrLeaves); err != nil {
@@ -97,6 +89,9 @@ func validateSessionRows(gs GenesisState) error {
 	streams := map[string]struct{}{}
 	streamStates := map[string]StreamState{}
 	for _, s := range gs.Streams {
+		if err := ValidateSessionState(s); err != nil {
+			return err
+		}
 		sid, err := requireHash32("stream session_id", s.SessionId)
 		if err != nil {
 			return err
@@ -126,6 +121,11 @@ func validateSessionRows(gs GenesisState) error {
 			return fmt.Errorf("%w for %s/%d", err, sid, s.OrderSequence)
 		}
 		switch s.Status {
+		case OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING:
+			stream, found := streamStates[sid]
+			if !found || stream.Status == SessionStatus_SESSION_STATUS_CLOSED || stream.NextExpectedSequence != s.OrderSequence || s.CancelEffectiveHeight == 0 || len(s.TaskId) != 0 || s.ConsumedHeight != 0 || s.CancelledHeight != 0 {
+				return fmt.Errorf("pending cancellation does not match the next unused Session sequence")
+			}
 		case OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CONSUMED,
 			OrderSequenceStatus_ORDER_SEQUENCE_STATUS_REFUNDED,
 			OrderSequenceStatus_ORDER_SEQUENCE_STATUS_SETTLED:
@@ -282,9 +282,6 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 		if !ok {
 			return nil, fmt.Errorf("task assignment %s references missing task core", tid)
 		}
-		if err := requireEnumOrZero("task assignment assignment_fail_reason", s.AssignmentFailReason, AssignmentFailureReason_name); err != nil {
-			return nil, fmt.Errorf("%w for %s", err, tid)
-		}
 		minStake, err := shared.ParseAmount(s.MinStakeSnapshot)
 		if err != nil || minStake == 0 {
 			return nil, fmt.Errorf("task assignment %s min_stake_snapshot must be positive", tid)
@@ -295,8 +292,6 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 		}{
 			{"candidate_pool_snapshot_id", s.CandidatePoolSnapshotId},
 			{"candidate_pool_hash", s.CandidatePoolHash},
-			{"assignment_candidate_set_hash", s.AssignmentCandidateSetHash},
-			{"winner_draw_digest", s.WinnerDrawDigest},
 			{"profile_execution_snapshot_hash", s.ProfileExecutionSnapshotHash},
 			{"evidence_schema_hash", s.EvidenceSchemaHash},
 			{"generation_params_digest", s.GenerationParamsDigest},
@@ -305,8 +300,7 @@ func validateTaskAssignments(states []TaskAssignmentState, cores map[string]Task
 				return nil, fmt.Errorf("%w for %s", err, tid)
 			}
 		}
-		if (core.AssignmentStatus == AssignmentStatus_ASSIGNMENT_STATUS_RANDOMNESS_PENDING ||
-			core.AssignmentStatus == AssignmentStatus_ASSIGNMENT_STATUS_WORKER_ASSIGNED) && len(s.GenerationParamsDigest) != Hash32Len {
+		if core.AssignmentStatus == AssignmentStatus_ASSIGNMENT_STATUS_WORKER_RECORDED && len(s.GenerationParamsDigest) != Hash32Len {
 			return nil, fmt.Errorf("task assignment %s generation_params_digest must be 32 bytes while assignment is active", tid)
 		}
 		if s.WorkerInferTimeoutSlashBps > BasisPointsMaximum || s.ResultRevealMissingSlashBps > BasisPointsMaximum {
@@ -417,76 +411,6 @@ func validateTaskBudgets(states []TaskBudgetState, assignments map[string]TaskAs
 	for tid := range assignments {
 		if _, ok := budgets[tid]; !ok {
 			return fmt.Errorf("task assignment %s references missing task budget", tid)
-		}
-	}
-	return nil
-}
-
-// validateAssignmentCandidateSets keeps the header-level commitment equality.
-//
-// TODO(candidate fact migration): AssignmentCandidateSetState.candidates[] and the
-// AssignmentCandidate message are deleted (the frozen facts moved to
-// TaskCandidateFactState keyed by (task_id, stage, slot)). Everything the
-// pre-unblock validator asserted per candidate is therefore gone and must be
-// re-asserted against task_candidate_facts:
-//   - canonical ascending worker order with no duplicate worker;
-//   - 0 < candidate_weight <= MaxAssignmentCandidateWeight and a non-overflowing
-//     total weight (the weighted draw needs totalWeight > 0 or the chain stalls);
-//   - active_bond_snapshot >= min_stake_snapshot > 0,
-//     performance_score_snapshot_ppm <= 1_000_000,
-//     performance_method_version != 0,
-//     0 < candidate_jail_factor_snapshot_ppm <= 1_000_000,
-//     bond_version_snapshot != 0, support_version_snapshot != 0;
-//   - 0 < min_handraise_required <= legal_worker_handraise_count <= 210, and
-//     len(candidates) <= legal_worker_handraise_count.
-//
-// legal_set_hash, order_digest, model_id, profile_version, task_type,
-// reward_bucket, profile_resource_tier and legal_worker_handraise_count also left
-// this message, so the eight-way equality against TaskAssignmentState shrank to
-// the three fields both rows still carry.
-func validateAssignmentCandidateSets(states []AssignmentCandidateSetState, assignments map[string]TaskAssignmentState) error {
-	seen := map[string]struct{}{}
-	for _, s := range states {
-		tid, err := requireHash32("assignment candidate set task_id", s.TaskId)
-		if err != nil {
-			return err
-		}
-		if s.SchemaVersion == 0 {
-			return fmt.Errorf("assignment candidate set %s schema_version must be greater than 0", tid)
-		}
-		for _, field := range []struct {
-			name  string
-			value []byte
-		}{
-			{"task_hash", s.TaskHash},
-			{"candidate_pool_snapshot_id", s.CandidatePoolSnapshotId},
-			{"candidate_pool_hash", s.CandidatePoolHash},
-			{"union_bitmap_hash", s.UnionBitmapHash},
-			{"assignment_candidate_set_hash", s.AssignmentCandidateSetHash},
-		} {
-			if _, err := requireHash32("assignment candidate set "+field.name, field.value); err != nil {
-				return err
-			}
-		}
-		if s.CandidateCount == 0 {
-			return fmt.Errorf("assignment candidate set %s must contain at least one candidate", tid)
-		}
-		assignment, ok := assignments[tid]
-		if !ok {
-			return fmt.Errorf("assignment candidate set %s references missing task assignment", tid)
-		}
-		if !bytes.Equal(s.CandidatePoolSnapshotId, assignment.CandidatePoolSnapshotId) ||
-			!bytes.Equal(s.CandidatePoolHash, assignment.CandidatePoolHash) ||
-			!bytes.Equal(s.AssignmentCandidateSetHash, assignment.AssignmentCandidateSetHash) {
-			return fmt.Errorf("assignment candidate set %s does not match task assignment commitments", tid)
-		}
-		if err := addUnique(seen, tid, "duplicate assignment candidate set for %s", tid); err != nil {
-			return err
-		}
-	}
-	for tid := range assignments {
-		if _, ok := seen[tid]; !ok {
-			return fmt.Errorf("task assignment %s is missing assignment candidate set", tid)
 		}
 	}
 	return nil
@@ -1132,15 +1056,6 @@ func requireEnum[T ~int32](name string, value T, names map[int32]string) error {
 	if int32(value) == 0 {
 		return fmt.Errorf("%s is required", name)
 	}
-	if _, ok := names[int32(value)]; !ok {
-		return fmt.Errorf("invalid %s %d", name, int32(value))
-	}
-	return nil
-}
-
-// requireEnumOrZero allows the zero value for enums whose 0 is a legal state
-// (AssignmentFailureReason 0 = "no failure recorded").
-func requireEnumOrZero[T ~int32](name string, value T, names map[int32]string) error {
 	if _, ok := names[int32(value)]; !ok {
 		return fmt.Errorf("invalid %s %d", name, int32(value))
 	}

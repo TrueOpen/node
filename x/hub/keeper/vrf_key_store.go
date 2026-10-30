@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	shared "github.com/TrueOpen/node/x/shared/types"
 
 	internaltypes "github.com/TrueOpen/node/x/hub/internal/types"
 	"github.com/TrueOpen/node/x/hub/types"
@@ -15,6 +16,7 @@ func (k Keeper) vrfKeyStateToStore(state types.VrfKeyState) (internaltypes.VrfKe
 		return internaltypes.VrfKeyStoreState{}, err
 	}
 	stored := internaltypes.VrfKeyStoreState{
+		ParticipantType:       int32(state.ParticipantType),
 		OperatorAddress:       append([]byte(nil), address...),
 		ActiveVrfPubkey:       append([]byte(nil), state.ActiveVrfPubkey...),
 		ActiveFromEpoch:       state.ActiveFromEpoch,
@@ -51,6 +53,7 @@ func (k Keeper) vrfKeyStorePublicProjection(stored internaltypes.VrfKeyStoreStat
 		return types.VrfKeyState{}, fmt.Errorf("encode stored VRF operator address: %w", err)
 	}
 	state := types.VrfKeyState{
+		ParticipantType:       shared.ParticipantType(stored.ParticipantType),
 		OperatorAddress:       address,
 		ActiveVrfPubkey:       append([]byte(nil), stored.ActiveVrfPubkey...),
 		ActiveFromEpoch:       stored.ActiveFromEpoch,
@@ -70,16 +73,19 @@ func (k Keeper) vrfKeyStorePublicProjection(stored internaltypes.VrfKeyStoreStat
 	return state, nil
 }
 
-func (k Keeper) GetVrfKey(ctx context.Context, operator string) (types.VrfKeyState, error) {
+func (k Keeper) GetVrfKey(ctx context.Context, role shared.ParticipantType, operator string) (types.VrfKeyState, error) {
+	if !types.IsVrfParticipantType(role) {
+		return types.VrfKeyState{}, fmt.Errorf("invalid VRF participant type")
+	}
 	raw, canonical, err := k.requireCanonicalAddress("VRF operator address", operator)
 	if err != nil {
 		return types.VrfKeyState{}, err
 	}
-	stored, err := k.VrfKey.Get(ctx, canonical)
+	stored, err := k.VrfKey.Get(ctx, types.NewParticipantKey(role, canonical))
 	if err != nil {
 		return types.VrfKeyState{}, err
 	}
-	if !bytes.Equal(stored.OperatorAddress, raw) {
+	if !bytes.Equal(stored.OperatorAddress, raw) || stored.ParticipantType != int32(role) {
 		return types.VrfKeyState{}, fmt.Errorf("stored VRF key/address mismatch")
 	}
 	return k.vrfKeyStorePublicProjection(stored)
@@ -90,7 +96,7 @@ func (k Keeper) StoreVrfKey(ctx context.Context, state types.VrfKeyState) error 
 	if err != nil {
 		return err
 	}
-	return k.VrfKey.Set(ctx, state.OperatorAddress, stored)
+	return k.VrfKey.Set(ctx, types.NewParticipantKey(state.ParticipantType, state.OperatorAddress), stored)
 }
 
 func (k Keeper) exportVrfKeys(ctx context.Context) ([]types.VrfKeyState, error) {
@@ -113,7 +119,7 @@ func (k Keeper) exportVrfKeys(ctx context.Context) ([]types.VrfKeyState, error) 
 		if err != nil {
 			return nil, err
 		}
-		if key != state.OperatorAddress {
+		if key.K2() != state.OperatorAddress || key.K1() != int32(state.ParticipantType) {
 			return nil, fmt.Errorf("stored VRF key/address mismatch")
 		}
 		states = append(states, state)
@@ -127,6 +133,7 @@ func (k Keeper) vrfKeyHistoryToStore(state types.VrfKeyHistoryState) (internalty
 		return internaltypes.VrfKeyHistoryStoreState{}, err
 	}
 	return internaltypes.VrfKeyHistoryStoreState{
+		ParticipantType:    int32(state.ParticipantType),
 		OperatorAddress:    append([]byte(nil), address...),
 		EffectiveFromEpoch: state.EffectiveFromEpoch,
 		VrfPubkey:          append([]byte(nil), state.VrfPubkey...),
@@ -143,6 +150,7 @@ func (k Keeper) vrfKeyHistoryStorePublicProjection(stored internaltypes.VrfKeyHi
 		return types.VrfKeyHistoryState{}, fmt.Errorf("encode stored VRF history operator address: %w", err)
 	}
 	return types.VrfKeyHistoryState{
+		ParticipantType:    shared.ParticipantType(stored.ParticipantType),
 		OperatorAddress:    address,
 		EffectiveFromEpoch: stored.EffectiveFromEpoch,
 		VrfPubkey:          append([]byte(nil), stored.VrfPubkey...),
@@ -150,7 +158,7 @@ func (k Keeper) vrfKeyHistoryStorePublicProjection(stored internaltypes.VrfKeyHi
 	}, nil
 }
 
-func (k Keeper) GetVrfKeyHistory(ctx context.Context, key types.VrfKeyHistoryKeyPair) (types.VrfKeyHistoryState, error) {
+func (k Keeper) GetVrfKeyHistory(ctx context.Context, key types.VrfKeyHistoryKeyTriple) (types.VrfKeyHistoryState, error) {
 	stored, err := k.VrfKeyHistory.Get(ctx, key)
 	if err != nil {
 		return types.VrfKeyHistoryState{}, err
@@ -159,7 +167,7 @@ func (k Keeper) GetVrfKeyHistory(ctx context.Context, key types.VrfKeyHistoryKey
 	if err != nil {
 		return types.VrfKeyHistoryState{}, err
 	}
-	if state.OperatorAddress != key.K1() || state.EffectiveFromEpoch != key.K2() {
+	if int32(state.ParticipantType) != key.K1() || state.OperatorAddress != key.K2() || state.EffectiveFromEpoch != key.K3() {
 		return types.VrfKeyHistoryState{}, fmt.Errorf("stored VRF history key/address mismatch")
 	}
 	return state, nil
@@ -170,7 +178,7 @@ func (k Keeper) StoreVrfKeyHistory(ctx context.Context, state types.VrfKeyHistor
 	if err != nil {
 		return err
 	}
-	return k.VrfKeyHistory.Set(ctx, types.NewVrfKeyHistoryKey(state.OperatorAddress, state.EffectiveFromEpoch), stored)
+	return k.VrfKeyHistory.Set(ctx, types.NewVrfKeyHistoryKey(state.ParticipantType, state.OperatorAddress, state.EffectiveFromEpoch), stored)
 }
 
 func (k Keeper) exportVrfKeyHistory(ctx context.Context) ([]types.VrfKeyHistoryState, error) {
@@ -193,7 +201,7 @@ func (k Keeper) exportVrfKeyHistory(ctx context.Context) ([]types.VrfKeyHistoryS
 		if err != nil {
 			return nil, err
 		}
-		if state.OperatorAddress != key.K1() || state.EffectiveFromEpoch != key.K2() {
+		if int32(state.ParticipantType) != key.K1() || state.OperatorAddress != key.K2() || state.EffectiveFromEpoch != key.K3() {
 			return nil, fmt.Errorf("stored VRF history key/address mismatch")
 		}
 		states = append(states, state)

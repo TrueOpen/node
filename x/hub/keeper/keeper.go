@@ -26,6 +26,7 @@ type Keeper struct {
 	freezeTaskValidator           types.FreezeSignalTaskValidator
 	validatorSnapshots            types.ValidatorSnapshotProvider
 	roleFaultConsumers            types.RoleFaultConsumerGate
+	workerCandidateWeights        types.WorkerCandidateWeightProvider
 	governanceActionReplayChecker *governanceActionReplayCheckerHolder
 	bridgeUpstream                *bridgeUpstreamHolder
 	vrfPoPVerifier                VrfPoPVerifier
@@ -54,6 +55,12 @@ type Keeper struct {
 	TaskLiabilityByTaskIndex            collections.KeySet[types.TaskLiabilityByTaskKey]
 	ServiceKeyResponsibility            collections.Map[types.ServiceKeyResponsibilityKeyTriple, internaltypes.ServiceKeyResponsibilityStoreState]
 	ServiceKeyResponsibilityByTaskIndex collections.KeySet[types.ServiceKeyResponsibilityByTaskKeyTriple]
+	PendingServiceKeyRotation           collections.Map[types.ParticipantKeyPair, internaltypes.PendingServiceKeyRotationStoreState]
+	ServiceKeyRotationActivationIndex   collections.KeySet[types.ServiceKeyRotationActivationKey]
+	PendingServiceAddressIndex          collections.Map[string, internaltypes.PendingServiceAddressStoreState]
+	BuilderCompensationAccount          collections.Map[string, internaltypes.BuilderCompensationAccountStoreState]
+	DispatchFault                       collections.Map[types.DispatchFaultKeyPair, internaltypes.DispatchFaultStoreState]
+	DispatchFaultPruneIndex             collections.KeySet[types.DispatchFaultPruneKeyTriple]
 	ModelCapability                     collections.Map[types.ModelCapabilityKeyPair, types.ModelCapabilityState]
 	ModelSupport                        collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
 	ModelSupportExpiryIndex             collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
@@ -84,14 +91,15 @@ type Keeper struct {
 	//
 	// Every CandidatePool index (expiry, prune, slot-binding prune) is likewise
 	// derived and rebuilt from the primaries at import.
-	CandidatePoolSnapshot      collections.Map[shared.Hash32Key, types.CandidatePoolSnapshotState]
-	CandidatePoolActiveSegment collections.Map[types.CandidatePoolSegmentKeyPair, types.CandidatePoolActiveSegmentState]
-	CandidatePoolMember        collections.Map[types.CandidatePoolMemberKeyPair, internaltypes.CandidatePoolMemberStoreState]
-	CandidateSlotCurrent       collections.Map[uint32, internaltypes.CandidateSlotCurrentStoreState]
-	CandidateSlotBinding       collections.Map[types.CandidateSlotBindingKeyPair, internaltypes.CandidateSlotBindingStoreState]
-	OperatorCandidateSlot      collections.Map[string, internaltypes.OperatorCandidateSlotStoreState]
-	CandidatePoolBuildCursor   collections.Map[uint64, types.CandidatePoolBuildCursorState]
-	CandidatePoolTaskRef       collections.Map[types.CandidatePoolTaskRefKeyPair, types.CandidatePoolTaskRefState]
+	CandidatePoolSnapshot        collections.Map[shared.Hash32Key, types.CandidatePoolSnapshotState]
+	CandidatePoolActiveSegment   collections.Map[types.CandidatePoolSegmentKeyPair, types.CandidatePoolActiveSegmentState]
+	CandidatePoolProfileAddition collections.Map[collections.Triple[uint64, shared.Hash32Key, uint32], uint64]
+	CandidatePoolMember          collections.Map[types.CandidatePoolMemberKeyPair, internaltypes.CandidatePoolMemberStoreState]
+	CandidateSlotCurrent         collections.Map[uint32, internaltypes.CandidateSlotCurrentStoreState]
+	CandidateSlotBinding         collections.Map[types.CandidateSlotBindingKeyPair, internaltypes.CandidateSlotBindingStoreState]
+	OperatorCandidateSlot        collections.Map[string, internaltypes.OperatorCandidateSlotStoreState]
+	CandidatePoolBuildCursor     collections.Map[uint64, types.CandidatePoolBuildCursorState]
+	CandidatePoolTaskRef         collections.Map[types.CandidatePoolTaskRefKeyPair, types.CandidatePoolTaskRefState]
 
 	CandidatePoolExpiryIndex       collections.KeySet[types.CandidatePoolExpiryIndexKeyPair]
 	CandidatePoolPruneIndex        collections.KeySet[types.CandidatePoolPruneIndexKeyTriple]
@@ -166,10 +174,10 @@ type Keeper struct {
 	// modules; the bridge protocol forbid a second
 	// copy here, so there
 	// is deliberately no delivered-message or nonce table below.
-	VrfKey                collections.Map[string, internaltypes.VrfKeyStoreState]
-	VrfKeyHistory         collections.Map[types.VrfKeyHistoryKeyPair, internaltypes.VrfKeyHistoryStoreState]
-	VrfKeyActivationIndex collections.KeySet[types.VrfKeyActivationKeyPair]
-	VrfKeyPruneIndex      collections.KeySet[types.VrfKeyPruneKeyTriple]
+	VrfKey                collections.Map[types.ParticipantKeyPair, internaltypes.VrfKeyStoreState]
+	VrfKeyHistory         collections.Map[types.VrfKeyHistoryKeyTriple, internaltypes.VrfKeyHistoryStoreState]
+	VrfKeyActivationIndex collections.KeySet[types.VrfKeyActivationKeyTriple]
+	VrfKeyPruneIndex      collections.KeySet[types.VrfKeyPruneKeyQuad]
 
 	ValidatorBridgeSigner collections.Map[string, internaltypes.ValidatorBridgeSignerStoreState]
 	BridgeRoute           collections.Item[types.BridgeRouteState]
@@ -359,6 +367,12 @@ func NewKeeper(
 		TaskLiabilityByTaskIndex:            collections.NewKeySet(sb, types.TaskLiabilityByTaskIndexKey, "task_liability_by_task", liabilityKeyCodec),
 		ServiceKeyResponsibility:            collections.NewMap(sb, types.ServiceKeyResponsibilityKey, "service_key_responsibility", serviceKeyResponsibilityKeyCodec, codec.CollValue[internaltypes.ServiceKeyResponsibilityStoreState](cdc)),
 		ServiceKeyResponsibilityByTaskIndex: collections.NewKeySet(sb, types.ServiceKeyResponsibilityByTaskIndexKey, "service_key_responsibility_by_task", collections.TripleKeyCodec(shared.Hash32KeyCodec, shared.Hash32KeyCodec, serviceKeyResponsibilityKeyCodec)),
+		PendingServiceKeyRotation:           collections.NewMap(sb, types.PendingServiceKeyRotationKey, "pending_service_key_rotation", participantKeyCodec, codec.CollValue[internaltypes.PendingServiceKeyRotationStoreState](cdc)),
+		ServiceKeyRotationActivationIndex:   collections.NewKeySet(sb, types.ServiceKeyRotationActivationIndexKey, "service_key_rotation_activation", collections.TripleKeyCodec(collections.Uint64Key, collections.Int32Key, addressStringKeyCodec)),
+		PendingServiceAddressIndex:          collections.NewMap(sb, types.PendingServiceAddressIndexKey, "pending_service_address", addressStringKeyCodec, codec.CollValue[internaltypes.PendingServiceAddressStoreState](cdc)),
+		BuilderCompensationAccount:          collections.NewMap(sb, types.BuilderCompensationAccountKey, "builder_compensation_account", addressStringKeyCodec, codec.CollValue[internaltypes.BuilderCompensationAccountStoreState](cdc)),
+		DispatchFault:                       collections.NewMap(sb, types.DispatchFaultKey, "dispatch_fault", addressHash32KeyCodec, codec.CollValue[internaltypes.DispatchFaultStoreState](cdc)),
+		DispatchFaultPruneIndex:             collections.NewKeySet(sb, types.DispatchFaultPruneIndexKey, "dispatch_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)),
 		ModelCapability:                     collections.NewMap(sb, types.ModelCapabilityKey, "model_capability", modelSupportKeyCodec, modelCapabilityValueCodec),
 		ModelSupport:                        collections.NewMap(sb, types.ModelSupportKey, "model_support", modelSupportKeyCodec, modelSupportValueCodec),
 		ModelSupportExpiryIndex:             collections.NewKeySet(sb, types.ModelSupportExpiryIndexKey, "model_support_expiry", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
@@ -372,6 +386,7 @@ func NewKeeper(
 		DailySupportExpiryIndex:             collections.NewKeySet(sb, types.DailySupportExpiryIndexKey, "daily_support_expiry", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, collections.Uint64Key)),
 		CandidatePoolSnapshot:               collections.NewMap(sb, types.CandidatePoolSnapshotKey, "candidate_pool_snapshot", shared.Hash32KeyCodec, codec.CollValue[types.CandidatePoolSnapshotState](cdc)),
 		CandidatePoolActiveSegment:          collections.NewMap(sb, types.CandidatePoolActiveSegmentKey, "candidate_pool_active_segment", candidatePoolEpochSlotKeyCodec, codec.CollValue[types.CandidatePoolActiveSegmentState](cdc)),
+		CandidatePoolProfileAddition:        collections.NewMap(sb, types.CandidatePoolProfileAdditionKey, "candidate_pool_profile_addition", collections.TripleKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec, collections.Uint32Key), collections.Uint64Value),
 		CandidatePoolMember:                 collections.NewMap(sb, types.CandidatePoolMemberKey, "candidate_pool_member", candidatePoolEpochSlotKeyCodec, codec.CollValue[internaltypes.CandidatePoolMemberStoreState](cdc)),
 		CandidateSlotCurrent:                collections.NewMap(sb, types.CandidateSlotCurrentKey, "candidate_slot_current", collections.Uint32Key, codec.CollValue[internaltypes.CandidateSlotCurrentStoreState](cdc)),
 		CandidateSlotBinding:                collections.NewMap(sb, types.CandidateSlotBindingKey, "candidate_slot_binding", candidateSlotBindingKeyCodec, codec.CollValue[internaltypes.CandidateSlotBindingStoreState](cdc)),
@@ -442,10 +457,10 @@ func NewKeeper(
 		bridgeUpstream:                &bridgeUpstreamHolder{},
 		governanceActionReplayChecker: &governanceActionReplayCheckerHolder{},
 
-		VrfKey:                collections.NewMap(sb, types.VrfKeyStateKey, "vrf_key", addressStringKeyCodec, codec.CollValue[internaltypes.VrfKeyStoreState](cdc)),
-		VrfKeyHistory:         collections.NewMap(sb, types.VrfKeyHistoryStateKey, "vrf_key_history", collections.PairKeyCodec(addressStringKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.VrfKeyHistoryStoreState](cdc)),
-		VrfKeyActivationIndex: collections.NewKeySet(sb, types.VrfKeyActivationIndexKey, "vrf_key_activation", collections.PairKeyCodec(collections.Uint64Key, addressStringKeyCodec)),
-		VrfKeyPruneIndex:      collections.NewKeySet(sb, types.VrfKeyPruneIndexKey, "vrf_key_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, collections.Uint64Key)),
+		VrfKey:                collections.NewMap(sb, types.VrfKeyStateKey, "vrf_key", participantKeyCodec, codec.CollValue[internaltypes.VrfKeyStoreState](cdc)),
+		VrfKeyHistory:         collections.NewMap(sb, types.VrfKeyHistoryStateKey, "vrf_key_history", collections.TripleKeyCodec(collections.Int32Key, addressStringKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.VrfKeyHistoryStoreState](cdc)),
+		VrfKeyActivationIndex: collections.NewKeySet(sb, types.VrfKeyActivationIndexKey, "vrf_key_activation", collections.TripleKeyCodec(collections.Uint64Key, collections.Int32Key, addressStringKeyCodec)),
+		VrfKeyPruneIndex:      collections.NewKeySet(sb, types.VrfKeyPruneIndexKey, "vrf_key_prune", collections.QuadKeyCodec(collections.Uint64Key, collections.Int32Key, addressStringKeyCodec, collections.Uint64Key)),
 
 		ValidatorBridgeSigner: collections.NewMap(sb, types.ValidatorBridgeSignerKey, "validator_bridge_signer", addressStringKeyCodec, codec.CollValue[internaltypes.ValidatorBridgeSignerStoreState](cdc)),
 		BridgeRoute:           collections.NewItem(sb, types.BridgeRouteStateKey, "bridge_route", codec.CollValue[types.BridgeRouteState](cdc)),
@@ -483,6 +498,12 @@ func (k Keeper) WithFreezeRuntimeDependencies(taskValidator types.FreezeSignalTa
 func (k Keeper) WithRuntimeDependencies(taskValidator types.FreezeSignalTaskValidator, snapshots types.ValidatorSnapshotProvider, roleFaultConsumers types.RoleFaultConsumerGate) Keeper {
 	k = k.WithFreezeRuntimeDependencies(taskValidator, snapshots)
 	k.roleFaultConsumers = roleFaultConsumers
+	return k
+}
+
+// WithWorkerCandidateWeights supplies Task-owned policy without a keeper construction cycle.
+func (k Keeper) WithWorkerCandidateWeights(provider types.WorkerCandidateWeightProvider) Keeper {
+	k.workerCandidateWeights = provider
 	return k
 }
 

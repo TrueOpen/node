@@ -19,9 +19,46 @@ message StreamStoreState {
   int32 status = 6;
   optional bytes session_key = 7;
   uint64 session_key_expiry_height = 8;
-  string session_key_spend_cap_atomic_units = 9;
-  string session_key_spent_atomic_units = 10;
+  uint64 session_key_spend_cap = 9;
+  uint64 session_key_spent = 10;
   uint64 session_key_set_height = 11;
+  uint64 balance = 12;
+  uint64 frozen_total = 13;
+  int32 pending_withdraw_kind = 14;
+  uint64 pending_withdraw_amount = 15;
+  uint64 pending_withdraw_effective_height = 16;
+  bytes bound_builder = 17;
+  uint64 bound_change_height = 18;
+  uint64 last_record_height = 19;
+  optional bytes last_record_winner = 20;
+  uint64 sticky_anchor_sequence = 21;
+  uint64 sticky_anchor_height = 22;
+  uint32 sticky_run_count = 23;
+  PendingSessionKeyChangeStoreV1 pending_session_key_change = 24;
+  PendingTakeoverStoreV1 pending_takeover = 25;
+}
+
+// PendingSessionKeyChangeStoreV1 keeps a pending grant independent of public DTOs.
+message PendingSessionKeyChangeStoreV1 {
+  int32 kind = 1;
+  SessionKeyGrantStoreV1 grant = 2;
+  uint64 effective_height = 3;
+}
+
+// SessionKeyGrantStoreV1 retains the delegated raw20 address and canonical cap.
+message SessionKeyGrantStoreV1 {
+  bytes session_key = 1;
+  uint64 expiry_height = 2;
+  uint64 spend_cap = 3;
+}
+
+// PendingTakeoverStoreV1 stores the candidate operator as raw address bytes.
+message PendingTakeoverStoreV1 {
+  bytes candidate_builder = 1;
+  uint64 order_sequence = 2;
+  bytes order_task_hash = 3;
+  uint64 registered_height = 4;
+  uint64 activation_height = 5;
 }
 
 // SessionTerminalSummaryStoreState stores the owner address as codec bytes.

@@ -179,17 +179,19 @@ func (k Keeper) closeRoundOneSummary(
 	round types.VerificationRoundState,
 	result roundCloseResult,
 ) error {
-	if _, err := k.TaskRoundSummary.Get(ctx, taskKey); err == nil {
-		return errorsmod.Wrap(types.ErrInvariantBroken, "round summary exists before round 1 closes")
-	} else if !errIsNotFound(err) {
+	summary, err := k.TaskRoundSummary.Get(ctx, taskKey)
+	if err != nil && !errIsNotFound(err) {
 		return err
 	}
-	summary := types.TaskRoundSummaryState{
-		TaskId: append([]byte(nil), round.TaskId...), MaxClosedRound: types.VerifyRoundV1,
-		Round1FactsHashOrZero32:  append([]byte(nil), result.RoundFactsHash...),
-		Round2FactsHashOrZero32:  make([]byte, types.Hash32Len),
-		Round2EffectRootOrZero32: make([]byte, types.Hash32Len),
+	if summary.MaxClosedRound != 0 {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "round 1 summary is already closed")
 	}
+	summary.TaskId = append([]byte(nil), round.TaskId...)
+	summary.MaxClosedRound = types.VerifyRoundV1
+	summary.Round1FactsHashOrZero32 = append([]byte(nil), result.RoundFactsHash...)
+	summary.Round2FactsHashOrZero32 = make([]byte, 32)
+	summary.Round2EffectRootOrZero32 = make([]byte, 32)
+
 	if isExplicitRoundVerdict(result.Verdict) {
 		assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || assignment.ChallengeOpenWindowBlocksSnapshot == 0 {
@@ -258,9 +260,12 @@ func (k Keeper) closeRoundTwoSummaryAndEffects(
 			return err
 		}
 	}
-	if err := k.freezeRoundEconomicEffects(ctx, taskKey, round, result, outcome, height); err != nil {
-		return err
+	if summary.XVerifierValueEvidenceCloseHeight == nil || summary.XVerifierValueEvidenceWindowClosedHeight != nil {
+		if err := k.freezeRoundEconomicEffects(ctx, taskKey, round, result, outcome, height); err != nil {
+			return err
+		}
 	}
+
 	return k.updateCoreAfterRoundClose(ctx, taskKey, result.Verdict)
 }
 
@@ -351,9 +356,20 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 	if summary.XRoundsClosedHeight != nil {
 		return nil
 	}
-	if summary.OpenRoundCount != 0 || summary.MaxClosedRound == 0 {
-		return errorsmod.Wrap(types.ErrInvalidTaskStatus, "task still has an open round")
+	if summary.XVerifierValueEvidenceCloseHeight != nil && summary.XVerifierValueEvidenceWindowClosedHeight == nil {
+		return nil
 	}
+	if summary.OpenRoundCount != 0 || summary.MaxClosedRound == 0 {
+		return nil
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return err
+	}
+	if summary.MaxClosedRound == types.VerifyRoundV1 && summary.GetChallengeCloseHeight() > height {
+		return nil
+	}
+
 	var effectiveRound uint32
 	var roundsClosedHeight uint64
 	if summary.MaxClosedRound == types.VerifyRoundV1 {
@@ -388,6 +404,7 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 	if roundsClosedHeight == 0 {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "rounds_closed_height is zero")
 	}
+	roundsClosedHeight = max(roundsClosedHeight, summary.GetVerifierValueEvidenceCloseHeight())
 	summary.EffectiveVerifyRound = effectiveRound
 	summary.XRoundsClosedHeight = &types.TaskRoundSummaryState_RoundsClosedHeight{RoundsClosedHeight: roundsClosedHeight}
 	summary.XSettlementFactsCutoffHeight = &types.TaskRoundSummaryState_SettlementFactsCutoffHeight{SettlementFactsCutoffHeight: roundsClosedHeight}
