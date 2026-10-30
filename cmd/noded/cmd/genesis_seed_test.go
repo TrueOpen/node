@@ -346,7 +346,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	}
 	model := seed.Models[0]
 	require.Equal(t, "HUGGINGFACE", model.Profile.Source.Provider)
-	require.Equal(t, "Qwen/Qwen3-8B", model.Profile.Source.RepoId)
+	require.Equal(t, "Qwen/Qwen3.8-27B-FP8", model.Profile.Source.RepoId)
 	require.Equal(t, uint32(1), model.Profile.ProfileVersion)
 	require.Equal(t, []string{"TEXT_GENERATION", "CHAT"}, model.Profile.TaskTypes)
 	require.Equal(t, "uusdc", model.Profile.MinStake.Denom)
@@ -354,17 +354,17 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Equal(t, "uusdc", model.Profile.RegistrationFee.Denom)
 	require.Equal(t, uint64(1_000_000), model.Profile.RegistrationFee.Amount)
 	require.Equal(t, seed.CortexNodes[0].OperatorAddress, model.ProposerAddress)
-	// The dev model profile is the published canonical projection of the dev
-	// chain, so its hash, challenge window, bootstrap timeouts and pass limits
+	// The dev model profile is the published canonical projection of the testnet
+	// model, so its hash, challenge window, bootstrap timeouts and pass limits
 	// are pinned to it; a seed edit that drifts from it no longer matches the
 	// registry manifest.
-	require.Equal(t, "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023", model.Profile.ManifestHash)
+	require.Equal(t, "0x8c35c84d9d043464d298a48d8a5cb3fb396a651646a52a31393d045214e2cfd6", model.Profile.ManifestHash)
 	require.Equal(t, uint64(100), model.Profile.ChallengeOpenWindow)
 	require.Equal(t, uint32(20), model.Profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(100), model.Profile.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(50), model.Profile.TimeoutBootstrapProfile.VerifyTimeoutBootstrapBlocks)
-	require.Equal(t, uint32(100000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
-	require.Equal(t, uint32(200000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
+	require.Equal(t, uint32(220000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
+	require.Equal(t, uint32(550000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
 	operators := make(map[string]struct{}, len(seed.CortexNodes))
 	serviceAddresses := make(map[string]struct{}, len(seed.CortexNodes))
 	for _, cortex := range seed.CortexNodes {

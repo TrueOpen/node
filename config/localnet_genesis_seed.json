@@ -419,7 +419,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "Qwen/Qwen3-8B",
+          "model_ref": "Qwen/Qwen3.8-27B-FP8",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -432,7 +432,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "Qwen/Qwen3-8B",
+          "model_ref": "Qwen/Qwen3.8-27B-FP8",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -445,7 +445,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "Qwen/Qwen3-8B",
+          "model_ref": "Qwen/Qwen3.8-27B-FP8",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -458,7 +458,7 @@
       "bond": 1000000,
       "supported_models": [
         {
-          "model_ref": "Qwen/Qwen3-8B",
+          "model_ref": "Qwen/Qwen3.8-27B-FP8",
           "first_support_profile_version": 1,
           "active": true
         }
@@ -477,22 +477,22 @@
       },
       "challenge_open_window_blocks": 100,
       "generation_type": "SAMPLED",
-      "manifest_hash": "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023",
-      "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/registered/1-Qwen%3AQwen3-8B/manifest.canonical.json",
+      "manifest_hash": "0x8c35c84d9d043464d298a48d8a5cb3fb396a651646a52a31393d045214e2cfd6",
+      "manifest_uri": "https://raw.githubusercontent.com/TrueOpen/public-model-registry/refs/heads/main/models/testnet/registered/1-Qwen%3AQwen3.8-27B-FP8/manifest.canonical.json",
       "min_stake": {
         "amount": 1000000,
         "denom": "uusdc"
       },
       "source": {
         "provider": "HUGGINGFACE",
-        "repo_id": "Qwen/Qwen3-8B",
+        "repo_id": "Qwen/Qwen3.8-27B-FP8",
         "repo_type": "model",
         "resolver_version": "HF_RESOLVER_V1",
-        "revision": "b968826d9c46dd6066d109eabc6255188de91218",
-        "source_uri": "hf://Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+        "source_uri": "hf://Qwen/Qwen3.8-27B-FP8@017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
       },
       "tool_call_parser": {
-        "name": "hermes",
+        "name": "qwen3_coder",
         "version": 1
       },
       "reasoning_parser": {
@@ -524,7 +524,7 @@
         "infer_timeout_bootstrap_blocks": 100,
         "verify_timeout_bootstrap_blocks": 50
       },
-      "tokenizer_hash": "0x7d23221ed4115f89bc29d8d837e71cea817941d3ba802907db4a4f1e7046f323",
+      "tokenizer_hash": "0x99c90d1dced7bb464b9affb50af2c377fe6e8d9363b5b71a27658db1b7182ace",
       "verification_profile": {
         "canonical_encoding_version": "CANONICAL_OUTPUT_TEXT_V1",
         "evidence_schema": {
@@ -562,20 +562,20 @@
         "verification_profile_id": 1
       },
       "verification_thresholds": {
-        "pass_abs_logprob_diff_p95_max": 100000,
-        "pass_abs_logprob_diff_p99_max": 200000,
+        "pass_abs_logprob_diff_p95_max": 220000,
+        "pass_abs_logprob_diff_p99_max": 550000,
         "pass_max_missing_compared_count": 0,
-        "pass_mean_abs_logprob_diff_max": 50000,
-        "pass_min_finite_count": 16,
-        "pass_rank_delta_nonzero_rate_max": 50000,
-        "pass_topk_jaccard_mean_min": 900000,
-        "pass_union_js_p99_max": 50000,
-        "reject_abs_logprob_diff_p95_min": 500000,
-        "reject_abs_logprob_diff_p99_min": 800000,
-        "reject_mean_abs_logprob_diff_min": 300000,
-        "reject_rank_delta_nonzero_rate_min": 300000,
-        "reject_topk_jaccard_mean_max": 600000,
-        "reject_union_js_p99_min": 200000
+        "pass_mean_abs_logprob_diff_max": 80000,
+        "pass_min_finite_count": 6,
+        "pass_rank_delta_nonzero_rate_max": 47000,
+        "pass_topk_jaccard_mean_min": 865000,
+        "pass_union_js_p99_max": 100000,
+        "reject_abs_logprob_diff_p95_min": 13337000,
+        "reject_abs_logprob_diff_p99_min": 16663000,
+        "reject_mean_abs_logprob_diff_min": 3240000,
+        "reject_rank_delta_nonzero_rate_min": 500000,
+        "reject_topk_jaccard_mean_max": 650000,
+        "reject_union_js_p99_min": 635000
       }
     }
   ],
