@@ -189,11 +189,13 @@ func (d *dispatchInvariantState) collectClaims(ctx context.Context) error {
 			return err
 		}
 		if row.Status == types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL {
-			if excluded, pruned, err := d.keeper.dispatchClaimExcluded(ctx, row.TaskId, row.DispatchTicketHash); err != nil {
+			if _, pruned, err := d.keeper.dispatchClaimExcluded(ctx, row.TaskId, row.DispatchTicketHash); err != nil {
 				return err
-			} else if excluded || pruned {
-				return fmt.Errorf("pending claim conflicts with winner exclusion")
+			} else if pruned {
+				return fmt.Errorf("pending claim lost its retained winner exclusion facts")
 			}
+			// Recording may become admissible after this claim was registered.
+			// The existing maturity transition rechecks exclusion before payment.
 			if err := addDispatchDeadlineExpectation(ctx, d.keeper.DispatchClaimRebuttal, d.claimDeadlines, row.RebuttalDeadlineHeight, row.DispatchTicketHash); err != nil {
 				return err
 			}

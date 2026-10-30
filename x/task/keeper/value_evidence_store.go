@@ -51,7 +51,7 @@ func (k Keeper) firstValueEvidenceReceipts(ctx context.Context, taskID []byte) (
 	}
 	defer iter.Close()
 	var out []types.VerifierValueEvidenceReceiptState
-	seen := make(map[string]bool)
+	seen := make(map[string]int)
 	faults := make(map[string]hubtypes.RoleFaultState)
 	var count uint64
 	for ; iter.Valid(); iter.Next() {
@@ -76,18 +76,21 @@ func (k Keeper) firstValueEvidenceReceipts(ctx context.Context, taskID []byte) (
 		if err != nil {
 			return nil, err
 		}
-		if !bytes.Equal(fault.FaultId, row.FaultId) || !bytes.Equal(fault.TaskId, taskID) || fault.OperatorAddress != public.TargetOperatorAddress || fault.Duty != public.FaultedDuty || fault.RecordedHeight > row.AcceptedHeight {
+		if !bytes.Equal(fault.FaultId, row.FaultId) || !bytes.Equal(fault.TaskId, taskID) || fault.OperatorAddress != public.TargetOperatorAddress || fault.Duty != public.FaultedDuty || fault.RecordedHeight > row.AcceptedHeight || !hubtypes.IsMergedValueEvidenceFault(fault) {
 			return nil, fmt.Errorf("value receipt disagrees with its original fault")
 		}
-		if seen[key] {
+		if index, selected := seen[key]; selected {
+			if !hubtypes.IsValueEvidenceFault(fault) && public.AcceptedHeight < out[index].AcceptedHeight {
+				out[index] = public
+			}
 			continue
 		}
 		// Position order does not identify the first accepted proof, including
 		// when several transactions are accepted in the same block.
-		if !bytes.Equal(fault.EvidenceDigest, row.EvidenceDigest) || fault.RecordedHeight != row.AcceptedHeight {
+		if hubtypes.IsValueEvidenceFault(fault) && (!bytes.Equal(fault.EvidenceDigest, row.EvidenceDigest) || fault.RecordedHeight != row.AcceptedHeight) {
 			continue
 		}
-		seen[key] = true
+		seen[key] = len(out)
 		out = append(out, public)
 	}
 	if len(seen) != len(faults) {

@@ -45,9 +45,6 @@ func (k Keeper) requestSessionWithdrawal(ctx context.Context, stream *types.Stre
 		if value != 0 {
 			return fmt.Errorf("CLOSE cannot carry a fixed withdrawal amount")
 		}
-		if err := k.voidPendingTakeover(ctx, stream, types.SessionTakeoverVoidReasonV1_SESSION_TAKEOVER_VOID_REASON_V1_SESSION_CLOSED); err != nil {
-			return err
-		}
 	default:
 		return fmt.Errorf("withdrawal kind is invalid")
 	}
@@ -59,8 +56,22 @@ func (k Keeper) requestSessionWithdrawal(ctx context.Context, stream *types.Stre
 	stream.PendingWithdrawKind = kind
 	stream.PendingWithdrawAmount = amount
 	stream.PendingWithdrawEffectiveHeight = effective
-	if err := k.SessionWithdrawIndex.Set(ctx, collections.Join(effective, stream.SessionId)); err != nil {
+	if err := k.syncSessionWithdrawalIndex(ctx, *stream); err != nil {
 		return err
 	}
 	return emitTypedEvent(ctx, &types.EventSessionWithdrawRequested{SessionId: bytes.Clone(stream.SessionId), Kind: kind, Amount: amount, EffectiveHeight: effective})
+}
+
+// A blocked CLOSE sleeps in its existing primary. The shared Stream writer
+// re-enqueues its original effective height when the last Task closes, so it
+// cannot repeatedly consume the maintenance budget while doing no work.
+func (k Keeper) syncSessionWithdrawalIndex(ctx context.Context, stream types.StreamState) error {
+	if stream.PendingWithdrawKind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE {
+		return nil
+	}
+	key := collections.Join(stream.PendingWithdrawEffectiveHeight, stream.SessionId)
+	if stream.PendingWithdrawKind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE && stream.OpenPendingCount != 0 {
+		return k.SessionWithdrawIndex.Remove(ctx, key)
+	}
+	return k.SessionWithdrawIndex.Set(ctx, key)
 }

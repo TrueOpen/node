@@ -722,6 +722,53 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	epochsWithHeader := map[uint64]struct{}{}
+	bodyPrunes := map[string]uint64{}
+	prunes, err := k.CandidatePoolPruneIndex.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ; prunes.Valid(); prunes.Next() {
+		key, err := prunes.Key()
+		if err != nil {
+			prunes.Close()
+			return err
+		}
+		if types.CandidatePoolPrunePhase(key.K3()) == types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY {
+			id := string(key.K2())
+			if _, duplicate := bodyPrunes[id]; duplicate {
+				prunes.Close()
+				return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body has duplicate prune work")
+			}
+			bodyPrunes[id] = key.K1()
+		}
+	}
+	if err := prunes.Close(); err != nil {
+		return err
+	}
+	for id := range bodyPrunes {
+		snapshot, err := k.CandidatePoolSnapshot.Get(ctx, []byte(id))
+		if err != nil || snapshot.Status != candidateSnapshotExpired || snapshot.TaskRefCount != 0 {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune work has no unreferenced expired snapshot")
+		}
+	}
+	clocks, err := k.CandidatePoolBodyPruneHeight.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ; clocks.Valid(); clocks.Next() {
+		entry, err := clocks.KeyValue()
+		if err != nil {
+			clocks.Close()
+			return err
+		}
+		if entry.Value == 0 || bodyPrunes[string(entry.Key)] != entry.Value {
+			clocks.Close()
+			return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune clock has no matching work")
+		}
+	}
+	if err := clocks.Close(); err != nil {
+		return err
+	}
 	for ; iter.Valid(); iter.Next() {
 		entry, err := iter.KeyValue()
 		if err != nil {
@@ -735,6 +782,23 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 		if snapshot.Status == candidateSnapshotPruned {
 			// A PRUNED header keeps only the digest; its body is gone by design.
 			continue
+		}
+		if snapshot.Status == candidateSnapshotExpired && snapshot.TaskRefCount == 0 {
+			due, exists := bodyPrunes[string(snapshot.SnapshotId)]
+			if !exists {
+				return errorsmod.Wrap(types.ErrInvariantBroken, "unreferenced expired candidate body has no prune work")
+			}
+			clock, err := k.CandidatePoolBodyPruneHeight.Get(ctx, snapshot.SnapshotId)
+			if errors.Is(err, collections.ErrNotFound) {
+				// Physical pruning may leave an incomplete body between blocks.
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if clock != due {
+				return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune clock disagrees with its queue")
+			}
 		}
 		if err := k.verifyCandidatePoolBody(ctx, snapshot); err != nil {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate snapshot %s body: %s", entry.Key, err)

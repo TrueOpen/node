@@ -141,7 +141,7 @@ type TaskLiabilityReservationSnapshot struct {
 	OperatorAddress string
 	Duty            shared.Duty
 	ReservedAmount  uint64
-	Reserved        bool
+	Status          LiabilityStatus
 }
 
 // TaskSupportCompletionFact is the internal Task-to-Hub proof that one

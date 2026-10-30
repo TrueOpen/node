@@ -249,6 +249,9 @@ func New(
 		if err := app.EnsureCrossModuleReferences(ctx); err != nil {
 			return nil, fmt.Errorf("invalid TrueOpen cross-module genesis: %w", err)
 		}
+		if err := app.trueopenInvariants.runChecks(ctx, invariantDiagnosticChecks); err != nil {
+			return nil, fmt.Errorf("invalid TrueOpen genesis invariants: %w", err)
+		}
 		// Fresh bootstrap fixes every validator key at epoch 0. A normal state
 		// export re-import also enters InitChain, but preserves a later
 		// initial_height and may legitimately contain a rotated active key or one
@@ -362,6 +365,9 @@ func (app *App) EnsureLoadedStoreSchemas() error {
 	}
 	if err := app.EnsureCrossModuleReferences(ctx); err != nil {
 		return fmt.Errorf("refusing to load inconsistent TrueOpen cross-module state: %w", err)
+	}
+	if err := app.trueopenInvariants.runChecks(sdk.UnwrapSDKContext(ctx), invariantDiagnosticChecks); err != nil {
+		return fmt.Errorf("refusing to load inconsistent TrueOpen state: %w", err)
 	}
 	return nil
 }

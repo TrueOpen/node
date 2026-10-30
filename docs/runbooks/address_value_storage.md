@@ -45,6 +45,13 @@ also join Task value receipts to Hub RoleFaults and applied round effects to
 Hub slash custody receipts. Bounded cleanup preserves required authority until
 consumers close, and removes normalized profile additions with the pool body.
 
+Retained-history diagnostics for parameter versions, dispatch indexes, value
+receipts and service-key rotations run at Genesis import, startup and export.
+They remain registered for the full diagnostic suite. EndBlock continues to
+enforce custody checks, including the Builder compensation account. Those
+custody folds and the pre-existing structural scans still scale with retained
+state; this change does not introduce a new per-block scan of dispatch history.
+
 Tests cover raw storage, commitment round trips, Genesis recovery, corrupted
 references, replay and partial cleanup. These checks apply to fresh Phase 1
 state; they do not authorize an upgrade over Phase 0 data.

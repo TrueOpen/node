@@ -492,9 +492,8 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress stri
 // pool, and requireSupportScope refuses to re-declare while the bond is JAILED.
 // The protocol then only decrements jail_count after
 // jail_clear_normal_action_count normal actions the operator can no longer
-// perform. Keeping the declaration leaves the Worker path open — task_candidate_fact
-// tests declared_support alone — at the reduced candidate_jail_factor, which is
-// the graduated penalty the parameter tableregisters as the [hard boundary].
+// perform. Retaining the declaration keeps frozen candidate profile facts
+// eligible at the reduced candidate_jail_factor while the operator recovers.
 //
 // Recovery stays gated rather than free: refreshModelSupport restores
 // support_active only through requireSupportScope (which rejects a JAILED bond)

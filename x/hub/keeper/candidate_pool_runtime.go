@@ -180,8 +180,17 @@ func (k Keeper) AcquireCandidatePoolTaskRef(ctx context.Context, taskID, snapsho
 	if err != nil {
 		return false, err
 	}
-	if snapshot.Status != candidateSnapshotActive || height < snapshot.EffectiveHeight || height >= snapshot.ExpiresHeight {
-		return false, fmt.Errorf("candidate pool snapshot is not ACTIVE at acquisition height")
+	if snapshot.Status != candidateSnapshotActive && snapshot.Status != candidateSnapshotExpired || height < snapshot.EffectiveHeight {
+		return false, types.ErrCandidatePoolUnavailable
+	}
+	if snapshot.Status == candidateSnapshotExpired && snapshot.TaskRefCount == 0 {
+		queued, err := k.CandidatePoolBodyPruneHeight.Has(ctx, snapshotKey)
+		if err != nil {
+			return false, err
+		}
+		if !queued {
+			return false, types.ErrCandidatePoolUnavailable
+		}
 	}
 	key := types.NewCandidatePoolTaskRefKey(taskKey, snapshotKey)
 	if existing, getErr := k.CandidatePoolTaskRef.Get(ctx, key); getErr == nil {
@@ -194,6 +203,9 @@ func (k Keeper) AcquireCandidatePoolTaskRef(ctx context.Context, taskID, snapsho
 	}
 	if snapshot.TaskRefCount == ^uint32(0) {
 		return false, fmt.Errorf("candidate pool task_ref_count overflow")
+	}
+	if err := k.cancelCandidateBodyPrune(ctx, snapshotKey); err != nil {
+		return false, err
 	}
 	snapshot.TaskRefCount++
 	if err := k.CandidatePoolSnapshot.Set(ctx, snapshotKey, snapshot); err != nil {
@@ -235,7 +247,7 @@ func (k Keeper) ReleaseCandidatePoolTaskRef(ctx context.Context, taskID, snapsho
 		return false, err
 	}
 	if snapshot.Status == candidateSnapshotExpired && snapshot.TaskRefCount == 0 {
-		if err := k.CandidatePoolPruneIndex.Set(ctx, types.NewCandidatePoolPruneIndexKey(height, snapshotKey, types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY)); err != nil {
+		if err := k.scheduleCandidateBodyPrune(ctx, snapshot, height); err != nil {
 			return false, err
 		}
 	}

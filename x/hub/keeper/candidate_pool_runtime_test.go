@@ -273,7 +273,10 @@ func TestCandidatePoolGenesisRejectsOutOfGeometryBody(t *testing.T) {
 		genesis := types.DefaultGenesis()
 		genesis.Params.CandidatePool.CandidateSlotHardCapacity = 9
 		genesis.Params.CandidatePool.CandidateBitmapSegmentBytes = 1
-		genesis.CandidatePoolMembers = []types.CandidatePoolMemberState{{Epoch: 1, Slot: 9}}
+		genesis.CandidatePoolMembers = []types.CandidatePoolMemberState{{Epoch: 1, Slot: 9, WeightInputs: &types.CandidateWeightInputsV1{
+			ActiveBond: shared.NewAmount(0), AvailableBond: shared.NewAmount(0),
+			PerformanceScorePpm: uint32(types.PerformanceScoreDefaultPpm), PerformanceMethodVersion: uint32(types.PerformanceScoreMethodVersionV1), CandidateJailFactorPpm: uint32(types.CandidateWeightScale),
+		}}}
 		err := f.keeper.InitGenesis(f.ctx, *genesis)
 		require.ErrorContains(t, err, "candidate_slot_hard_capacity")
 	})

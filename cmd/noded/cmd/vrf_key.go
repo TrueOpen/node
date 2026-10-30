@@ -14,7 +14,6 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
-	shared "github.com/TrueOpen/node/x/shared/types"
 	"path/filepath"
 	"strconv"
 
@@ -25,6 +24,7 @@ import (
 
 	"github.com/TrueOpen/node/app"
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 func newBeaconCmd() *cobra.Command {

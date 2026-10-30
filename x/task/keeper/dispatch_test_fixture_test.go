@@ -97,6 +97,7 @@ type dispatchTestHub struct {
 	faultFailure    bool
 	queryMaxBytes   uint64
 	bondStatus      hubtypes.ServiceBondStatus
+	availableBond   *uint64
 }
 
 func (h *dispatchTestHub) GetHubParams(ctx sdk.Context) hubtypes.HubParamsSnapshot {
@@ -167,7 +168,11 @@ func (h *dispatchTestHub) GetServiceBond(_ sdk.Context, _ sdk.AccAddress, _ uint
 	if status == hubtypes.ServiceBondStatus_SERVICE_BOND_STATUS_UNSPECIFIED {
 		status = hubtypes.ServiceBondStatusActive
 	}
-	return hubtypes.ServiceBondSnapshot{Status: status, ActiveBond: 4_000_000, EffectiveActiveBond: 4_000_000, AvailableBond: 4_000_000, RequiredTaskLiability: 30_000, BondVersion: 1}, true
+	available := uint64(4_000_000)
+	if h.availableBond != nil {
+		available = *h.availableBond
+	}
+	return hubtypes.ServiceBondSnapshot{Status: status, ActiveBond: 4_000_000, EffectiveActiveBond: 4_000_000, AvailableBond: available, RequiredTaskLiability: 30_000, BondVersion: 1}, true
 }
 func (h *dispatchTestHub) GetModelCapability(sdk.Context, sdk.AccAddress, []byte) (hubtypes.ModelCapabilitySnapshot, bool) {
 	return hubtypes.ModelCapabilitySnapshot{InferenceCapability: true, CapabilityVersion: 1}, true
@@ -269,6 +274,11 @@ func (f *dispatchFixture) signedOrder(t *testing.T, sequence uint64, key *secp.P
 	order.SessionAnchorHeight = order.EarliestSubmitHeight
 	order.BuilderSetId = "dispatch-test-set"
 	order.BuilderSetHash = bytes32(0x44)
+	return signDispatchOrder(t, order, key)
+}
+
+func signDispatchOrder(t *testing.T, order types.TaskOrderV3, key *secp.PrivateKey) types.SignedOrderV2 {
+	t.Helper()
 	hash, err := types.TaskOrderHash(order)
 	require.NoError(t, err)
 	digest, err := types.BuildTaskOrderEIP712Digest(1, dispatchTestDenom, order, hash[:])

@@ -69,7 +69,7 @@ func (k Keeper) valueEvidenceAuthority(ctx context.Context, e dispatch.ValueEvid
 	if a.profile.VerificationProfile.CanonicalEncodingVersion != shared.CanonicalEncodingVersionV1 || a.profile.VerificationProfile.MetricAggregateProofVersion != shared.MetricAggregateProofVersionV1 || !bytes.Equal(a.profile.VerificationProfile.EvidenceSchemaHash, a.assignment.EvidenceSchemaHash) {
 		return a, fmt.Errorf("unsupported value-evidence schema")
 	}
-	if e.Kind == 2 {
+	if e.Kind == uint32(types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_WORKER_VALUES_INVALID) {
 		if e.TargetOperator != a.assignment.WinnerWorker {
 			return a, fmt.Errorf("worker-only evidence targets a different operator")
 		}
@@ -123,7 +123,7 @@ func (k Keeper) verifyValueEvidence(ctx context.Context, e dispatch.ValueEvidenc
 		return "", 0, 0, err
 	}
 	var vr, mr [32]byte
-	if e.Kind == 1 {
+	if e.Kind == uint32(types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_VERIFIER_VALUE_MISMATCH) {
 		if len(a.result.VerifierValueRoot) != 32 || len(a.result.MetricRoot) != 32 || uint64(a.result.MetricLeafCount) != a.infer.GeneratedTokenCount {
 			return "", 0, 0, fmt.Errorf("accepted value tree dimensions are invalid")
 		}
@@ -136,7 +136,7 @@ func (k Keeper) verifyValueEvidence(ctx context.Context, e dispatch.ValueEvidenc
 			return "", 0, 0, fmt.Errorf("value position exceeds its canonical width")
 		}
 		scope := shared.ValueLeafScope{ChainID: sdkChainID(ctx), TaskID: e.TaskID[:], TaskHash: a.core.AcceptedTaskHash, Worker: worker, Verifier: verifier, Round: e.VerifyRound, Position: uint32(position.Position), RequiredTopK: a.profile.RequiredTopK, ModelID: a.core.ModelId, ProfileVersion: a.core.ProfileVersion, Profile: a.profile, GenerationParamsDigest: a.infer.GenerationParamsDigest}
-		wi, vm, err := shared.VerifyValuePosition(scope, position, a.infer.GeneratedTokenCount, e.WorkerRoot, vr, mr, e.Kind == 2)
+		wi, vm, err := shared.VerifyValuePosition(scope, position, a.infer.GeneratedTokenCount, e.WorkerRoot, vr, mr, e.Kind == uint32(types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_WORKER_VALUES_INVALID))
 		if err != nil {
 			return "", 0, 0, err
 		}
@@ -145,7 +145,7 @@ func (k Keeper) verifyValueEvidence(ctx context.Context, e dispatch.ValueEvidenc
 	if workerInvalid {
 		return a.assignment.WinnerWorker, shared.DutyWorker, types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_WORKER_VALUES_INVALID, nil
 	}
-	if e.Kind == 1 && verifierMismatch {
+	if e.Kind == uint32(types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_VERIFIER_VALUE_MISMATCH) && verifierMismatch {
 		return e.TargetOperator, shared.DutyVerifier, types.VerifierValueEvidenceKindV1_VERIFIER_VALUE_EVIDENCE_KIND_V1_VERIFIER_VALUE_MISMATCH, nil
 	}
 	return "", 0, 0, fmt.Errorf("value opening proves no local contradiction")

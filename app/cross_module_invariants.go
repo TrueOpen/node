@@ -132,8 +132,7 @@ func (app *App) ensureWorkerOutputEvidenceResponsibilities(ctx context.Context) 
 		fault, err := app.HubKeeper.ReadRoleFaultValue(ctx, hubtypes.NewRoleFaultKey(receipt.FaultId))
 		if err != nil || !bytes.Equal(fault.FaultId, receipt.FaultId) || !bytes.Equal(fault.TaskId, receipt.TaskId) ||
 			fault.OperatorAddress != receipt.WorkerOperatorAddress || fault.Duty != shared.Duty_DUTY_WORKER ||
-			fault.FaultClass != shared.FaultKind_FAULT_KIND_EQUIVOCATION ||
-			fault.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE {
+			!hubtypes.IsMergedValueEvidenceFault(fault) {
 			evidenceReceipts.Close()
 			return fmt.Errorf("Worker evidence receipt has no matching Hub objective RoleFault")
 		}

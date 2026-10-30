@@ -24,6 +24,11 @@ func (k Keeper) RecordVerifierValueEvidence(ctx context.Context, fact shared.Ver
 	if err != nil {
 		return types.RoleFaultState{}, err
 	}
+	if existing, err := k.mergedObjectiveFault(ctx, fact.TaskId, canonical, fact.FaultedDuty); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return types.RoleFaultState{}, err
+	}
 	id, err := roleFaultID(sdk.UnwrapSDKContext(ctx).ChainID(), fact.TaskId, operator, fact.FaultedDuty, fact.FaultClass, fact.EvidenceDigest)
 	if err != nil {
 		return types.RoleFaultState{}, err
@@ -53,10 +58,31 @@ func (k Keeper) requireValueEvidenceFault(ctx context.Context, taskID []byte, op
 	if err != nil {
 		return row, err
 	}
-	if !bytes.Equal(row.TaskId, taskID) || row.OperatorAddress != operator || row.Duty != duty || !bytes.Equal(row.EvidenceDigest, digest) || row.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE || row.FaultClass != shared.FaultKind_FAULT_KIND_VERIFIER_VALUE_MISMATCH && row.FaultClass != shared.FaultKind_FAULT_KIND_WORKER_VALUES_INVALID {
+	if !bytes.Equal(row.TaskId, taskID) || row.OperatorAddress != operator || row.Duty != duty || !types.IsMergedValueEvidenceFault(row) || types.IsValueEvidenceFault(row) && !bytes.Equal(row.EvidenceDigest, digest) {
 		return row, fmt.Errorf("value evidence fault attribution mismatch")
 	}
 	return row, nil
+}
+
+func (k Keeper) mergedObjectiveFault(ctx context.Context, taskID []byte, operator string, duty shared.Duty) (types.RoleFaultState, error) {
+	rows, err := k.RoleFaultsForTask(ctx, taskID)
+	if err != nil {
+		return types.RoleFaultState{}, err
+	}
+	var first types.RoleFaultState
+	for _, row := range rows {
+		if row.OperatorAddress != operator || row.Duty != duty || !types.IsMergedValueEvidenceFault(row) {
+			continue
+		}
+		if len(first.FaultId) != 0 {
+			return types.RoleFaultState{}, fmt.Errorf("multiple merged objective faults for one Task duty")
+		}
+		first = row
+	}
+	if len(first.FaultId) == 0 {
+		return first, collections.ErrNotFound
+	}
+	return first, nil
 }
 
 func (k Keeper) finishValueEvidenceFault(ctx context.Context, row types.RoleFaultState, summaryID []byte, height uint64) (types.RoleFaultState, error) {

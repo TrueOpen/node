@@ -3,6 +3,8 @@ package keeper
 import (
 	"testing"
 
+	hubtypes "github.com/TrueOpen/node/x/hub/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -33,6 +35,25 @@ func TestValueEvidenceWindowClosesAtEndBlockAndExtendsForSecondReveal(t *testing
 	old, err := f.keeper.ValueEvidenceWindowCloseIndex.Has(f.ctx, types.NewDeadlineIndexKey(deadline, f.taskID))
 	require.NoError(t, err)
 	require.False(t, old)
+}
+
+func TestValueEvidenceSettlementReusesAnEarlierWorkerObjectiveFault(t *testing.T) {
+	f, hub, evidence := valueEvidenceFixture(t, true)
+	raw, err := evidence[0].Marshal()
+	require.NoError(t, err)
+	response, err := f.server.SubmitVerifierValueEvidence(f.ctx, &types.MsgSubmitVerifierValueEvidence{EvidenceBytes: raw, SubmitterAddress: f.operators[2]})
+	require.NoError(t, err)
+	original := hub.faults[string(response.FaultId)]
+	original.FaultClass = shared.FaultKind_FAULT_KIND_EQUIVOCATION
+	original.EvidenceDigest = bytes32(0x72)
+	original.RecordedHeight--
+	hub.faults[string(response.FaultId)] = original
+	require.True(t, hubtypes.IsMergedValueEvidenceFault(original))
+	rows, err := f.keeper.firstValueEvidenceReceipts(f.ctx, f.taskID)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, original.FaultId, rows[0].FaultId)
+	require.NotEqual(t, original.EvidenceDigest, rows[0].EvidenceDigest)
 }
 
 func TestEvidenceOnlyFaultCannotFundRoundTwoRecoveryPool(t *testing.T) {

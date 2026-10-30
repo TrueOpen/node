@@ -80,6 +80,7 @@ func seedBuilderDutySelection(t *testing.T, application *App, ctx sdk.Context) {
 		TaskId: taskID, SessionId: sessionID,
 		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED,
 	}))
+	require.NoError(t, application.TaskKeeper.PinTaskParams(ctx, taskKey))
 	require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: builderSetID, BuilderSetHash: builderSetHash,
 		SelectedTaskBuilders: builders, SelectedTaskBuilderCount: uint32(len(builders)),

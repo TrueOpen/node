@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/types/bech32"
-
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
@@ -97,18 +95,7 @@ func requireBridgeText(field, value string) ([]byte, error) {
 // text. The published manifest vector encodes local_owner as its raw 20 bytes,
 // which is what this reproduces.
 func bridgeAddressBytes(field, value string) ([]byte, error) {
-	if value == "" {
-		return nil, fmt.Errorf("%s must not be empty", field)
-	}
-	hrp, raw, err := bech32.DecodeAndConvert(value)
-	if err != nil {
-		return nil, fmt.Errorf("%s is not a decodable Bech32 address: %w", field, err)
-	}
-	reencoded, err := bech32.ConvertAndEncode(hrp, raw)
-	if err != nil || reencoded != value {
-		return nil, fmt.Errorf("%s must be the canonical Bech32 encoding of its address bytes", field)
-	}
-	return raw, nil
+	return shared.CanonicalBech32Address(field, value)
 }
 
 // canonicalBridgeRouteFields returns the ten route identity fields in their

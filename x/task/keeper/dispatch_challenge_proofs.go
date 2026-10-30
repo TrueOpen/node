@@ -194,7 +194,9 @@ func (k Keeper) verifyOmissionRoot(ctx context.Context, record types.DispatchRec
 	if bytes.Equal(digest[:], round.HandraiseRootDigest) {
 		return nil
 	}
-	if bound == nil || evidence.RootHeight > record.EarliestSubmitHeight || evidence.RootHeight < bound.RootHeight || evidence.RootHeight == bound.RootHeight && evidence.RootVersion <= bound.RootVersion {
+	// Two blocks exclude roots signed after dispatch for a one-block-ahead
+	// order. Subtract only after the upper-bound check to avoid wraparound.
+	if bound == nil || evidence.RootHeight > record.EarliestSubmitHeight || record.EarliestSubmitHeight-evidence.RootHeight < 2 || evidence.RootHeight < bound.RootHeight || evidence.RootHeight == bound.RootHeight && evidence.RootVersion <= bound.RootVersion {
 		return fmt.Errorf("evidence root is not a provably newer pre-dispatch root")
 	}
 	return nil

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	hubkeeper "github.com/TrueOpen/node/x/hub/keeper"
@@ -53,6 +54,24 @@ func TestInvariantRegistryIsCompleteAndUnbypassable(t *testing.T) {
 	for _, name := range []string{taskkeeper.InvariantEscrowReserved} {
 		require.Truef(t, taskNames[name], "missing task invariant %s", name)
 	}
+}
+
+func TestRetainedDiagnosticsDoNotAddPerBlockScans(t *testing.T) {
+	registry := newRuntimeInvariantRegistry()
+	var custodyCalls, diagnosticCalls int
+	registry.RegisterRoute("hub", hubkeeper.InvariantBuilderCompensation, func(sdk.Context) (string, bool) {
+		custodyCalls++
+		return "", false
+	})
+	registry.RegisterRoute("task", taskkeeper.InvariantDispatchIndexes, func(sdk.Context) (string, bool) {
+		diagnosticCalls++
+		return "broken retained index", true
+	})
+	require.NoError(t, registry.runChecks(sdk.Context{}, invariantBlockChecks))
+	require.Equal(t, 1, custodyCalls)
+	require.Zero(t, diagnosticCalls)
+	require.ErrorContains(t, registry.runChecks(sdk.Context{}, invariantDiagnosticChecks), "broken retained index")
+	require.Equal(t, 1, custodyCalls, "startup/export diagnostics do not repeat the custody scan")
 }
 
 func TestInvariantsHoldAfterBlockProductionAndMsgs(t *testing.T) {

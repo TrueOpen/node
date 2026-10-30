@@ -17,7 +17,7 @@
     },
     "builder": {
       "builder_set_cap": 15,
-      "builder_set_update_lead_blocks": "10",
+      "builder_set_update_lead_blocks": "100",
       "open_verify_builder_proposal_window_blocks": "10",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,

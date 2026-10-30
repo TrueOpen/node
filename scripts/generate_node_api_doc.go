@@ -128,7 +128,7 @@ func writePublicAPIIntroduction(b *strings.Builder, rpcCount int) {
 	b.WriteString("## 1. Client contract\n\n")
 	b.WriteString("- Query methods are available through their full gRPC method names and the listed REST GET paths. Msg methods must be signed and broadcast as Cosmos SDK transactions.\n")
 	b.WriteString("- Client-facing Hash32 values use canonical 0x-prefixed lowercase 64-hex. TrueOpen Query REST selectors and JSON responses use that form directly; Msg/SDK adapters decode it to raw32 before protobuf transaction or gRPC transport. The outer Cosmos `tx_bytes` and explicitly classified non-Hash32 bytes remain base64; Store values remain raw bytes.\n")
-	b.WriteString("- TrueOpen account and operator addresses must be canonical Bech32. Cosmos account signatures authorize and pay for transactions; protocol service signatures use the operator's sole current on-chain service binding.\n")
+	b.WriteString("- TrueOpen account and operator addresses must be canonical Bech32. Cosmos account signatures authorize and pay for transactions. Live protocol submission uses the current service binding; retained dispatch material resolves its signed authorization nonce against the current or previous binding, including revocation and retirement-height checks.\n")
 	b.WriteString("- Queries read one committed height. Opaque `PageTokenV1` values are bound to the RPC, chain, selectors, canonical last primary key, and query height; do not decode, alter, or replay them across requests.\n")
 	b.WriteString("- `InvalidArgument` means the selector, enum, address, limit, or page token is invalid. `NotFound` means the exact authoritative row is absent. `FailedPrecondition` means the row exists but its lifecycle does not permit that view. `Internal` indicates inconsistent committed state.\n")
 	b.WriteString("- Protocol events are hints. Consumers deduplicate by the committed event locator and repair gaps through the Query named by the event contract. Store and Query state remain authoritative.\n\n")
@@ -662,8 +662,8 @@ func describeField(message protoreflect.MessageDescriptor, path fieldPath, reque
 		source = "Use the Cortex Node's current service private key to sign the node-level model/profile declaration, which carries no duty."
 		validation = "Verified against the node's current ServiceKey and the node-level declaration domain; an empty signature, an old key, a wrong chain-id, or a replayed field are all rejected."
 	case strings.Contains(name, "signature") || name == "sig":
-		source = "Use the current service private key of the corresponding operator/duty to sign the canonical, domain-separated protocol bytes."
-		validation = "Verified only against the operator's sole current on-chain ServiceKey and the duty domain; an empty signature, a wrong domain, an old key, or a replay are all rejected."
+		source = "Sign the canonical, domain-separated protocol bytes with the service key authorized for the operator and material generation."
+		validation = "Live submission requires the current binding. Retained dispatch material selects the current or previous binding using its signed authorization nonce and material-height bounds; revoked generations, invalid domains and invalid signatures are rejected."
 	case strings.Contains(name, "proof"):
 		source = "Built by the component that produced the proof, following the protocol schema; a Builder selection proof comes from the frozen selection event / local selection record, and a Merkle proof comes from the evidence store."
 		validation = "The schema/version/domain/size are checked, and the proof is verified against the frozen on-chain root, beacon, selection or commitment; a proof inconsistent with the primary key is rejected."

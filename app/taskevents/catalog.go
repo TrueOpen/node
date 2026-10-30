@@ -91,35 +91,35 @@ func classifyTypedEvent(payload proto.Message) (chainEvent, bool) {
 	case *tasktypes.EventVerifierValueEvidenceAccepted:
 		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_VALUE_EVIDENCE_ACCEPTED, eventTargets(dutyEventRole(event.GetFaultedDuty()), event.GetTargetOperator())...)
 	case *tasktypes.EventDispatchRecorded:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWinnerWorker())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_RECORDED, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWinnerWorker())...)...)
 	case *tasktypes.EventSessionBuilderBound:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_BUILDER_BOUND, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetNewBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetOldBuilderOrEmpty())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_BUILDER_BOUND, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetNewBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetOldBuilderOrEmpty())...)...)
 	case *tasktypes.EventSessionTakeoverRegistered:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_REGISTERED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBoundBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_REGISTERED, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBoundBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)...)
 	case *tasktypes.EventSessionTakeoverVoided:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_VOIDED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_TAKEOVER_VOIDED, eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetCandidateBuilder())...)
 	case *tasktypes.EventDispatchCompensationClaimed:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_CLAIMED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_CLAIMED, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
 	case *tasktypes.EventDispatchCompensationPaid:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_PAID, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_PAID, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
 	case *tasktypes.EventDispatchCompensationRebutted:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_REBUTTED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_COMPENSATION_REBUTTED, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetWorker())...)...)
 	case *tasktypes.EventDispatchChallengeOpened:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_OPENED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_OPERATOR, event.GetChallenger())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_OPENED, eventTargets(shared.EventRole_EVENT_ROLE_OPERATOR, event.GetChallenger())...)
 	case *tasktypes.EventDispatchChallengeResolved:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_RESOLVED, nil...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_DISPATCH_CHALLENGE_RESOLVED)
 	case *tasktypes.EventBuilderDispatchFaultRecorded:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BUILDER_DISPATCH_FAULT_RECORDED, append(append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder())...), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetCompensatedWorkerOrEmpty())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_BUILDER_DISPATCH_FAULT_RECORDED, append(eventTargets(shared.EventRole_EVENT_ROLE_BUILDER, event.GetBuilder()), eventTargets(shared.EventRole_EVENT_ROLE_WORKER, event.GetCompensatedWorkerOrEmpty())...)...)
 	case *tasktypes.EventSessionDeposited:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_DEPOSITED, append([]*shared.EventTarget(nil), eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_DEPOSITED, eventTargets(shared.EventRole_EVENT_ROLE_USER, event.GetOwner())...)
 	case *tasktypes.EventSessionWithdrawRequested:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_REQUESTED, nil...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_REQUESTED)
 	case *tasktypes.EventSessionWithdrawEffective:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_EFFECTIVE, nil...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_WITHDRAW_EFFECTIVE)
 	case *tasktypes.EventSessionKeyChangeRequested:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_CHANGE_REQUESTED, nil...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_SESSION_KEY_CHANGE_REQUESTED)
 	case *tasktypes.EventOrderCancelRequested:
-		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ORDER_CANCEL_REQUESTED, nil...)
+		return taskEvent(event, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_ORDER_CANCEL_REQUESTED)
 
 	// ---- Hub-owned payloads (ProtocolEvent envelope) ----
 	case *hubtypes.EventModelProfileRegistered:

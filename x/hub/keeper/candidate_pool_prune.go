@@ -88,7 +88,7 @@ func (k Keeper) processCandidatePoolExpiries(ctx context.Context, currentHeight,
 			return visited, err
 		}
 		if snapshot.TaskRefCount == 0 {
-			if err := k.CandidatePoolPruneIndex.Set(ctx, types.NewCandidatePoolPruneIndexKey(currentHeight, key.K2(), types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY)); err != nil {
+			if err := k.scheduleCandidateBodyPrune(ctx, snapshot, currentHeight); err != nil {
 				return visited, err
 			}
 		}
@@ -276,6 +276,11 @@ func (k Keeper) processCandidateSnapshotPrunes(ctx context.Context, currentHeigh
 		case types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY:
 			if snapshot.Status != candidateSnapshotExpired || snapshot.TaskRefCount != 0 {
 				return visited, fmt.Errorf("candidate body prune is not eligible")
+			}
+			// Removing the admission clock marks the first physical prune step.
+			// Existing references cancel this queue before any body row is removed.
+			if err := k.CandidatePoolBodyPruneHeight.Remove(ctx, key.K2()); err != nil {
+				return visited, err
 			}
 			member, memberFound, err := k.firstCandidateEpochMember(ctx, snapshot.Epoch)
 			if err != nil {

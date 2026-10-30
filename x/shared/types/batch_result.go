@@ -39,7 +39,7 @@ func BatchResultDigestV1(chainID, kind string, items []BatchResultDigestItemV1) 
 		if len(item.ObjectID) != sha256.Size || bytes.Equal(item.ObjectID, make([]byte, sha256.Size)) {
 			return nil, fmt.Errorf("batch result object_id at item %d must be a non-zero Hash32", index)
 		}
-		if item.Status != BatchMutationAppliedV1 && item.Status != BatchMutationNoopV1 && !(kind == BatchResultKindDispatchRecord && item.Status == BatchMutationRejectedV1) {
+		if !IsBatchMutationStatusV1(kind, item.Status) {
 			return nil, fmt.Errorf("batch result status at item %d is not allowed for its batch kind", index)
 		}
 		elements = append(elements, FlatCanonicalFrameV1(item.ObjectID, EnumBE(item.Status)))
@@ -47,4 +47,9 @@ func BatchResultDigestV1(chainID, kind string, items []BatchResultDigestItemV1) 
 	return NewCanonicalHashBuilderV1(MustDomain(DomainBatchResultV1)).Raw(
 		[]byte(chainID), []byte(kind), Uint32BE(uint32(len(items))),
 	).Nested(CanonicalRepeatedFramesV1(elements)).Sum()
+}
+
+// IsBatchMutationStatusV1 validates the mutation outcomes permitted by a batch.
+func IsBatchMutationStatusV1(kind string, status uint32) bool {
+	return status == BatchMutationAppliedV1 || status == BatchMutationNoopV1 || kind == BatchResultKindDispatchRecord && status == BatchMutationRejectedV1
 }

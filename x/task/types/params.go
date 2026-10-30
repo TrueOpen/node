@@ -48,7 +48,6 @@ const (
 	DefaultMaxSessionTerminalSummaryPruneItemsPerBlock = uint32(256)
 	DefaultMaxSessionSweepPerBlock                     = uint32(1024)
 	DefaultCancelOrderMinGas                           = uint64(50_000)
-	DefaultAnchorFreshnessWindowBlocks                 = uint64(10_000)
 	DefaultVerifyOpenDeadlineBlocks                    = uint64(400)
 	DefaultCommitWindowBlocks                          = uint64(20)
 	DefaultRevealWindowBlocks                          = uint64(10)
@@ -274,6 +273,9 @@ func (p TaskParamsV1) Validate() error {
 	}
 	if err := validateChallengeParams(p.Challenge, p.Weights.SelectedVerifierCount); err != nil {
 		return err
+	}
+	if p.Evidence.MaxEvidenceRetentionBlocks < p.Dispatch.DispatchChallengeWindowBlocks {
+		return fmt.Errorf("evidence.max_evidence_retention_blocks must cover the dispatch challenge window")
 	}
 	return validateDispatchParams(p.Dispatch, p.Session)
 }

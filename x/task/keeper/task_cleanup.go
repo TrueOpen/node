@@ -154,6 +154,24 @@ func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (
 	if count, err := k.pendingDispatchCount(ctx, taskKey); err != nil || count != 0 {
 		return count != 0, err
 	}
+	// Finalized Tasks still own proof authority until their frozen challenge
+	// window closes. A cleanup timer alone cannot retire those consumers.
+	if record, err := k.readDispatchRecord(ctx, taskKey); err == nil {
+		params, err := k.ParamsForTask(ctx, taskKey)
+		if err != nil {
+			return false, err
+		}
+		closeHeight, overflow := shared.CheckedHeightAddV1(record.RecordedHeight, params.Dispatch.DispatchChallengeWindowBlocks)
+		if overflow {
+			return false, fmt.Errorf("dispatch challenge cleanup boundary overflows")
+		}
+		height, err := currentBlockHeight(ctx)
+		if err != nil || height <= closeHeight {
+			return true, err
+		}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return false, err
+	}
 	blocked, err := k.taskCleanupBaseBlocked(ctx, taskKey)
 	if err != nil || blocked {
 		return blocked, err

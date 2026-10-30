@@ -1184,7 +1184,13 @@ func (k Keeper) removeCortexIdentityOnTerminalBond(ctx context.Context, operator
 	if err := k.removeServiceDescriptorIfPresent(ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress); err != nil {
 		return err
 	}
-	if node.ActiveTaskLiabilityCount != 0 || node.PendingStageDutyCount != 0 || node.PendingEvidenceSubmissionCount != 0 {
+	// A skipped candidate has no Task duty hold. Its retained slot/snapshot
+	// binding still owns proof authority until the associated bodies retire.
+	retainedCandidate, err := k.OperatorCandidateSlot.Has(ctx, operatorAddress)
+	if err != nil {
+		return err
+	}
+	if node.ActiveTaskLiabilityCount != 0 || node.PendingStageDutyCount != 0 || node.PendingEvidenceSubmissionCount != 0 || retainedCandidate {
 		node.ServiceKeyStatus = types.ServiceKeyStatusRevoked
 		node.CurrentDescriptorVersion = 0
 		if height := sdkWrappedContextHeight(ctx); height != 0 {

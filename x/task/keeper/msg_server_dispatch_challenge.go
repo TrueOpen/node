@@ -261,7 +261,15 @@ func (m msgServer) ChallengeDispatchDoubleDispatch(ctx context.Context, req *typ
 	if req == nil || req.Record == nil || req.Order == nil {
 		return nil, fmt.Errorf("signed record and order are required")
 	}
-	row, mutation, err := m.k.runDispatchChallenge(ctx, nil, shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH, req.Size(), func(ctx context.Context, params types.TaskParamsV1, height uint64) (types.DispatchChallengeState, shared.MutationStatusV1, error) {
+	var paramsTask []byte
+	recorded, err := m.k.DispatchRecord.Has(ctx, req.Record.TaskId)
+	if err != nil {
+		return nil, err
+	}
+	if recorded {
+		paramsTask = req.Record.TaskId
+	}
+	row, mutation, err := m.k.runDispatchChallenge(ctx, paramsTask, shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH, req.Size(), func(ctx context.Context, params types.TaskParamsV1, height uint64) (types.DispatchChallengeState, shared.MutationStatusV1, error) {
 		var row types.DispatchChallengeState
 		if _, _, err := m.k.canonicalAddress("challenger_address", req.ChallengerAddress); err != nil {
 			return row, 0, err

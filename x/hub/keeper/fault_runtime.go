@@ -136,6 +136,21 @@ func (k Keeper) ApplyWorkerObjectiveEvidence(
 	if height == 0 {
 		return types.RoleFaultState{}, fmt.Errorf("worker objective evidence requires a positive block height")
 	}
+	if existing, err := k.mergedObjectiveFault(ctx, fact.TaskId, fact.WorkerOperatorAddress, shared.DutyWorker); err == nil {
+		reservation, err := k.ReadTaskLiabilityValue(ctx, types.NewTaskLiabilityReservationKey(fact.TaskId, shared.DutyWorker, fact.WorkerOperatorAddress))
+		if err != nil {
+			return types.RoleFaultState{}, err
+		}
+		if reservation.Status == types.TaskLiabilityStatusSlashed || len(existing.GetSlashSummaryId()) != 0 {
+			return existing, nil
+		}
+		if !types.IsValueEvidenceFault(existing) {
+			return types.RoleFaultState{}, fmt.Errorf("existing objective fault has no closed consequence")
+		}
+		return k.ApplyVerifierValueEvidenceFault(ctx, shared.VerifierValueEvidenceFactV1{SessionId: fact.SessionId, TaskId: fact.TaskId, VerifyRound: 1, TargetOperatorAddress: fact.WorkerOperatorAddress, FaultedDuty: shared.DutyWorker, FaultClass: existing.FaultClass, EvidenceDigest: existing.EvidenceDigest, FrozenSlashBps: fact.FrozenSlashBps}, existing.FaultId)
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return types.RoleFaultState{}, err
+	}
 	result, err := k.applyRoleFaultAtomic(
 		ctx, fact.WorkerOperatorAddress, types.ServiceBondRoleWorker, types.FaultTypeObjectiveForgery,
 		sessionID, taskID, hex.EncodeToString(fact.EvidenceDigest),

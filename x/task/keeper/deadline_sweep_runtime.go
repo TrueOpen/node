@@ -180,9 +180,7 @@ func (k Keeper) sweepExpiredTaskDeadlinesWithBudget(
 		if usage.serializedBytes >= maxBytes {
 			break
 		}
-		// The counter is unconditional and independent of the outcome. This is
-		// the fix for the unbounded-rescan bug and mirrors the correct template already in
-		// evidence_cleanup.go / assignment_randomness.go.
+		// Stale and blocked work consumes the same visit budget as advancing work.
 		usage.visited++
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		cacheCtx, write := sdkCtx.CacheContext()

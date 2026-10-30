@@ -84,16 +84,17 @@ func seedOwnedTaskLiabilityForTest(
 	binding.SnapshotRefCount++
 	require.NoError(t, f.keeper.WriteCandidateSlotBinding(f.ctx,
 		types.NewCandidateSlotBindingKey(reverse.Slot, reverse.SlotVersion), binding))
+	bond, err := f.keeper.GetServiceBondState(f.ctx, operator)
+	require.NoError(t, err)
 	require.NoError(t, f.keeper.WriteCandidatePoolMember(f.ctx, types.NewCandidatePoolMemberKey(epoch, reverse.Slot), types.CandidatePoolMemberState{
 		Epoch: epoch, Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
 		OperatorAddress: operator, BindingHash: append([]byte(nil), binding.BindingHash...),
+		WeightInputs: &types.CandidateWeightInputsV1{ActiveBond: shared.NewAmount(bond.EffectiveActiveBond), AvailableBond: shared.NewAmount(bond.EffectiveActiveBond), PerformanceScorePpm: uint32(types.PerformanceScoreDefaultPpm), PerformanceMethodVersion: uint32(types.PerformanceScoreMethodVersionV1), CandidateJailFactorPpm: uint32(types.CandidateWeightScale)},
 	}))
 	require.NoError(t, f.keeper.CandidatePoolTaskRef.Set(f.ctx, types.NewCandidatePoolTaskRefKey(taskIDRaw, snapshotID), types.CandidatePoolTaskRefState{
 		TaskId: taskIDRaw, SnapshotId: snapshotID, AcquiredHeight: height,
 		Status: types.CandidatePoolTaskRefStatus_CANDIDATE_POOL_TASK_REF_STATUS_ACQUIRED,
 	}))
-	bond, err := f.keeper.GetServiceBondState(f.ctx, operator)
-	require.NoError(t, err)
 	params := types.DefaultHubParams()
 	minLiability, err := shared.ParseAmount(params.Service.MinTaskLiability)
 	require.NoError(t, err)

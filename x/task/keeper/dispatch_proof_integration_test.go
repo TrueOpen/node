@@ -36,16 +36,7 @@ func TestDispatchDrawRejectsHonestOrderAndProvesFrozenWeightForgery(t *testing.T
 
 func TestDispatchSkipResponseRequiresCommittedAuthenticatedReject(t *testing.T) {
 	f := newDispatchFixture(t)
-	entry := f.entry(t, f.signedOrder(t, 0, f.delegateKey), f.hub.builders[0])
-	member := &types.CandidateMemberRefV1{CandidatePoolSnapshotId: f.hub.pool.SnapshotId, Slot: 0, SlotVersion: 1, OperatorAddress: f.hub.builders[2]}
-	reject := &types.DispatchRejectV1{SchemaVersion: 1, ChainId: "dispatch-test", TaskId: entry.Record.TaskId, TaskHash: entry.Record.TaskHash, DispatchTicketHash: bytes32(0x66), Member: member, ServiceAuthorizationNonce: 1, RejectReason: types.DispatchRejectReasonV1_DISPATCH_REJECT_REASON_V1_NO_CAPACITY}
-	signDispatchTestMaterial(t, "task.v1.DispatchRejectV1", reject, f.hub.keys[member.OperatorAddress], func(s []byte) { reject.ServiceSignature = s })
-	digest, err := dispatchMaterialDigest("task.v1.DispatchRejectV1", reject)
-	require.NoError(t, err)
-	entry.WinnerTicket.Rank = 1
-	entry.Record.Rounds[0].Attempts[0].Rank = 1
-	entry.Record.Rounds[0].Attempts = append([]*types.DispatchAttemptV1{{DispatchTicketHash: reject.DispatchTicketHash, Rank: 0, Member: member, Outcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_REJECTED, RejectDigestOrZero32: digest[:]}}, entry.Record.Rounds[0].Attempts...)
-	f.resignEntry(t, entry)
+	entry, reject := f.rejectedDispatchEntry(t)
 	f.record(t, entry)
 	server := NewMsgServerImpl(f.keeper)
 	challenge, err := server.ChallengeDispatchSkip(f.ctx, &types.MsgChallengeDispatchSkip{TaskId: entry.Record.TaskId, AttemptRank: 0, ChallengerAddress: f.owner})
@@ -62,6 +53,21 @@ func TestDispatchSkipResponseRequiresCommittedAuthenticatedReject(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, types.DispatchChallengeStatusV1_DISPATCH_CHALLENGE_STATUS_V1_DISMISSED, response.Challenge.Status)
 	require.NoError(t, f.keeper.EnsureDispatchInvariant(f.ctx))
+}
+
+func (f *dispatchFixture) rejectedDispatchEntry(t *testing.T) (*types.DispatchEntryV1, *types.DispatchRejectV1) {
+	t.Helper()
+	entry := f.entry(t, f.signedOrder(t, 0, f.delegateKey), f.hub.builders[0])
+	member := &types.CandidateMemberRefV1{CandidatePoolSnapshotId: f.hub.pool.SnapshotId, Slot: 0, SlotVersion: 1, OperatorAddress: f.hub.builders[2]}
+	reject := &types.DispatchRejectV1{SchemaVersion: 1, ChainId: "dispatch-test", TaskId: entry.Record.TaskId, TaskHash: entry.Record.TaskHash, DispatchTicketHash: bytes32(0x66), Member: member, ServiceAuthorizationNonce: 1, RejectReason: types.DispatchRejectReasonV1_DISPATCH_REJECT_REASON_V1_NO_CAPACITY}
+	signDispatchTestMaterial(t, "task.v1.DispatchRejectV1", reject, f.hub.keys[member.OperatorAddress], func(s []byte) { reject.ServiceSignature = s })
+	digest, err := dispatchMaterialDigest("task.v1.DispatchRejectV1", reject)
+	require.NoError(t, err)
+	entry.WinnerTicket.Rank = 1
+	entry.Record.Rounds[0].Attempts[0].Rank = 1
+	entry.Record.Rounds[0].Attempts = append([]*types.DispatchAttemptV1{{DispatchTicketHash: reject.DispatchTicketHash, Rank: 0, Member: member, Outcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_REJECTED, RejectDigestOrZero32: digest[:]}}, entry.Record.Rounds[0].Attempts...)
+	f.resignEntry(t, entry)
+	return entry, reject
 }
 
 func TestSignedDoubleDispatchDoesNotRequireFundedTaskAndDeduplicatesReporters(t *testing.T) {

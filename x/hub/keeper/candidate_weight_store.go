@@ -11,7 +11,7 @@ import (
 
 func candidateWeightInputsToStore(input *types.CandidateWeightInputsV1) (*internaltypes.CandidateWeightInputsStoreState, error) {
 	if input == nil {
-		return nil, nil
+		return nil, fmt.Errorf("candidate weight inputs are required")
 	}
 	active, err := shared.ParseAmount(input.ActiveBond)
 	if err != nil {
@@ -58,7 +58,7 @@ func candidateWeightInputsToStore(input *types.CandidateWeightInputsV1) (*intern
 
 func candidateWeightInputsFromStore(stored *internaltypes.CandidateWeightInputsStoreState) (*types.CandidateWeightInputsV1, error) {
 	if stored == nil {
-		return nil, nil
+		return nil, fmt.Errorf("candidate weight inputs are missing from storage")
 	}
 	input := &types.CandidateWeightInputsV1{
 		ActiveBond: shared.NewAmount(stored.ActiveBond), AvailableBond: shared.NewAmount(stored.AvailableBond),

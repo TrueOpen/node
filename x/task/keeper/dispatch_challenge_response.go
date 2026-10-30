@@ -98,17 +98,11 @@ func (k Keeper) matureDispatchChallenge(ctx context.Context, id []byte, deadline
 	if err != nil {
 		return err
 	}
-	if _, err := k.DispatchUpheldScope.Get(ctx, key); err == nil {
-		row.Status = types.DispatchChallengeStatusV1_DISPATCH_CHALLENGE_STATUS_V1_EXPIRED
-		row.XResolvedHeight = &types.DispatchChallengeState_ResolvedHeight{ResolvedHeight: height}
-		if err := k.writeDispatchChallenge(ctx, row); err != nil {
-			return err
-		}
-		return emitDispatchChallengeResolved(ctx, row)
-	} else if !errors.Is(err, collections.ErrNotFound) {
+	expire, err := k.DispatchUpheldScope.Has(ctx, key)
+	if err != nil {
 		return err
 	}
-	if row.Kind == shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_SKIP {
+	if !expire && row.Kind == shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_SKIP {
 		record, err := k.readDispatchRecord(ctx, row.TaskId)
 		if err != nil {
 			return err
@@ -117,11 +111,22 @@ func (k Keeper) matureDispatchChallenge(ctx context.Context, id []byte, deadline
 		if err != nil {
 			return err
 		}
-		// A missing authoritative proof key is an invariant failure, not evidence
-		// that an honest Builder withheld the signed rejection.
+		// Missing proof authority cannot establish Builder misconduct. Close the
+		// challenge without a fault; genuine storage failures still abort.
 		if _, err := k.dispatchProofKey(ctx, dispatch.ServiceProofSigner{ParticipantType: dispatch.ProofParticipantCortex, OperatorAddress: attempt.Member.OperatorAddress}); err != nil {
+			if !errors.Is(err, collections.ErrNotFound) && !errors.Is(err, dispatch.ErrProofKeyUnavailable) {
+				return err
+			}
+			expire = true
+		}
+	}
+	if expire {
+		row.Status = types.DispatchChallengeStatusV1_DISPATCH_CHALLENGE_STATUS_V1_EXPIRED
+		row.XResolvedHeight = &types.DispatchChallengeState_ResolvedHeight{ResolvedHeight: height}
+		if err := k.writeDispatchChallenge(ctx, row); err != nil {
 			return err
 		}
+		return emitDispatchChallengeResolved(ctx, row)
 	}
 	core, err := k.TaskCore.Get(ctx, row.TaskId)
 	if err != nil {

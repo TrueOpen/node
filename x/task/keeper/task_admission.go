@@ -65,11 +65,11 @@ func (k Keeper) prepareDispatchOrder(ctx context.Context, signed types.SignedOrd
 	}
 	generationDigest, err := types.GenerationParamsDigest(order.ModelId, order.ProfileVersion, order.TaskType, order.OutputBudgetBucket, order.GenerationParams, params.Generation)
 	if err != nil {
-		return result, err
+		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_AMOUNT_INVALID, err)
 	}
 	workerMax, verifyMax, orderValue, err := types.TaskOrderCosts(order, profile.PricingProfile.VerifyRatioBps)
 	if err != nil {
-		return result, err
+		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_AMOUNT_INVALID, err)
 	}
 	orderValueNumber, err := shared.ParseAmount(orderValue)
 	if err != nil {

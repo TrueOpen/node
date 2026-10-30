@@ -34,11 +34,7 @@ func (app *App) ensureValueEvidenceFaultReferences(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("value receipt has no Hub fault: %w", err)
 		}
-		class := shared.FaultKind_FAULT_KIND_VERIFIER_VALUE_MISMATCH
-		if row.FaultedDuty == shared.DutyWorker {
-			class = shared.FaultKind_FAULT_KIND_WORKER_VALUES_INVALID
-		}
-		if !bytes.Equal(fault.TaskId, row.TaskId) || fault.OperatorAddress != row.TargetOperatorAddress || fault.Duty != row.FaultedDuty || fault.FaultClass != class || fault.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE || fault.RecordedHeight > row.AcceptedHeight {
+		if !bytes.Equal(fault.TaskId, row.TaskId) || fault.OperatorAddress != row.TargetOperatorAddress || fault.Duty != row.FaultedDuty || !hubtypes.IsMergedValueEvidenceFault(fault) || fault.RecordedHeight > row.AcceptedHeight {
 			return fmt.Errorf("value receipt disagrees with Hub fault attribution")
 		}
 		id := string(row.FaultId)
@@ -46,11 +42,40 @@ func (app *App) ensureValueEvidenceFaultReferences(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		matched[id] = matched[id] || cleaning || bytes.Equal(fault.EvidenceDigest, row.EvidenceDigest) && fault.RecordedHeight == row.AcceptedHeight
+		matched[id] = matched[id] || cleaning || !hubtypes.IsValueEvidenceFault(fault) || bytes.Equal(fault.EvidenceDigest, row.EvidenceDigest) && fault.RecordedHeight == row.AcceptedHeight
 	}
 	for _, found := range matched {
 		if !found {
 			return fmt.Errorf("value fault has no matching first receipt")
+		}
+	}
+	faults, err := app.HubKeeper.RoleFault.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer faults.Close()
+	for ; faults.Valid(); faults.Next() {
+		stored, err := faults.Value()
+		if err != nil {
+			return err
+		}
+		fault, err := app.HubKeeper.ProjectRoleFaultStore(stored)
+		if err != nil {
+			return err
+		}
+		if !hubtypes.IsValueEvidenceFault(fault) || matched[string(fault.FaultId)] {
+			continue
+		}
+		live, err := app.TaskKeeper.TaskCore.Has(ctx, fault.TaskId)
+		if err != nil {
+			return err
+		}
+		cleaning, err := app.TaskKeeper.TaskCleanupCursor.Has(ctx, fault.TaskId)
+		if err != nil {
+			return err
+		}
+		if live && !cleaning {
+			return fmt.Errorf("live value fault has no matching receipt")
 		}
 	}
 	return nil

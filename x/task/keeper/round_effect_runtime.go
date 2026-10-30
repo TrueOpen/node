@@ -138,6 +138,9 @@ func (k Keeper) freezeRoundEconomicEffects(
 			})
 		}
 		for _, subject := range subjects {
+			if subject.reserved == 0 {
+				continue
+			}
 			requested, ok := mulDivFloorRound(subject.reserved, uint64(subject.slashBps), uint64(types.BasisPointsMaximum))
 			if !ok {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "challenge slash amount overflows")
@@ -283,10 +286,16 @@ func (k Keeper) disprovedRoundOneSubjects(
 		}
 		seen[item.operator] = struct{}{}
 		snapshot, err := k.hubKeeper.GetTaskLiabilityReservation(ctx, taskKey, item.duty, item.operator)
-		if err != nil || !snapshot.Reserved || snapshot.ReservedAmount == 0 {
+		if err != nil || snapshot.Status != hubtypes.TaskLiabilityStatusReserved && snapshot.Status != hubtypes.TaskLiabilityStatusSlashed || snapshot.ReservedAmount == 0 {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "disproved operator liability is unavailable")
 		}
-		subjects = append(subjects, roundEffectSubject{operator: item.operator, duty: item.duty, reserved: snapshot.ReservedAmount})
+		basis := snapshot.ReservedAmount
+		if snapshot.Status == hubtypes.TaskLiabilityStatusSlashed {
+			// Objective evidence may already have closed this duty. Earnings are
+			// still disqualified, but a second slash cannot spend the same basis.
+			basis = 0
+		}
+		subjects = append(subjects, roundEffectSubject{operator: item.operator, duty: item.duty, reserved: basis})
 	}
 	return subjects, nil
 }

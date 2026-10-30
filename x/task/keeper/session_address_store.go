@@ -193,7 +193,10 @@ func (k Keeper) WriteStream(ctx context.Context, key types.SessionStoreKey, stat
 	if err != nil {
 		return err
 	}
-	return k.Stream.Set(ctx, key, stored)
+	if err := k.Stream.Set(ctx, key, stored); err != nil {
+		return err
+	}
+	return k.syncSessionWithdrawalIndex(ctx, state)
 }
 
 func (k Keeper) exportStreams(ctx context.Context) ([]types.StreamState, error) {

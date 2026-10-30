@@ -16,6 +16,9 @@ import (
 )
 
 func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) error {
+	if err := validateServiceKeyGenesisClocks(ctx, genState); err != nil {
+		return err
+	}
 	prepared, err := k.prepareParameterBucketGenesis(ctx, genState)
 	if err != nil {
 		return err
@@ -463,6 +466,44 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	}
 	if err := k.EnsureFreezeRiskScheduleInvariant(ctx); err != nil {
 		return fmt.Errorf("freeze risk schedule invariant: %w", err)
+	}
+	return nil
+}
+
+func validateServiceKeyGenesisClocks(ctx context.Context, state types.GenesisState) error {
+	// InitChain resumes at initial_height; imported state is from the preceding
+	// committed EndBlock, which may already have installed this height's key.
+	next := sdkWrappedContextHeight(ctx)
+	height := next
+	if height > 0 {
+		height--
+	}
+	length := normalizedEpochLengthBlocks(state.Params)
+	checkPrevious := func(retired uint64) error {
+		if retired == 0 {
+			return nil
+		}
+		if retired%length != 0 || retired > height && retired != next {
+			return fmt.Errorf("previous service key retirement is outside the committed genesis clock")
+		}
+		return nil
+	}
+	for _, row := range state.CortexNodes {
+		if err := checkPrevious(row.GetPreviousRetiredHeight()); err != nil {
+			return err
+		}
+	}
+	for _, row := range state.Builders {
+		if err := checkPrevious(row.GetPreviousRetiredHeight()); err != nil {
+			return err
+		}
+	}
+	for _, pending := range state.PendingServiceKeyRotations {
+		// The preceding epoch's final EndBlock installs the next boundary's
+		// binding. A committed snapshot cannot leave that transition pending.
+		if pending.RegisteredHeight > height || pending.EffectiveHeight <= next {
+			return fmt.Errorf("pending service key rotation is outside the genesis state clock")
+		}
 	}
 	return nil
 }

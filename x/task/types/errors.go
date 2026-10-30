@@ -38,4 +38,7 @@ var (
 	ErrEvidenceOpeningInvalid     = errors.Register(ModuleName, 1149, "ERR_EVIDENCE_OPENING_INVALID")
 	ErrDeadlineExpired            = errors.Register(ModuleName, 1150, "ERR_DEADLINE_EXPIRED")
 	ErrSessionKeyCannotFund       = errors.Register(ModuleName, 1151, "ERR_SESSION_KEY_CANNOT_FUND")
+	ErrSessionMinDeposit          = errors.Register(ModuleName, 1152, "ERR_SESSION_MIN_DEPOSIT")
+	ErrActiveSessionLimit         = errors.Register(ModuleName, 1153, "ERR_ACTIVE_SESSION_LIMIT")
+	ErrDispatchBuilderNotBound    = errors.Register(ModuleName, 1154, "ERR_DISPATCH_BUILDER_NOT_BOUND")
 )

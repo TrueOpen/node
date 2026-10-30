@@ -169,6 +169,7 @@ var (
 	CandidatePoolTaskRefKey              = MustVersionedStorePrefix("candidate_pool_task_ref", CurrentStoreSchemaVersion)
 	CandidatePoolExpiryIndexKey          = MustVersionedStorePrefix("candidate_pool_expiry", CurrentStoreSchemaVersion)
 	CandidatePoolPruneIndexKey           = MustVersionedStorePrefix("candidate_pool_prune", CurrentStoreSchemaVersion)
+	CandidatePoolBodyPruneHeightKey      = MustVersionedStorePrefix("candidate_pool_body_prune_height", CurrentStoreSchemaVersion)
 	CandidateSlotBindingPruneIndexKey    = MustVersionedStorePrefix("candidate_slot_binding_prune", CurrentStoreSchemaVersion)
 	CandidatePoolBuildStatusSingletonKey = MustVersionedStorePrefix("candidate_pool_build_status", CurrentStoreSchemaVersion)
 	CurrentCandidatePoolSingletonKey     = MustVersionedStorePrefix("current_candidate_pool", CurrentStoreSchemaVersion)

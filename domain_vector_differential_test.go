@@ -834,8 +834,7 @@ func TestDomainRegistryV1FramingCountsAreFrozen(t *testing.T) {
 // fixtureDomainLiterals collects every non-empty string that appears as the value of a
 // "domain" key anywhere in any testdata JSON, mapped to the first file it was seen in.
 // Walking the decoded document rather than a typed struct is what lets the scan see
-// task_builder_rank_v1.json, whose domain is a top-level key rather than a per-vector
-// one, and any future fixture shaped differently again.
+// domains published at the top level as well as per-vector domain tags.
 func fixtureDomainLiterals(t *testing.T) map[string]string {
 	t.Helper()
 	found := make(map[string]string)

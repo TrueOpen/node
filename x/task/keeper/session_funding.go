@@ -83,14 +83,14 @@ func (k Keeper) validateInitialSessionFunding(ctx context.Context, owner []byte,
 	amount, err := shared.ParseAmount(req.InitialDeposit)
 	minimum, minErr := shared.ParseAmount(params.Session.SessionMinPrefund)
 	if err != nil || minErr != nil || amount == 0 || minimum == 0 || amount < minimum {
-		return fmt.Errorf("initial_deposit must meet session_min_prefund")
+		return types.ErrSessionMinDeposit.Wrap("initial_deposit must meet session_min_prefund")
 	}
 	if _, _, err := k.canonicalAddress("initial_builder", req.InitialBuilder); err != nil {
 		return err
 	}
 	_, err = k.hubKeeper.GetBuilderDispatchAuthority(ctx, req.InitialBuilder)
 	if err != nil {
-		return fmt.Errorf("initial Builder has no active service binding: %w", err)
+		return types.ErrDispatchBuilderNotBound.Wrapf("initial Builder has no active service binding: %v", err)
 	}
 	set, err := k.hubKeeper.GetBuilderSetForHeight(sdk.UnwrapSDKContext(ctx), uint64(sdk.UnwrapSDKContext(ctx).BlockHeight()))
 	if err != nil {
@@ -101,7 +101,7 @@ func (k Keeper) validateInitialSessionFunding(ctx context.Context, owner []byte,
 		member = member || builder == req.InitialBuilder
 	}
 	if !member {
-		return fmt.Errorf("initial Builder is outside the current BuilderSet")
+		return types.ErrDispatchBuilderNotBound.Wrap("initial Builder is outside the current BuilderSet")
 	}
 	if params.Session.MaxActiveSessionsPerAccount == 0 {
 		return fmt.Errorf("max_active_sessions_per_account must be positive")
@@ -115,7 +115,7 @@ func (k Keeper) validateInitialSessionFunding(ctx context.Context, owner []byte,
 	for ; iter.Valid(); iter.Next() {
 		count++
 		if count >= params.Session.MaxActiveSessionsPerAccount {
-			return fmt.Errorf("max_active_sessions_per_account reached")
+			return types.ErrActiveSessionLimit.Wrap("max_active_sessions_per_account reached")
 		}
 	}
 	return nil

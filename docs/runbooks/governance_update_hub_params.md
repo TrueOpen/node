@@ -105,8 +105,8 @@ jq -n --slurpfile p /tmp/hubparams.new.json --arg auth "$GOV_AUTH" \
   ],
   metadata: "",
   deposit: "10000000uusdc",
-  title: "Update hub params: query.max_query_page_limit 100 -> 200",
-  summary: "Raise the maximum Query page limit from 100 to 200."
+  title: "Update hub params: query_event.max_query_page_limit 1000 -> 200",
+  summary: "Reduce the maximum Query page limit from 1000 to 200."
 }' > /tmp/proposal.json
 cat /tmp/proposal.json
 ```
@@ -221,8 +221,8 @@ GOV_FAST=1 RESET=1 scripts/localnet_single_node.sh
 
 ## 9. Related operations (same flow, different message)
 
-- **Change task params**: swap the message for `/task.v1.MsgUpdateParams` (same
-  rules — `authority` = the gov address, `params` complete).
+- **Change task params**: swap the message for `/task.v1.MsgUpdateTaskParams` (same
+  rules — `authority` = the gov address, `params` complete, and `expected_version` copied from the same TaskParams query).
 - **List/delist a model**: swap the message for `/hub.v1.MsgSetModelStatus` or
   `MsgSetProfileStatus` (both gov-gated); fill in the corresponding fields.
 - A single proposal's `messages` array may hold several messages; on passing they

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/cosmos/cosmos-sdk/types/bech32"
-
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
@@ -209,19 +207,12 @@ func CanonicalOperatorAddressBytes(field, value string) ([]byte, error) {
 	if strings.TrimSpace(value) != value {
 		return nil, fmt.Errorf("%s must not carry leading or trailing whitespace", field)
 	}
-	hrp, raw, err := bech32.DecodeAndConvert(value)
+	raw, err := shared.CanonicalBech32Address(field, value)
 	if err != nil {
-		return nil, fmt.Errorf("%s is not a decodable Bech32 address: %w", field, err)
+		return nil, err
 	}
 	if len(raw) == 0 || len(raw) > maxAddressCodecBytes {
-		return nil, fmt.Errorf("%s decodes to %d address bytes, outside 1..%d", field, len(raw), maxAddressCodecBytes)
-	}
-	reencoded, err := bech32.ConvertAndEncode(hrp, raw)
-	if err != nil {
-		return nil, fmt.Errorf("%s could not be re-encoded: %w", field, err)
-	}
-	if reencoded != value {
-		return nil, fmt.Errorf("%s must be the canonical Bech32 encoding of its address bytes", field)
+		return nil, fmt.Errorf("%s decodes to an invalid address width", field)
 	}
 	return raw, nil
 }

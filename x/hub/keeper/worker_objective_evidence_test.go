@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -68,8 +67,9 @@ func TestWorkerObjectiveEvidenceUsesRetainedResponsibilityAndSlashesOnce(t *test
 	require.NoError(t, f.keeper.ReleaseServiceKeyResponsibility(
 		f.ctx, shared.ParticipantTypeCortexNode, identity.Address, hex.EncodeToString(responsibilityID),
 	))
-	_, err = f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
-	require.ErrorIs(t, err, collections.ErrNotFound, "proof-only identity retires when its final responsibility closes")
+	node, err = f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
+	require.NoError(t, err, "the retained candidate binding still owns dispatch proof authority")
+	require.Equal(t, types.ServiceKeyStatusRevoked, node.ServiceKeyStatus)
 }
 
 func TestWorkerObjectiveEvidenceCanSlashBeforeTaskFinality(t *testing.T) {
@@ -98,5 +98,5 @@ func TestWorkerObjectiveEvidenceCanSlashBeforeTaskFinality(t *testing.T) {
 	require.Equal(t, shared.FaultKind_FAULT_KIND_EQUIVOCATION, fault.FaultClass)
 	reservation, err := f.keeper.GetTaskLiabilityReservation(f.ctx, request.TaskID, shared.DutyWorker, identity.Address)
 	require.NoError(t, err)
-	require.False(t, reservation.Reserved)
+	require.Equal(t, types.TaskLiabilityStatusSlashed, reservation.Status)
 }

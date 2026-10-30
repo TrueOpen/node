@@ -29,6 +29,10 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 		{"stale admission", func(p *TaskParamsV1) { p.Dispatch.OrderFreshnessMarginBlocks = p.Dispatch.RecordDeadlineBlocks }},
 		{"loses exclusion facts", func(p *TaskParamsV1) { p.Dispatch.DispatchRecordRetentionBlocks = 300 }},
 		{"loses prerecord evidence", func(p *TaskParamsV1) { p.Dispatch.DispatchEvidenceRetentionBlocks = 239 }},
+		{"loses challenge authority", func(p *TaskParamsV1) {
+			p.Evidence.MaxEvidenceRetentionBlocks = p.Dispatch.DispatchChallengeWindowBlocks - 1
+			p.Evidence.VerifierValueEvidenceWindowBlocks = p.Evidence.MaxEvidenceRetentionBlocks
+		}},
 		{"missing penalty kind", func(p *TaskParamsV1) {
 			p.Dispatch.DispatchFaultPenaltyByKind = p.Dispatch.DispatchFaultPenaltyByKind[:4]
 		}},
@@ -88,6 +92,7 @@ func TestPhase1SeedParameterSafety(t *testing.T) {
 			var hub hubtypes.HubParamsV2
 			require.NoError(t, jsonpb.Unmarshal(bytes.NewReader(root["hub_params"]), &hub))
 			require.NoError(t, hub.Validate())
+			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, 2*p.Dispatch.RecordDeadlineBlocks, "BuilderSet notice must cover dispatch and takeover recording")
 			require.NoError(t, ValidateVerifyOpenClock(p.Deadlines, hub.Epoch.DeltaWBlocks, hub.Builder.OpenVerifyBuilderProposalWindowBlocks))
 			require.NoError(t, ValidateSessionCloseHorizon(p, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
 			require.Equal(t, uint64(120), hub.Epoch.EpochLengthBlocks)

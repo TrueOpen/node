@@ -18,6 +18,9 @@ func (k Keeper) authorizeSessionOrder(ctx context.Context, signed types.SignedOr
 	if order.ChainId != sdkContextFrom(ctx).ChainID() || height > order.OrderExpireHeight {
 		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_SIGNATURE_INVALID, fmt.Errorf("order chain or expiry is invalid"))
 	}
+	if order.SessionAnchorHeight == 0 || order.SessionAnchorHeight > height {
+		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_SIGNATURE_INVALID, fmt.Errorf("session_anchor_height must be positive and no later than admission"))
+	}
 	taskHash, err := types.TaskOrderHash(order)
 	if err != nil {
 		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_AMOUNT_INVALID, err)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # govtest_builder_localnet.sh — one command to get a localnet whose builders you
-# hold the private keys for (docs/runbooks/builder_registration_testing.md).
+# hold the private keys for (docs/runbooks/settlement_builder_contract.md).
 #
 # The default genesis seed ships builder addresses whose private keys nobody
 # has, so you cannot sign anything as them. This script:
@@ -185,7 +185,7 @@ $(for i in $(seq 1 "$BUILDER_COUNT"); do
   Verify:
     $NODED --home $HOME_DIR query hub builders -o json | jq '.builders[] | {builder_address, status}'
 
-  Then follow docs/runbooks/builder_registration_testing.md.
+  Then follow docs/runbooks/settlement_builder_contract.md.
 
 EOF
 

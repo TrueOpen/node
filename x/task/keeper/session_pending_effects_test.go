@@ -89,7 +89,7 @@ func TestCloseWaitsWithoutStarvingAnotherSessionWithdrawal(t *testing.T) {
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(pending.PendingWithdrawEffectiveHeight)))
 	result, err := f.keeper.RunEndBlockDeadlineSweeps(f.ctx, pending.PendingWithdrawEffectiveHeight, 10)
 	require.NoError(t, err)
-	require.Equal(t, uint64(2), result.SessionWithdraw, "both the blocked CLOSE and the later row consume visited work")
+	require.Equal(t, uint64(1), result.SessionWithdraw, "the sleeping CLOSE must not consume work before its Tasks finish")
 	first, err := f.keeper.ReadStream(f.ctx, f.sessionID)
 	require.NoError(t, err)
 	second, err := f.keeper.ReadStream(f.ctx, otherID)
@@ -97,6 +97,21 @@ func TestCloseWaitsWithoutStarvingAnotherSessionWithdrawal(t *testing.T) {
 	require.Equal(t, types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE, first.PendingWithdrawKind)
 	require.Equal(t, types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE, second.PendingWithdrawKind)
 	require.Equal(t, shared.NewAmount(dispatchTestPrefund-1000), second.Balance)
+	key := collections.Join(first.PendingWithdrawEffectiveHeight, first.SessionId)
+	queued, err := f.keeper.SessionWithdrawIndex.Has(f.ctx, key)
+	require.NoError(t, err)
+	require.False(t, queued)
+	// The final Task's shared Stream update wakes the dormant CLOSE using its
+	// original scheduled height, without another full-table maintenance scan.
+	first.FrozenTotal = shared.NewAmount(0)
+	require.NoError(t, f.keeper.WriteStream(f.ctx, first.SessionId, first))
+	require.NoError(t, f.keeper.closeStreamPendingTask(f.ctx, first.SessionId))
+	queued, err = f.keeper.SessionWithdrawIndex.Has(f.ctx, key)
+	require.NoError(t, err)
+	require.True(t, queued)
+	advanced, err := f.keeper.applySessionPendingRow(f.ctx, sessionPendingWithdraw, sessionPendingRow{height: key.K1(), sessionID: key.K2()}, key.K1())
+	require.NoError(t, err)
+	require.True(t, advanced)
 }
 
 func TestCloseRefundsOwnerAndSchedulesHistoryPruning(t *testing.T) {

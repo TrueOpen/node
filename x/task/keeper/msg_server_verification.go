@@ -218,7 +218,7 @@ func taskBatchDigest(chainID, kind string, results []types.BatchItemResultV1) ([
 	items := make([]shared.BatchResultDigestItemV1, len(results))
 	for index, result := range results {
 		if result.ItemIndex != uint32(index) || len(result.ObjectId) != types.Hash32Len ||
-			(result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED && result.Status != shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP && !(kind == shared.BatchResultKindDispatchRecord && result.Status == shared.MutationStatusV1_MUTATION_STATUS_V1_REJECTED)) {
+			!shared.IsBatchMutationStatusV1(kind, uint32(result.Status)) {
 			return nil, fmt.Errorf("batch result item %d is non-canonical", index)
 		}
 		if (result.Status == shared.MutationStatusV1_MUTATION_STATUS_V1_REJECTED) != (result.RejectCode != types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_UNSPECIFIED) {

@@ -140,7 +140,11 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 			return err
 		}
 		if pending != 0 || core {
-			return nil
+			next, overflow := shared.CheckedHeightAddV1(height, 1)
+			if overflow {
+				return fmt.Errorf("blocked dispatch prune height overflows")
+			}
+			return q.reschedulePrune(ctx, next)
 		}
 		base = row.RecordedHeight
 		var overflow bool
@@ -214,13 +218,17 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 	}
 	minimum = max(minimum, floor)
 	if height < minimum {
-		if err := q.set.Remove(ctx, q.row); err != nil {
-			return err
-		}
-		return q.set.Set(ctx, collections.Join(minimum, id))
+		return q.reschedulePrune(ctx, minimum)
 	}
 	if err := remove(); err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
 	return q.set.Remove(ctx, q.row)
+}
+
+func (q *dispatchDeadlineQueue) reschedulePrune(ctx context.Context, height uint64) error {
+	if err := q.set.Remove(ctx, q.row); err != nil {
+		return err
+	}
+	return q.set.Set(ctx, collections.Join(height, q.row.K2()))
 }

@@ -43,8 +43,8 @@ func ValidateSessionState(state StreamState) error {
 			return fmt.Errorf("pending amount withdrawal requires amount and effective height")
 		}
 	case SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE:
-		if withdraw != 0 || state.PendingWithdrawEffectiveHeight == 0 || state.XPendingTakeover != nil {
-			return fmt.Errorf("pending close requires an effective height, no fixed amount and no takeover")
+		if withdraw != 0 || state.PendingWithdrawEffectiveHeight == 0 {
+			return fmt.Errorf("pending close requires an effective height and no fixed amount")
 		}
 	default:
 		return fmt.Errorf("invalid pending_withdraw_kind")

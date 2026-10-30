@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-
-	"github.com/cosmos/cosmos-sdk/types/bech32"
 )
 
 // CanonicalEventTargets validates, deduplicates and sorts by role then raw20.
@@ -22,13 +20,9 @@ func CanonicalEventTargets(targets []*EventTarget) ([]*EventTarget, error) {
 		if _, known := EventRole_name[int32(target.Role)]; !known {
 			return nil, fmt.Errorf("event target role is unknown")
 		}
-		hrp, raw, err := bech32.DecodeAndConvert(target.Address)
+		raw, err := CanonicalBech32Address("event target address", target.Address)
 		if err != nil || len(raw) != EVMAddressBytes {
 			return nil, fmt.Errorf("event target address must be canonical raw20 Bech32")
-		}
-		canonical, err := bech32.ConvertAndEncode(hrp, raw)
-		if err != nil || canonical != target.Address {
-			return nil, fmt.Errorf("event target address is not canonical")
 		}
 		items = append(items, item{target: EventTarget{Role: target.Role, Address: target.Address}, address: raw})
 	}

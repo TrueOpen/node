@@ -227,9 +227,6 @@ func (k Keeper) admitTakeoverItem(ctx context.Context, entry *types.TakeoverEntr
 	if stream.GetPendingTakeover() != nil {
 		return identity, 0, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_TAKEOVER_PENDING, fmt.Errorf("session already has a pending takeover"))
 	}
-	if stream.PendingWithdrawKind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE {
-		return identity, 0, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_SESSION_INVALID, fmt.Errorf("session has a pending CLOSE"))
-	}
 	activation, overflow := shared.CheckedHeightAddV1(height, params.Dispatch.RecordDeadlineBlocks)
 	if overflow {
 		return identity, 0, fmt.Errorf("takeover activation height overflows")

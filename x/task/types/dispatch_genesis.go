@@ -31,8 +31,10 @@ func validateDispatchGenesisRows(genesis GenesisState) error {
 			return fmt.Errorf("duplicate dispatch compensation claim")
 		}
 		claims[string(row.DispatchTicketHash)] = row
-		if record, found := records[string(row.TaskId)]; found && bytes.Equal(record.DispatchTicketHash, row.DispatchTicketHash) && row.Status != DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED {
-			return fmt.Errorf("recorded winner has a payable compensation claim")
+		if record, found := records[string(row.TaskId)]; found && bytes.Equal(record.DispatchTicketHash, row.DispatchTicketHash) {
+			if err := validateClaimPaymentBeforeExclusion(row, record.RecordedHeight); err != nil {
+				return err
+			}
 		}
 	}
 	winners := map[string]bool{}
@@ -44,8 +46,10 @@ func validateDispatchGenesisRows(genesis GenesisState) error {
 			return fmt.Errorf("duplicate winner exclusion")
 		}
 		winners[string(row.DispatchTicketHash)] = true
-		if claim, found := claims[string(row.DispatchTicketHash)]; found && claim.Status != DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED {
-			return fmt.Errorf("ineligible winner has a payable compensation claim")
+		if claim, found := claims[string(row.DispatchTicketHash)]; found {
+			if err := validateClaimPaymentBeforeExclusion(claim, row.RejectedHeight); err != nil {
+				return err
+			}
 		}
 	}
 	challenges := map[string]bool{}
@@ -73,6 +77,17 @@ func validateDispatchGenesisRows(genesis GenesisState) error {
 			return fmt.Errorf("duplicate takeover replay receipt")
 		}
 		receipts[string(row.TakeoverEntryDigest)] = true
+	}
+	return nil
+}
+
+// A later recording or ineligibility fact cannot invalidate an immutable past
+// payment. Pending claims are rechecked and dismissed by their maturity handler.
+func validateClaimPaymentBeforeExclusion(claim DispatchCompensationClaimState, exclusionHeight uint64) error {
+	if claim.Status == DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PAID && claim.GetResolvedHeight() >= exclusionHeight {
+		// Exclusion is written by a transaction; claim payment runs afterwards
+		// in EndBlock, so payment cannot precede exclusion in the same block.
+		return fmt.Errorf("compensation claim was paid at or after winner exclusion")
 	}
 	return nil
 }

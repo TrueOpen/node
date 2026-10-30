@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -163,7 +164,7 @@ func (k Keeper) dispatchWinnerLiability(ctx context.Context, admission dispatchO
 		reason = types.DispatchWinnerIneligibleReasonV1_DISPATCH_WINNER_INELIGIBLE_REASON_V1_TOMBSTONED
 	case bond.Status == hubtypes.ServiceBondStatusUnbonding:
 		reason = types.DispatchWinnerIneligibleReasonV1_DISPATCH_WINNER_INELIGIBLE_REASON_V1_UNBONDING
-	case bond.EffectiveActiveBond < admission.profile.MinStake:
+	case bond.AvailableBond < admission.profile.MinStake:
 		reason = types.DispatchWinnerIneligibleReasonV1_DISPATCH_WINNER_INELIGIBLE_REASON_V1_BOND_INSUFFICIENT
 	case bond.RequiredTaskLiability == 0 || bond.AvailableBond < bond.RequiredTaskLiability:
 		reason = types.DispatchWinnerIneligibleReasonV1_DISPATCH_WINNER_INELIGIBLE_REASON_V1_LIABILITY_INSUFFICIENT
@@ -193,6 +194,9 @@ func (k Keeper) applyDispatchRecord(ctx context.Context, admission dispatchOrder
 	height, taskKey := state.RecordedHeight, types.NewTaskKey(admission.taskID[:])
 	created, err := k.hubKeeper.AcquireCandidatePoolTaskRef(ctx, admission.taskID[:], state.CandidatePoolSnapshotId, height)
 	if err != nil {
+		if errors.Is(err, hubtypes.ErrCandidatePoolUnavailable) {
+			return rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_WINNER_NOT_ELIGIBLE, err)
+		}
 		return err
 	}
 	if !created {

@@ -130,7 +130,7 @@ func (k Keeper) applyPendingSessionWithdrawal(ctx context.Context, stream, previ
 	}
 	kind := stream.PendingWithdrawKind
 	if kind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE && stream.OpenPendingCount != 0 {
-		return false, nil
+		return false, k.syncSessionWithdrawalIndex(ctx, stream)
 	}
 	balance, err := shared.ParseAmount(stream.Balance)
 	if err != nil {
@@ -191,7 +191,7 @@ func (k Keeper) applyPendingSessionKeyChange(ctx context.Context, stream types.S
 		if pending.GetGrant() == nil {
 			return false, fmt.Errorf("pending session SET grant is missing")
 		}
-		setSessionKey(&stream, pending.GetGrant(), height)
+		setSessionKey(&stream, pending.GetGrant(), pending.EffectiveHeight)
 	case types.SessionKeyChangeKindV1_SESSION_KEY_CHANGE_KIND_V1_CLEAR:
 		stream.XSessionKey = nil
 		stream.SessionKeySetHeight = 0

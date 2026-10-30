@@ -113,8 +113,5 @@ func TestHistoricalCandidateWeightUsesProfileFactsAndFrozenPolicy(t *testing.T) 
 	require.Error(t, err)
 
 	member.WeightInputs = nil
-	require.NoError(t, f.keeper.WriteCandidatePoolMember(f.ctx, key, member))
-	req.XProfileVersion = nil
-	_, err = query.CandidatePoolSnapshotMember(f.ctx, req)
-	require.ErrorContains(t, err, "weight inputs are missing")
+	require.ErrorContains(t, f.keeper.WriteCandidatePoolMember(f.ctx, key, member), "weight inputs are required")
 }

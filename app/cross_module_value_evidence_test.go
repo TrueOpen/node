@@ -66,3 +66,18 @@ func TestRoundEffectAndHubCustodyRequireBothReferences(t *testing.T) {
 	require.NoError(t, application.TaskKeeper.RoundEconomicEffect.Remove(ctx, effectKey))
 	require.ErrorContains(t, application.ensureRoundSlashReferences(ctx), "no applied Task effect")
 }
+
+func TestLiveValueFaultRequiresReceiptUntilCleanupStarts(t *testing.T) {
+	application := bootAppMinimal(t)
+	ctx := application.NewContextLegacy(true, cmtproto.Header{Height: 10})
+	id, task := bytes.Repeat([]byte{21}, 32), bytes.Repeat([]byte{22}, 32)
+	fault := hubtypes.RoleFaultState{FaultId: id, TaskId: task, OperatorAddress: sdk.AccAddress(bytes.Repeat([]byte{23}, 20)).String(), Duty: shared.DutyWorker, FaultClass: shared.FaultKind_FAULT_KIND_WORKER_VALUES_INVALID, ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE, EvidenceDigest: bytes.Repeat([]byte{24}, 32), RecordedHeight: 5, Status: hubtypes.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED}
+	require.NoError(t, application.HubKeeper.WriteRoleFaultValue(ctx, id, fault))
+	require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, task, tasktypes.TaskCoreState{TaskId: task}))
+	require.ErrorContains(t, application.ensureValueEvidenceFaultReferences(ctx), "live value fault has no matching receipt")
+	require.NoError(t, application.TaskKeeper.TaskCleanupCursor.Set(ctx, task, tasktypes.TaskCleanupCursorState{TaskId: task}))
+	require.NoError(t, application.ensureValueEvidenceFaultReferences(ctx))
+	require.NoError(t, application.TaskKeeper.TaskCleanupCursor.Remove(ctx, task))
+	require.NoError(t, application.TaskKeeper.TaskCore.Remove(ctx, task))
+	require.NoError(t, application.ensureValueEvidenceFaultReferences(ctx), "archived faults outlive compacted receipts")
+}

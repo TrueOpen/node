@@ -6,7 +6,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 
+	hubkeeper "github.com/TrueOpen/node/x/hub/keeper"
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
+	taskkeeper "github.com/TrueOpen/node/x/task/keeper"
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
 
@@ -15,6 +17,13 @@ type runtimeInvariantRoute struct {
 	name       string
 	check      sdk.Invariant
 }
+
+type invariantScope uint8
+
+const (
+	invariantBlockChecks invariantScope = iota
+	invariantDiagnosticChecks
+)
 
 // runtimeInvariantRegistry is the production consumer for the legacy SDK
 // invariant registration surface. Cosmos SDK v0.53 keeps
@@ -53,8 +62,17 @@ func (r *runtimeInvariantRegistry) countModule(moduleName string) int {
 	return count
 }
 
-func (r *runtimeInvariantRegistry) run(ctx sdk.Context) error {
+func (r *runtimeInvariantRegistry) runChecks(ctx sdk.Context, scope invariantScope) error {
 	for _, route := range r.routes {
+		// These structural diagnostics rebuild retained history. Run them at
+		// import, startup and export, rather than adding full scans to every
+		// block. Custody checks, including compensation, remain mandatory.
+		diagnostic := route.moduleName == tasktypes.ModuleName &&
+			(route.name == taskkeeper.InvariantParameterVersions || route.name == taskkeeper.InvariantValueEvidence || route.name == taskkeeper.InvariantDispatchIndexes) ||
+			route.moduleName == hubtypes.ModuleName && route.name == hubkeeper.InvariantServiceKeyRotations
+		if scope == invariantBlockChecks && diagnostic || scope == invariantDiagnosticChecks && !diagnostic {
+			continue
+		}
 		message, broken := route.check(ctx)
 		if broken {
 			return fmt.Errorf("runtime invariant %s/%s failed: %s", route.moduleName, route.name, message)
@@ -96,7 +114,7 @@ func (app *App) installRuntimeInvariants() {
 		if err := app.HubKeeper.FinalizeProfilePriceSamples(sdk.WrapSDKContext(ctx)); err != nil {
 			return response, err
 		}
-		if err := registry.run(ctx); err != nil {
+		if err := registry.runChecks(ctx, invariantBlockChecks); err != nil {
 			return response, err
 		}
 		return response, nil

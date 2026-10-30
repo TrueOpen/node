@@ -103,6 +103,7 @@ type Keeper struct {
 
 	CandidatePoolExpiryIndex       collections.KeySet[types.CandidatePoolExpiryIndexKeyPair]
 	CandidatePoolPruneIndex        collections.KeySet[types.CandidatePoolPruneIndexKeyTriple]
+	CandidatePoolBodyPruneHeight   collections.Map[shared.Hash32Key, uint64]
 	CandidateSlotBindingPruneIndex collections.KeySet[types.CandidateSlotBindingPruneIndexKeyTriple]
 
 	// Two singletons: the build diagnosis a new build overwrites, and the
@@ -395,6 +396,7 @@ func NewKeeper(
 		CandidatePoolTaskRef:                collections.NewMap(sb, types.CandidatePoolTaskRefKey, "candidate_pool_task_ref", candidatePoolTaskRefKeyCodec, codec.CollValue[types.CandidatePoolTaskRefState](cdc)),
 		CandidatePoolExpiryIndex:            collections.NewKeySet(sb, types.CandidatePoolExpiryIndexKey, "candidate_pool_expiry", candidatePoolExpiryKeyCodec),
 		CandidatePoolPruneIndex:             collections.NewKeySet(sb, types.CandidatePoolPruneIndexKey, "candidate_pool_prune", candidatePoolPruneKeyCodec),
+		CandidatePoolBodyPruneHeight:        collections.NewMap(sb, types.CandidatePoolBodyPruneHeightKey, "candidate_pool_body_prune_height", shared.Hash32KeyCodec, collections.Uint64Value),
 		CandidateSlotBindingPruneIndex:      collections.NewKeySet(sb, types.CandidateSlotBindingPruneIndexKey, "candidate_slot_binding_prune", candidateSlotBindingPruneKeyCodec),
 		CandidatePoolBuildStatus:            collections.NewItem(sb, types.CandidatePoolBuildStatusSingletonKey, "candidate_pool_build_status", codec.CollValue[types.CandidatePoolBuildStatusState](cdc)),
 		CurrentCandidatePool:                collections.NewItem(sb, types.CurrentCandidatePoolSingletonKey, "current_candidate_pool", codec.CollValue[types.CurrentCandidatePoolState](cdc)),

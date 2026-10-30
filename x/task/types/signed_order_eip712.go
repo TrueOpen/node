@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/cosmos/cosmos-sdk/types/bech32"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	dcrsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/sha3"
 
@@ -177,13 +177,9 @@ func canonicalTaskOrderEIP712User(value string) ([]byte, error) {
 	if value == "" || value != strings.TrimSpace(value) {
 		return nil, fmt.Errorf("TaskOrderV3 user_address must be canonical Bech32")
 	}
-	hrp, raw, err := bech32.DecodeAndConvert(value)
-	if err != nil || hrp != taskOrderAccountHRP || len(raw) != 20 {
-		return nil, fmt.Errorf("TaskOrderV3 user_address must be a 20-byte %s address", taskOrderAccountHRP)
-	}
-	reencoded, err := bech32.ConvertAndEncode(taskOrderAccountHRP, raw)
-	if err != nil || reencoded != value {
-		return nil, fmt.Errorf("TaskOrderV3 user_address must be canonical Bech32")
+	raw, _, err := shared.CanonicalAddress(addresscodec.NewBech32Codec(taskOrderAccountHRP), "user_address", value)
+	if err != nil || len(raw) != shared.EVMAddressBytes {
+		return nil, fmt.Errorf("TaskOrderV3 user_address must be a canonical 20-byte %s address", taskOrderAccountHRP)
 	}
 	return append([]byte(nil), raw...), nil
 }

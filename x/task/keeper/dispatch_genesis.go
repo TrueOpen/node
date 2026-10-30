@@ -100,10 +100,8 @@ func (k Keeper) initDispatchGenesis(ctx context.Context, genesis types.GenesisSt
 		}
 	}
 	for _, stream := range genesis.Streams {
-		if stream.PendingWithdrawKind != types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE {
-			if err := k.SessionWithdrawIndex.Set(ctx, collections.Join(stream.PendingWithdrawEffectiveHeight, stream.SessionId)); err != nil {
-				return err
-			}
+		if err := k.syncSessionWithdrawalIndex(ctx, stream); err != nil {
+			return err
 		}
 		if change := stream.GetPendingSessionKeyChange(); change != nil {
 			if err := k.SessionKeyChangeIndex.Set(ctx, collections.Join(change.EffectiveHeight, stream.SessionId)); err != nil {

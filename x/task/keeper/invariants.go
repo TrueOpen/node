@@ -14,6 +14,9 @@ import (
 )
 
 const (
+	InvariantParameterVersions = "parameter_versions"
+	InvariantValueEvidence     = "value_evidence"
+	InvariantDispatchIndexes   = "dispatch_indexes"
 	// InvariantEscrowReserved checks escrow custody against funded Session balances.
 	InvariantEscrowReserved = "escrow_reserved"
 
@@ -43,9 +46,9 @@ type InvariantCheck struct {
 
 func (k Keeper) InvariantChecks() []InvariantCheck {
 	return []InvariantCheck{
-		{"parameter_versions", "fixed object versions, history and derived counts/time indexes agree", k.EnsureParamsVersionInvariant},
-		{"value_evidence", "compact value receipts and window indexes agree with accepted task authority", k.EnsureValueEvidenceInvariant},
-		{"dispatch_indexes", "dispatch primaries, open indexes, replay scopes and retention are bidirectional", k.EnsureDispatchInvariant},
+		{InvariantParameterVersions, "fixed object versions, history and derived counts/time indexes agree", k.EnsureParamsVersionInvariant},
+		{InvariantValueEvidence, "compact value receipts and window indexes agree with accepted task authority", k.EnsureValueEvidenceInvariant},
+		{InvariantDispatchIndexes, "dispatch primaries, open indexes, replay scopes and retention are bidirectional", k.EnsureDispatchInvariant},
 		{InvariantEscrowReserved, "task escrow balance equals the sum of Session balances", k.EnsureEscrowReservedInvariant},
 		{InvariantSessionOpenPending, "every stream open_pending_count equals its RESERVED task budget count", k.EnsureSessionOpenPendingInvariant},
 		{InvariantDeadlineIndexNonZeroHeight, "no deadline index row sits at height 0", k.EnsureDeadlineIndexNonZeroHeightInvariant},

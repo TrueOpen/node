@@ -54,7 +54,7 @@ func (gs GenesisState) Validate() error {
 	if err != nil {
 		return err
 	}
-	nodes, bonds, err := validateServiceGenesis(gs.CortexNodes, gs.ServiceBonds, gs.ServiceUnbondings, gs.ServiceUnbondingReceipts, gs.TaskLiabilityReservations, gs.Params)
+	nodes, bonds, err := validateServiceGenesis(gs.CortexNodes, gs.ServiceBonds, gs.ServiceUnbondings, gs.ServiceUnbondingReceipts, gs.TaskLiabilityReservations, gs.CandidateSlotCurrents, gs.Params)
 	if err != nil {
 		return err
 	}
@@ -338,6 +338,9 @@ func validateTaskLiabilityCandidateOwnership(gs GenesisState, nodes map[string]C
 	}
 	members := make(map[string]CandidatePoolMemberState, len(gs.CandidatePoolMembers))
 	for _, member := range gs.CandidatePoolMembers {
+		if member.WeightInputs == nil {
+			return fmt.Errorf("candidate weight inputs are required")
+		}
 		key := fmt.Sprintf("%d/%d", member.Epoch, member.Slot)
 		if _, exists := members[key]; exists {
 			return fmt.Errorf("duplicate candidate pool member %s", key)
@@ -709,7 +712,13 @@ func validateModelProfileGenesis(modelRows []ModelState, profileRows []ProfileSt
 	return models, profiles, nil
 }
 
-func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondState, unbondingRows []UnbondingState, receiptRows []UnbondingReceiptState, liabilityRows []TaskLiabilityReservationState, params HubParamsV2) (map[string]CortexNodeState, map[string]ServiceBondState, error) {
+func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondState, unbondingRows []UnbondingState, receiptRows []UnbondingReceiptState, liabilityRows []TaskLiabilityReservationState, slotRows []CandidateSlotCurrentState, params HubParamsV2) (map[string]CortexNodeState, map[string]ServiceBondState, error) {
+	retainedCandidate := make(map[string]bool, len(slotRows))
+	for _, slot := range slotRows {
+		if slot.OperatorAddress != "" {
+			retainedCandidate[slot.OperatorAddress] = true
+		}
+	}
 	nodes := make(map[string]CortexNodeState, len(nodeRows))
 	for _, state := range nodeRows {
 		if err := state.Validate(); err != nil {
@@ -735,7 +744,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 		if terminal && hasNode {
 			node := nodes[state.OperatorAddress]
 			if node.ServiceKeyStatus != ServiceKeyStatusRevoked || node.CurrentDescriptorVersion != 0 ||
-				node.ActiveTaskLiabilityCount == 0 && node.PendingStageDutyCount == 0 && node.PendingEvidenceSubmissionCount == 0 {
+				node.ActiveTaskLiabilityCount == 0 && node.PendingStageDutyCount == 0 && node.PendingEvidenceSubmissionCount == 0 && !retainedCandidate[state.OperatorAddress] {
 				return nil, nil, fmt.Errorf("terminal service bond %s retains a non-proof-only cortex identity", state.OperatorAddress)
 			}
 		}
@@ -755,7 +764,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 		if bond.Status == ServiceBondStatusExited || bond.Status == ServiceBondStatusTombstoned {
 			state := nodes[operator]
 			if state.ServiceKeyStatus != ServiceKeyStatusRevoked || state.CurrentDescriptorVersion != 0 ||
-				state.ActiveTaskLiabilityCount == 0 && state.PendingStageDutyCount == 0 && state.PendingEvidenceSubmissionCount == 0 {
+				state.ActiveTaskLiabilityCount == 0 && state.PendingStageDutyCount == 0 && state.PendingEvidenceSubmissionCount == 0 && !retainedCandidate[operator] {
 				return nil, nil, fmt.Errorf("cortex node %s is not a valid terminal proof-only identity", operator)
 			}
 		}
