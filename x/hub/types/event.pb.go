@@ -3160,11 +3160,12 @@ func (m *EventServiceKeyRotationRegistered) GetPendingRotation() PendingServiceK
 
 // EventServiceKeyRotated is event code 101, emitted only at actual epoch activation.
 type EventServiceKeyRotated struct {
-	ParticipantType    types.ParticipantType `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3,enum=shared.v1.ParticipantType" json:"participant_type,omitempty"`
-	Operator           string                `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
-	OldServiceAddress  string                `protobuf:"bytes,3,opt,name=old_service_address,json=oldServiceAddress,proto3" json:"old_service_address,omitempty"`
-	NewServiceAddress  string                `protobuf:"bytes,4,opt,name=new_service_address,json=newServiceAddress,proto3" json:"new_service_address,omitempty"`
-	AuthorizationNonce uint64                `protobuf:"varint,5,opt,name=authorization_nonce,json=authorizationNonce,proto3" json:"authorization_nonce,omitempty"`
+	ParticipantType   types.ParticipantType `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3,enum=shared.v1.ParticipantType" json:"participant_type,omitempty"`
+	Operator          string                `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
+	OldServiceAddress string                `protobuf:"bytes,3,opt,name=old_service_address,json=oldServiceAddress,proto3" json:"old_service_address,omitempty"`
+	NewServiceAddress string                `protobuf:"bytes,4,opt,name=new_service_address,json=newServiceAddress,proto3" json:"new_service_address,omitempty"`
+	// Nonce of the newly activated key that just became current.
+	AuthorizationNonce uint64 `protobuf:"varint,5,opt,name=authorization_nonce,json=authorizationNonce,proto3" json:"authorization_nonce,omitempty"`
 }
 
 func (m *EventServiceKeyRotated) Reset()         { *m = EventServiceKeyRotated{} }
@@ -3237,11 +3238,12 @@ func (m *EventServiceKeyRotated) GetAuthorizationNonce() uint64 {
 
 // EventServiceKeyRevoked is event code 102.
 type EventServiceKeyRevoked struct {
-	ParticipantType       types.ParticipantType      `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3,enum=shared.v1.ParticipantType" json:"participant_type,omitempty"`
-	Operator              string                     `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
-	RevokedServiceAddress string                     `protobuf:"bytes,3,opt,name=revoked_service_address,json=revokedServiceAddress,proto3" json:"revoked_service_address,omitempty"`
-	AuthorizationNonce    uint64                     `protobuf:"varint,4,opt,name=authorization_nonce,json=authorizationNonce,proto3" json:"authorization_nonce,omitempty"`
-	Reason                ServiceKeyRevocationReason `protobuf:"varint,5,opt,name=reason,proto3,enum=hub.v1.ServiceKeyRevocationReason" json:"reason,omitempty"`
+	ParticipantType       types.ParticipantType `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3,enum=shared.v1.ParticipantType" json:"participant_type,omitempty"`
+	Operator              string                `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
+	RevokedServiceAddress string                `protobuf:"bytes,3,opt,name=revoked_service_address,json=revokedServiceAddress,proto3" json:"revoked_service_address,omitempty"`
+	// Nonce of the key identified by revoked_service_address that was revoked.
+	AuthorizationNonce uint64                     `protobuf:"varint,4,opt,name=authorization_nonce,json=authorizationNonce,proto3" json:"authorization_nonce,omitempty"`
+	Reason             ServiceKeyRevocationReason `protobuf:"varint,5,opt,name=reason,proto3,enum=hub.v1.ServiceKeyRevocationReason" json:"reason,omitempty"`
 }
 
 func (m *EventServiceKeyRevoked) Reset()         { *m = EventServiceKeyRevoked{} }

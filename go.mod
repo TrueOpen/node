@@ -27,7 +27,7 @@ require (
 	cosmossdk.io/x/feegrant v0.2.0
 	cosmossdk.io/x/tx v0.14.0
 	cosmossdk.io/x/upgrade v0.2.0
-	github.com/TrueOpen/wire v0.5.2-0.20261030135817-9b43ed3d8d6d
+	github.com/TrueOpen/wire v0.5.2-0.20261031062900-82d6f33e4c41
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/bufbuild/buf v1.71.0
 	github.com/cometbft/cometbft v0.38.21
