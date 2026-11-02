@@ -35,10 +35,14 @@ func (m msgServer) RespondDispatchChallenge(ctx context.Context, req *types.MsgR
 		if !bytes.Equal(record.DispatchRecordHash, row.GetDispatchRecordHash()) {
 			return row, 0, fmt.Errorf("challenge retained record identity mismatch")
 		}
+		selection, err := m.k.GetTaskBuilderSelection(ctx, row.TaskId)
+		if err != nil {
+			return row, 0, err
+		}
+		if _, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, selection.BuilderSetId, req.ResponderAddress); err != nil {
+			return row, 0, err
+		}
 		if row.Kind == shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_SKIP {
-			if _, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, "", req.ResponderAddress); err != nil {
-				return row, 0, err
-			}
 			reject := req.GetReject()
 			attempt, err := dispatchAttemptByRank(record, row.GetAttemptRank())
 			if err != nil {
@@ -59,13 +63,6 @@ func (m msgServer) RespondDispatchChallenge(ctx context.Context, req *types.MsgR
 				return row, 0, invalidDispatchChallengeProof("reject response digest differs from the committed skip")
 			}
 		} else {
-			selection, err := m.k.GetTaskBuilderSelection(ctx, row.TaskId)
-			if err != nil {
-				return row, 0, err
-			}
-			if _, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, selection.BuilderSetId, req.ResponderAddress); err != nil {
-				return row, 0, err
-			}
 			if _, err := m.k.committedDispatchRoster(ctx, record, row.GetDispatchRound(), req.GetRoster(), params.Dispatch); err != nil {
 				return row, 0, invalidDispatchChallengeProof(err.Error())
 			}

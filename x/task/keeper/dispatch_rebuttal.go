@@ -84,7 +84,9 @@ func (k Keeper) authorizeDispatchResponse(ctx context.Context, builder, builderS
 	if _, _, err := k.canonicalAddress("responder_address", signer); err != nil {
 		return "", err
 	}
-	current, err := k.hubKeeper.GetCurrentServiceKey(ctx, shared.ParticipantTypeBuilder, builder)
+	// Inspect retained identity state so revoked members do not block their peers.
+	// Only a current ACTIVE address may authorize a response; read failures remain errors.
+	current, err := k.hubKeeper.GetDispatchServiceProofKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder)
 	if err == nil && current.Status == hubtypes.ServiceKeyStatusActive && current.ServiceAddress == signer {
 		return builder, nil
 	}
@@ -103,7 +105,7 @@ func (k Keeper) authorizeDispatchResponse(ctx context.Context, builder, builderS
 		allowed = set.ActiveBuilders
 	}
 	for _, operator := range allowed {
-		binding, err := k.hubKeeper.GetCurrentServiceKey(ctx, shared.ParticipantTypeBuilder, operator)
+		binding, err := k.hubKeeper.GetDispatchServiceProofKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, operator)
 		if errors.Is(err, collections.ErrNotFound) {
 			continue
 		}
