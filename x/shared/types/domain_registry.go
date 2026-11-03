@@ -176,6 +176,7 @@ const (
 	DomainVerifyRoundFactsV1              = "TRUEOPEN_VERIFY_ROUND_FACTS_V1"
 	DomainVerifyRoundIDV1                 = "TRUEOPEN_VERIFY_ROUND_ID_V1"
 	DomainVRFKeyPoPV1                     = "TRUEOPEN_VRF_KEY_POP_V1"
+	DomainDispatchVRFInputV1              = "TRUEOPEN_DISPATCH_VRF_INPUT_V1"
 	DomainWeightedDrawV1                  = "TRUEOPEN_WEIGHTED_DRAW_V1"
 	DomainWorkerValueCommitmentV3         = "TRUEOPEN_WORKER_VALUE_COMMITMENT_V3"
 )

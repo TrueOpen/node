@@ -14,6 +14,10 @@ import (
 
 type dispatchDeadlineAction uint8
 
+// A retained Task can legitimately block physical deletion for many blocks.
+// Retry with a bounded delay rather than charging its record every block.
+const blockedDispatchPruneRetryBlocks = uint64(32)
+
 const (
 	dispatchClaimMaturity dispatchDeadlineAction = iota
 	dispatchChallengeMaturity
@@ -153,9 +157,9 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 			return err
 		}
 		if pending != 0 || core {
-			next, overflow := shared.CheckedHeightAddV1(height, 1)
+			next, overflow := shared.CheckedHeightAddV1(height, blockedDispatchPruneRetryBlocks)
 			if overflow {
-				return fmt.Errorf("blocked dispatch prune height overflows")
+				next = shared.MaxBlockHeightV1
 			}
 			return q.reschedulePrune(ctx, next)
 		}

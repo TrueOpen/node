@@ -21,6 +21,23 @@ import (
 // owned by different modules. Module Genesis validators cannot prove these
 // relationships independently.
 func (app *App) EnsureCrossModuleReferences(ctx context.Context) error {
+	windows, err := app.TaskKeeper.GetTaskSafetyWindows(ctx)
+	if err != nil {
+		return err
+	}
+	hubParams, err := app.HubKeeper.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+	if err := shared.ValidateVerifyOpenClock(windows.VerifyOpenDeadlineBlocks, windows.SelfRescueMarginBlocks, hubParams.Epoch.DeltaWBlocks, hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks); err != nil {
+		return err
+	}
+	if hubParams.Builder.BuilderSetUpdateLeadBlocks < windows.MinimumBuilderSetLeadBlocks {
+		return shared.ErrBuilderSetNoticeTooShort
+	}
+	if err := hubtypes.ValidateServiceUnbondingCoverage(hubParams.Service.ServiceUnbondingPeriodBlocks, hubParams.Service.UnbondingSlashSafetyMarginBlocks, hubtypes.ProfileChallengeOpenWindowMaxBlocks, windows.ChallengeResolveWindowBlocks, windows.EvidenceResponseWindowBlocks); err != nil {
+		return err
+	}
 	if err := app.ensureValueEvidenceFaultReferences(ctx); err != nil {
 		return err
 	}

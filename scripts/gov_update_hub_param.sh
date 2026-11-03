@@ -16,14 +16,14 @@
 #
 # HubParams is grouped (builder / reward / service / freeze / treasury / ...),
 # so <param_path> is a dotted path into that structure, not a flat key.
-# Note some params are pinned by validation (builder.builders_per_task must be 3);
-# a proposal changing one of those passes the vote and then fails execution with
+# Genesis-only parameters cannot change through governance; a proposal changing
+# one of those passes the vote and then fails execution with
 # PROPOSAL_STATUS_FAILED.
 #
 # The value is written as a JSON string by default (HubParams ints are
 # string-encoded); pass true/false and it is written as a JSON boolean.
 # For anything more complex, set JQ_FILTER to a jq expression instead, e.g.
-#   JQ_FILTER='.builder.builder_set_cap="20" | .builder.builder_bond="2000000"' \
+#   JQ_FILTER='.builder.builder_set_cap=20 | .builder.settlement_builder_grace_blocks="3"' \
 #       scripts/gov_update_hub_param.sh
 #
 # Common overrides (env vars):

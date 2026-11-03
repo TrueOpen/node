@@ -18,30 +18,32 @@ import (
 )
 
 const (
-	InvariantRewardsEarnings          = "rewards_earnings"
-	InvariantServiceBond              = "service_bond"
-	InvariantSupportAggregates        = "support_aggregates"
-	InvariantSupportLifecycle         = "support_lifecycle"
-	InvariantTaskLiabilityIndexes     = "task_liability_indexes"
-	InvariantCurrentServiceAddressIdx = "current_service_address_index"
-	InvariantServiceIdentityLifecycle = "service_identity_lifecycle"
-	InvariantServiceBondEpoch         = "service_bond_epoch"
-	InvariantServiceBondEffectiveIdx  = "service_bond_effective_index"
-	InvariantCandidateSlotReverseIdx  = "candidate_slot_reverse_index"
-	InvariantCandidatePoolBody        = "candidate_pool_body"
-	InvariantCandidateBindingRefCount = "candidate_binding_snapshot_ref_count"
-	InvariantCandidatePoolPointer     = "candidate_pool_current_pointer"
-	InvariantSlashSummaries           = "slash_summaries"
-	InvariantRoleFaultByTaskIndex     = "role_fault_by_task_index"
-	InvariantModelProfileAggregates   = "model_profile_aggregates"
-	InvariantFreezeRiskSchedule       = "freeze_risk_schedule"
-	InvariantBuilderFaultPrune        = "builder_fault_prune"
-	InvariantBridgeSupply             = "bridge_supply"
-	InvariantParameterBucket          = "parameter_bucket"
-	InvariantTreasurySpendReceipt     = "treasury_spend_receipt"
-	InvariantRewardEpoch              = "reward_epoch"
-	InvariantServiceKeyRotations      = "service_key_rotations"
-	InvariantBuilderCompensation      = "builder_compensation"
+	InvariantRewardsEarnings           = "rewards_earnings"
+	InvariantServiceBond               = "service_bond"
+	InvariantSupportAggregates         = "support_aggregates"
+	InvariantSupportLifecycle          = "support_lifecycle"
+	InvariantTaskLiabilityIndexes      = "task_liability_indexes"
+	InvariantCurrentServiceAddressIdx  = "current_service_address_index"
+	InvariantServiceIdentityLifecycle  = "service_identity_lifecycle"
+	InvariantServiceBondEpoch          = "service_bond_epoch"
+	InvariantServiceBondEffectiveIdx   = "service_bond_effective_index"
+	InvariantCandidateSlotReverseIdx   = "candidate_slot_reverse_index"
+	InvariantCandidatePoolBody         = "candidate_pool_body"
+	InvariantCandidateBindingRefCount  = "candidate_binding_snapshot_ref_count"
+	InvariantCandidatePoolPointer      = "candidate_pool_current_pointer"
+	InvariantSlashSummaries            = "slash_summaries"
+	InvariantRoleFaultByTaskIndex      = "role_fault_by_task_index"
+	InvariantModelProfileAggregates    = "model_profile_aggregates"
+	InvariantFreezeRiskSchedule        = "freeze_risk_schedule"
+	InvariantBuilderFaultPrune         = "builder_fault_prune"
+	InvariantBridgeSupply              = "bridge_supply"
+	InvariantParameterBucket           = "parameter_bucket"
+	InvariantTreasurySpendReceipt      = "treasury_spend_receipt"
+	InvariantRewardEpoch               = "reward_epoch"
+	InvariantServiceKeyRotations       = "service_key_rotations"
+	InvariantBuilderCompensation       = "builder_compensation"
+	InvariantBuilderCompensationLedger = "builder_compensation_ledger"
+	InvariantDispatchFaultPrune        = "dispatch_fault_prune"
 )
 
 type InvariantCheck struct {
@@ -70,6 +72,8 @@ type candidateSlotBindingKey struct {
 func (k Keeper) InvariantChecks() []InvariantCheck {
 	return []InvariantCheck{
 		{InvariantServiceKeyRotations, "pending service key indexes match their primaries", k.EnsureServiceKeyRotationInvariant},
+		{InvariantBuilderCompensationLedger, "compensation aggregate matches all account balances", k.EnsureBuilderCompensationLedgerInvariant},
+		{InvariantDispatchFaultPrune, "dispatch faults and prune schedules agree in both directions", k.EnsureDispatchFaultPruneInvariant},
 		{InvariantBuilderCompensation, "Builder compensation custody equals all account balances", k.EnsureBuilderCompensationInvariant},
 		{InvariantRewardsEarnings, "rewards balance equals claimable plus pending earnings", k.EnsureRewardsEarningsInvariant},
 		{InvariantServiceBond, "service bond balance equals active bonds plus unwithdrawn unbondings", k.EnsureServiceBondInvariant},

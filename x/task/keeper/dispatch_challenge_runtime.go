@@ -38,18 +38,16 @@ func (k Keeper) runDispatchChallenge(ctx context.Context, taskID []byte, kind sh
 	}
 	parent := sdk.UnwrapSDKContext(ctx).GasMeter()
 	cap := parent.GasRemaining()
-	if kind != shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH {
-		found := false
-		for _, policy := range params.Dispatch.DispatchChallengeGasCapByKind {
-			if policy != nil && policy.Kind == kind {
-				cap = min(cap, policy.GasCap)
-				found = cap != 0
-				break
-			}
+	found := false
+	for _, policy := range params.Dispatch.DispatchChallengeGasCapByKind {
+		if policy != nil && policy.Kind == kind {
+			cap = min(cap, policy.GasCap)
+			found = cap != 0
+			break
 		}
-		if !found {
-			return row, mutation, fmt.Errorf("dispatch challenge gas policy is unavailable")
-		}
+	}
+	if !found {
+		return row, mutation, fmt.Errorf("dispatch challenge gas policy is unavailable")
 	}
 	meter := storetypes.NewGasMeter(cap)
 	defer func() {

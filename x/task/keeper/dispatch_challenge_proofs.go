@@ -175,7 +175,7 @@ func (k Keeper) verifyOmissionRoot(ctx context.Context, record types.DispatchRec
 	if evidence == nil || evidence.BuilderAddress != record.BuilderAddress {
 		return fmt.Errorf("omission root has another Builder")
 	}
-	digest, err := k.verifyDispatchMaterial(ctx, "task.v1.SignedHandraiseRootV1", evidence, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
+	digest, err := k.verifyDispatchMaterial(ctx, dispatchHandraiseRootMessageName, evidence, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (k Keeper) verifyOmissionRoot(ctx context.Context, record types.DispatchRec
 		if bound.BuilderAddress != record.BuilderAddress {
 			return fmt.Errorf("bound root has another Builder")
 		}
-		hash, err := k.verifyDispatchMaterial(ctx, "task.v1.SignedHandraiseRootV1", bound, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
+		hash, err := k.verifyDispatchMaterial(ctx, dispatchHandraiseRootMessageName, bound, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
 		if err != nil {
 			return err
 		}

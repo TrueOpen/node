@@ -17,6 +17,9 @@ import (
 type staticTaskSafetyWindows types.TaskSafetyWindows
 
 func (w staticTaskSafetyWindows) GetTaskSafetyWindows(context.Context) (types.TaskSafetyWindows, error) {
+	if w.VerifyOpenDeadlineBlocks == 0 {
+		w.VerifyOpenDeadlineBlocks, w.SelfRescueMarginBlocks = 400, 10
+	}
 	return types.TaskSafetyWindows(w), nil
 }
 

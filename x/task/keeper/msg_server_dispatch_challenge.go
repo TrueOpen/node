@@ -282,16 +282,26 @@ func (m msgServer) ChallengeDispatchDoubleDispatch(ctx context.Context, req *typ
 		if !bytes.Equal(record.TaskId, id[:]) || !bytes.Equal(record.TaskHash, hash[:]) || !bytes.Equal(record.SessionId, req.Order.Order.SessionId) || record.OrderSequence != req.Order.Order.OrderSequence {
 			return row, 0, invalidDispatchChallengeProof("double dispatch order/record scope mismatch")
 		}
-		digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &req.Order.Order.EarliestSubmitHeight, &record.BoundChangeHeight)
+		digest, err := m.k.verifyDispatchMaterial(ctx, dispatchRecordMessageName, record, &req.Order.Order.EarliestSubmitHeight, &record.BoundChangeHeight)
 		if err != nil {
 			return row, 0, err
 		}
-		deadline, overflow := checkedHeightAdd(max(req.Order.Order.EarliestSubmitHeight, record.BoundChangeHeight), params.Dispatch.RecordDeadlineBlocks)
-		if overflow {
-			return row, 0, fmt.Errorf("double dispatch deadline overflows")
+		retained, err := m.k.Stream.Has(ctx, record.SessionId)
+		if err != nil {
+			return row, 0, err
 		}
-		closeHeight, overflow := checkedHeightAdd(deadline, params.Dispatch.DispatchChallengeWindowBlocks)
-		if overflow || height > closeHeight {
+		if !retained {
+			return row, 0, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_CHALLENGE_WINDOW_CLOSED, fmt.Errorf("double dispatch Session scope is absent or compacted"))
+		}
+		sessionParams, err := m.k.ParamsForSession(ctx, record.SessionId)
+		if err != nil {
+			return row, 0, err
+		}
+		_, closeHeight, err := dispatchWindowBounds(req.Order.Order.EarliestSubmitHeight, record.BoundChangeHeight, sessionParams.Dispatch.RecordDeadlineBlocks, sessionParams.Dispatch.DispatchChallengeWindowBlocks)
+		if err != nil {
+			return row, 0, err
+		}
+		if height > closeHeight {
 			return row, 0, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_CHALLENGE_WINDOW_CLOSED, fmt.Errorf("double dispatch window is closed"))
 		}
 		attempts, err := signedDispatchAttempts(record)

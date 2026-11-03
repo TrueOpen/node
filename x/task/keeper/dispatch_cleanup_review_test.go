@@ -25,12 +25,15 @@ func TestBlockedRecordPruneMovesBehindAlreadyDueCleanup(t *testing.T) {
 	old, err := f.keeper.DispatchRecordPrune.Has(f.ctx, collections.Join(head.deadline, id[:]))
 	require.NoError(t, err)
 	require.False(t, old)
-	requeued, err := f.keeper.DispatchRecordPrune.Has(f.ctx, collections.Join(head.deadline+1, id[:]))
+	requeued, err := f.keeper.DispatchRecordPrune.Has(f.ctx, collections.Join(head.deadline+blockedDispatchPruneRetryBlocks, id[:]))
 	require.NoError(t, err)
 	require.True(t, requeued)
 	_, found, err = f.keeper.newDispatchDeadlineQueue(dispatchRecordPruning).head(f.ctx, head.deadline)
 	require.NoError(t, err)
 	require.False(t, found, "due evidence cleanup can use the next block's budget before this retry")
+	_, found, err = f.keeper.newDispatchDeadlineQueue(dispatchRecordPruning).head(f.ctx, head.deadline+1)
+	require.NoError(t, err)
+	require.False(t, found, "a blocked primary is not charged again in every next block")
 }
 
 func TestDispatchChallengeAuthorityBlocksEarlyTaskCleanup(t *testing.T) {
@@ -52,5 +55,9 @@ func TestDispatchChallengeAuthorityBlocksEarlyTaskCleanup(t *testing.T) {
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(184))
 	blocked, err = f.keeper.taskCleanupBlocked(f.ctx, id[:])
 	require.NoError(t, err)
-	require.False(t, blocked, "completed Task cleanup resumes after the frozen challenge window")
+	require.True(t, blocked, "the Session-frozen double-dispatch window is still open")
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(204))
+	blocked, err = f.keeper.taskCleanupBlocked(f.ctx, id[:])
+	require.NoError(t, err)
+	require.False(t, blocked, "cleanup resumes after both frozen challenge clocks close")
 }

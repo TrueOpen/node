@@ -34,7 +34,11 @@ func (q *queryServer) Session(ctx context.Context, req *types.QuerySessionReques
 	if !bytes.Equal(stream.SessionId, req.SessionId) {
 		return nil, status.Error(codes.Internal, "stream primary key does not match session_id")
 	}
-	return &types.QuerySessionResponse{Session: stream}, nil
+	params, version, err := q.k.paramsOfRowVersion(ctx, q.k.SessionParamsVersion, sessionKey)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &types.QuerySessionResponse{Session: stream, Params: params, ParamsVersion: version}, nil
 }
 
 // SessionNonce is `QuerySessionNonce`: a legal address with no state

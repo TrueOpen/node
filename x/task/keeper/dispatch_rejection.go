@@ -9,6 +9,13 @@ import (
 
 var errDispatchBatchDependency = errors.New("an earlier Session sequence was rejected in this batch")
 
+func dispatchBatchDependency(rejected map[string]uint64, order types.TaskOrderV3) error {
+	if first, found := rejected[string(order.SessionId)]; found && order.OrderSequence > first {
+		return rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_CONFLICT, errDispatchBatchDependency)
+	}
+	return nil
+}
+
 // dispatchRejection is a business failure isolated to one batch item. Store and
 // invariant failures retain their original errors and abort the enclosing Msg.
 type dispatchRejection struct {

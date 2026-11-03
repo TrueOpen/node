@@ -55,7 +55,7 @@ func (m msgServer) RespondDispatchChallenge(ctx context.Context, req *types.MsgR
 			if reject == nil || !bytes.Equal(reject.TaskId, row.TaskId) || !bytes.Equal(reject.TaskHash, core.AcceptedTaskHash) || !bytes.Equal(reject.DispatchTicketHash, row.GetChallengedTicketHash()) || !sameCandidateMember(reject.Member, attempt.Member) {
 				return row, 0, invalidDispatchChallengeProof("reject response scope mismatch")
 			}
-			digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
+			digest, err := m.k.verifyDispatchMaterial(ctx, dispatchRejectMessageName, reject, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
 			if err != nil {
 				return row, 0, err
 			}

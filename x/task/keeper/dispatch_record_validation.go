@@ -29,11 +29,11 @@ func dispatchEntryIdentity(chainID string, entry *types.DispatchEntryV1) ([32]by
 	if err != nil {
 		return [32]byte{}, err
 	}
-	record, err := dispatchMaterialDigest("task.v1.DispatchRecordV1", entry.Record)
+	record, err := dispatchMaterialDigest(dispatchRecordMessageName, entry.Record)
 	if err != nil {
 		return [32]byte{}, err
 	}
-	accept, err := dispatchMaterialDigest("task.v1.DispatchAcceptV1", entry.Accept)
+	accept, err := dispatchMaterialDigest(dispatchAcceptMessageName, entry.Accept)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -121,13 +121,13 @@ func (k Keeper) validateDispatchVrf(ctx context.Context, admission dispatchOrder
 	if sdkContextFrom(ctx).BlockHeight() <= int64(reference) {
 		return empty, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_VRF_INVALID, fmt.Errorf("epoch-start beacon must already be committed"))
 	}
-	beacon, found := k.hubKeeper.GetBeaconForDomain(sdkContextFrom(ctx), "TRUEOPEN_DISPATCH_VRF_INPUT_V1", int64(reference))
+	beacon, found := k.hubKeeper.GetBeaconForDomain(sdkContextFrom(ctx), shared.DomainDispatchVRFInputV1, int64(reference))
 	seed, err := dispatch.ResolveEpochSeed(admission.order.EarliestSubmitHeight, length, uint64(max(beacon.Height, 0)), beacon.Randomness, found && beacon.SourceTag == hubtypes.BeaconSourceProposerVRFV1 && len(beacon.ProofDigest) == types.Hash32Len)
 	if err != nil {
 		return empty, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_VRF_INVALID, err)
 	}
 	input := &types.DispatchVrfInputV1{ChainId: sdkContextFrom(ctx).ChainID(), Epoch: seed.Epoch, EpochSeed: seed.Randomness[:], SessionId: admission.order.SessionId, OrderSequence: admission.order.OrderSequence}
-	alpha, err := dispatchMaterialDigest("task.v1.DispatchVrfInputV1", input)
+	alpha, err := dispatchMaterialDigest(dispatchVrfInputMessageName, input)
 	if err != nil {
 		return empty, err
 	}
@@ -142,7 +142,7 @@ func (k Keeper) validateDispatchVrf(ctx context.Context, admission dispatchOrder
 		return empty, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_VRF_INVALID, err)
 	}
 	pool, found := k.hubKeeper.GetCandidatePoolSnapshot(sdkContextFrom(ctx), ticket.CandidatePoolSnapshotId)
-	if !found || pool.Epoch != epoch || pool.Status == hubtypes.CandidatePoolSnapshotStatus_CANDIDATE_POOL_SNAPSHOT_STATUS_PRUNED || pool.PublishedHeight == 0 {
+	if !found || pool.Epoch != epoch || (pool.Status != hubtypes.CandidatePoolSnapshotStatus_CANDIDATE_POOL_SNAPSHOT_STATUS_ACTIVE && pool.Status != hubtypes.CandidatePoolSnapshotStatus_CANDIDATE_POOL_SNAPSHOT_STATUS_EXPIRED) || pool.PublishedHeight == 0 {
 		return empty, invalidDispatchTicket("referenced epoch pool is unavailable")
 	}
 	return pool, nil

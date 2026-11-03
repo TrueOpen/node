@@ -689,7 +689,7 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	"TRUEOPEN_SDK_BODY_RESUME_OUTPUT_V1":       "Wire testdata/v1/task/sdk_request_body_v1.json; Nexus owns this request body",
 	"TRUEOPEN_VERIFIER_VALUE_EVIDENCE_V1":      "Wire testdata/v1/task/value_evidence_v1.json; Node uses the pinned shared digest and tests funded attribution separately",
 
-	shared.DomainBridgeDeploymentManifestV1:    "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainBridgeDeploymentManifestV1:    "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
 	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V2": "Wire testdata/v1/task/builder_confirmation_v1.json",
 	shared.DomainModelIDV1:                     "Wire testdata/v1/hub/model_id_v1.json, bound to DeriveModelIDV1 by TestModelIDMatchesWireVectors",
 	"TRUEOPEN_OUTPUT_STREAM_HEADER_V1":         "Wire testdata/v1/task/output_stream_header_v1.json",
@@ -709,16 +709,16 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	"TRUEOPEN_TASK_DATA_METADATA_BODY_V2":          "Wire testdata/v1/task/task_data_auth_v1.json",
 	"TRUEOPEN_TASK_DATA_REQUEST_V1":                "Wire testdata/v1/task/task_data_auth_v1.json",
 	"TRUEOPEN_TASK_DATA_UPLOAD_BODY_V2":            "Wire testdata/v1/task/task_data_auth_v1.json",
-	shared.DomainTaskOrderV3:                       "Wire testdata/v1/task/task_order_v3.json",
+	shared.DomainTaskOrderV3:                       "Wire testdata/v1/task/task_order_v3.json; TestTaskOrderHashMatchesPublishedWire executes all admitted vectors and rejects the encoding-only case",
 	"TRUEOPEN_WORKER_TOKEN_COMMITMENT_V1":          "Wire testdata/v1/task/worker_token_commitment_v1.json",
-	shared.DomainBurnBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainMintBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainOutputChunkV1:                     "Wire testdata/v1/task/output_mmr_v1.json",
+	shared.DomainBurnBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
+	shared.DomainMintBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
+	shared.DomainOutputChunkV1:                     "Wire testdata/v1/task/output_chunk_equivocation_v1.json; TestOutputChunkEquivocationPublishedVector executes signing and proof producers",
 	// Neither domain has a producer here: the stream terminator is signed by the
 	// selected Worker's service key.
 	"TRUEOPEN_OUTPUT_FIN_V1": "Wire testdata/v1/task/output_mmr_v1.json",
-	shared.DomainUSDCRouteV1: "Wire testdata/v1/hub/bridge_vrf_v1.json",
-	shared.DomainVRFKeyPoPV1: "Wire testdata/v1/hub/bridge_vrf_v1.json",
+	shared.DomainUSDCRouteV1: "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
+	shared.DomainVRFKeyPoPV1: "Wire testdata/v1/hub/bridge_vrf_v1.json; TestVrfKeyPoPDigestMatchesPinnedWireForBothRoles executes both roles",
 }
 
 // domainsCoveredWithoutFieldOrder is the gap between "a fixture names this domain"

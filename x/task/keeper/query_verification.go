@@ -95,11 +95,7 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 			window.EligibilitySegmentCount == 0 || window.WindowSize > window.EligibleCount {
 			return nil, status.Error(codes.Internal, "PRUNED verifier candidate window has an invalid retained source header")
 		}
-		if !(window.EligibilityFrozenHeight < window.WindowRandomnessHeight &&
-			window.WindowRandomnessHeight < window.BuilderProposalCloseHeight &&
-			window.BuilderProposalCloseHeight < window.HandraiseCloseHeight &&
-			window.HandraiseCloseHeight < window.SelectionRandomnessHeight &&
-			window.SelectionRandomnessHeight < window.AssignmentDeadlineHeight) {
+		if !validVerifierWindowQueryClock(window) {
 			return nil, status.Error(codes.Internal, "PRUNED verifier candidate window has a non-canonical retained clock")
 		}
 		retainedReady := len(window.GetVerifierWindowHash()) == types.Hash32Len && len(window.GetWindowRandomnessBeacon()) == types.Hash32Len && window.GeneratedHeight >= window.WindowRandomnessHeight
@@ -113,9 +109,22 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 	return response, nil
 }
 
-// VerifierAssignment returns the single V1 verification round. The round is a
-// protocol constant rather than a caller selector or a scanned current-round
-// guess.
+// A challenge round has no separate Builder proposal interval. Both live-stage
+// and retained-header queries must accept that frozen clock without relaxing
+// the strict, separate interval of round one.
+func validVerifierWindowQueryClock(window types.VerifierCandidateWindowState) bool {
+	proposalInterval := window.BuilderProposalCloseHeight < window.HandraiseCloseHeight
+	if window.VerifyRound == types.ChallengeVerifyRoundV1 {
+		proposalInterval = window.BuilderProposalCloseHeight == window.HandraiseCloseHeight
+	}
+	return isPhase0VerifyRound(window.VerifyRound) && window.EligibilityFrozenHeight != 0 &&
+		window.EligibilityFrozenHeight < window.WindowRandomnessHeight &&
+		window.WindowRandomnessHeight < window.BuilderProposalCloseHeight && proposalInterval &&
+		window.HandraiseCloseHeight < window.SelectionRandomnessHeight &&
+		window.SelectionRandomnessHeight < window.AssignmentDeadlineHeight
+}
+
+// VerifierAssignment projects the requested round and its frozen window authority.
 func (q *queryServer) VerifierAssignment(ctx context.Context, req *types.QueryVerifierAssignmentRequest) (*types.QueryVerifierAssignmentResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
@@ -419,7 +428,8 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 		return status.Error(codes.Internal, "verifier assignment has an incomplete retained header")
 	}
 	if assignment.RevealDeadlineHeight != 0 &&
-		assignment.RevealDeadlineHeight >= assignment.VerifyDeadlineHeight {
+		(assignment.RevealDeadlineHeight > assignment.VerifyDeadlineHeight ||
+			round == types.VerifyRoundV1 && assignment.RevealDeadlineHeight == assignment.VerifyDeadlineHeight) {
 		return status.Error(codes.Internal, "verifier assignment has a non-canonical reveal deadline")
 	}
 	selectedHash, err := SelectedVerifierRefsHash(

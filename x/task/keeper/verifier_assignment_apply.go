@@ -25,15 +25,16 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 	if currentHeight < window.SelectionRandomnessHeight || !shared.IsBlockHeightV1(window.SelectionRandomnessHeight) {
 		return false, 0, fmt.Errorf("verifier assignment height is outside the frozen window")
 	}
+	if currentHeight > window.AssignmentDeadlineHeight {
+		// An expired row is terminal work, even if its old beacon is unavailable.
+		return false, uint64(window.Size()), types.ErrDeadlineExpired
+	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	beacon, found := k.hubKeeper.GetBeaconForDomain(
 		sdkCtx, shared.DomainWeightedDrawV1, int64(window.SelectionRandomnessHeight),
 	)
 	if !found {
 		return false, 0, nil
-	}
-	if currentHeight > window.AssignmentDeadlineHeight {
-		return false, 0, fmt.Errorf("verifier assignment height is outside the frozen window")
 	}
 	if beacon.Height != int64(window.SelectionRandomnessHeight) || len(beacon.Randomness) != types.Hash32Len {
 		return false, 0, errorsmod.Wrap(types.ErrInvariantBroken, "verifier selection beacon does not match its frozen height")

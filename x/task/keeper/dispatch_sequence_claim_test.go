@@ -178,7 +178,7 @@ func TestDismissedClaimReplacementUsesPinnedRetentionAndClearsIndexes(t *testing
 	claim := dispatchFixtureClaim(t, f, entry, 144)
 	entry.Record.Rounds[0].Attempts[0].Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 	entry.Record.Rounds[0].Attempts[0].TimeoutTierOrZero = 1
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 	_, err := NewMsgServerImpl(f.keeper).RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: claim.DispatchTicketHash, Record: entry.Record, ResponderAddress: entry.Record.BuilderAddress})
 	require.NoError(t, err)
 	oldIndex, found, err := nextDueHeightIndex(f.ctx, f.keeper.DispatchClaimPrune, nil, ^uint64(0))
@@ -286,7 +286,7 @@ func TestReturnedBuilderDoesNotReuseEarlierBindingAcceptor(t *testing.T) {
 	accepted.Record.Rounds[0].Attempts[0].Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_VOIDED
 	old.Record.Rounds[0].Attempts = append(old.Record.Rounds[0].Attempts, accepted.Record.Rounds[0].Attempts[0])
 	old.Record.DispatchTicketHash = make([]byte, 32)
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", old.Record, f.hub.keys[origin], func(sig []byte) { old.Record.BuilderServiceSignature = sig })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, old.Record, f.hub.keys[origin], func(sig []byte) { old.Record.BuilderServiceSignature = sig })
 	takeover := func(builder string, registered, effective uint64) {
 		dispatchFixtureHeight(f, registered)
 		signed := f.signedOrder(t, 0, f.ownerKey)

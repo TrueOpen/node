@@ -76,14 +76,20 @@ func (k Keeper) paramsAtHeight(ctx context.Context, height uint64) (types.TaskPa
 }
 
 func (k Keeper) paramsOfRow(ctx context.Context, pointers collections.Map[types.Hash32Key, uint64], key types.Hash32Key) (types.TaskParamsV1, error) {
+	params, _, err := k.paramsOfRowVersion(ctx, pointers, key)
+	return params, err
+}
+
+func (k Keeper) paramsOfRowVersion(ctx context.Context, pointers collections.Map[types.Hash32Key, uint64], key types.Hash32Key) (types.TaskParamsV1, uint64, error) {
 	version, err := pointers.Get(ctx, key)
 	if errors.Is(err, collections.ErrNotFound) {
-		return k.Params.Get(ctx)
+		version, err = k.currentParamsVersion(ctx)
 	}
 	if err != nil {
-		return types.TaskParamsV1{}, err
+		return types.TaskParamsV1{}, 0, err
 	}
-	return k.paramsAtVersion(ctx, version)
+	params, err := k.paramsAtVersion(ctx, version)
+	return params, version, err
 }
 
 // ParamsForTask returns the parameters frozen when a Task was accepted.

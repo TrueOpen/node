@@ -52,7 +52,7 @@ func (m msgServer) RebutDispatchCompensation(ctx context.Context, req *types.Msg
 		if !bytes.Equal(reject.DispatchTicketHash, row.DispatchTicketHash) || !bytes.Equal(reject.TaskId, row.TaskId) || !bytes.Equal(reject.TaskHash, req.Record.TaskHash) || !sameCandidateMember(reject.Member, attempt.Member) || reject.Member.OperatorAddress != row.WorkerOperatorAddress {
 			return nil, invalidDispatchTicket("reject does not match the claimed Worker and ticket")
 		}
-		rejectDigest, err = m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &row.EarliestSubmitHeight, &row.BoundChangeHeight)
+		rejectDigest, err = m.k.verifyDispatchMaterial(ctx, dispatchRejectMessageName, reject, &row.EarliestSubmitHeight, &row.BoundChangeHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -160,11 +160,9 @@ func (k Keeper) verifyDispatchRebuttal(ctx context.Context, claim types.Dispatch
 	}
 	// The claim binds the original order even if a replacement ticket was
 	// recorded under the same TaskID, or no record was accepted at all.
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &claim.EarliestSubmitHeight, &claim.BoundChangeHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, dispatchRecordMessageName, record, &claim.EarliestSubmitHeight, &claim.BoundChangeHeight); err != nil {
 		return nil, err
 	}
-	// The ticket-based window was frozen at claim creation. Its first deadline
-	// bounds this old record even if a later Session takeover changed live binding.
 	attempts, err := signedDispatchAttempts(record)
 	if err != nil {
 		return nil, err

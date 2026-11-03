@@ -69,7 +69,7 @@ func (r *runtimeInvariantRegistry) runChecks(ctx sdk.Context, scope invariantSco
 		// block. Custody checks, including compensation, remain mandatory.
 		diagnostic := route.moduleName == tasktypes.ModuleName &&
 			(route.name == taskkeeper.InvariantParameterVersions || route.name == taskkeeper.InvariantValueEvidence || route.name == taskkeeper.InvariantDispatchIndexes) ||
-			route.moduleName == hubtypes.ModuleName && route.name == hubkeeper.InvariantServiceKeyRotations
+			route.moduleName == hubtypes.ModuleName && (route.name == hubkeeper.InvariantServiceKeyRotations || route.name == hubkeeper.InvariantBuilderCompensationLedger || route.name == hubkeeper.InvariantDispatchFaultPrune)
 		if scope == invariantBlockChecks && diagnostic || scope == invariantDiagnosticChecks && !diagnostic {
 			continue
 		}

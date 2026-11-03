@@ -102,8 +102,8 @@ type ValidatorSnapshotMember struct {
 	VotingPower      uint64
 }
 
-// TaskSafetyWindowProvider exposes the task-owned challenge windows required
-// to validate the service-bond slashability horizon.
+// TaskSafetyWindowProvider exposes current and still-referenced Task clocks for
+// Hub governance, without scanning the live Task or Session objects.
 type TaskSafetyWindowProvider interface {
 	GetTaskSafetyWindows(context.Context) (TaskSafetyWindows, error)
 }
@@ -116,6 +116,9 @@ type WorkerCandidateWeightProvider interface {
 type TaskSafetyWindows struct {
 	ChallengeResolveWindowBlocks uint64
 	EvidenceResponseWindowBlocks uint64
+	VerifyOpenDeadlineBlocks     uint64
+	SelfRescueMarginBlocks       uint64
+	MinimumBuilderSetLeadBlocks  uint64
 }
 
 type MsgServerDependencies struct {

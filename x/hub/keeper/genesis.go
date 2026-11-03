@@ -857,7 +857,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err := k.EnsureServiceKeyRotationInvariant(ctx); err != nil {
 		return nil, err
 	}
-	if err := k.EnsureBuilderCompensationInvariant(ctx); err != nil {
+	if err := k.EnsureBuilderCompensationLedgerInvariant(ctx); err != nil {
 		return nil, err
 	}
 	return genesis, nil

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"cosmossdk.io/collections"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TrueOpen/node/x/hub/types"
@@ -45,6 +47,19 @@ func TestDispatchFaultCompensatesBeforeIndependentPenalty(t *testing.T) {
 			require.Equal(t, shared.NewAmount(test.paid), account.TotalPaid)
 			require.Equal(t, shared.NewAmount(test.penalty), account.TotalPenalized)
 			require.NoError(t, f.keeper.EnsureBuilderCompensationInvariant(f.ctx))
+			require.NoError(t, f.keeper.EnsureBuilderCompensationLedgerInvariant(f.ctx))
+			require.NoError(t, f.keeper.EnsureDispatchFaultPruneInvariant(f.ctx))
+			for _, duplicate := range []bool{false, true} {
+				cache, _ := sdk.UnwrapSDKContext(f.ctx).CacheContext()
+				ctx := sdk.WrapSDKContext(cache)
+				if duplicate {
+					require.NoError(t, f.keeper.DispatchFaultPruneIndex.Set(ctx, collections.Join3(uint64(121), builder.Address, bytes.Clone(row.FaultId))))
+					require.ErrorContains(t, f.keeper.EnsureDispatchFaultPruneInvariant(ctx), "duplicate")
+				} else {
+					require.NoError(t, f.keeper.DispatchFaultPruneIndex.Remove(ctx, collections.Join3(uint64(120), builder.Address, bytes.Clone(row.FaultId))))
+					require.ErrorContains(t, f.keeper.EnsureDispatchFaultPruneInvariant(ctx), "no prune schedule")
+				}
+			}
 			require.NoError(t, f.keeper.EnsureRewardsEarningsInvariant(f.ctx))
 			require.NoError(t, f.keeper.EnsureTreasurySpendReceiptInvariant(f.ctx))
 			replay, applied, err := f.keeper.ApplyDispatchFault(f.ctx, request)

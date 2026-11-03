@@ -42,7 +42,7 @@ func TestQueryTaskProjectsRecordedWorker(t *testing.T) {
 	stage, err := server.TaskStage(f.ctx, &tasktypes.QueryTaskStageRequest{TaskId: taskID})
 	require.NoError(t, err)
 	require.Equal(t, tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING, stage.Stage.TaskPhase)
-	// DeadlineKindV1 value 9 WORKER_ASSIGNMENT is the assignment randomness expiry.
+	// An admitted dispatch is already assigned and waits for its inference receipt.
 	require.Equal(t,
 		tasktypes.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER,
 		stage.Stage.GetNextDeadlineKind())

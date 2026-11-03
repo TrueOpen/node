@@ -36,6 +36,9 @@ current state and establish a new live baseline there, or use an archival event
 server. A routing query failure returns `UNAVAILABLE`; it is not silently skipped.
 If a live reader has fallen behind retained history, restart it after restoring
 the required history or establish a new baseline and reconcile client state.
+Startup rejects a configured state retention no greater than the replay range.
+Custom retention must additionally allow the expected live reader lag; that
+operational margin cannot be inferred from the replay setting alone.
 
 ## Public contract
 

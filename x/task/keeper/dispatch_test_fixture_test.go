@@ -278,7 +278,13 @@ func (f *dispatchFixture) signedOrder(t *testing.T, sequence uint64, key *secp.P
 	order.SessionId = bytes.Clone(f.sessionID)
 	order.OrderSequence = sequence
 	order.EarliestSubmitHeight = uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight())
-	order.OrderExpireHeight = order.EarliestSubmitHeight + 477
+	params, err := f.keeper.ParamsForSession(f.ctx, f.sessionID)
+	require.NoError(t, err)
+	expiry, overflow := shared.CheckedHeightAddV1(order.EarliestSubmitHeight, params.Dispatch.MaxOrderLifetimeBlocks)
+	if overflow {
+		expiry = shared.MaxBlockHeightV1
+	}
+	order.OrderExpireHeight = expiry
 	order.SessionAnchorHeight = order.EarliestSubmitHeight
 	order.BuilderSetId = "dispatch-test-set"
 	order.BuilderSetHash = bytes32(0x44)
@@ -304,19 +310,19 @@ func (f *dispatchFixture) entry(t *testing.T, signed types.SignedOrderV2, builde
 	require.NoError(t, err)
 	stream, err := f.keeper.ReadStream(f.ctx, order.SessionId)
 	require.NoError(t, err)
-	alpha, err := dispatchMaterialDigest("task.v1.DispatchVrfInputV1", &types.DispatchVrfInputV1{ChainId: order.ChainId, Epoch: 1, EpochSeed: bytes32(0x71), SessionId: order.SessionId, OrderSequence: order.OrderSequence})
+	alpha, err := dispatchMaterialDigest(dispatchVrfInputMessageName, &types.DispatchVrfInputV1{ChainId: order.ChainId, Epoch: 1, EpochSeed: bytes32(0x71), SessionId: order.SessionId, OrderSequence: order.OrderSequence})
 	require.NoError(t, err)
 	proof, randomness, err := dispatch.ProveDispatchVRF(f.hub.vrf, alpha[:])
 	require.NoError(t, err)
 	member := &types.CandidateMemberRefV1{CandidatePoolSnapshotId: bytes.Clone(f.hub.pool.SnapshotId), Slot: 1, SlotVersion: 1, OperatorAddress: f.worker}
 	ticket := &types.DispatchTicketV1{ServiceAuthorizationNonce: 1, SchemaVersion: 1, ChainId: order.ChainId, TaskId: taskID[:], TaskHash: taskHash[:], SessionId: order.SessionId, OrderSequence: order.OrderSequence, BuilderAddress: builder, ReferenceHeight: 120, CandidatePoolSnapshotId: member.CandidatePoolSnapshotId, VrfEpoch: 1, VrfOutput: randomness[:], VrfProof: proof, RandomnessScheme: types.DispatchRandomnessSchemeV1_DISPATCH_RANDOMNESS_SCHEME_V1_BUILDER_VRF, RosterHash: bytes32(0x61), HandraiseRootDigest: bytes32(0x62), DispatchRound: 0, Rank: 0, Target: member, AcceptDeadlineMs: 1000, InputHash: order.InputHash, BoundChangeHeight: stream.BoundChangeHeight, StickyAnchorSequence: order.OrderSequence, StickyRunCount: 1}
-	signDispatchTestMaterial(t, "task.v1.DispatchTicketV1", ticket, f.hub.keys[builder], func(signature []byte) { ticket.BuilderServiceSignature = signature })
-	ticketHash, err := dispatchMaterialDigest("task.v1.DispatchTicketV1", ticket)
+	signDispatchTestMaterial(t, dispatchTicketMessageName, ticket, f.hub.keys[builder], func(signature []byte) { ticket.BuilderServiceSignature = signature })
+	ticketHash, err := dispatchMaterialDigest(dispatchTicketMessageName, ticket)
 	require.NoError(t, err)
 	accept := &types.DispatchAcceptV1{SchemaVersion: 1, ChainId: order.ChainId, TaskId: taskID[:], TaskHash: taskHash[:], DispatchTicketHash: ticketHash[:], Member: member, ServiceAuthorizationNonce: 1}
-	signDispatchTestMaterial(t, "task.v1.DispatchAcceptV1", accept, f.hub.keys[f.worker], func(signature []byte) { accept.ServiceSignature = signature })
+	signDispatchTestMaterial(t, dispatchAcceptMessageName, accept, f.hub.keys[f.worker], func(signature []byte) { accept.ServiceSignature = signature })
 	record := &types.DispatchRecordV1{ServiceAuthorizationNonce: 1, SchemaVersion: 1, ChainId: order.ChainId, TaskId: taskID[:], TaskHash: taskHash[:], SessionId: order.SessionId, OrderSequence: order.OrderSequence, BuilderAddress: builder, ReferenceHeight: 120, CandidatePoolSnapshotId: member.CandidatePoolSnapshotId, VrfEpoch: 1, VrfOutput: randomness[:], VrfProof: proof, RandomnessScheme: ticket.RandomnessScheme, BoundChangeHeight: ticket.BoundChangeHeight, StickyAnchorSequence: order.OrderSequence, StickyRunCount: 1, DispatchTicketHash: ticketHash[:], Rounds: []*types.DispatchRoundV1{{DispatchRound: 0, HandraiseRootDigest: ticket.HandraiseRootDigest, RosterHash: ticket.RosterHash, Attempts: []*types.DispatchAttemptV1{{DispatchTicketHash: ticketHash[:], Rank: 0, Member: member, Outcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED, RejectDigestOrZero32: make([]byte, 32)}}}}}
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", record, f.hub.keys[builder], func(signature []byte) { record.BuilderServiceSignature = signature })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, record, f.hub.keys[builder], func(signature []byte) { record.BuilderServiceSignature = signature })
 	return &types.DispatchEntryV1{SignedOrder: &signed, Record: record, WinnerTicket: ticket, Accept: accept}
 }
 
@@ -366,15 +372,15 @@ func (h *dispatchTestHub) PayDispatchCompensation(ctx context.Context, builder, 
 }
 func (f *dispatchFixture) resignEntry(t *testing.T, entry *types.DispatchEntryV1) {
 	t.Helper()
-	signDispatchTestMaterial(t, "task.v1.DispatchTicketV1", entry.WinnerTicket, f.hub.keys[entry.WinnerTicket.BuilderAddress], func(s []byte) { entry.WinnerTicket.BuilderServiceSignature = s })
-	hash, err := dispatchMaterialDigest("task.v1.DispatchTicketV1", entry.WinnerTicket)
+	signDispatchTestMaterial(t, dispatchTicketMessageName, entry.WinnerTicket, f.hub.keys[entry.WinnerTicket.BuilderAddress], func(s []byte) { entry.WinnerTicket.BuilderServiceSignature = s })
+	hash, err := dispatchMaterialDigest(dispatchTicketMessageName, entry.WinnerTicket)
 	require.NoError(t, err)
 	entry.Accept.DispatchTicketHash = hash[:]
-	signDispatchTestMaterial(t, "task.v1.DispatchAcceptV1", entry.Accept, f.hub.keys[f.worker], func(s []byte) { entry.Accept.ServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchAcceptMessageName, entry.Accept, f.hub.keys[f.worker], func(s []byte) { entry.Accept.ServiceSignature = s })
 	entry.Record.DispatchTicketHash = hash[:]
 	last := entry.Record.Rounds[len(entry.Record.Rounds)-1].Attempts
 	last[len(last)-1].DispatchTicketHash = hash[:]
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 }
 
 func (f *dispatchFixture) committedRoster(t *testing.T, entry *types.DispatchEntryV1, delta uint64) *types.DispatchRosterV1 {

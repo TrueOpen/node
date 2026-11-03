@@ -26,9 +26,9 @@ func (e *dispatchWinnerIneligibleError) Unwrap() error {
 // recordDispatchWinnerIneligible is the sole rejected-entry write exception.
 // The entry cache has already been discarded; the batch cache owns both this
 // receipt and the count-only fault, so a later fatal error still rolls them back.
-func (k Keeper) recordDispatchWinnerIneligible(ctx context.Context, entry *types.DispatchEntryV1, reason types.DispatchWinnerIneligibleReasonV1, params types.DispatchParamsV1, height uint64) error {
+func (k Keeper) recordDispatchWinnerIneligible(ctx context.Context, entry *types.DispatchEntryV1, reason types.DispatchWinnerIneligibleReasonV1, height uint64) error {
 	ticket, order := entry.WinnerTicket, entry.SignedOrder.Order
-	hash, err := dispatchMaterialDigest("task.v1.DispatchTicketV1", ticket)
+	hash, err := dispatchMaterialDigest(dispatchTicketMessageName, ticket)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,11 @@ func (k Keeper) recordDispatchWinnerIneligible(ctx context.Context, entry *types
 	} else if !errIsNotFound(err) {
 		return err
 	}
-	_, closeHeight, err := dispatchClaimWindow(order.EarliestSubmitHeight, ticket.BoundChangeHeight, params)
+	params, err := k.ParamsForSession(ctx, order.SessionId)
+	if err != nil {
+		return err
+	}
+	_, closeHeight, err := dispatchWindowBounds(order.EarliestSubmitHeight, ticket.BoundChangeHeight, params.Dispatch.RecordDeadlineBlocks, params.Dispatch.DispatchCompensationClaimWindowBlocks)
 	if err != nil {
 		return err
 	}

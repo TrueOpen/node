@@ -30,7 +30,7 @@ func TestRecordedDoubleDispatchChallengeUsesFrozenTaskParameters(t *testing.T) {
 	second.Rank = 1
 	second.DispatchTicketHash = bytes32(0x94)
 	entry.Record.Rounds[0].Attempts = append(entry.Record.Rounds[0].Attempts, &second)
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(150))
 	result, err := NewMsgServerImpl(f.keeper).ChallengeDispatchDoubleDispatch(f.ctx, &types.MsgChallengeDispatchDoubleDispatch{Order: entry.SignedOrder, Record: entry.Record, ChallengerAddress: f.owner})
 	require.NoError(t, err)

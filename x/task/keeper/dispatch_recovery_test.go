@@ -37,7 +37,7 @@ func TestDispatchClaimAuthenticatesRebutsAndPaysAtomically(t *testing.T) {
 				attempt := entry.Record.Rounds[0].Attempts[0]
 				attempt.Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 				attempt.TimeoutTierOrZero = 1
-				signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+				signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 				_, err = server.RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: created.DispatchTicketHash, Record: entry.Record, ResponderAddress: f.hub.builders[1]})
 				require.NoError(t, err, "a group Builder may return a signed incomplete record")
 				row, err := f.keeper.readDispatchClaim(f.ctx, created.DispatchTicketHash)

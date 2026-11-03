@@ -29,11 +29,11 @@ func (k Keeper) planDispatchRecord(ctx context.Context, entry *types.DispatchEnt
 	if record.BuilderAddress != builder || ticket.BuilderAddress != builder || !bytes.Equal(record.TaskId, admission.taskID[:]) || !bytes.Equal(record.TaskHash, admission.taskHash[:]) || !bytes.Equal(record.SessionId, order.SessionId) || record.OrderSequence != order.OrderSequence || !bytes.Equal(ticket.InputHash, order.InputHash) {
 		return admission, state, liability, invalidDispatchTicket("record or ticket differs from the signed order")
 	}
-	recordHash, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight)
+	recordHash, err := k.verifyDispatchMaterial(ctx, dispatchRecordMessageName, record, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight)
 	if err != nil {
 		return admission, state, liability, invalidDispatchTicket(err.Error())
 	}
-	ticketHash, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchTicketV1", ticket, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight)
+	ticketHash, err := k.verifyDispatchMaterial(ctx, dispatchTicketMessageName, ticket, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight)
 	if err != nil {
 		return admission, state, liability, invalidDispatchTicket(err.Error())
 	}
@@ -50,16 +50,20 @@ func (k Keeper) planDispatchRecord(ctx context.Context, entry *types.DispatchEnt
 	if !bytes.Equal(accept.TaskId, admission.taskID[:]) || !bytes.Equal(accept.TaskHash, admission.taskHash[:]) || !bytes.Equal(accept.DispatchTicketHash, ticketHash[:]) || !sameCandidateMember(accept.Member, ticket.Target) {
 		return admission, state, liability, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ACCEPT_SIGNATURE_INVALID, fmt.Errorf("accept differs from the winner ticket"))
 	}
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchAcceptV1", accept, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, dispatchAcceptMessageName, accept, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
 		return admission, state, liability, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ACCEPT_SIGNATURE_INVALID, err)
 	}
 	liability, err = k.dispatchWinnerLiability(ctx, admission, ticket, pool, height)
 	if err != nil {
 		return admission, state, liability, err
 	}
-	deadline, overflow := shared.CheckedHeightAddV1(max(order.EarliestSubmitHeight, admission.stream.BoundChangeHeight), params.Dispatch.RecordDeadlineBlocks)
-	if overflow {
-		return admission, state, liability, invalidDispatchTicket("dispatch deadline overflows")
+	sessionParams, err := k.ParamsForSession(ctx, order.SessionId)
+	if err != nil {
+		return admission, state, liability, err
+	}
+	deadline, closeHeight, err := dispatchWindowBounds(order.EarliestSubmitHeight, ticket.BoundChangeHeight, sessionParams.Dispatch.RecordDeadlineBlocks, sessionParams.Dispatch.DispatchCompensationClaimWindowBlocks)
+	if err != nil {
+		return admission, state, liability, invalidDispatchTicket(err.Error())
 	}
 	if height > deadline {
 		return admission, state, liability, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_RECORD_LATE, fmt.Errorf("dispatch record is late"))
@@ -88,10 +92,6 @@ func (k Keeper) planDispatchRecord(ctx context.Context, entry *types.DispatchEnt
 	inferDeadline, overflow := shared.CheckedHeightAddV1(height, admission.assignment.InferTimeoutBlocks)
 	if overflow {
 		return admission, state, liability, invalidDispatchTicket("inference deadline overflows")
-	}
-	closeHeight, overflow := shared.CheckedHeightAddV1(deadline, params.Dispatch.DispatchCompensationClaimWindowBlocks)
-	if overflow {
-		return admission, state, liability, invalidDispatchTicket("claim window close height overflows")
 	}
 	admission.assignment.DispatchRecordHash = recordHash[:]
 	admission.assignment.DispatchTicketHash = ticketHash[:]

@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"math"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	dcrecdsa "github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TrueOpen/node/internal/testutil/wirefixture"
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
@@ -28,18 +30,34 @@ func (k testEIP712AccountPublicKey) Type() string  { return k.typeName }
 func (k testEIP712AccountPublicKey) Bytes() []byte { return append([]byte(nil), k.key...) }
 
 func TestTaskOrderEIP712PublicVector(t *testing.T) {
+	var document struct {
+		TaskOrder struct {
+			Domain struct {
+				Separator string `json:"domain_separator"`
+			} `json:"domain"`
+			HashStruct    string `json:"hash_struct"`
+			SigningDigest string `json:"signing_digest"`
+			Signature     string `json:"signature_65"`
+			Address       string `json:"recovered_address"`
+		} `json:"task_order"`
+		Account struct {
+			PublicKey string `json:"pub_compressed"`
+		} `json:"account"`
+	}
+	require.NoError(t, json.Unmarshal(wirefixture.Read(t, "shared", "account_signing_v1.json"), &document))
+	vector := document.TaskOrder
 	order := accountSigningVectorOrder(t)
 	taskHash := mustDecodeEIP712Hex(t, accountSigningVectorTaskHash)
 	digest, err := BuildTaskOrderEIP712Digest(424242, "uusdc", order, taskHash)
 	require.NoError(t, err)
-	require.Equal(t, "b7a73368af2c3101ea0a2e6f4c7d3668621d2dc7815c75aaf9d7b8943e6e378e", hex.EncodeToString(digest.DomainSeparator[:]))
-	require.Equal(t, "30575d2f720d371976f50864ec4c7b1e20bbe7dbe9fde908ace815166ad65871", hex.EncodeToString(digest.HashStruct[:]))
-	require.Equal(t, "3b35b22ee8da1c67009f834ea5270dbd356fd8d2a5598b4ea6b5ed0274d87367", hex.EncodeToString(digest.SigningDigest[:]))
+	require.Equal(t, vector.Domain.Separator, hex.EncodeToString(digest.DomainSeparator[:]))
+	require.Equal(t, vector.HashStruct, hex.EncodeToString(digest.HashStruct[:]))
+	require.Equal(t, vector.SigningDigest, hex.EncodeToString(digest.SigningDigest[:]))
 
-	recovered, err := RecoverEIP712Signer(digest.SigningDigest[:], mustDecodeEIP712Hex(t, accountSigningVectorSignature))
+	recovered, err := RecoverEIP712Signer(digest.SigningDigest[:], mustDecodeEIP712Hex(t, vector.Signature))
 	require.NoError(t, err)
-	require.Equal(t, "031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f", hex.EncodeToString(recovered.PublicKey))
-	require.Equal(t, "1a642f0e3c3af545e7acbd38b07251b3990914f1", hex.EncodeToString(recovered.Address))
+	require.Equal(t, document.Account.PublicKey, hex.EncodeToString(recovered.PublicKey))
+	require.Equal(t, vector.Address, hex.EncodeToString(recovered.Address))
 }
 
 func TestRecoverSignedOrderV2EIP712AndAccountKey(t *testing.T) {

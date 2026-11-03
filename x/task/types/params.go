@@ -324,7 +324,7 @@ func validateChallengeParams(p ChallengeParamsV1, selectedVerifierCount uint32) 
 			return fmt.Errorf("challenge.%s must be in 1..%d", item.name, MaxVerificationWindowBlocksLimit)
 		}
 	}
-	if _, overflow := checkedAddManyUint64(
+	if _, overflow := shared.CheckedSumUint64(
 		p.CandidateWindowDelayBlocks, p.HandraiseWindowBlocks, p.AssignmentDelayBlocks,
 		p.CommitWindowBlocks, p.RevealWindowBlocks,
 	); overflow {
@@ -395,7 +395,7 @@ func validateDeadlineParams(p TaskDeadlineParamsV1) error {
 			return err
 		}
 	}
-	collectionMinimum, overflow := checkedAddManyUint64(
+	collectionMinimum, overflow := shared.CheckedSumUint64(
 		p.CommitWindowBlocks,
 		p.RevealWindowBlocks,
 		p.SettleMarginBlocks,
@@ -415,18 +415,11 @@ func validateDeadlineParams(p TaskDeadlineParamsV1) error {
 // ValidateVerifyOpenClock checks the Task/Hub clock relation without importing
 // Hub types into this package.
 func ValidateVerifyOpenClock(p TaskDeadlineParamsV1, deltaWBlocks, builderProposalWindowBlocks uint64) error {
-	required, overflow := checkedAddManyUint64(deltaWBlocks, deltaWBlocks, builderProposalWindowBlocks, p.SelfRescueMarginBlocks)
-	if overflow {
-		return fmt.Errorf("verify-open clock lower bound overflows")
-	}
-	if p.VerifyOpenDeadlineBlocks <= required {
-		return fmt.Errorf("deadlines.verify_open_deadline_blocks must be greater than %d", required)
-	}
-	return nil
+	return shared.ValidateVerifyOpenClock(p.VerifyOpenDeadlineBlocks, p.SelfRescueMarginBlocks, deltaWBlocks, builderProposalWindowBlocks)
 }
 
 func ValidateSessionCloseHorizon(p TaskParamsV1, challengeOpenWindowBlocks uint64) error {
-	required, overflow := checkedAddManyUint64(
+	required, overflow := shared.CheckedSumUint64(
 		p.Deadlines.VerifyOpenDeadlineBlocks,
 		p.Deadlines.CommitWindowBlocks,
 		p.Deadlines.RevealWindowBlocks,
@@ -638,18 +631,6 @@ func positiveUint64(name string, value, maximum uint64) error {
 		return fmt.Errorf("%s must be in 1..%d", name, maximum)
 	}
 	return nil
-}
-
-func checkedAddManyUint64(values ...uint64) (uint64, bool) {
-	total := uint64(0)
-	for _, value := range values {
-		next, overflow := shared.CheckedAddUint64(total, value)
-		if overflow {
-			return 0, true
-		}
-		total = next
-	}
-	return total, false
 }
 
 // GenesisOnlyTaskParamsChanged identifies V1 geometry frozen at genesis.

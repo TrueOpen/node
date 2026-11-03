@@ -146,7 +146,7 @@ func ValidateDispatchClaim(row DispatchCompensationClaimState) error {
 
 // ValidateDispatchRoundAcceptor checks the immutable signed scope and prune anchor.
 func ValidateDispatchRoundAcceptor(row DispatchRoundAcceptorState) error {
-	if len(row.SessionId) != Hash32Len || len(row.DispatchTicketHash) != Hash32Len || !shared.IsBlockHeightV1(row.RegisteredHeight) || row.BoundChangeHeight > row.RegisteredHeight {
+	if len(row.SessionId) != Hash32Len || len(row.DispatchTicketHash) != Hash32Len || row.RegisteredHeight == 0 || !shared.IsBlockHeightV1(row.RegisteredHeight) || row.BoundChangeHeight > row.RegisteredHeight {
 		return fmt.Errorf("invalid dispatch round acceptor identity or clock")
 	}
 	_, err := requireCanonicalNonEmpty("round Builder", row.BuilderAddress)

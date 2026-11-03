@@ -77,6 +77,7 @@ func (k Keeper) ensureValueEvidenceReceipts(ctx context.Context) error {
 	defer iter.Close()
 	targetCounts := make(map[string]uint32)
 	targetFaults := make(map[string]string)
+	var tasks [][]byte
 	for ; iter.Valid(); iter.Next() {
 		entry, err := iter.KeyValue()
 		if err != nil {
@@ -85,6 +86,9 @@ func (k Keeper) ensureValueEvidenceReceipts(ctx context.Context) error {
 		row, err := k.ProjectValueEvidenceReceiptStore(entry.Value)
 		if err != nil {
 			return err
+		}
+		if len(tasks) == 0 || !bytes.Equal(tasks[len(tasks)-1], row.TaskId) {
+			tasks = append(tasks, bytes.Clone(row.TaskId))
 		}
 		if !bytes.Equal(entry.Key.K1(), row.TaskId) || entry.Key.K2() != row.VerifyRound || !bytes.Equal(entry.Key.K3(), entry.Value.TargetOperatorAddress) || entry.Key.K4() != row.Position {
 			return fmt.Errorf("value receipt key mismatch")
@@ -144,6 +148,18 @@ func (k Keeper) ensureValueEvidenceReceipts(ctx context.Context) error {
 			return fmt.Errorf("value receipts disagree on their first fault")
 		}
 		targetFaults[prefix] = string(row.FaultId)
+	}
+	for _, taskID := range tasks {
+		cleaning, err := k.TaskCleanupCursor.Has(ctx, taskID)
+		if err != nil {
+			return err
+		}
+		// Cleanup removes position receipts incrementally, including the first.
+		if !cleaning {
+			if _, err := k.firstValueEvidenceReceipts(ctx, taskID); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

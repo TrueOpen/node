@@ -94,10 +94,7 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 	// reservations were already relying on, and disagreed with the candidate
 	// eligibility reading of the same quantity.
 	currentEpoch := epochForHeight(height, epochLength)
-	availableBond, err := types.AvailableBond(bond, currentEpoch)
-	if err != nil {
-		return types.ServiceBondState{}, types.UnbondingState{}, err
-	}
+	availableBond := types.AvailableBond(bond, currentEpoch)
 	if availableBond < amount {
 		return types.ServiceBondState{}, types.UnbondingState{}, errorsmod.Wrap(types.ErrInsufficientServiceBond, "available bond is below unstake amount")
 	}

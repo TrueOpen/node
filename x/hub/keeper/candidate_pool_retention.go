@@ -16,7 +16,7 @@ import (
 // reverse height cancels pending work in O(1) and is rebuilt at Genesis. Its
 // absence on an unreferenced EXPIRED body means physical pruning has begun.
 func (k Keeper) scheduleCandidateBodyPrune(ctx context.Context, snapshot types.CandidatePoolSnapshotState, height uint64) error {
-	interval, err := dispatch.ServiceKeyRotationInterval(shared.DispatchRotationWindowHardLimits())
+	interval, err := dispatch.PoolBodyRetentionBlocks(shared.DispatchRotationWindowHardLimits())
 	if err != nil {
 		return err
 	}

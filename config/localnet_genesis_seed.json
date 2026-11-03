@@ -17,7 +17,7 @@
     },
     "builder": {
       "builder_set_cap": 15,
-      "builder_set_update_lead_blocks": "100",
+      "builder_set_update_lead_blocks": "300",
       "open_verify_builder_proposal_window_blocks": "10",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
@@ -62,7 +62,7 @@
       "candidate_pool_query_hard_limit": 1000
     },
     "epoch": {
-      "epoch_length_blocks": "120",
+      "epoch_length_blocks": "240",
       "delta_w_blocks": "1",
       "delta_m_blocks": "10"
     },
@@ -217,7 +217,7 @@
     "schema_version": 1,
     "session": {
       "max_order_sequences_per_active_session": 4096,
-      "session_idle_ttl_blocks": 600,
+      "session_idle_ttl_blocks": 1800,
       "session_close_ttl_blocks": 600000,
       "session_order_retention_blocks": 60480,
       "max_session_history_prune_items_per_block": 256,
@@ -226,20 +226,20 @@
       "max_session_sweep_per_block": 1024,
       "cancel_order_min_gas": 50000,
       "max_session_key_blocks": 604800,
-      "session_withdraw_delay_blocks": 60,
-      "session_change_delay_blocks": 60,
+      "session_withdraw_delay_blocks": 180,
+      "session_change_delay_blocks": 180,
       "session_min_prefund": {
         "atomic_units": "1000000"
       },
       "max_active_sessions_per_account": 16
     },
     "deadlines": {
-      "verify_open_deadline_blocks": 120,
-      "commit_window_blocks": 20,
-      "reveal_window_blocks": 10,
-      "collection_window_blocks": 60,
-      "settle_margin_blocks": 10,
-      "self_rescue_margin_blocks": 10,
+      "verify_open_deadline_blocks": 360,
+      "commit_window_blocks": 60,
+      "reveal_window_blocks": 60,
+      "collection_window_blocks": 300,
+      "settle_margin_blocks": 20,
+      "self_rescue_margin_blocks": 30,
       "max_deadline_sweep_per_block": 1024
     },
     "proposals": {
@@ -329,19 +329,19 @@
       },
       "challenge_inconclusive_bond_slash_bps": 0,
       "challenge_fault_slash_bps": 0,
-      "candidate_window_delay_blocks": "2",
-      "handraise_window_blocks": "5",
-      "assignment_delay_blocks": "2",
-      "commit_window_blocks": "30",
-      "reveal_window_blocks": "20",
+      "candidate_window_delay_blocks": "5",
+      "handraise_window_blocks": "60",
+      "assignment_delay_blocks": "5",
+      "commit_window_blocks": "120",
+      "reveal_window_blocks": "120",
       "max_round_effect_items_per_block": 1024
     },
     "dispatch": {
-      "record_deadline_blocks": 40,
+      "record_deadline_blocks": 60,
       "max_dispatch_entries_per_record": 16,
       "max_dispatch_record_bytes": 1048576,
       "max_skips": 8,
-      "sticky_window_blocks": 120,
+      "sticky_window_blocks": 240,
       "sticky_max_orders": 8,
       "dispatch_compensation_claim_window_blocks": 120,
       "dispatch_compensation_rebuttal_blocks": 60,
@@ -351,7 +351,7 @@
       "max_dispatch_roster_bytes": 1048576,
       "max_pending_per_session": 4,
       "builder_max_inflight_per_session": 4,
-      "order_freshness_margin_blocks": 3,
+      "order_freshness_margin_blocks": 10,
       "max_prerecord_output_tokens": 32,
       "prefill_compensation_by_model_tier": [
         {
@@ -433,13 +433,18 @@
         {
           "kind": "DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE",
           "gas_cap": 10000000
+        },
+        {
+          "kind": "DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH",
+          "gas_cap": 10000000
         }
       ],
       "builder_compensation_account_min_balance": {
         "atomic_units": "1000000"
       },
       "dispatch_evidence_retention_blocks": 1440,
-      "worker_dispatch_contradiction_slash_bps": 300
+      "worker_dispatch_contradiction_slash_bps": 300,
+      "max_order_lifetime_blocks": 240
     }
   },
   "builders": [

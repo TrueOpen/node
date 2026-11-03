@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/TrueOpen/wire/dispatch"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
@@ -33,6 +34,16 @@ func (k Keeper) prepareDispatchOrder(ctx context.Context, signed types.SignedOrd
 	result, err := k.authorizeSessionOrder(ctx, signed, height)
 	if err != nil {
 		return result, err
+	}
+	sessionParams, err := k.ParamsForSession(ctx, signed.Order.SessionId)
+	if err != nil {
+		return result, err
+	}
+	if err := dispatch.ValidateOrderLifetime(signed.Order.EarliestSubmitHeight, signed.Order.OrderExpireHeight, sessionParams.Dispatch.MaxOrderLifetimeBlocks); err != nil {
+		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_SIGNATURE_INVALID, err)
+	}
+	if signed.Order.OrderExpireHeight-signed.Order.EarliestSubmitHeight < sessionParams.Dispatch.RecordDeadlineBlocks {
+		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_SIGNATURE_INVALID, fmt.Errorf("order lifetime does not cover its frozen recording span"))
 	}
 	order, taskID, taskHash, stream := result.order, result.taskID, result.taskHash, result.stream
 	owner, delegated, nextSpent := stream.OwnerUserAddress, result.delegated, result.nextSpent

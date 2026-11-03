@@ -74,8 +74,8 @@ func TestClaimRebuttalRetainsIndependentKeyBoundaries(t *testing.T) {
 			if tc.unknownReject {
 				reject.ServiceAuthorizationNonce = 3
 			}
-			signDispatchTestMaterial(t, "task.v1.DispatchRejectV1", reject, oldWorker, func(s []byte) { reject.ServiceSignature = s })
-			digest, err := dispatchMaterialDigest("task.v1.DispatchRejectV1", reject)
+			signDispatchTestMaterial(t, dispatchRejectMessageName, reject, oldWorker, func(s []byte) { reject.ServiceSignature = s })
+			digest, err := dispatchMaterialDigest(dispatchRejectMessageName, reject)
 			require.NoError(t, err)
 			attempt := entry.Record.Rounds[0].Attempts[0]
 			attempt.Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_REJECTED
@@ -83,7 +83,7 @@ func TestClaimRebuttalRetainsIndependentKeyBoundaries(t *testing.T) {
 			if tc.unknownRecord {
 				entry.Record.ServiceAuthorizationNonce = 3
 			}
-			signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, oldBuilder, func(s []byte) { entry.Record.BuilderServiceSignature = s })
+			signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, oldBuilder, func(s []byte) { entry.Record.BuilderServiceSignature = s })
 			hub := &rebuttalFaultHub{dispatchTestHub: f.hub}
 			f.keeper.hubKeeper = hub
 			server = NewMsgServerImpl(f.keeper)
@@ -196,7 +196,7 @@ func TestClaimOrderHeightSurvivesReplacementReplayAndGenesis(t *testing.T) {
 		require.NoError(t, other.keeper.writeDispatchRecord(other.ctx, state))
 		entry.Record.Rounds[0].Attempts[0].Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 		entry.Record.Rounds[0].Attempts[0].TimeoutTierOrZero = 1
-		signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, other.hub.keys[row.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+		signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, other.hub.keys[row.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 		_, err = other.keeper.verifyDispatchRebuttal(other.ctx, imported, entry.Record)
 		require.NoError(t, err)
 		postCutover := imported
@@ -229,7 +229,7 @@ func TestClaimOrderHeightLifetime(t *testing.T) {
 				require.NoError(t, f.keeper.WriteStream(f.ctx, types.NewSessionStoreKey(f.sessionID), stream))
 				entry.Record.Rounds[0].Attempts[0].Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 				entry.Record.Rounds[0].Attempts[0].TimeoutTierOrZero = 1
-				signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+				signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 				_, err = server.RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: claim.DispatchTicketHash, Record: entry.Record, ResponderAddress: entry.Record.BuilderAddress})
 				require.Error(t, err, "the previous service cannot submit a new transaction")
 				_, err = server.RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: claim.DispatchTicketHash, Record: entry.Record, ResponderAddress: current})

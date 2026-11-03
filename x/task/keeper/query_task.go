@@ -216,18 +216,17 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING,
 		types.VerificationStatus_VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN,
 		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING:
-		window, err := q.k.VerifierCandidateWindow.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		window, err := q.k.verifyOpenWindowForSweep(ctx, taskKey)
 		if err != nil {
 			return 0, 0, false, err
 		}
-		if !bytes.Equal(window.TaskId, core.TaskId) || window.VerifyRound != types.VerifyRoundV1 {
+		if !bytes.Equal(window.TaskId, core.TaskId) {
 			return 0, 0, false, errors.New("verifier candidate window scope does not match task")
 		}
-		if window.EligibilityFrozenHeight == 0 || window.EligibilityFrozenHeight >= window.WindowRandomnessHeight ||
-			window.WindowRandomnessHeight >= window.BuilderProposalCloseHeight ||
-			window.BuilderProposalCloseHeight >= window.HandraiseCloseHeight ||
-			window.HandraiseCloseHeight >= window.SelectionRandomnessHeight ||
-			window.SelectionRandomnessHeight >= window.AssignmentDeadlineHeight {
+		if err := q.k.validateActiveVerifierStage(ctx, taskKey, core, window.VerifyRound, core.VerificationStatus); err != nil {
+			return 0, 0, false, err
+		}
+		if !validVerifierWindowQueryClock(window) {
 			return 0, 0, false, errors.New("verifier candidate window has a non-canonical deadline clock")
 		}
 		// The window clock is monotone (validated just above), so the pending
@@ -263,9 +262,9 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,
 		types.VerificationStatus_VERIFICATION_STATUS_COMMITTING,
 		types.VerificationStatus_VERIFICATION_STATUS_REVEALING:
-		round := core.EffectiveVerifyRound
-		if round == 0 {
-			round = types.VerifyRoundV1
+		round, _, err := q.k.activeVerifierAssignment(ctx, taskKey)
+		if err != nil {
+			return 0, 0, false, err
 		}
 		assignment, err := q.loadVerifierAssignment(ctx, taskKey, round)
 		if err != nil {
@@ -304,7 +303,16 @@ func (q *queryServer) nextChallengeWindowDeadline(
 	if !bytes.Equal(summary.TaskId, core.TaskId) {
 		return 0, 0, false, errors.New("task round summary scope does not match task")
 	}
+	valuePending := summary.XVerifierValueEvidenceCloseHeight != nil && summary.XVerifierValueEvidenceWindowClosedHeight == nil
+	if valuePending && summary.GetVerifierValueEvidenceCloseHeight() == 0 {
+		return 0, 0, false, errors.New("value evidence window has no close height")
+	}
 	if summary.MaxClosedRound == types.ChallengeVerifyRoundV1 && summary.OpenRoundCount == 0 && summary.XRoundsClosedHeight == nil {
+		// Evidence closes before the round-effect plan can be frozen. There is
+		// deliberately no apply cursor yet while this window is still pending.
+		if valuePending {
+			return types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE, summary.GetVerifierValueEvidenceCloseHeight(), true, nil
+		}
 		cursor, err := q.k.RoundEconomicEffectApplyCursor.Get(
 			ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1),
 		)
@@ -343,6 +351,13 @@ func (q *queryServer) nextChallengeWindowDeadline(
 	if (round.GetVerdict() == types.TaskVerdict_TASK_VERDICT_PASS) !=
 		(core.VerificationStatus == types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED) {
 		return 0, 0, false, errors.New("round 1 verdict does not match task verification status")
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	if valuePending && (summary.GetVerifierValueEvidenceCloseHeight() < closeHeight || height >= closeHeight) {
+		return types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE, summary.GetVerifierValueEvidenceCloseHeight(), true, nil
 	}
 	return types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE, closeHeight, true, nil
 }
@@ -388,14 +403,16 @@ func nextEvidenceCleanupDeadline(core types.TaskCoreState) (types.DeadlineKindV1
 
 // advancedVerifyFinalDeadline names the row advanceToVerifyDeadline leaves behind
 // once a commit or reveal deadline has been consumed: the phase is unchanged and
-// the task's only queued deadline is VERIFY_FINAL. loadVerifierAssignmentV1
-// already rejects a row whose verify deadline is not strictly past the commit and
-// reveal ones, so the ordering check below is unreachable defense that keeps this
-// helper total rather than letting a zero height pass for a real deadline.
+// the task's only remaining deadline is VERIFY_FINAL. Round two combines reveal
+// and final expiry, so once that shared height is reached there is no later mark
+// to advertise while the bounded terminal sweep catches up.
 func advancedVerifyFinalDeadline(
 	assignment types.VerifierAssignmentState,
 	consumed uint64,
 ) (types.DeadlineKindV1, uint64, bool, error) {
+	if assignment.VerifyRound == types.ChallengeVerifyRoundV1 && assignment.VerifyDeadlineHeight == consumed {
+		return 0, 0, false, nil
+	}
 	if assignment.VerifyDeadlineHeight <= consumed {
 		return 0, 0, false, errors.New("verifier assignment has no verify deadline past its consumed phase deadline")
 	}
@@ -499,7 +516,7 @@ func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudget
 
 // TaskBuilders is `QueryTaskBuilders`. The three body states are frozen:
 //
-//   - ACTIVE  -> exactly `builders_per_task` members; an empty array with ACTIVE
+//   - ACTIVE  -> the immutable group's stored member count; an empty array with ACTIVE
 //     is an invariant break (`Internal`), *never* an empty page;
 //   - PRUNED  -> members empty but count / hash / builder_set_id /
 //     builder_set_hash / session_anchor_block_hash / created_height are all

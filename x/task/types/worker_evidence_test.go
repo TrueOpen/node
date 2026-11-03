@@ -3,9 +3,9 @@ package types
 import (
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"testing"
 
+	"github.com/TrueOpen/node/internal/testutil/wirefixture"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,8 +30,7 @@ func TestOutputChunkEquivocationPublishedVector(t *testing.T) {
 			} `json:"proofs"`
 		} `json:"positive"`
 	}
-	raw, err := os.ReadFile("testdata/output_chunk_equivocation_v1.json")
-	require.NoError(t, err)
+	raw := wirefixture.Read(t, "task", "output_chunk_equivocation_v1.json")
 	require.NoError(t, json.Unmarshal(raw, &fixture))
 	p := fixture.Positive
 	decode := func(value string) []byte {

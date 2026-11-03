@@ -109,7 +109,7 @@ func DefaultHubParams() HubParamsV2 {
 		},
 		Builder: BuilderParamsV1{
 			BuilderSetCap:                         DefaultBuilderSetCap,
-			BuilderSetUpdateLeadBlocks:            100,
+			BuilderSetUpdateLeadBlocks:            180,
 			OpenVerifyBuilderProposalWindowBlocks: 100,
 			SettlementBuilderGraceBlocks:          2,
 			BuilderSetRetentionEpochs:             30,
@@ -230,6 +230,12 @@ func (p HubParamsV2) Validate() error {
 		p.CandidatePool.CandidatePoolQueryDefaultLimit == 0 ||
 		p.CandidatePool.CandidatePoolQueryHardLimit < p.CandidatePool.CandidatePoolQueryDefaultLimit {
 		return fmt.Errorf("candidate pool parameters are invalid")
+	}
+	capacity := uint64(p.CandidatePool.CandidateSlotHardCapacity)
+	throughput := uint64(p.CandidatePool.MaxCandidatePoolBuildMembersPerBlock)
+	buildBlocks := (capacity+throughput-1)/throughput + 1
+	if p.CandidatePool.CandidatePoolBuildLeadBlocks < buildBlocks {
+		return fmt.Errorf("candidate pool build lead must cover %d scan and publication blocks", buildBlocks)
 	}
 	if _, err := AmountToUint64(p.Service.ServiceBondMinInitial, false); err != nil {
 		return fmt.Errorf("service_bond_min_initial: %w", err)

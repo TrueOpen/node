@@ -23,11 +23,11 @@ func (k Keeper) authorizeSessionOrder(ctx context.Context, signed types.SignedOr
 	}
 	taskHash, err := types.TaskOrderHash(order)
 	if err != nil {
-		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_ORDER_AMOUNT_INVALID, err)
+		return result, err
 	}
 	taskID, err := types.DeriveTaskIDFromRawSession(order.SessionId, order.OrderSequence)
 	if err != nil {
-		return result, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_SESSION_INVALID, err)
+		return result, err
 	}
 	ownerBytes, owner, err := k.canonicalAddress("user_address", order.UserAddress)
 	if err != nil {

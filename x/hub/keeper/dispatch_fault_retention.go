@@ -102,3 +102,39 @@ func dispatchFaultPruneHeight(height, retention uint64) (uint64, error) {
 	}
 	return prune, nil
 }
+
+// EnsureDispatchFaultPruneInvariant audits the derived queue after both modules
+// have restored genesis. The scheduled height is immutable across governance.
+func (k Keeper) EnsureDispatchFaultPruneInvariant(ctx context.Context) error {
+	seen := make(map[string]struct{})
+	if err := k.DispatchFaultPruneIndex.Walk(ctx, nil, func(key types.DispatchFaultPruneKeyTriple) (bool, error) {
+		row, err := k.DispatchFault.Get(ctx, collections.Join(key.K2(), key.K3()))
+		if err != nil {
+			return false, fmt.Errorf("dispatch fault prune has no primary: %w", err)
+		}
+		if key.K1() <= row.FaultHeight || !shared.IsBlockHeightV1(key.K1()) || !bytes.Equal(row.FaultId, key.K3()) {
+			return false, fmt.Errorf("dispatch fault prune index/primary mismatch")
+		}
+		id := key.K2() + string(key.K3())
+		if _, duplicate := seen[id]; duplicate {
+			return false, fmt.Errorf("dispatch fault has duplicate prune schedules")
+		}
+		seen[id] = struct{}{}
+		return false, nil
+	}); err != nil {
+		return err
+	}
+	return k.DispatchFault.Walk(ctx, nil, func(key types.DispatchFaultKeyPair, row internaltypes.DispatchFaultStoreState) (bool, error) {
+		projected, err := k.projectDispatchFault(row)
+		if err != nil {
+			return false, err
+		}
+		if projected.BuilderAddress != key.K1() || !bytes.Equal(projected.FaultId, key.K2()) {
+			return false, fmt.Errorf("dispatch fault key/primary mismatch")
+		}
+		if _, found := seen[key.K1()+string(key.K2())]; !found {
+			return false, fmt.Errorf("dispatch fault has no prune schedule")
+		}
+		return false, nil
+	})
+}

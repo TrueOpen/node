@@ -58,6 +58,7 @@ type Keeper struct {
 	PendingServiceKeyRotation           collections.Map[types.ParticipantKeyPair, internaltypes.PendingServiceKeyRotationStoreState]
 	ServiceKeyRotationActivationIndex   collections.KeySet[types.ServiceKeyRotationActivationKey]
 	PendingServiceAddressIndex          collections.Map[string, internaltypes.PendingServiceAddressStoreState]
+	BuilderCompensationBalance          collections.Item[uint64]
 	BuilderCompensationAccount          collections.Map[string, internaltypes.BuilderCompensationAccountStoreState]
 	DispatchFault                       collections.Map[types.DispatchFaultKeyPair, internaltypes.DispatchFaultStoreState]
 	DispatchFaultPruneIndex             collections.KeySet[types.DispatchFaultPruneKeyTriple]
@@ -371,6 +372,7 @@ func NewKeeper(
 		PendingServiceKeyRotation:           collections.NewMap(sb, types.PendingServiceKeyRotationKey, "pending_service_key_rotation", participantKeyCodec, codec.CollValue[internaltypes.PendingServiceKeyRotationStoreState](cdc)),
 		ServiceKeyRotationActivationIndex:   collections.NewKeySet(sb, types.ServiceKeyRotationActivationIndexKey, "service_key_rotation_activation", collections.TripleKeyCodec(collections.Uint64Key, collections.Int32Key, addressStringKeyCodec)),
 		PendingServiceAddressIndex:          collections.NewMap(sb, types.PendingServiceAddressIndexKey, "pending_service_address", addressStringKeyCodec, codec.CollValue[internaltypes.PendingServiceAddressStoreState](cdc)),
+		BuilderCompensationBalance:          collections.NewItem(sb, types.BuilderCompensationBalanceKey, "builder_compensation_balance", collections.Uint64Value),
 		BuilderCompensationAccount:          collections.NewMap(sb, types.BuilderCompensationAccountKey, "builder_compensation_account", addressStringKeyCodec, codec.CollValue[internaltypes.BuilderCompensationAccountStoreState](cdc)),
 		DispatchFault:                       collections.NewMap(sb, types.DispatchFaultKey, "dispatch_fault", addressHash32KeyCodec, codec.CollValue[internaltypes.DispatchFaultStoreState](cdc)),
 		DispatchFaultPruneIndex:             collections.NewKeySet(sb, types.DispatchFaultPruneIndexKey, "dispatch_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)),

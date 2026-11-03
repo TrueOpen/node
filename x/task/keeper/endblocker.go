@@ -313,7 +313,8 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 // retireVerifierRowToFallbackDeadline drops a verifier queue key for a frozen
 // window that can no longer be finalized — it closed with fewer entrants than
 // selected_verifier_count, or a selected verifier can no longer back its duty
-// (ErrVerifierLiabilityUnavailable). It is the same disposal the empty-union
+// (ErrVerifierLiabilityUnavailable), or the assignment deadline has elapsed.
+// It is the same disposal the empty-union
 // case below already performs, for the same reason: the legal set cannot change
 // after the close height, so the frozen verify-open assignment deadline is the
 // sole remaining terminal key and fails the task as
@@ -323,9 +324,9 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 // every block and hold the head of the close sweep — the rows are drained in
 // height order — until that deadline fires.
 //
-// The guard is not cosmetic: if the later deadline is already past or was never
-// indexed, nothing else would ever retire this task, so that genuinely is a
-// store inconsistency and keeps ErrInvariantBroken.
+// Compare the source queue height with the frozen terminal deadline, which may
+// itself already be due during catch-up. A missing or non-later terminal key
+// would lose the final transition and remains a store inconsistency.
 func (k Keeper) retireVerifierRowToFallbackDeadline(
 	ctx context.Context,
 	taskID types.TaskKey,
@@ -519,7 +520,7 @@ func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Co
 			}
 			advanced, applyBytes, err := k.finalizeVerifierAssignmentAtHeight(ctx, taskID, window, union, cursor, currentHeight)
 			rowBytes += applyBytes
-			if errors.Is(err, ErrVerifierLiabilityUnavailable) {
+			if errors.Is(err, ErrVerifierLiabilityUnavailable) || errors.Is(err, types.ErrDeadlineExpired) {
 				// A selected verifier lost its live backing after the legal set
 				// froze. There is no redraw, so retire this row like a short
 				// window and let the verify-open deadline fail the task.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"cosmossdk.io/collections"
 	"github.com/TrueOpen/wire/dispatch"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,11 @@ type valueEvidenceTestHub struct {
 }
 
 func (h *valueEvidenceTestHub) RecordVerifierValueEvidence(ctx context.Context, fact shared.VerifierValueEvidenceFactV1) (hubtypes.RoleFaultState, error) {
+	for _, row := range h.faults {
+		if bytes.Equal(row.TaskId, fact.TaskId) && row.OperatorAddress == fact.TargetOperatorAddress && row.Duty == fact.FaultedDuty && hubtypes.IsMergedValueEvidenceFault(row) {
+			return row, nil
+		}
+	}
 	operator, err := types.CanonicalOperatorAddressBytes("value target", fact.TargetOperatorAddress)
 	if err != nil {
 		return hubtypes.RoleFaultState{}, err
@@ -39,7 +45,11 @@ func (h *valueEvidenceTestHub) RecordVerifierValueEvidence(ctx context.Context, 
 }
 
 func (h *valueEvidenceTestHub) ReadRoleFaultValue(_ context.Context, id shared.Hash32Key) (hubtypes.RoleFaultState, error) {
-	return h.faults[string(id)], nil
+	row, found := h.faults[string(id)]
+	if !found {
+		return row, collections.ErrNotFound
+	}
+	return row, nil
 }
 
 func TestValueEvidenceSettlementUsesOriginalFaultAcrossPositionOrder(t *testing.T) {

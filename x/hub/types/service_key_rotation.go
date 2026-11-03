@@ -57,7 +57,7 @@ func ValidateRevokedServiceKeyBinding(status ServiceKeyStatus, height uint64, pr
 	if !present {
 		return nil
 	}
-	if status != ServiceKeyStatusRevoked || !shared.IsBlockHeightV1(height) {
+	if status != ServiceKeyStatusRevoked || height == 0 || !shared.IsBlockHeightV1(height) {
 		return fmt.Errorf("revoke height requires a REVOKED binding and a positive block height")
 	}
 	return nil
@@ -68,7 +68,7 @@ func ValidatePreviousServiceKeyBinding(current uint64, currentPubkey, pubkey []b
 	if len(pubkey) == 0 && nonce == 0 && retired == 0 {
 		return nil
 	}
-	if current <= 1 || nonce != current-1 || !shared.IsBlockHeightV1(retired) || bytes.Equal(pubkey, currentPubkey) {
+	if current <= 1 || nonce != current-1 || retired == 0 || !shared.IsBlockHeightV1(retired) || bytes.Equal(pubkey, currentPubkey) {
 		return fmt.Errorf("invalid previous service key generation")
 	}
 	_, err := ParseSecp256k1PubKeyBytes("previous service pubkey", pubkey)

@@ -54,6 +54,14 @@ func (m *msgServer) UpdateTaskParams(ctx context.Context, req *types.MsgUpdateTa
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
+	nextWindows, err := taskSafetyWindowsFromParams(req.Params)
+	if err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+	}
+	windows = mergeTaskSafetyWindows(windows, nextWindows)
+	if hubParams.BuilderSetUpdateLeadBlocks < windows.MinimumBuilderSetLeadBlocks {
+		return nil, errorsmod.Wrap(types.ErrInvariantBroken, shared.ErrBuilderSetNoticeTooShort.Error())
+	}
 	if err := hubtypes.ValidateServiceUnbondingCoverage(
 		hubParams.ServiceUnbondingPeriodBlocks,
 		hubParams.UnbondingSlashSafetyMarginBlocks,

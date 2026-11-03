@@ -66,6 +66,7 @@ func (stubHubKeeper) GetHubParams(sdk.Context) types.HubParamsSnapshot {
 		UnbondingSlashSafetyMarginBlocks:      params.Service.UnbondingSlashSafetyMarginBlocks,
 		CandidateSlotHardCapacity:             params.CandidatePool.CandidateSlotHardCapacity,
 		OpenVerifyBuilderProposalWindowBlocks: params.Builder.OpenVerifyBuilderProposalWindowBlocks,
+		BuilderSetUpdateLeadBlocks:            params.Builder.BuilderSetUpdateLeadBlocks,
 		MaxQueryPageTokenBytes:                params.QueryEvent.MaxQueryPageTokenBytes,
 		MaxQueryPageLimit:                     params.QueryEvent.MaxQueryPageLimit,
 		MaxQueryResponseBytes:                 params.QueryEvent.MaxQueryResponseBytes,

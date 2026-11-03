@@ -12,6 +12,15 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
+const (
+	dispatchTicketMessageName        = "task.v1.DispatchTicketV1"
+	dispatchRecordMessageName        = "task.v1.DispatchRecordV1"
+	dispatchAcceptMessageName        = "task.v1.DispatchAcceptV1"
+	dispatchRejectMessageName        = "task.v1.DispatchRejectV1"
+	dispatchHandraiseRootMessageName = "task.v1.SignedHandraiseRootV1"
+	dispatchVrfInputMessageName      = "task.v1.DispatchVrfInputV1"
+)
+
 func (k Keeper) dispatchProofKey(ctx context.Context, signer dispatch.ServiceProofSigner) (dispatch.ProofKeyBinding, error) {
 	role := shared.ParticipantType(signer.ParticipantType)
 	if role != shared.ParticipantType_PARTICIPANT_TYPE_CORTEX && role != shared.ParticipantType_PARTICIPANT_TYPE_BUILDER {

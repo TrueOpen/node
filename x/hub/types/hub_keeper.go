@@ -34,6 +34,7 @@ type HubParamsSnapshot struct {
 	ObjectiveForgerySlashBps              uint32
 	CandidateSlotHardCapacity             uint32
 	OpenVerifyBuilderProposalWindowBlocks uint64
+	BuilderSetUpdateLeadBlocks            uint64
 	SettlementBuilderGraceBlocks          uint64
 	FreezeFailureIndexRetentionBlocks     uint64
 	MaxQueryPageTokenBytes                uint32

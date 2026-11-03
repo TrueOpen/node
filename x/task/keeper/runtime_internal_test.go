@@ -209,6 +209,7 @@ func (internalStubHubKeeper) GetHubParams(sdk.Context) hubtypes.HubParamsSnapsho
 		UnbondingSlashSafetyMarginBlocks:      params.Service.UnbondingSlashSafetyMarginBlocks,
 		DeltaWBlocks:                          params.Epoch.DeltaWBlocks,
 		OpenVerifyBuilderProposalWindowBlocks: params.Builder.OpenVerifyBuilderProposalWindowBlocks,
+		BuilderSetUpdateLeadBlocks:            params.Builder.BuilderSetUpdateLeadBlocks,
 		// BuildAssignmentCandidateSet bounds the pool body with the registered
 		// candidate_slot_hard_capacity, so the stub has to project it too or every
 		// pool looks like a count/body mismatch.

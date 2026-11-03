@@ -137,7 +137,7 @@ func (k Keeper) RunVerifierRound(
 			cursor.Status == types.FinalizeCursorStatusV1_FINALIZE_CURSOR_STATUS_V1_WAITING_RANDOMNESS {
 			advanced, rowBytes, err := k.finalizeVerifierAssignmentAtHeight(ctx, taskKey, window, union, cursor, currentHeight)
 			result.SerializedBytes += rowBytes
-			if errors.Is(err, ErrVerifierLiabilityUnavailable) {
+			if errors.Is(err, ErrVerifierLiabilityUnavailable) || errors.Is(err, types.ErrDeadlineExpired) {
 				// Same disposal as a short window above: the round cannot be
 				// assigned and the verify-open deadline owns the terminal
 				// transition, so this is not a caller fault.

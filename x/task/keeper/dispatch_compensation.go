@@ -30,7 +30,7 @@ func (m msgServer) ClaimDispatchCompensation(ctx context.Context, req *types.Msg
 	if uint64(req.Size()) > params.Dispatch.MaxDispatchRecordBytes {
 		return nil, fmt.Errorf("compensation proof exceeds byte cap")
 	}
-	ticketHash, err := dispatchMaterialDigest("task.v1.DispatchTicketV1", req.Ticket)
+	ticketHash, err := dispatchMaterialDigest(dispatchTicketMessageName, req.Ticket)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +76,10 @@ func (k Keeper) prepareDispatchClaim(ctx context.Context, req *types.MsgClaimDis
 	if !bytes.Equal(taskID[:], ticket.TaskId) || !bytes.Equal(taskHash[:], ticket.TaskHash) || !bytes.Equal(order.SessionId, ticket.SessionId) || order.OrderSequence != ticket.OrderSequence || !bytes.Equal(accept.TaskId, ticket.TaskId) || !bytes.Equal(accept.TaskHash, ticket.TaskHash) || !bytes.Equal(accept.DispatchTicketHash, ticketHash) || !sameCandidateMember(ticket.Target, accept.Member) {
 		return row, invalidDispatchTicket("claim order, ticket and acceptance scopes differ")
 	}
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchTicketV1", ticket, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, dispatchTicketMessageName, ticket, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
 		return row, invalidDispatchTicket(err.Error())
 	}
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchAcceptV1", accept, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, dispatchAcceptMessageName, accept, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
 		return row, invalidDispatchTicket(err.Error())
 	}
 	stream, err := k.ReadStream(ctx, order.SessionId)
@@ -116,7 +116,7 @@ func (k Keeper) prepareDispatchClaim(ctx context.Context, req *types.MsgClaimDis
 	} else if !allowed {
 		return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("round acceptor is another ticket"))
 	}
-	deadline, closeHeight, err := dispatchClaimWindow(order.EarliestSubmitHeight, ticket.BoundChangeHeight, params.Dispatch)
+	deadline, closeHeight, err := dispatchWindowBounds(order.EarliestSubmitHeight, ticket.BoundChangeHeight, params.Dispatch.RecordDeadlineBlocks, params.Dispatch.DispatchCompensationClaimWindowBlocks)
 	if err != nil {
 		return row, err
 	}
@@ -164,14 +164,14 @@ func dispatchOrderIdentity(order types.TaskOrderV3) ([32]byte, [32]byte, error) 
 	return id, hash, err
 }
 
-func dispatchClaimWindow(earliest, bound uint64, params types.DispatchParamsV1) (uint64, uint64, error) {
-	deadline, overflow := shared.CheckedHeightAddV1(max(earliest, bound), params.RecordDeadlineBlocks)
+func dispatchWindowBounds(earliest, bound, recordBlocks, windowBlocks uint64) (uint64, uint64, error) {
+	deadline, overflow := shared.CheckedHeightAddV1(max(earliest, bound), recordBlocks)
 	if overflow {
 		return 0, 0, fmt.Errorf("dispatch record deadline overflows")
 	}
-	closeHeight, overflow := shared.CheckedHeightAddV1(deadline, params.DispatchCompensationClaimWindowBlocks)
+	closeHeight, overflow := shared.CheckedHeightAddV1(deadline, windowBlocks)
 	if overflow {
-		return 0, 0, fmt.Errorf("dispatch claim window overflows")
+		return 0, 0, fmt.Errorf("dispatch window close height overflows")
 	}
 	return deadline, closeHeight, nil
 }
@@ -230,7 +230,11 @@ func (k Keeper) matureDispatchClaim(ctx context.Context, ticket []byte, deadline
 		if err := k.writeDispatchClaim(ctx, row); err != nil {
 			return err
 		}
-		return emitTypedEvent(ctx, &types.EventDispatchCompensationRebutted{DispatchTicketHash: ticket, TaskId: row.TaskId, Builder: row.BuilderAddress, Worker: row.WorkerOperatorAddress, AttemptOutcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED})
+		reason := types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE
+		if pruned {
+			reason = types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_RECORD_PRUNED
+		}
+		return emitTypedEvent(ctx, &types.EventDispatchCompensationRebutted{DispatchTicketHash: ticket, TaskId: row.TaskId, Builder: row.BuilderAddress, Worker: row.WorkerOperatorAddress, XDismissalReason: &types.EventDispatchCompensationRebutted_DismissalReason{DismissalReason: reason}})
 	}
 	amount, err := shared.ParseAmount(row.Amount)
 	if err != nil {

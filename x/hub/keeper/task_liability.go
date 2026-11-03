@@ -186,10 +186,7 @@ func (k Keeper) reserveTaskLiabilityFromFrozenFact(
 	}
 	currentEpoch := epochForHeight(req.Height, epochLength)
 	effectiveBond := types.EffectiveActiveBond(bond, currentEpoch)
-	availableBond, err := types.AvailableBond(bond, currentEpoch)
-	if err != nil {
-		return types.TaskLiabilityReservationState{}, err
-	}
+	availableBond := types.AvailableBond(bond, currentEpoch)
 	// JAILED reserves like a live bond: a jailed candidate the Task side admitted
 	// at a reduced jail factor still has to take the duty, and the RELEASED branch
 	// below is the only caller that advances the jail-clear counter. Tombstone is

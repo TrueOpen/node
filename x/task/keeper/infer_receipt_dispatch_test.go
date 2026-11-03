@@ -10,8 +10,8 @@ import (
 )
 
 func TestInferReceiptMustBindAcceptedDispatchTicket(t *testing.T) {
-	for _, wrong := range []bool{false, true} {
-		t.Run(map[bool]string{false: "accepted ticket and replay", true: "different signed attempt"}[wrong], func(t *testing.T) {
+	for _, wrong := range []string{"", "ticket", "output key", "token key", "value key", "ciphertext root", "short reserved"} {
+		t.Run("receipt "+wrong, func(t *testing.T) {
 			f := newVerificationFixture(t)
 			core, err := f.keeper.TaskCore.Get(f.ctx, f.taskID)
 			require.NoError(t, err)
@@ -28,15 +28,31 @@ func TestInferReceiptMustBindAcceptedDispatchTicket(t *testing.T) {
 			require.NoError(t, f.keeper.TaskBudget.Set(f.ctx, f.taskID, types.TaskBudgetState{TaskId: f.taskID, MaxOutputTokens: 10}))
 			f.setTaskBuilders(t, f.operators[1], f.operators[2])
 			receipt := types.InferReceiptV3{SchemaVersion: 3, ChainId: sdkChainID(f.ctx), TaskId: f.taskID, TaskHash: core.AcceptedTaskHash, WorkerOperatorAddress: assignment.WinnerWorker, ServiceAuthorizationNonce: 7, GenerationParamsDigest: f.genDigest, OutputHash: bytes32(0x73), OutputSizeBytes: 4, RequiredEvidenceCommitments: []types.EvidenceCommitmentV1{{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING, EvidenceHashOrRoot: bytes32(0x74), EncodedSizeBytes: 1}, {EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING, EvidenceHashOrRoot: bytes32(0x75), EncodedSizeBytes: 1}}, ExpiryHeight: 100, GeneratedTokenCount: 2, OutputLeafCount: 2, OutputKeyCommitment: make([]byte, 32), WorkerTokenKeyCommitment: make([]byte, 32), WorkerValueKeyCommitment: make([]byte, 32), CiphertextOutputRoot: make([]byte, 32), DispatchTicketHash: assignment.DispatchTicketHash, ServiceSignature: make([]byte, 64)}
-			if wrong {
+			switch wrong {
+			case "ticket":
 				receipt.DispatchTicketHash = bytes32(0x76)
+			case "output key":
+				receipt.OutputKeyCommitment[0] = 1
+			case "token key":
+				receipt.WorkerTokenKeyCommitment[0] = 1
+			case "value key":
+				receipt.WorkerValueKeyCommitment[0] = 1
+			case "ciphertext root":
+				receipt.CiphertextOutputRoot[0] = 1
+			case "short reserved":
+				receipt.OutputKeyCommitment = nil
 			}
 			request := &types.MsgSubmitInferReceipt{Receipt: receipt, SubmitterAddress: assignment.WinnerWorker}
 			response, err := f.server.SubmitInferReceipt(f.ctx, request)
-			if wrong {
-				code, ok := dispatchRejectionCode(err)
-				require.True(t, ok, "%v", err)
-				require.Equal(t, types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_TICKET_INVALID, code)
+			if wrong != "" {
+				require.Error(t, err)
+				if wrong == "ticket" {
+					code, ok := dispatchRejectionCode(err)
+					require.True(t, ok, "%v", err)
+					require.Equal(t, types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_TICKET_INVALID, code)
+				} else {
+					require.ErrorContains(t, err, "must be zero32")
+				}
 				found, readErr := f.keeper.InferReceipt.Has(f.ctx, f.taskID)
 				require.NoError(t, readErr)
 				require.False(t, found)

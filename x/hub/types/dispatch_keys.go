@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	BuilderCompensationBalanceKey = MustVersionedStorePrefix("builder_compensation_balance", CurrentStoreSchemaVersion)
 	BuilderCompensationAccountKey = MustVersionedStorePrefix("builder_compensation_account", CurrentStoreSchemaVersion)
 	DispatchFaultKey              = MustVersionedStorePrefix("dispatch_fault", CurrentStoreSchemaVersion)
 	DispatchFaultPruneIndexKey    = MustVersionedStorePrefix("dispatch_fault_prune", CurrentStoreSchemaVersion)

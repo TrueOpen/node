@@ -116,7 +116,7 @@ func TestGroupBuilderRebutsAfterOriginKeyRevocation(t *testing.T) {
 	require.NoError(t, err)
 	entry.Record.Rounds[0].Attempts[0].Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 	entry.Record.Rounds[0].Attempts[0].TimeoutTierOrZero = 1
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 	hub.revoke(t, f.ctx, f.hub.builders[0])
 	hub.revoke(t, f.ctx, f.hub.builders[1])
 	_, err = server.RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: claim.DispatchTicketHash, Record: entry.Record, ResponderAddress: f.hub.builders[2]})

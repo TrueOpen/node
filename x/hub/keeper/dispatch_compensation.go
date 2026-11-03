@@ -63,7 +63,25 @@ func (k Keeper) WriteBuilderCompensationAccount(ctx context.Context, state types
 		}
 		*amount.target = value
 	}
-	return k.BuilderCompensationAccount.Set(ctx, state.BuilderAddress, stored)
+	old, err := k.BuilderCompensationAccount.Get(ctx, state.BuilderAddress)
+	if err != nil && !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+	total, err := k.builderCompensationBalance(ctx)
+	if err != nil {
+		return err
+	}
+	if total < old.Balance {
+		return fmt.Errorf("compensation aggregate is below the replaced account")
+	}
+	total, err = checkedAdd(total-old.Balance, stored.Balance)
+	if err != nil {
+		return err
+	}
+	if err := k.BuilderCompensationAccount.Set(ctx, state.BuilderAddress, stored); err != nil {
+		return err
+	}
+	return k.BuilderCompensationBalance.Set(ctx, total)
 }
 
 func (m msgServer) FundBuilderCompensation(ctx context.Context, req *types.MsgFundBuilderCompensation) (*types.MsgFundBuilderCompensationResponse, error) {
@@ -133,8 +151,27 @@ func (q queryServer) BuilderCompensationAccount(ctx context.Context, req *types.
 	return &types.QueryBuilderCompensationAccountResponse{Account: &state}, nil
 }
 
-// EnsureBuilderCompensationInvariant compares custody to the only ledger.
+// EnsureBuilderCompensationInvariant keeps the block-time custody check constant
+// in the number of accounts. The sole writer updates the derived balance atomically.
 func (k Keeper) EnsureBuilderCompensationInvariant(ctx context.Context) error {
+	total, err := k.builderCompensationBalance(ctx)
+	if err != nil {
+		return err
+	}
+	return k.ensureInvariantModuleBalance(ctx, types.BuilderCompensationModuleName, total, "Builder compensation")
+}
+
+func (k Keeper) builderCompensationBalance(ctx context.Context) (uint64, error) {
+	total, err := k.BuilderCompensationBalance.Get(ctx)
+	if errors.Is(err, collections.ErrNotFound) {
+		return 0, nil
+	}
+	return total, err
+}
+
+// EnsureBuilderCompensationLedgerInvariant reconstructs the derived balance at
+// import, startup and export. Genesis rebuilds it through the same account writer.
+func (k Keeper) EnsureBuilderCompensationLedgerInvariant(ctx context.Context) error {
 	iter, err := k.BuilderCompensationAccount.Iterate(ctx, nil)
 	if err != nil {
 		return err
@@ -159,7 +196,14 @@ func (k Keeper) EnsureBuilderCompensationInvariant(ctx context.Context) error {
 			return err
 		}
 	}
-	return k.ensureInvariantModuleBalance(ctx, types.BuilderCompensationModuleName, total, "Builder compensation")
+	stored, err := k.builderCompensationBalance(ctx)
+	if err != nil {
+		return err
+	}
+	if stored != total {
+		return fmt.Errorf("compensation aggregate %d differs from account balances %d", stored, total)
+	}
+	return k.EnsureBuilderCompensationInvariant(ctx)
 }
 
 func (k Keeper) exportBuilderCompensationAccounts(ctx context.Context) ([]types.BuilderCompensationAccountState, error) {

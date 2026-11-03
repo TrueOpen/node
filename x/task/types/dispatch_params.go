@@ -4,17 +4,15 @@ import (
 	"fmt"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
+	"github.com/TrueOpen/wire/dispatch"
 )
 
-const (
-	dispatchFaultPenaltyKindCount = int(shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH)
-	dispatchChallengeKindCount    = int(shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_ROSTER_UNAVAILABLE)
-)
+const dispatchChallengeKindCount = int(shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH)
 
 // DefaultDispatchParams supplies a bounded test-network configuration. Public
 // seeds explicitly list these values so deployment review sees the entire set.
 func DefaultDispatchParams() DispatchParamsV1 {
-	penalties := make([]*DispatchFaultPenaltyV1, dispatchFaultPenaltyKindCount)
+	penalties := make([]*DispatchFaultPenaltyV1, dispatchChallengeKindCount)
 	gasCaps := make([]*DispatchChallengeGasCapV1, dispatchChallengeKindCount)
 	for i := range penalties {
 		penalties[i] = &DispatchFaultPenaltyV1{Kind: shared.DispatchChallengeKindV1(i + 1), Amount: shared.NewAmount(10_000)}
@@ -40,13 +38,22 @@ func DefaultDispatchParams() DispatchParamsV1 {
 		DispatchFaultPenaltyByKind: penalties, DispatchChallengeGasCapByKind: gasCaps,
 		BuilderCompensationAccountMinBalance: shared.NewAmount(1_000_000),
 		DispatchEvidenceRetentionBlocks:      1440, WorkerDispatchContradictionSlashBps: 300,
+		MaxOrderLifetimeBlocks: 120,
 	}
 }
 
 func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
-	required, overflow := checkedAddManyUint64(p.RecordDeadlineBlocks, p.DispatchCompensationClaimWindowBlocks, p.DispatchCompensationRebuttalBlocks)
+	claimSpan, overflow := shared.CheckedSumUint64(p.DispatchCompensationClaimWindowBlocks, p.DispatchCompensationRebuttalBlocks)
+	if overflow {
+		return fmt.Errorf("compensation retention span overflows")
+	}
+	challengeSpan, overflow := shared.CheckedSumUint64(p.DispatchChallengeWindowBlocks, p.DispatchChallengeResponseBlocks)
+	if overflow {
+		return fmt.Errorf("dispatch challenge retention span overflows")
+	}
+	required, overflow := shared.CheckedSumUint64(p.RecordDeadlineBlocks, max(claimSpan, challengeSpan))
 	if overflow || session.SessionOrderRetentionBlocks < required {
-		return fmt.Errorf("session_order_retention_blocks must cover record, claim and rebuttal windows")
+		return fmt.Errorf("session_order_retention_blocks must cover record and complete dispatch resolution windows")
 	}
 	limits := shared.DispatchRotationWindowHardLimits()
 	for _, item := range []struct {
@@ -64,6 +71,7 @@ func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
 		{"dispatch_record_retention_blocks", p.DispatchRecordRetentionBlocks, MaxRetentionBlocksLimit},
 		{"dispatch_evidence_retention_blocks", p.DispatchEvidenceRetentionBlocks, MaxRetentionBlocksLimit},
 		{"max_prerecord_output_tokens", p.MaxPrerecordOutputTokens, MaxGenerationOutputTokensLimit},
+		{"max_order_lifetime_blocks", p.MaxOrderLifetimeBlocks, dispatch.MaxOrderLifetimeBlocksV1},
 	} {
 		if err := positiveUint64("dispatch."+item.name, item.value, item.maximum); err != nil {
 			return err
@@ -85,6 +93,9 @@ func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
 	if p.MaxSkips > MaxCandidateUnionMembersLimit {
 		return fmt.Errorf("dispatch.max_skips exceeds %d", MaxCandidateUnionMembersLimit)
 	}
+	if p.MaxOrderLifetimeBlocks < p.RecordDeadlineBlocks {
+		return fmt.Errorf("max_order_lifetime_blocks must cover record_deadline_blocks")
+	}
 	if p.OrderFreshnessMarginBlocks >= p.RecordDeadlineBlocks {
 		return fmt.Errorf("dispatch.order_freshness_margin_blocks must be less than record_deadline_blocks")
 	}
@@ -96,7 +107,7 @@ func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
 	}
 	// Preserve exclusion facts through every supported window, including a later
 	// parameter increase within this protocol version's immutable clamps.
-	retentionMinimum := limits.DispatchChallengeWindowBlocks + limits.DispatchCompensationClaimWindowBlocks + limits.DispatchCompensationRebuttalBlocks
+	retentionMinimum := limits.DispatchChallengeWindowBlocks + limits.DispatchChallengeResponseBlocks + limits.DispatchCompensationClaimWindowBlocks + limits.DispatchCompensationRebuttalBlocks
 	if p.DispatchRecordRetentionBlocks <= retentionMinimum {
 		return fmt.Errorf("dispatch.dispatch_record_retention_blocks must exceed %d", retentionMinimum)
 	}
@@ -117,8 +128,8 @@ func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
 		}
 		previousTier = entry.ResourceTier
 	}
-	if len(p.DispatchFaultPenaltyByKind) != dispatchFaultPenaltyKindCount || len(p.DispatchChallengeGasCapByKind) != dispatchChallengeKindCount {
-		return fmt.Errorf("dispatch requires five fault penalties and four challenge gas caps")
+	if len(p.DispatchFaultPenaltyByKind) != dispatchChallengeKindCount || len(p.DispatchChallengeGasCapByKind) != dispatchChallengeKindCount {
+		return fmt.Errorf("dispatch requires five fault penalties and five challenge gas caps")
 	}
 	for i, entry := range p.DispatchFaultPenaltyByKind {
 		if entry == nil || entry.Kind != shared.DispatchChallengeKindV1(i+1) {
@@ -165,7 +176,7 @@ func canonicalDispatchParamsFields(p DispatchParamsV1) []shared.CanonicalFieldV1
 		fields = append(fields, shared.NestedCanonicalFieldV1(shared.CanonicalRepeatedFieldsV1(entries)))
 	}
 	fields = append(fields, canonicalTaskParamsAmountFields(p.BuilderCompensationAccountMinBalance)...)
-	return append(fields, shared.RawCanonicalFieldsV1(shared.Uint64BE(p.DispatchEvidenceRetentionBlocks), shared.Uint32BE(p.WorkerDispatchContradictionSlashBps))...)
+	return append(fields, shared.RawCanonicalFieldsV1(shared.Uint64BE(p.DispatchEvidenceRetentionBlocks), shared.Uint32BE(p.WorkerDispatchContradictionSlashBps), shared.Uint64BE(p.MaxOrderLifetimeBlocks))...)
 }
 
 func canonicalDispatchAmountEntry(key uint32, amount shared.Amount) shared.CanonicalFieldV1 {

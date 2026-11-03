@@ -126,6 +126,12 @@ func (m msgServer) validateCrossModuleSafetyWindows(ctx context.Context, params 
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
+	if err := shared.ValidateVerifyOpenClock(windows.VerifyOpenDeadlineBlocks, windows.SelfRescueMarginBlocks, params.Epoch.DeltaWBlocks, params.Builder.OpenVerifyBuilderProposalWindowBlocks); err != nil {
+		return err
+	}
+	if params.Builder.BuilderSetUpdateLeadBlocks < windows.MinimumBuilderSetLeadBlocks {
+		return shared.ErrBuilderSetNoticeTooShort
+	}
 	if err := types.ValidateServiceUnbondingCoverage(
 		params.Service.ServiceUnbondingPeriodBlocks,
 		params.Service.UnbondingSlashSafetyMarginBlocks,

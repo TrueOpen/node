@@ -63,7 +63,9 @@ func (k Keeper) firstValueEvidenceReceipts(ctx context.Context, taskID []byte) (
 		if err != nil {
 			return nil, err
 		}
-		key := string(shared.Uint32BE(row.VerifyRound)) + string(row.TargetOperatorAddress)
+		// A Worker inference fault may be referenced by both verification rounds.
+		// Economic ownership follows the fault ID, not the receipt's round prefix.
+		key := string(row.FaultId)
 		fault, loaded := faults[key]
 		if !loaded {
 			fault, err = k.hubKeeper.ReadRoleFaultValue(ctx, row.FaultId)

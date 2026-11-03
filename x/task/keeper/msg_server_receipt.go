@@ -35,6 +35,11 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 		len(receipt.ServiceSignature) != 64 {
 		return nil, status.Error(codes.InvalidArgument, "infer receipt envelope is invalid")
 	}
+	for _, reserved := range [][]byte{receipt.OutputKeyCommitment, receipt.WorkerTokenKeyCommitment, receipt.WorkerValueKeyCommitment, receipt.CiphertextOutputRoot} {
+		if !bytes.Equal(reserved, make([]byte, types.Hash32Len)) {
+			return nil, status.Error(codes.InvalidArgument, "reserved receipt encryption commitments must be zero32")
+		}
+	}
 	if len(receipt.DispatchTicketHash) != types.Hash32Len {
 		return nil, invalidDispatchTicket("infer receipt dispatch ticket hash must be 32 bytes")
 	}

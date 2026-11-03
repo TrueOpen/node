@@ -28,15 +28,15 @@ func TestOmissionRootRequiresTwoBlockMarginForNewerRoots(t *testing.T) {
 				boundHeight = tc.height
 			}
 			bound := &types.SignedHandraiseRootV1{ChainId: "dispatch-test", BuilderAddress: f.hub.builders[0], ServiceAuthorizationNonce: 1, RootHeight: boundHeight, RootVersion: 1, LeafCount: 1, Root: bytes32(0x70)}
-			signDispatchTestMaterial(t, "task.v1.SignedHandraiseRootV1", bound, f.hub.keys[bound.BuilderAddress], func(s []byte) { bound.BuilderServiceSignature = s })
-			digest, err := dispatchMaterialDigest("task.v1.SignedHandraiseRootV1", bound)
+			signDispatchTestMaterial(t, dispatchHandraiseRootMessageName, bound, f.hub.keys[bound.BuilderAddress], func(s []byte) { bound.BuilderServiceSignature = s })
+			digest, err := dispatchMaterialDigest(dispatchHandraiseRootMessageName, bound)
 			require.NoError(t, err)
 			record := types.DispatchRecordState{BuilderAddress: bound.BuilderAddress, EarliestSubmitHeight: 123}
 			round := &types.DispatchRoundV1{HandraiseRootDigest: digest[:]}
 			evidence := *bound
 			if !tc.exact {
 				evidence.RootHeight, evidence.RootVersion, evidence.Root = tc.height, 2, bytes32(0x71)
-				signDispatchTestMaterial(t, "task.v1.SignedHandraiseRootV1", &evidence, f.hub.keys[bound.BuilderAddress], func(s []byte) { evidence.BuilderServiceSignature = s })
+				signDispatchTestMaterial(t, dispatchHandraiseRootMessageName, &evidence, f.hub.keys[bound.BuilderAddress], func(s []byte) { evidence.BuilderServiceSignature = s })
 			}
 			err = f.keeper.verifyOmissionRoot(f.ctx, record, round, &evidence, bound)
 			if tc.allowed {

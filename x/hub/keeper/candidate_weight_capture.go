@@ -70,10 +70,7 @@ func (k Keeper) captureCandidateWeightInputs(ctx context.Context, operator strin
 	if err != nil {
 		return nil, err
 	}
-	available, err := types.AvailableBond(bond, epoch)
-	if err != nil {
-		return nil, err
-	}
+	available := types.AvailableBond(bond, epoch)
 	inputs := &types.CandidateWeightInputsV1{
 		ActiveBond: shared.NewAmount(types.EffectiveActiveBond(bond, epoch)), AvailableBond: shared.NewAmount(available),
 		PerformanceScorePpm: uint32(types.PerformanceScoreDefaultPpm), PerformanceMethodVersion: uint32(types.PerformanceScoreMethodVersionV1),

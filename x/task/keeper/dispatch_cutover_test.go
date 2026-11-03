@@ -42,7 +42,7 @@ func TestFirstDispatchRecordingUsesCurrentSubmitterAndPreviousMaterials(t *testi
 			current := rotateDispatchFixtureKey(t, f, shared.ParticipantTypeBuilder, f.hub.builders[0], 240, 0x78)
 			rotateDispatchFixtureKey(t, f, shared.ParticipantTypeCortexNode, f.worker, 240, 0x79)
 			f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(max(240, earliest))))
-			_, proofErr := f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
+			_, proofErr := f.keeper.verifyDispatchMaterial(f.ctx, dispatchRecordMessageName, entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
 			if earliest < 240 {
 				require.NoError(t, proofErr)
 			} else {
@@ -81,8 +81,8 @@ func TestCompensationClaimUsesPreviousTicketAndAcceptance(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, claimed.Status)
 	entry.Record.ServiceAuthorizationNonce = 3
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { entry.Record.BuilderServiceSignature = signature })
-	_, err = f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { entry.Record.BuilderServiceSignature = signature })
+	_, err = f.keeper.verifyDispatchMaterial(f.ctx, dispatchRecordMessageName, entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
 	require.Error(t, err, "unknown generations are never inferred from a retained public key")
 }
 
@@ -98,7 +98,7 @@ func TestPreviousRebuttalUsesUnrecordedClaimOrderHeight(t *testing.T) {
 	attempt := entry.Record.Rounds[0].Attempts[0]
 	attempt.Outcome = types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_TIMEOUT
 	attempt.TimeoutTierOrZero = 1
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { entry.Record.BuilderServiceSignature = signature })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { entry.Record.BuilderServiceSignature = signature })
 	response, err := server.RebutDispatchCompensation(f.ctx, &types.MsgRebutDispatchCompensation{DispatchTicketHash: claim.DispatchTicketHash, ResponderAddress: f.hub.builders[1], Record: entry.Record})
 	require.NoError(t, err)
 	require.Equal(t, types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED, response.ClaimStatus)
@@ -180,18 +180,18 @@ func TestRepeatedAttemptTicketHashIsAnIsolatedBusinessRejection(t *testing.T) {
 	signed := f.signedOrder(t, 0, f.delegateKey)
 	invalid := f.entry(t, signed, f.hub.builders[0])
 	invalid.WinnerTicket.Rank = 1
-	signDispatchTestMaterial(t, "task.v1.DispatchTicketV1", invalid.WinnerTicket, f.hub.keys[f.hub.builders[0]], func(signature []byte) { invalid.WinnerTicket.BuilderServiceSignature = signature })
-	ticketHash, err := dispatchMaterialDigest("task.v1.DispatchTicketV1", invalid.WinnerTicket)
+	signDispatchTestMaterial(t, dispatchTicketMessageName, invalid.WinnerTicket, f.hub.keys[f.hub.builders[0]], func(signature []byte) { invalid.WinnerTicket.BuilderServiceSignature = signature })
+	ticketHash, err := dispatchMaterialDigest(dispatchTicketMessageName, invalid.WinnerTicket)
 	require.NoError(t, err)
 	invalid.Accept.DispatchTicketHash = ticketHash[:]
-	signDispatchTestMaterial(t, "task.v1.DispatchAcceptV1", invalid.Accept, f.hub.keys[f.worker], func(signature []byte) { invalid.Accept.ServiceSignature = signature })
+	signDispatchTestMaterial(t, dispatchAcceptMessageName, invalid.Accept, f.hub.keys[f.worker], func(signature []byte) { invalid.Accept.ServiceSignature = signature })
 	accepted := invalid.Record.Rounds[0].Attempts[0]
 	accepted.DispatchTicketHash, accepted.Rank = ticketHash[:], 1
 	invalid.Record.DispatchTicketHash = ticketHash[:]
 	invalid.Record.Rounds[0].Attempts = []*types.DispatchAttemptV1{
 		{DispatchTicketHash: ticketHash[:], Member: accepted.Member, Outcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_VOIDED, RejectDigestOrZero32: make([]byte, 32)}, accepted,
 	}
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", invalid.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { invalid.Record.BuilderServiceSignature = signature })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, invalid.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { invalid.Record.BuilderServiceSignature = signature })
 	valid := f.entry(t, signed, f.hub.builders[0])
 	response, err := NewMsgServerImpl(f.keeper).RecordDispatch(f.ctx, &types.MsgRecordDispatch{SubmitterAddress: f.hub.builders[0], Entries: []*types.DispatchRecordEntryV1{dispatchEntryItem(invalid), dispatchEntryItem(valid)}})
 	require.NoError(t, err)

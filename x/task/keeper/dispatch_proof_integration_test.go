@@ -60,8 +60,8 @@ func (f *dispatchFixture) rejectedDispatchEntry(t *testing.T) (*types.DispatchEn
 	entry := f.entry(t, f.signedOrder(t, 0, f.delegateKey), f.hub.builders[0])
 	member := &types.CandidateMemberRefV1{CandidatePoolSnapshotId: f.hub.pool.SnapshotId, Slot: 0, SlotVersion: 1, OperatorAddress: f.hub.builders[2]}
 	reject := &types.DispatchRejectV1{SchemaVersion: 1, ChainId: "dispatch-test", TaskId: entry.Record.TaskId, TaskHash: entry.Record.TaskHash, DispatchTicketHash: bytes32(0x66), Member: member, ServiceAuthorizationNonce: 1, RejectReason: types.DispatchRejectReasonV1_DISPATCH_REJECT_REASON_V1_NO_CAPACITY}
-	signDispatchTestMaterial(t, "task.v1.DispatchRejectV1", reject, f.hub.keys[member.OperatorAddress], func(s []byte) { reject.ServiceSignature = s })
-	digest, err := dispatchMaterialDigest("task.v1.DispatchRejectV1", reject)
+	signDispatchTestMaterial(t, dispatchRejectMessageName, reject, f.hub.keys[member.OperatorAddress], func(s []byte) { reject.ServiceSignature = s })
+	digest, err := dispatchMaterialDigest(dispatchRejectMessageName, reject)
 	require.NoError(t, err)
 	entry.WinnerTicket.Rank = 1
 	entry.Record.Rounds[0].Attempts[0].Rank = 1
@@ -74,7 +74,7 @@ func TestSignedDoubleDispatchDoesNotRequireFundedTaskAndDeduplicatesReporters(t 
 	f := newDispatchFixture(t)
 	entry := f.entry(t, f.signedOrder(t, 0, f.delegateKey), f.hub.builders[0])
 	entry.Record.Rounds[0].Attempts = append(entry.Record.Rounds[0].Attempts, &types.DispatchAttemptV1{DispatchTicketHash: bytes32(0x67), Rank: 1, Member: &types.CandidateMemberRefV1{CandidatePoolSnapshotId: f.hub.pool.SnapshotId, Slot: 0, SlotVersion: 1, OperatorAddress: f.hub.builders[2]}, Outcome: types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED, RejectDigestOrZero32: make([]byte, 32)})
-	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
+	signDispatchTestMaterial(t, dispatchRecordMessageName, entry.Record, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { entry.Record.BuilderServiceSignature = s })
 	server := NewMsgServerImpl(f.keeper)
 	request := &types.MsgChallengeDispatchDoubleDispatch{Record: entry.Record, Order: entry.SignedOrder, ChallengerAddress: f.owner}
 	response, err := server.ChallengeDispatchDoubleDispatch(f.ctx, request)
@@ -107,8 +107,8 @@ func TestDispatchOmissionUsesBuilderRootWithoutRecheckingStandingKey(t *testing.
 	require.NoError(t, err)
 	rootHash := dispatch.HandraiseRoot([][32]byte{leaf})
 	root := &types.SignedHandraiseRootV1{ServiceAuthorizationNonce: 1, ChainId: "dispatch-test", BuilderAddress: entry.Record.BuilderAddress, RootHeight: 122, RootVersion: 1, LeafCount: 1, Root: rootHash[:]}
-	signDispatchTestMaterial(t, "task.v1.SignedHandraiseRootV1", root, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { root.BuilderServiceSignature = s })
-	rootDigest, err := dispatchMaterialDigest("task.v1.SignedHandraiseRootV1", root)
+	signDispatchTestMaterial(t, dispatchHandraiseRootMessageName, root, f.hub.keys[entry.Record.BuilderAddress], func(s []byte) { root.BuilderServiceSignature = s })
+	rootDigest, err := dispatchMaterialDigest(dispatchHandraiseRootMessageName, root)
 	require.NoError(t, err)
 	entry.Record.Rounds[0].HandraiseRootDigest = rootDigest[:]
 	entry.WinnerTicket.HandraiseRootDigest = rootDigest[:]

@@ -17,8 +17,9 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// RecordDispatch commits each entry independently, while a storage/invariant error
-// aborts the enclosing message. The cache of a rejected entry is always discarded.
+// RecordDispatch isolates business failures after canonical entry identities
+// are available. Unidentifiable/malformed entries and storage/invariant errors
+// abort the message; neither path commits the enclosing batch cache.
 func (m msgServer) RecordDispatch(ctx context.Context, req *types.MsgRecordDispatch) (*types.MsgRecordDispatchResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "dispatch record request is required")
@@ -66,8 +67,8 @@ func (m msgServer) RecordDispatch(ctx context.Context, req *types.MsgRecordDispa
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 			order = &branch.Dispatch.SignedOrder.Order
-			if rejected, ok := rejectedSequences[string(order.SessionId)]; ok && order.OrderSequence > rejected {
-				err = rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_CONFLICT, errDispatchBatchDependency)
+			if dependency := dispatchBatchDependency(rejectedSequences, *order); dependency != nil {
+				err = dependency
 			} else {
 				mutation, err = m.k.admitDispatchItem(sdk.WrapSDKContext(itemCtx), branch.Dispatch, authority, params, height, identity, uint32(i))
 			}
@@ -76,10 +77,10 @@ func (m msgServer) RecordDispatch(ctx context.Context, req *types.MsgRecordDispa
 				return nil, status.Error(codes.InvalidArgument, "takeover entry needs a signed order")
 			}
 			order = &branch.Takeover.SignedOrder.Order
-			if rejected, ok := rejectedSequences[string(order.SessionId)]; ok && order.OrderSequence > rejected {
+			if dependency := dispatchBatchDependency(rejectedSequences, *order); dependency != nil {
 				identity, _, err = m.k.admitTakeoverItem(sdk.WrapSDKContext(itemCtx), branch.Takeover, authority, params, height)
 				if _, business := dispatchRejectionCode(err); err == nil || business {
-					err = rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_CONFLICT, errDispatchBatchDependency)
+					err = dependency
 				}
 			} else {
 				identity, mutation, err = m.k.admitTakeoverItem(sdk.WrapSDKContext(itemCtx), branch.Takeover, authority, params, height)
@@ -95,7 +96,7 @@ func (m msgServer) RecordDispatch(ctx context.Context, req *types.MsgRecordDispa
 				if !ok {
 					return nil, fmt.Errorf("winner ineligibility outside a dispatch entry")
 				}
-				if err := m.k.recordDispatchWinnerIneligible(sdk.WrapSDKContext(batchCtx), branch.Dispatch, ineligible.reason, params.Dispatch, height); err != nil {
+				if err := m.k.recordDispatchWinnerIneligible(sdk.WrapSDKContext(batchCtx), branch.Dispatch, ineligible.reason, height); err != nil {
 					return nil, err
 				}
 			}
@@ -227,7 +228,11 @@ func (k Keeper) admitTakeoverItem(ctx context.Context, entry *types.TakeoverEntr
 	if stream.GetPendingTakeover() != nil {
 		return identity, 0, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_TAKEOVER_PENDING, fmt.Errorf("session already has a pending takeover"))
 	}
-	activation, overflow := shared.CheckedHeightAddV1(height, params.Dispatch.RecordDeadlineBlocks)
+	sessionParams, err := k.ParamsForSession(ctx, order.SessionId)
+	if err != nil {
+		return identity, 0, err
+	}
+	activation, overflow := shared.CheckedHeightAddV1(height, sessionParams.Dispatch.RecordDeadlineBlocks)
 	if overflow {
 		return identity, 0, fmt.Errorf("takeover activation height overflows")
 	}

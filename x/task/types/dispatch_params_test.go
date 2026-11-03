@@ -20,6 +20,14 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 		mutate func(*TaskParamsV1)
 	}{
 		{"record exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.RecordDeadlineBlocks = 61 }},
+		{"zero order lifetime", func(p *TaskParamsV1) { p.Dispatch.MaxOrderLifetimeBlocks = 0 }},
+		{"order lifetime exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.MaxOrderLifetimeBlocks = 241 }},
+		{"record retention omits response", func(p *TaskParamsV1) { p.Dispatch.DispatchRecordRetentionBlocks = 360 }},
+		{"history retention omits response", func(p *TaskParamsV1) {
+			p.Dispatch.DispatchCompensationClaimWindowBlocks, p.Dispatch.DispatchCompensationRebuttalBlocks = 1, 1
+			p.Dispatch.DispatchChallengeWindowBlocks, p.Dispatch.DispatchChallengeResponseBlocks = 120, 60
+			p.Session.SessionOrderRetentionBlocks = 100
+		}},
 		{"claim exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchCompensationClaimWindowBlocks = 121 }},
 		{"rebuttal exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchCompensationRebuttalBlocks = 61 }},
 		{"challenge exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchChallengeWindowBlocks = 121 }},
@@ -93,12 +101,13 @@ func TestPhase1SeedParameterSafety(t *testing.T) {
 			require.NoError(t, jsonpb.Unmarshal(bytes.NewReader(root["hub_params"]), &hub))
 			require.NoError(t, hub.Validate())
 			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, 2*p.Dispatch.RecordDeadlineBlocks, "BuilderSet notice must cover dispatch and takeover recording")
+			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, p.Dispatch.MaxOrderLifetimeBlocks)
 			require.NoError(t, ValidateVerifyOpenClock(p.Deadlines, hub.Epoch.DeltaWBlocks, hub.Builder.OpenVerifyBuilderProposalWindowBlocks))
 			require.NoError(t, ValidateSessionCloseHorizon(p, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
-			require.Equal(t, uint64(120), hub.Epoch.EpochLengthBlocks)
+			require.Equal(t, uint64(240), hub.Epoch.EpochLengthBlocks)
 			require.Less(t, hub.CandidatePool.CandidatePoolBuildLeadBlocks, hub.Epoch.EpochLengthBlocks)
-			require.Equal(t, uint64(60), p.Session.SessionWithdrawDelayBlocks)
-			require.Equal(t, uint64(60), p.Session.SessionChangeDelayBlocks)
+			require.Equal(t, uint64(180), p.Session.SessionWithdrawDelayBlocks)
+			require.Equal(t, uint64(180), p.Session.SessionChangeDelayBlocks)
 		})
 	}
 }

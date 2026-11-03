@@ -4319,6 +4319,7 @@
           "type": "integer"
         },
         "dispatch_challenge_gas_cap_by_kind": {
+          "description": "Exactly one positive cap per challenge kind, including DOUBLE_DISPATCH.",
           "items": {
             "$ref": "#/definitions/task.v1.DispatchChallengeGasCapV1",
             "type": "object"
@@ -4353,6 +4354,7 @@
           "type": "array"
         },
         "dispatch_record_retention_blocks": {
+          "description": "Exceeds the sum of the protocol hard claim, rebuttal, challenge and response\nwindows, preserving all consumers through terminal resolution.",
           "format": "uint64",
           "type": "string"
         },
@@ -4365,6 +4367,11 @@
           "type": "string"
         },
         "max_dispatch_roster_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "max_order_lifetime_blocks": {
+          "description": "Maximum order_expire_height - earliest_submit_height at order admission,\nincluding takeover registration. Positive and at most 240 blocks in V1;\nthe Session freezes this policy. Compensation does not reauthorize orders.",
           "format": "uint64",
           "type": "string"
         },
@@ -5300,6 +5307,15 @@
     "task.v1.QuerySessionResponse": {
       "description": "QuerySessionResponse returns the authoritative StreamState for an\nactive/idle/closed retained row; after compaction the RPC returns NotFound and\ncallers must query the terminal summary instead.\nQuerySessionResponse defines the QuerySessionResponse wire type.",
       "properties": {
+        "params": {
+          "$ref": "#/definitions/task.v1.TaskParamsV1",
+          "description": "Parameters frozen for this Session's lifecycle, including recording and\ncompensation clocks and order lifetime. New Task execution policies and\nexplicitly current registration checks still use their own current policy.\nA missing historical body must not be replaced with current parameters."
+        },
+        "params_version": {
+          "description": "The Session's parameter version; initial version 0 is valid.",
+          "format": "uint64",
+          "type": "string"
+        },
         "session": {
           "$ref": "#/definitions/task.v1.StreamState"
         }
@@ -5725,7 +5741,7 @@
           "$ref": "#/definitions/shared.v1.Amount"
         },
         "session_order_retention_blocks": {
-          "description": "At least record_deadline_blocks + dispatch_compensation_claim_window_blocks\n+ dispatch_compensation_rebuttal_blocks. Existing Sessions keep their version.",
+          "description": "At least record_deadline_blocks plus the larger of (claim + rebuttal) and\n(dispatch challenge + response). Existing Sessions keep their version.",
           "format": "uint64",
           "type": "string"
         },

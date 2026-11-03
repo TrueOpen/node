@@ -10,7 +10,8 @@ import (
 const VrfPubkeyLen = 32
 
 // VrfKeyPoPDigest is the `TRUEOPEN_VRF_KEY_POP_V1` preimage: the ECVRF alpha a
-// validator must produce a possession proof over.
+// participant must produce a possession proof over. The role is checked as
+// admission metadata, but is not a field of the frozen possession domain.
 //
 // The nonce is inside it, which is what makes step 4's replay rule decidable —
 // the same nonce with the same key is the same proof, and the same nonce with a
@@ -34,7 +35,7 @@ func VrfKeyPoPDigest(chainID string, role shared.ParticipantType, operatorAddres
 		return [32]byte{}, fmt.Errorf("vrf_authorization_nonce must be greater than zero")
 	}
 	digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainVRFKeyPoPV1)).Raw(
-		[]byte(chainID), shared.EnumBE(uint32(role)), operator, append([]byte(nil), vrfPubkey...), shared.Uint64BE(authorizationNonce),
+		[]byte(chainID), operator, append([]byte(nil), vrfPubkey...), shared.Uint64BE(authorizationNonce),
 	).Sum()
 	if err != nil {
 		return [32]byte{}, err

@@ -165,6 +165,19 @@ func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (
 		if overflow {
 			return false, fmt.Errorf("dispatch challenge cleanup boundary overflows")
 		}
+		core, err := k.TaskCore.Get(ctx, taskKey)
+		if err != nil {
+			return false, err
+		}
+		sessionParams, err := k.ParamsForSession(ctx, core.SessionId)
+		if err != nil {
+			return false, err
+		}
+		_, doubleClose, err := dispatchWindowBounds(record.EarliestSubmitHeight, record.BoundChangeHeight, sessionParams.Dispatch.RecordDeadlineBlocks, sessionParams.Dispatch.DispatchChallengeWindowBlocks)
+		if err != nil {
+			return false, err
+		}
+		closeHeight = max(closeHeight, doubleClose)
 		height, err := currentBlockHeight(ctx)
 		if err != nil || height <= closeHeight {
 			return true, err
