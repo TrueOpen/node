@@ -20,6 +20,7 @@ message CortexNodeStoreState {
   bytes previous_service_pubkey = 13;
   uint64 previous_service_authorization_nonce = 14;
   uint64 previous_retired_height = 15;
+  uint64 revoked_height = 16;
 }
 
 // BuilderStoreState keeps account addresses in codec bytes.
@@ -38,6 +39,7 @@ message BuilderStoreState {
   bytes previous_service_pubkey = 12;
   uint64 previous_service_authorization_nonce = 13;
   uint64 previous_retired_height = 14;
+  uint64 revoked_height = 15;
 }
 
 // CurrentServiceAddressIndexStoreState stores the operator as codec bytes.

@@ -105,6 +105,7 @@ func TestSessionKeyInvalidUpdatesAreZeroWrite(t *testing.T) {
 	_, err = server.UpdateSessionKey(ctx, sessionKeySetRequest(other, created.SessionId, bytes.Repeat([]byte{2}, 20), 200, 0))
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
 	original.Status = types.SessionStatus_SESSION_STATUS_CLOSED
+	original.ClosedHeight = max(1, original.LastActiveHeight)
 	original.Balance = shared.NewAmount(0)
 	require.NoError(t, f.keeper.WriteStream(ctx, created.SessionId, original))
 	_, err = server.UpdateSessionKey(ctx, sessionKeySetRequest(owner, created.SessionId, bytes.Repeat([]byte{2}, 20), 200, 0))

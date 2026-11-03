@@ -39,7 +39,7 @@ func (m msgServer) RebutDispatchCompensation(ctx context.Context, req *types.Msg
 	if row.Status != types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL || height > row.RebuttalDeadlineHeight {
 		return nil, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_REBUTTAL_WINDOW_CLOSED, fmt.Errorf("claim is not within its rebuttal window"))
 	}
-	responder, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, row.BuilderSetId, req.ResponderAddress)
+	responder, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, nil, req.ResponderAddress, dispatchCurrentBuilderScope)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (m msgServer) RebutDispatchCompensation(ctx context.Context, req *types.Msg
 		if !bytes.Equal(reject.DispatchTicketHash, row.DispatchTicketHash) || !bytes.Equal(reject.TaskId, row.TaskId) || !bytes.Equal(reject.TaskHash, req.Record.TaskHash) || !sameCandidateMember(reject.Member, attempt.Member) || reject.Member.OperatorAddress != row.WorkerOperatorAddress {
 			return nil, invalidDispatchTicket("reject does not match the claimed Worker and ticket")
 		}
-		rejectDigest, err = m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &row.EarliestSubmitHeight)
+		rejectDigest, err = m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &row.EarliestSubmitHeight, &row.BoundChangeHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -70,6 +70,9 @@ func (m msgServer) RebutDispatchCompensation(ctx context.Context, req *types.Msg
 	row.Status = types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED
 	row.XRebuttedByOrEmpty = &types.DispatchCompensationClaimState_RebuttedByOrEmpty{RebuttedByOrEmpty: responder}
 	row.XResolvedHeight = &types.DispatchCompensationClaimState_ResolvedHeight{ResolvedHeight: height}
+	if err := m.k.registerDispatchRoundAcceptors(cache, req.Record, height); err != nil {
+		return nil, err
+	}
 	if err := m.k.writeDispatchClaim(cache, row); err != nil {
 		return nil, err
 	}
@@ -80,7 +83,14 @@ func (m msgServer) RebutDispatchCompensation(ctx context.Context, req *types.Msg
 	return &types.MsgRebutDispatchCompensationResponse{DispatchTicketHash: bytes.Clone(row.DispatchTicketHash), ClaimStatus: row.Status, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
 }
 
-func (k Keeper) authorizeDispatchResponse(ctx context.Context, builder, builderSetID, signer string) (string, error) {
+type dispatchResponseScope uint8
+
+const (
+	dispatchTaskBuilderScope dispatchResponseScope = iota
+	dispatchCurrentBuilderScope
+)
+
+func (k Keeper) authorizeDispatchResponse(ctx context.Context, builder string, taskBuilders []string, signer string, scope dispatchResponseScope) (string, error) {
 	if _, _, err := k.canonicalAddress("responder_address", signer); err != nil {
 		return "", err
 	}
@@ -93,14 +103,18 @@ func (k Keeper) authorizeDispatchResponse(ctx context.Context, builder, builderS
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return "", err
 	}
-	allowed := []string{builder}
-	if builderSetID != "" {
-		set, err := k.hubKeeper.GetBuilderSetByID(sdkContextFrom(ctx), builderSetID)
+	allowed := taskBuilders
+	if scope == dispatchCurrentBuilderScope {
+		height, err := currentBlockHeight(ctx)
+		if err != nil {
+			return "", err
+		}
+		set, err := k.hubKeeper.GetBuilderSetForHeight(sdkContextFrom(ctx), height)
 		if err != nil {
 			return "", err
 		}
 		if set.BodyStatus != shared.StoredBodyStatus_STORED_BODY_STATUS_ACTIVE || len(set.ActiveBuilders) != int(set.ActiveBuilderCount) {
-			return "", fmt.Errorf("response BuilderSet body is unavailable")
+			return "", fmt.Errorf("current BuilderSet body is unavailable")
 		}
 		allowed = set.ActiveBuilders
 	}
@@ -141,12 +155,12 @@ func signedDispatchAttempts(record *types.DispatchRecordV1) ([]*types.DispatchAt
 }
 
 func (k Keeper) verifyDispatchRebuttal(ctx context.Context, claim types.DispatchCompensationClaimState, record *types.DispatchRecordV1) (*types.DispatchAttemptV1, error) {
-	if record.BuilderAddress != claim.BuilderAddress || !bytes.Equal(record.TaskId, claim.TaskId) || !bytes.Equal(record.SessionId, claim.SessionId) || record.OrderSequence != claim.OrderSequence {
+	if record.BuilderAddress != claim.BuilderAddress || !bytes.Equal(record.TaskId, claim.TaskId) || !bytes.Equal(record.SessionId, claim.SessionId) || record.OrderSequence != claim.OrderSequence || record.BoundChangeHeight != claim.BoundChangeHeight {
 		return nil, fmt.Errorf("signed rebuttal scope differs from the claim")
 	}
 	// The claim binds the original order even if a replacement ticket was
 	// recorded under the same TaskID, or no record was accepted at all.
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &claim.EarliestSubmitHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &claim.EarliestSubmitHeight, &claim.BoundChangeHeight); err != nil {
 		return nil, err
 	}
 	// The ticket-based window was frozen at claim creation. Its first deadline
@@ -154,6 +168,17 @@ func (k Keeper) verifyDispatchRebuttal(ctx context.Context, claim types.Dispatch
 	attempts, err := signedDispatchAttempts(record)
 	if err != nil {
 		return nil, err
+	}
+	for _, round := range record.Rounds {
+		acceptors := 0
+		for _, attempt := range round.Attempts {
+			if attempt.Outcome == types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED || attempt.Outcome == types.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_VOIDED {
+				acceptors++
+			}
+		}
+		if acceptors > 1 {
+			return nil, fmt.Errorf("rebuttal round has multiple acceptors")
+		}
 	}
 	var found *types.DispatchAttemptV1
 	for _, attempt := range attempts {

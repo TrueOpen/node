@@ -289,6 +289,10 @@ func (k Keeper) ProcessServiceKeyRotations(ctx context.Context, nextHeight uint6
 		identity.PreviousServicePubkey = bytes.Clone(identity.ServicePubkey)
 		identity.PreviousAuthorizationNonce = oldNonce
 		identity.PreviousRetiredHeight = nextHeight
+		if identity.RevokedHeight != 0 {
+			identity.PreviousRetiredHeight = min(nextHeight, identity.RevokedHeight)
+		}
+		identity.RevokedHeight = 0
 		identity.ServiceAddress, err = k.pendingServiceAddress(pending)
 		if err != nil {
 			return err

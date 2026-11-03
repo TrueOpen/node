@@ -9,6 +9,9 @@ import (
 // ValidateSessionState checks the funded session facts at storage and import boundaries.
 // It does not consult current parameters or reinterpret already registered delays.
 func ValidateSessionState(state StreamState) error {
+	if (state.Status == SessionStatus_SESSION_STATUS_CLOSED) != (state.ClosedHeight != 0) || state.ClosedHeight != 0 && !shared.IsBlockHeightV1(state.ClosedHeight) {
+		return fmt.Errorf("Session closed height/status mismatch")
+	}
 	if len(state.SessionId) != Hash32Len {
 		return fmt.Errorf("session_id must be raw32")
 	}

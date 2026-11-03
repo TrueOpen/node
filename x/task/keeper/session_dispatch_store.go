@@ -17,6 +17,7 @@ func (k Keeper) streamDispatchToStore(state types.StreamState, stored *internalt
 	if err != nil {
 		return err
 	}
+	stored.ClosedHeight = state.ClosedHeight
 	stored.BoundBuilder = bound
 	for _, amount := range []struct {
 		value  shared.Amount
@@ -67,6 +68,7 @@ func (k Keeper) projectStreamDispatch(stored internaltypes.StreamStoreState, sta
 	if err != nil {
 		return err
 	}
+	state.ClosedHeight = stored.ClosedHeight
 	state.BoundBuilder = bound
 	state.Balance = shared.NewAmount(stored.Balance)
 	state.FrozenTotal = shared.NewAmount(stored.FrozenTotal)

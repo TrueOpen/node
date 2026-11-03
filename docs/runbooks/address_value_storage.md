@@ -26,8 +26,9 @@ overflow. Projection copies retained byte slices to avoid aliasing stored state.
 
 | State | Private facts and public projection |
 | --- | --- |
-| Session | Owner/bound Builder/winner addresses are raw20; prefund and frozen totals are uint64; pending withdrawal, key, cancellation and takeover actions preserve their heights and presence. |
-| Dispatch | Records, claims, challenges, winner exclusions and takeover receipts use raw20 participants and raw32 identities. Compact primary facts own their derived indexes. |
+| Session | Owner/bound Builder/winner addresses are raw20; prefund and frozen totals are uint64. Closed height and paid sequence markers survive all later writers until bounded history compaction. Pending actions preserve their heights and presence. |
+| Dispatch | Participants are raw20 and identities raw32. Claims have one primary per Session/sequence and a derived ticket lookup. Round acceptors encode binding generation and epoch in their compact key; the value retains only ticket hash and registration height. |
+| Service identity | Explicit revoke height is optional publicly and a zero-absent uint64 privately. Rotation folds it into the previous key's retirement cutoff and clears it on the new current binding. |
 | Candidate pool | Member addresses and numeric weight inputs are frozen for the referenced epoch. Scoring coefficients are stored once in its header. Added profile minima are normalized once per epoch/model/profile and materialized into public member export. |
 | Verification | Private Commit and ResultReceipt retain verifier value roots, metric leaf counts and evidence key commitments. A present value root must be raw32. |
 | Value evidence | Compact receipts retain task/round/target/position, evidence digest, first fault ID and acceptance height. Raw leaves, paths and signatures are not stored. |

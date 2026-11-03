@@ -39,7 +39,7 @@ func (m msgServer) RespondDispatchChallenge(ctx context.Context, req *types.MsgR
 		if err != nil {
 			return row, 0, err
 		}
-		if _, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, selection.BuilderSetId, req.ResponderAddress); err != nil {
+		if _, err := m.k.authorizeDispatchResponse(ctx, row.BuilderAddress, selection.SelectedTaskBuilders, req.ResponderAddress, dispatchTaskBuilderScope); err != nil {
 			return row, 0, err
 		}
 		if row.Kind == shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_SKIP {
@@ -55,7 +55,7 @@ func (m msgServer) RespondDispatchChallenge(ctx context.Context, req *types.MsgR
 			if reject == nil || !bytes.Equal(reject.TaskId, row.TaskId) || !bytes.Equal(reject.TaskHash, core.AcceptedTaskHash) || !bytes.Equal(reject.DispatchTicketHash, row.GetChallengedTicketHash()) || !sameCandidateMember(reject.Member, attempt.Member) {
 				return row, 0, invalidDispatchChallengeProof("reject response scope mismatch")
 			}
-			digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &record.EarliestSubmitHeight)
+			digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRejectV1", reject, &record.EarliestSubmitHeight, &record.BoundChangeHeight)
 			if err != nil {
 				return row, 0, err
 			}

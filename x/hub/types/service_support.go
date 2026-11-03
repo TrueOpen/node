@@ -8,6 +8,9 @@ import (
 )
 
 func (s CortexNodeState) Validate() error {
+	if err := ValidateRevokedServiceKeyBinding(s.ServiceKeyStatus, s.GetRevokedHeight(), s.XRevokedHeight != nil); err != nil {
+		return err
+	}
 	if s.SchemaVersion != 1 {
 		return fmt.Errorf("cortex node schema_version must be 1")
 	}

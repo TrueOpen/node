@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"github.com/TrueOpen/node/internal/testutil/wirefixture"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -128,11 +125,7 @@ func Hex(t *testing.T, text string) []byte {
 
 func fixtureBytes(t *testing.T, name string) []byte {
 	t.Helper()
-	moduleDir, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/TrueOpen/wire").Output()
-	require.NoError(t, err)
-	raw, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(moduleDir)), "testdata", "v1", "task", name))
-	require.NoError(t, err)
-	return raw
+	return wirefixture.Read(t, "task", name)
 }
 
 // Load reads authorization cases from the exact wire module pin.

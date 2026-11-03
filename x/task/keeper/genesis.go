@@ -36,6 +36,9 @@ func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) err
 		stateHeight--
 	}
 	for _, stream := range genesis.Streams {
+		if stream.ClosedHeight > stateHeight {
+			return fmt.Errorf("Session closed height exceeds genesis state height")
+		}
 		if stream.SessionKeySetHeight > stateHeight {
 			return fmt.Errorf("session key set_height exceeds genesis state height")
 		}
@@ -53,6 +56,20 @@ func (k Keeper) InitGenesis(ctx context.Context, genesis types.GenesisState) err
 	}
 	if err := k.rebuildGenesisIndexes(cache, genesis); err != nil {
 		return err
+	}
+	for _, cursor := range genesis.SessionHistoryPruneCursors {
+		stream, err := k.ReadStream(cache, cursor.SessionId)
+		if err != nil {
+			return err
+		}
+		params, err := k.ParamsForSession(cache, cursor.SessionId)
+		if err != nil {
+			return err
+		}
+		eligible, overflow := checkedHeightAdd(stream.ClosedHeight, params.Session.SessionOrderRetentionBlocks)
+		if overflow || eligible > stateHeight {
+			return fmt.Errorf("Session history cursor predates its retention boundary")
+		}
 	}
 	if err := k.initDispatchGenesis(cache, genesis, stateHeight); err != nil {
 		return err
@@ -704,10 +721,14 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 				return err
 			}
 		case types.SessionStatus_SESSION_STATUS_CLOSED:
-			height := stream.LastActiveHeight
+			height := stream.ClosedHeight
+			params, err := k.ParamsForSession(ctx, stream.SessionId)
+			if err != nil {
+				return err
+			}
 			if _, running := cursorSessions[genesisHex(stream.SessionId)]; !running {
 				var overflow bool
-				height, overflow = checkedHeightAdd(stream.LastActiveHeight, genesis.Params.Session.SessionOrderRetentionBlocks)
+				height, overflow = checkedHeightAdd(stream.ClosedHeight, params.Session.SessionOrderRetentionBlocks)
 				if overflow {
 					return fmt.Errorf("session history retention height overflow")
 				}

@@ -97,8 +97,8 @@ func TestPhase1SeedParameterSafety(t *testing.T) {
 			require.NoError(t, ValidateSessionCloseHorizon(p, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
 			require.Equal(t, uint64(120), hub.Epoch.EpochLengthBlocks)
 			require.Less(t, hub.CandidatePool.CandidatePoolBuildLeadBlocks, hub.Epoch.EpochLengthBlocks)
-			require.Equal(t, uint64(30), p.Session.SessionWithdrawDelayBlocks)
-			require.Equal(t, uint64(30), p.Session.SessionChangeDelayBlocks)
+			require.Equal(t, uint64(60), p.Session.SessionWithdrawDelayBlocks)
+			require.Equal(t, uint64(60), p.Session.SessionChangeDelayBlocks)
 		})
 	}
 }

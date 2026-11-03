@@ -25,7 +25,7 @@ func closedSessionWithTerminalOrder(t *testing.T, f *internalFixture, tag byte) 
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
 		BoundBuilder: sessionTestOwner(t, f), BoundChangeHeight: 1, Balance: shared.NewAmount(0), FrozenTotal: shared.NewAmount(0), PendingWithdrawAmount: shared.NewAmount(0),
-		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
+		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind: types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE}))
 	require.NoError(t, f.keeper.OrderSequence.Set(
@@ -59,7 +59,7 @@ func TestSessionHistoryPruneToleratesPrunedTaskRecords(t *testing.T) {
 
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.NoError(t, err, "a pruned task history must not stop the sweep")
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 5, CompactedCount: 1}, result)
 
 	// Folding without the assertion is state-identical: the check fed neither the
 	// rolling root nor the status counts, so the compacted summary is exactly what
@@ -100,6 +100,27 @@ func TestSessionHistoryPruneStillRejectsReservedBudget(t *testing.T) {
 
 	_, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.ErrorIs(t, err, types.ErrInvariantBroken)
+}
+
+func TestSessionHistoryPruneWaitsForRetainedTaskConsumers(t *testing.T) {
+	f := initInternalFixture(t)
+	sessionKey, taskKey, taskID := closedSessionWithTerminalOrder(t, f, 0x54)
+	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{TaskId: taskID, SessionId: sessionKey}))
+	require.NoError(t, f.keeper.TaskBudget.Set(f.ctx, taskKey, types.TaskBudgetState{TaskId: taskID, BudgetStatus: types.TaskBudgetStatus_TASK_BUDGET_STATUS_FINALIZED}))
+	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 5)
+	require.NoError(t, err)
+	require.Zero(t, result.CompactedCount, "settlement alone does not close evidence and liability consumers")
+	require.Equal(t, uint64(1), result.VisitedCount)
+	cursor, err := f.keeper.SessionHistoryPruneCursor.Get(f.ctx, sessionKey)
+	require.NoError(t, err)
+	require.Zero(t, cursor.NextOrderSequence)
+	_, err = f.keeper.RunEndBlockDeadlineSweeps(f.ctx, 11, 5)
+	require.NoError(t, err, "waiting for Task compaction must not abort the block")
+	// TaskCore is removed only after the Task's bounded cleanup closes consumers.
+	require.NoError(t, f.keeper.TaskCore.Remove(f.ctx, taskKey))
+	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 12, 5)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), result.CompactedCount)
 }
 
 func requireNoTaskRecords(t *testing.T, f *internalFixture, taskKey types.TaskKey) {

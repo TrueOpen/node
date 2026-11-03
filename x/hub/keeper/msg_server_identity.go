@@ -154,6 +154,7 @@ func (m msgServer) RevokeServiceKey(ctx context.Context, msg *types.MsgRevokeSer
 	}
 	current.ServiceKeyStatus = types.ServiceKeyStatus_SERVICE_KEY_STATUS_REVOKED
 	current.UpdatedHeight = sdkContextHeight(cacheCtx)
+	current.RevokedHeight = current.UpdatedHeight
 	if err := m.k.persistParticipantIdentity(cache, current, revokedServiceAddress, current.AuthorizationNonce); err != nil {
 		return nil, err
 	}

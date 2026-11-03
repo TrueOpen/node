@@ -42,11 +42,11 @@ func TestFirstDispatchRecordingUsesCurrentSubmitterAndPreviousMaterials(t *testi
 			current := rotateDispatchFixtureKey(t, f, shared.ParticipantTypeBuilder, f.hub.builders[0], 240, 0x78)
 			rotateDispatchFixtureKey(t, f, shared.ParticipantTypeCortexNode, f.worker, 240, 0x79)
 			f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(max(240, earliest))))
-			_, proofErr := f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight)
+			_, proofErr := f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
 			if earliest < 240 {
 				require.NoError(t, proofErr)
 			} else {
-				require.ErrorContains(t, proofErr, "previous key cannot prove a post-cutover order")
+				require.ErrorContains(t, proofErr, "proof height must precede its key cutoff")
 			}
 			response, err := NewMsgServerImpl(f.keeper).RecordDispatch(f.ctx, &types.MsgRecordDispatch{SubmitterAddress: current, Entries: []*types.DispatchRecordEntryV1{dispatchEntryItem(entry)}})
 			require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestCompensationClaimUsesPreviousTicketAndAcceptance(t *testing.T) {
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, claimed.Status)
 	entry.Record.ServiceAuthorizationNonce = 3
 	signDispatchTestMaterial(t, "task.v1.DispatchRecordV1", entry.Record, f.hub.keys[f.hub.builders[0]], func(signature []byte) { entry.Record.BuilderServiceSignature = signature })
-	_, err = f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight)
+	_, err = f.keeper.verifyDispatchMaterial(f.ctx, "task.v1.DispatchRecordV1", entry.Record, &entry.SignedOrder.Order.EarliestSubmitHeight, &entry.WinnerTicket.BoundChangeHeight)
 	require.Error(t, err, "unknown generations are never inferred from a retained public key")
 }
 

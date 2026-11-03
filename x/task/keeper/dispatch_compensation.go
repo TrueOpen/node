@@ -76,11 +76,45 @@ func (k Keeper) prepareDispatchClaim(ctx context.Context, req *types.MsgClaimDis
 	if !bytes.Equal(taskID[:], ticket.TaskId) || !bytes.Equal(taskHash[:], ticket.TaskHash) || !bytes.Equal(order.SessionId, ticket.SessionId) || order.OrderSequence != ticket.OrderSequence || !bytes.Equal(accept.TaskId, ticket.TaskId) || !bytes.Equal(accept.TaskHash, ticket.TaskHash) || !bytes.Equal(accept.DispatchTicketHash, ticketHash) || !sameCandidateMember(ticket.Target, accept.Member) {
 		return row, invalidDispatchTicket("claim order, ticket and acceptance scopes differ")
 	}
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchTicketV1", ticket, &order.EarliestSubmitHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchTicketV1", ticket, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
 		return row, invalidDispatchTicket(err.Error())
 	}
-	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchAcceptV1", accept, &order.EarliestSubmitHeight); err != nil {
+	if _, err := k.verifyDispatchMaterial(ctx, "task.v1.DispatchAcceptV1", accept, &order.EarliestSubmitHeight, &ticket.BoundChangeHeight); err != nil {
 		return row, invalidDispatchTicket(err.Error())
+	}
+	stream, err := k.ReadStream(ctx, order.SessionId)
+	if errors.Is(err, collections.ErrNotFound) {
+		return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("claim Session is absent or compacted"))
+	}
+	if err != nil {
+		return row, err
+	}
+	params, err = k.ParamsForSession(ctx, order.SessionId)
+	if err != nil {
+		return row, err
+	}
+	limit, overflow := shared.CheckedAddUint64(stream.NextExpectedSequence, uint64(params.Dispatch.MaxPendingPerSession))
+	if overflow || order.OrderSequence >= limit || stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED && max(order.EarliestSubmitHeight, ticket.BoundChangeHeight) >= stream.ClosedHeight {
+		return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("claim exceeds its retained Session scope"))
+	}
+	if sequence, err := k.OrderSequence.Get(ctx, types.NewOrderSequenceStateKey(order.SessionId, order.OrderSequence)); err == nil {
+		if sequence.CompensationPaid {
+			return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("sequence compensation is already paid"))
+		}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return row, err
+	}
+	if old, err := k.readDispatchClaimBySequence(ctx, order.SessionId, order.OrderSequence); err == nil {
+		if old.Status != types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_DISMISSED {
+			return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("sequence already has an undismissed claim"))
+		}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return row, err
+	}
+	if allowed, err := k.dispatchRoundClaimable(ctx, ticket, ticketHash, height); err != nil {
+		return row, err
+	} else if !allowed {
+		return row, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_COMPENSATION_NOT_CLAIMABLE, fmt.Errorf("round acceptor is another ticket"))
 	}
 	deadline, closeHeight, err := dispatchClaimWindow(order.EarliestSubmitHeight, ticket.BoundChangeHeight, params.Dispatch)
 	if err != nil {
@@ -117,7 +151,7 @@ func (k Keeper) prepareDispatchClaim(ctx context.Context, req *types.MsgClaimDis
 	if overflow {
 		return row, fmt.Errorf("claim rebuttal height overflows")
 	}
-	row = types.DispatchCompensationClaimState{DispatchTicketHash: bytes.Clone(ticketHash), TaskId: taskID[:], SessionId: bytes.Clone(order.SessionId), OrderSequence: order.OrderSequence, BuilderAddress: ticket.BuilderAddress, BuilderSetId: order.BuilderSetId, WorkerOperatorAddress: ticket.Target.OperatorAddress, Amount: amount, Status: types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL, ClaimedHeight: height, RebuttalDeadlineHeight: rebuttal, PaidAmount: shared.NewAmount(0), UnfilledAmount: shared.NewAmount(0), ClaimWindowCloseHeight: closeHeight, EarliestSubmitHeight: order.EarliestSubmitHeight}
+	row = types.DispatchCompensationClaimState{DispatchTicketHash: bytes.Clone(ticketHash), TaskId: taskID[:], SessionId: bytes.Clone(order.SessionId), OrderSequence: order.OrderSequence, BuilderAddress: ticket.BuilderAddress, BuilderSetId: order.BuilderSetId, WorkerOperatorAddress: ticket.Target.OperatorAddress, Amount: amount, Status: types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL, ClaimedHeight: height, RebuttalDeadlineHeight: rebuttal, PaidAmount: shared.NewAmount(0), UnfilledAmount: shared.NewAmount(0), ClaimWindowCloseHeight: closeHeight, EarliestSubmitHeight: order.EarliestSubmitHeight, BoundChangeHeight: ticket.BoundChangeHeight}
 	return row, types.ValidateDispatchClaim(row)
 }
 
@@ -204,6 +238,9 @@ func (k Keeper) matureDispatchClaim(ctx context.Context, ticket []byte, deadline
 	}
 	paid, err := k.hubKeeper.PayDispatchCompensation(ctx, row.BuilderAddress, row.WorkerOperatorAddress, row.SessionId, row.TaskId, amount, height)
 	if err != nil {
+		return err
+	}
+	if err := k.markDispatchCompensationPaid(ctx, row); err != nil {
 		return err
 	}
 	if paid > amount {

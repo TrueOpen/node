@@ -212,6 +212,8 @@ func (m *QueryDispatchRecordResponse) GetRecord() *DispatchRecordState {
 }
 
 // QueryDispatchCompensationClaimRequest defines the canonical QueryDispatchCompensationClaimRequest fields.
+// QueryDispatchCompensationClaimRequest resolves the ticket through the derived
+// index. A dismissed ticket replaced by another claim returns NotFound.
 type QueryDispatchCompensationClaimRequest struct {
 	DispatchTicketHash []byte `protobuf:"bytes,1,opt,name=dispatch_ticket_hash,json=dispatchTicketHash,proto3" json:"dispatch_ticket_hash,omitempty"`
 }

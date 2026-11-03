@@ -36,6 +36,7 @@ message StreamStoreState {
   uint32 sticky_run_count = 23;
   PendingSessionKeyChangeStoreV1 pending_session_key_change = 24;
   PendingTakeoverStoreV1 pending_takeover = 25;
+  uint64 closed_height = 26;
 }
 
 // PendingSessionKeyChangeStoreV1 keeps a pending grant independent of public DTOs.

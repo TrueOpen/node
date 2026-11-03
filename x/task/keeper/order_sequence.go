@@ -36,7 +36,9 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 		return errorsmod.Wrapf(types.ErrInvalidOrderSequence, "order_sequence %d, expected %d", orderSequence, stream.NextExpectedSequence)
 	}
 	key := types.NewOrderSequenceStateKey(sessionKey, orderSequence)
+	var compensationPaid bool
 	if existing, err := k.OrderSequence.Get(ctx, key); err == nil {
+		compensationPaid = existing.CompensationPaid
 		if existing.Status != types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED && existing.Status != types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING {
 			return errorsmod.Wrapf(types.ErrInvalidOrderSequence, "order_sequence already %s", existing.Status)
 		}
@@ -54,11 +56,12 @@ func (k Keeper) consumeOrderSequence(ctx context.Context, sessionID []byte, orde
 	}
 	previous := stream
 	if err := k.OrderSequence.Set(ctx, key, types.OrderSequenceState{
-		SessionId:      append([]byte(nil), sessionID...),
-		OrderSequence:  orderSequence,
-		Status:         types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CONSUMED,
-		TaskId:         append([]byte(nil), taskID...),
-		ConsumedHeight: height,
+		SessionId:        append([]byte(nil), sessionID...),
+		OrderSequence:    orderSequence,
+		Status:           types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CONSUMED,
+		TaskId:           append([]byte(nil), taskID...),
+		ConsumedHeight:   height,
+		CompensationPaid: compensationPaid,
 	}); err != nil {
 		return err
 	}

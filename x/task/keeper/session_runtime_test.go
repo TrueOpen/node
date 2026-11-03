@@ -88,7 +88,7 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 		OwnerUserAddress:     sessionTestOwner(t, f),
 		NextExpectedSequence: 2,
 		LastActiveHeight:     9,
-		Status:               types.SessionStatus_SESSION_STATUS_CLOSED,
+		Status:               types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		Balance:               shared.NewAmount(0),
@@ -114,7 +114,7 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 
 	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 5, CompactedCount: 1}, result)
 	_, err = f.keeper.ReadStream(f.ctx, sessionKey)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
@@ -131,7 +131,7 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
-		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
+		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		Balance:               shared.NewAmount(0),
@@ -155,14 +155,14 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 	}
 }
 
-func TestSessionHistoryPrunePrecompletedCursorStillConsumesVisited(t *testing.T) {
+func TestSessionHistoryPruneTailCursorRespectsVisitedBudget(t *testing.T) {
 	f := initInternalFixture(t)
 	sessionID := bytes.Repeat([]byte{0x46}, types.Hash32Len)
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
-		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
+		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		Balance:               shared.NewAmount(0),
@@ -178,17 +178,25 @@ func TestSessionHistoryPrunePrecompletedCursorStillConsumesVisited(t *testing.T)
 
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 1)
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1}, result)
+	cursor, err := f.keeper.SessionHistoryPruneCursor.Get(f.ctx, sessionKey)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), cursor.NextOrderSequence)
+	require.Equal(t, uint32(1), cursor.CancelledCount)
+	require.Equal(t, bytes.Repeat([]byte{0x7a}, types.Hash32Len), cursor.RollingSequenceRoot)
+	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 3)
+	require.NoError(t, err)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 3, CompactedCount: 1}, result)
 }
 
-func TestSessionHistoryPruneEmptySessionConsumesVisited(t *testing.T) {
+func TestSessionHistoryPruneEmptySessionClearsItsBoundedTail(t *testing.T) {
 	f := initInternalFixture(t)
 	sessionID := bytes.Repeat([]byte{0x4e}, types.Hash32Len)
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
-		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
+		Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		Balance:               shared.NewAmount(0),
@@ -200,7 +208,13 @@ func TestSessionHistoryPruneEmptySessionConsumesVisited(t *testing.T) {
 
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 1)
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1}, result)
+	cursor, err := f.keeper.SessionHistoryPruneCursor.Get(f.ctx, sessionKey)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), cursor.NextOrderSequence)
+	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 3)
+	require.NoError(t, err)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 3, CompactedCount: 1}, result)
 	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Zero(t, summary.SequenceCount)
@@ -213,7 +227,7 @@ func TestSessionHistoryPruneRejectsVisitedOverflow(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
-		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
+		Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
 
 		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
 		Balance:               shared.NewAmount(0),

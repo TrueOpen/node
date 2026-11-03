@@ -220,13 +220,21 @@ type dispatchFixture struct {
 
 func newDispatchFixture(t *testing.T) *dispatchFixture {
 	t.Helper()
+	return newDispatchFixtureAtHeight(t, 121)
+}
+
+func newDispatchFixtureAtHeight(t *testing.T, height uint64, configure ...func(*types.TaskParamsV1)) *dispatchFixture {
+	t.Helper()
 	f := &dispatchFixture{internalFixture: initInternalFixture(t)}
 	params, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	params.Session.SessionWithdrawDelayBlocks = 30
 	params.Session.SessionChangeDelayBlocks = 30
+	for _, apply := range configure {
+		apply(&params)
+	}
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
-	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithChainID("dispatch-test").WithBlockHeight(121))
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithChainID("dispatch-test").WithBlockHeight(int64(height)))
 	f.ownerKey = secp.PrivKeyFromBytes(bytes32(1))
 	f.delegateKey = secp.PrivKeyFromBytes(bytes32(3))
 	owner := shared.EVMAddressFromSecp256k1PublicKey(f.ownerKey.PubKey())
@@ -258,7 +266,7 @@ func newDispatchFixture(t *testing.T) *dispatchFixture {
 	response, err := NewMsgServerImpl(f.keeper).CreateSession(f.ctx, &types.MsgCreateSession{SignerAddress: f.owner, InitialBuilder: f.hub.builders[0], InitialDeposit: shared.NewAmount(dispatchTestPrefund), SessionKey: &types.SessionKeyGrantV1{SessionKey: delegate[:], ExpiryHeight: 500, SpendCap: shared.NewAmount(4_000_000)}})
 	require.NoError(t, err)
 	f.sessionID = response.SessionId
-	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(123))
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(height + 2)))
 	return f
 }
 
@@ -270,7 +278,7 @@ func (f *dispatchFixture) signedOrder(t *testing.T, sequence uint64, key *secp.P
 	order.SessionId = bytes.Clone(f.sessionID)
 	order.OrderSequence = sequence
 	order.EarliestSubmitHeight = uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight())
-	order.OrderExpireHeight = 600
+	order.OrderExpireHeight = order.EarliestSubmitHeight + 477
 	order.SessionAnchorHeight = order.EarliestSubmitHeight
 	order.BuilderSetId = "dispatch-test-set"
 	order.BuilderSetHash = bytes32(0x44)

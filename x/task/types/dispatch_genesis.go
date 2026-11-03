@@ -6,6 +6,7 @@ import (
 )
 
 func validateDispatchGenesisRows(genesis GenesisState) error {
+	paramsForSession := genesisSessionParamsLookup(genesis)
 	records, hashes, entries := map[string]DispatchRecordState{}, map[string]bool{}, map[string]bool{}
 	for _, row := range genesis.DispatchRecords {
 		if err := ValidateDispatchRecord(row); err != nil {
@@ -23,6 +24,19 @@ func validateDispatchGenesisRows(genesis GenesisState) error {
 		}
 	}
 	claims := map[string]DispatchCompensationClaimState{}
+	sequenceClaims := map[string]bool{}
+	streams := map[string]StreamState{}
+	for _, row := range genesis.Streams {
+		streams[string(row.SessionId)] = row
+	}
+	sequences := map[string]OrderSequenceState{}
+	for _, row := range genesis.OrderSequences {
+		sequences[fmt.Sprintf("%x/%d", row.SessionId, row.OrderSequence)] = row
+	}
+	cursors := map[string]SessionHistoryPruneCursorState{}
+	for _, row := range genesis.SessionHistoryPruneCursors {
+		cursors[string(row.SessionId)] = row
+	}
 	for _, row := range genesis.DispatchCompensationClaims {
 		if err := ValidateDispatchClaim(row); err != nil {
 			return err
@@ -30,12 +44,47 @@ func validateDispatchGenesisRows(genesis GenesisState) error {
 		if _, found := claims[string(row.DispatchTicketHash)]; found {
 			return fmt.Errorf("duplicate dispatch compensation claim")
 		}
+		sequenceKey := fmt.Sprintf("%x/%d", row.SessionId, row.OrderSequence)
+		if sequenceClaims[sequenceKey] {
+			return fmt.Errorf("duplicate sequence compensation claim")
+		}
+		sequenceClaims[sequenceKey] = true
+		var stream *StreamState
+		var sequence *OrderSequenceState
+		var cursor *SessionHistoryPruneCursorState
+		if value, ok := streams[string(row.SessionId)]; ok {
+			stream = &value
+		}
+		if value, ok := sequences[sequenceKey]; ok {
+			sequence = &value
+		}
+		if value, ok := cursors[string(row.SessionId)]; ok {
+			cursor = &value
+		}
+		params, err := paramsForSession(row.SessionId)
+		if err != nil && stream != nil {
+			return err
+		}
+		if err := ValidateDispatchClaimSessionScope(row, stream, sequence, cursor, params); err != nil {
+			return err
+		}
 		claims[string(row.DispatchTicketHash)] = row
 		if record, found := records[string(row.TaskId)]; found && bytes.Equal(record.DispatchTicketHash, row.DispatchTicketHash) {
 			if err := validateClaimPaymentBeforeExclusion(row, record.RecordedHeight); err != nil {
 				return err
 			}
 		}
+	}
+	rounds := map[string]bool{}
+	for _, row := range genesis.DispatchRoundAcceptors {
+		if err := ValidateDispatchRoundAcceptor(row); err != nil {
+			return err
+		}
+		key := fmt.Sprintf("%x/%d/%s/%d/%d/%d", row.SessionId, row.OrderSequence, row.BuilderAddress, row.BoundChangeHeight, row.VrfEpoch, row.DispatchRound)
+		if rounds[key] {
+			return fmt.Errorf("duplicate round acceptor scope")
+		}
+		rounds[key] = true
 	}
 	winners := map[string]bool{}
 	for _, row := range genesis.DispatchWinnerIneligible {

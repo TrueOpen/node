@@ -226,15 +226,15 @@
       "max_session_sweep_per_block": 1024,
       "cancel_order_min_gas": 50000,
       "max_session_key_blocks": 604800,
-      "session_withdraw_delay_blocks": 30,
-      "session_change_delay_blocks": 30,
+      "session_withdraw_delay_blocks": 60,
+      "session_change_delay_blocks": 60,
       "session_min_prefund": {
         "atomic_units": "1000000"
       },
       "max_active_sessions_per_account": 16
     },
     "deadlines": {
-      "verify_open_deadline_blocks": 60,
+      "verify_open_deadline_blocks": 120,
       "commit_window_blocks": 20,
       "reveal_window_blocks": 10,
       "collection_window_blocks": 60,
@@ -337,16 +337,16 @@
       "max_round_effect_items_per_block": 1024
     },
     "dispatch": {
-      "record_deadline_blocks": 20,
+      "record_deadline_blocks": 40,
       "max_dispatch_entries_per_record": 16,
       "max_dispatch_record_bytes": 1048576,
       "max_skips": 8,
       "sticky_window_blocks": 120,
       "sticky_max_orders": 8,
-      "dispatch_compensation_claim_window_blocks": 60,
-      "dispatch_compensation_rebuttal_blocks": 30,
-      "dispatch_challenge_window_blocks": 60,
-      "dispatch_challenge_response_blocks": 30,
+      "dispatch_compensation_claim_window_blocks": 120,
+      "dispatch_compensation_rebuttal_blocks": 60,
+      "dispatch_challenge_window_blocks": 120,
+      "dispatch_challenge_response_blocks": 60,
       "dispatch_record_retention_blocks": 1440,
       "max_dispatch_roster_bytes": 1048576,
       "max_pending_per_session": 4,

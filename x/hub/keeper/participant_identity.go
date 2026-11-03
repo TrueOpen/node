@@ -39,6 +39,7 @@ type participantIdentityState struct {
 	PreviousServicePubkey      []byte
 	PreviousAuthorizationNonce uint64
 	PreviousRetiredHeight      uint64
+	RevokedHeight              uint64
 
 	// Responsibility counters remain on the participant primary. Current duties
 	// do not postpone a scheduled key activation.
@@ -72,6 +73,7 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 			PreviousServicePubkey:          bytes.Clone(state.GetPreviousServicePubkey()),
 			PreviousAuthorizationNonce:     state.GetPreviousServiceAuthorizationNonce(),
 			PreviousRetiredHeight:          state.GetPreviousRetiredHeight(),
+			RevokedHeight:                  state.GetRevokedHeight(),
 			ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
 			PendingStageDutyCount:          state.PendingStageDutyCount,
 			PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
@@ -92,6 +94,7 @@ func (k Keeper) loadParticipantIdentity(ctx context.Context, participantType sha
 			PreviousServicePubkey:          bytes.Clone(state.GetPreviousServicePubkey()),
 			PreviousAuthorizationNonce:     state.GetPreviousServiceAuthorizationNonce(),
 			PreviousRetiredHeight:          state.GetPreviousRetiredHeight(),
+			RevokedHeight:                  state.GetRevokedHeight(),
 			ActiveTaskLiabilityCount:       state.ActiveTaskLiabilityCount,
 			PendingStageDutyCount:          state.PendingStageDutyCount,
 			PendingEvidenceSubmissionCount: state.PendingEvidenceSubmissionCount,
@@ -159,6 +162,10 @@ func (k Keeper) persistParticipantIdentity(
 			state.XPreviousServiceAuthorizationNonce = nil
 			state.XPreviousRetiredHeight = nil
 		}
+		state.XRevokedHeight = nil
+		if identity.RevokedHeight != 0 {
+			state.XRevokedHeight = &types.CortexNodeState_RevokedHeight{RevokedHeight: identity.RevokedHeight}
+		}
 		state.ServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
 		state.UpdatedHeight = identity.UpdatedHeight
@@ -181,6 +188,10 @@ func (k Keeper) persistParticipantIdentity(
 			state.XPreviousServicePubkey = nil
 			state.XPreviousServiceAuthorizationNonce = nil
 			state.XPreviousRetiredHeight = nil
+		}
+		state.XRevokedHeight = nil
+		if identity.RevokedHeight != 0 {
+			state.XRevokedHeight = &types.BuilderState_RevokedHeight{RevokedHeight: identity.RevokedHeight}
 		}
 		state.CurrentServiceKeyStatus = identity.ServiceKeyStatus
 		state.CurrentDescriptorVersion = identity.CurrentDescriptorVersion
@@ -319,6 +330,7 @@ func serviceKeySnapshot(identity participantIdentityState, participantType strin
 		PreviousServicePubkey:      bytes.Clone(identity.PreviousServicePubkey),
 		PreviousAuthorizationNonce: identity.PreviousAuthorizationNonce,
 		PreviousRetiredHeight:      identity.PreviousRetiredHeight,
+		RevokedHeight:              identity.RevokedHeight,
 	}
 }
 

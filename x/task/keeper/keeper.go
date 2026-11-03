@@ -78,7 +78,10 @@ type Keeper struct {
 	DispatchRecordPrune              collections.KeySet[types.DeadlineIndexKey]
 	TakeoverEntryReceipt             collections.Map[types.Hash32Key, internaltypes.TakeoverEntryReceiptStoreState]
 	TakeoverEntryReceiptPrune        collections.KeySet[types.DeadlineIndexKey]
-	DispatchCompensationClaim        collections.Map[types.Hash32Key, internaltypes.DispatchCompensationClaimStoreState]
+	DispatchCompensationClaim        collections.Map[types.OrderSequenceStateKeyPair, internaltypes.DispatchCompensationClaimStoreState]
+	DispatchClaimByTicket            collections.Map[types.Hash32Key, []byte]
+	DispatchRoundAcceptor            collections.Map[[]byte, internaltypes.DispatchRoundAcceptorStoreState]
+	DispatchRoundAcceptorPrune       collections.KeySet[types.DeadlineIndexKey]
 	DispatchClaimRebuttal            collections.KeySet[types.DeadlineIndexKey]
 	DispatchClaimPrune               collections.KeySet[types.DeadlineIndexKey]
 	DispatchOpenClaimByBuilder       collections.KeySet[types.RoleActiveTaskKey]
@@ -272,7 +275,10 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		DispatchRecordPrune:              collections.NewKeySet(sb, types.DispatchRecordPruneKey, "dispatch_record_prune", deadlineKeyCodec),
 		TakeoverEntryReceipt:             collections.NewMap(sb, types.TakeoverEntryReceiptKey, "takeover_entry_receipt", types.Hash32KeyCodec, codec.CollValue[internaltypes.TakeoverEntryReceiptStoreState](cdc)),
 		TakeoverEntryReceiptPrune:        collections.NewKeySet(sb, types.TakeoverEntryReceiptPruneKey, "takeover_entry_receipt_prune", deadlineKeyCodec),
-		DispatchCompensationClaim:        collections.NewMap(sb, types.DispatchCompensationClaimKey, "dispatch_compensation_claim", types.Hash32KeyCodec, codec.CollValue[internaltypes.DispatchCompensationClaimStoreState](cdc)),
+		DispatchCompensationClaim:        collections.NewMap(sb, types.DispatchCompensationClaimKey, "dispatch_compensation_claim", orderSequenceKeyCodec, codec.CollValue[internaltypes.DispatchCompensationClaimStoreState](cdc)),
+		DispatchClaimByTicket:            collections.NewMap(sb, types.DispatchClaimByTicketKey, "dispatch_claim_by_ticket", types.Hash32KeyCodec, collections.BytesValue),
+		DispatchRoundAcceptor:            collections.NewMap(sb, types.DispatchRoundAcceptorKey, "dispatch_round_acceptor", collections.BytesKey, codec.CollValue[internaltypes.DispatchRoundAcceptorStoreState](cdc)),
+		DispatchRoundAcceptorPrune:       collections.NewKeySet(sb, types.DispatchRoundAcceptorPruneKey, "dispatch_round_acceptor_prune", collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey)),
 		DispatchClaimRebuttal:            collections.NewKeySet(sb, types.DispatchClaimRebuttalKey, "dispatch_claim_rebuttal", deadlineKeyCodec),
 		DispatchClaimPrune:               collections.NewKeySet(sb, types.DispatchClaimPruneKey, "dispatch_claim_prune", deadlineKeyCodec),
 		DispatchOpenClaimByBuilder:       collections.NewKeySet(sb, types.DispatchOpenClaimByBuilderKey, "dispatch_open_claim_by_builder", roleActiveTaskKeyCodec),

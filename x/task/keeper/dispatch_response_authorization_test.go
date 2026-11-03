@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"cosmossdk.io/collections"
 	"errors"
 	"testing"
 
@@ -20,6 +21,35 @@ type dispatchResponseKeyStore interface {
 	GetDispatchServiceProofKey(context.Context, shared.ParticipantType, string) (hubtypes.CurrentServiceKeySnapshot, error)
 	GetBuilderState(context.Context, string) (hubtypes.BuilderState, error)
 	StoreBuilder(context.Context, string, hubtypes.BuilderState) error
+}
+
+type unavailableHistoricalDispatchSet struct {
+	*dispatchResponseHub
+	lookups int
+}
+
+func (h *unavailableHistoricalDispatchSet) GetBuilderSetByID(sdk.Context, string) (hubtypes.BuilderSetState, error) {
+	h.lookups++
+	return hubtypes.BuilderSetState{}, collections.ErrNotFound
+}
+
+func TestDispatchResponseUsesRetainedTaskMembersAfterHistoricalSetPruning(t *testing.T) {
+	f := newDispatchFixture(t)
+	hub := installDispatchResponseKeys(t, f)
+	entry := f.entry(t, f.signedOrder(t, 0, f.delegateKey), f.hub.builders[0])
+	roster := f.committedRoster(t, entry, 0)
+	f.record(t, entry)
+	server := NewMsgServerImpl(f.keeper)
+	opened, err := server.ReportDispatchRosterUnavailable(f.ctx, &types.MsgReportDispatchRosterUnavailable{TaskId: entry.Record.TaskId, DispatchRound: 0, ReporterAddress: f.owner})
+	require.NoError(t, err)
+	hub.revoke(t, f.ctx, f.hub.builders[0])
+	unavailable := &unavailableHistoricalDispatchSet{dispatchResponseHub: hub}
+	f.keeper.hubKeeper = unavailable
+	server = NewMsgServerImpl(f.keeper)
+	response, err := server.RespondDispatchChallenge(f.ctx, &types.MsgRespondDispatchChallenge{ChallengeId: opened.Challenge.ChallengeId, ResponderAddress: f.hub.builders[1], Response: &types.MsgRespondDispatchChallenge_Roster{Roster: roster}})
+	require.NoError(t, err)
+	require.Equal(t, types.DispatchChallengeStatusV1_DISPATCH_CHALLENGE_STATUS_V1_DISMISSED, response.Challenge.Status)
+	require.Zero(t, unavailable.lookups, "the frozen Task selection already owns the membership fact")
 }
 
 // Builder lookups use the actual Hub projection and ACTIVE-only getter. Other
@@ -184,7 +214,7 @@ func TestDispatchResponseAuthorizationPreservesLiveIdentityAndReadErrors(t *test
 				hub.readFailure = errors.New("injected service identity read failure")
 				expectedError = hub.readFailure
 			}
-			operator, err := f.keeper.authorizeDispatchResponse(f.ctx, origin, "dispatch-test-set", signer)
+			operator, err := f.keeper.authorizeDispatchResponse(f.ctx, origin, f.hub.builders, signer, dispatchTaskBuilderScope)
 			if expectedError != nil {
 				require.ErrorIs(t, err, expectedError)
 				require.Empty(t, operator)

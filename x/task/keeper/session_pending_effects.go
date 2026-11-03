@@ -96,13 +96,20 @@ func (k Keeper) closeSessionState(ctx context.Context, previous, stream types.St
 		if err := k.OrderCancelIndex.Remove(ctx, collections.Join3(pending.CancelEffectiveHeight, stream.SessionId, pending.OrderSequence)); err != nil {
 			return err
 		}
-		if err := k.OrderSequence.Remove(ctx, key); err != nil {
+		if pending.CompensationPaid {
+			pending.Status = types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED
+			pending.CancelEffectiveHeight = 0
+			if err := k.OrderSequence.Set(ctx, key, pending); err != nil {
+				return err
+			}
+		} else if err := k.OrderSequence.Remove(ctx, key); err != nil {
 			return err
 		}
 	} else if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return err
 	}
 	stream.Status = types.SessionStatus_SESSION_STATUS_CLOSED
+	stream.ClosedHeight = height
 	stream.LastActiveHeight = height
 	stream.PendingWithdrawKind = types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE
 	stream.PendingWithdrawAmount = shared.NewAmount(0)

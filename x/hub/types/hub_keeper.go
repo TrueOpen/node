@@ -105,6 +105,7 @@ type CurrentServiceKeySnapshot struct {
 	PreviousServicePubkey      []byte
 	PreviousAuthorizationNonce uint64
 	PreviousRetiredHeight      uint64
+	RevokedHeight              uint64
 }
 
 type RoleScoringSnapshot struct {

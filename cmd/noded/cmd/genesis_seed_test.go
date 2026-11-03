@@ -346,7 +346,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	}
 	model := seed.Models[0]
 	require.Equal(t, "HUGGINGFACE", model.Profile.Source.Provider)
-	require.Equal(t, "Qwen/Qwen3-8B", model.Profile.Source.RepoId)
+	require.Equal(t, "Qwen/Qwen3.8-27B-FP8", model.Profile.Source.RepoId)
 	require.Equal(t, uint32(1), model.Profile.ProfileVersion)
 	require.Equal(t, []string{"TEXT_GENERATION", "CHAT"}, model.Profile.TaskTypes)
 	require.Equal(t, "uusdc", model.Profile.MinStake.Denom)
@@ -354,17 +354,17 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Equal(t, "uusdc", model.Profile.RegistrationFee.Denom)
 	require.Equal(t, uint64(1_000_000), model.Profile.RegistrationFee.Amount)
 	require.Equal(t, seed.CortexNodes[0].OperatorAddress, model.ProposerAddress)
-	// The dev model profile is the published canonical projection of the dev
-	// chain, so its hash, challenge window, bootstrap timeouts and pass limits
+	// The dev model profile is the published canonical projection of the testnet
+	// model, so its hash, challenge window, bootstrap timeouts and pass limits
 	// are pinned to it; a seed edit that drifts from it no longer matches the
 	// registry manifest.
-	require.Equal(t, "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023", model.Profile.ManifestHash)
+	require.Equal(t, "0x8c35c84d9d043464d298a48d8a5cb3fb396a651646a52a31393d045214e2cfd6", model.Profile.ManifestHash)
 	require.Equal(t, uint64(100), model.Profile.ChallengeOpenWindow)
 	require.Equal(t, uint32(20), model.Profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(100), model.Profile.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(50), model.Profile.TimeoutBootstrapProfile.VerifyTimeoutBootstrapBlocks)
-	require.Equal(t, uint32(100000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
-	require.Equal(t, uint32(200000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
+	require.Equal(t, uint32(220000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
+	require.Equal(t, uint32(550000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
 	operators := make(map[string]struct{}, len(seed.CortexNodes))
 	serviceAddresses := make(map[string]struct{}, len(seed.CortexNodes))
 	for _, cortex := range seed.CortexNodes {
@@ -389,7 +389,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	requireGenesisSeedListsAllParams(t, cdc, &hubParams, seed.HubParams)
 	taskParams := tasktypes.DefaultTaskParams()
 	require.NoError(t, applyTaskParamsOverride(cdc, &taskParams, seed.TaskParams))
-	require.Equal(t, uint64(60), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(120), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
 	require.Equal(t, uint64(20), taskParams.Deadlines.CommitWindowBlocks)
 	require.Equal(t, uint64(10), taskParams.Deadlines.RevealWindowBlocks)
 	require.Equal(t, uint64(60), taskParams.Deadlines.CollectionWindowBlocks)
@@ -409,76 +409,80 @@ func TestGenesisSeedRejectsProtocolEventsWithoutTaskEventService(t *testing.T) {
 	require.ErrorContains(t, validateGenesisSeed(seed), "requires enabled=true")
 }
 
-func TestLocalnetGenesisSeedAppliesRunnableModelSupportState(t *testing.T) {
-	seed, err := readGenesisSeed(filepath.Join("..", "..", "..", "config", "localnet_genesis_seed.json"))
-	require.NoError(t, err)
-	interfaceRegistry := codectypes.NewInterfaceRegistry()
-	authtypes.RegisterInterfaces(interfaceRegistry)
-	cdc := codec.NewProtoCodec(interfaceRegistry)
-	raw := makeGenesisSeedDocument(
-		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
-	)
+func TestGenesisSeedsApplyRunnableModelSupportState(t *testing.T) {
+	for _, filename := range []string{"localnet_genesis_seed.json", "testnet_genesis_seed.json"} {
+		t.Run(filename, func(t *testing.T) {
+			seed, err := readGenesisSeed(filepath.Join("..", "..", "..", "config", filename))
+			require.NoError(t, err)
+			interfaceRegistry := codectypes.NewInterfaceRegistry()
+			authtypes.RegisterInterfaces(interfaceRegistry)
+			cdc := codec.NewProtoCodec(interfaceRegistry)
+			raw := makeGenesisSeedDocument(
+				t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+			)
 
-	updated, err := applyGenesisSeed(cdc, raw, seed)
-	require.NoError(t, err)
-	hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
-	require.NoError(t, hub.Validate())
-	require.NoError(t, bank.Validate())
-	require.NoError(t, authtypes.ValidateGenesis(auth))
-	require.Len(t, hub.Builders, 3)
-	require.Len(t, hub.CortexNodes, 4)
-	require.Len(t, hub.ServiceBonds, 4)
-	require.Len(t, hub.ServiceDescriptors, 3)
-	for i, builder := range seed.Builders {
-		descriptor := hub.ServiceDescriptors[i]
-		require.Equal(t, builder.Address, descriptor.OperatorAddress)
-		expectedEndpoints, err := genesisServiceEndpoints(builder.Descriptor)
-		require.NoError(t, err)
-		require.Equal(t, expectedEndpoints, descriptor.Endpoints)
-		operatorBytes, err := sdk.AccAddressFromBech32(builder.Address)
-		require.NoError(t, err)
-		expectedHash, err := hubtypes.CanonicalServiceDescriptorHash(
-			shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
-			operatorBytes,
-			descriptor.DescriptorVersion,
-			expectedEndpoints,
-			hub.Params.Service,
-		)
-		require.NoError(t, err)
-		require.Equal(t, expectedHash, descriptor.DescriptorHash)
-	}
-	for _, node := range hub.CortexNodes {
-		require.Zero(t, node.CurrentDescriptorVersion)
-	}
-	require.Len(t, hub.ModelCapabilities, 4)
-	require.Len(t, hub.ModelSupports, 4)
-	require.Len(t, hub.DailySupports, 4)
-	require.Len(t, hub.Models, 1)
-	require.Len(t, hub.Profiles, 1)
-	require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
-	require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
-	require.Equal(t, []shared.TaskType{
-		shared.TaskType_TASK_TYPE_TEXT_GENERATION,
-		shared.TaskType_TASK_TYPE_CHAT,
-	}, hub.Profiles[0].TaskTypes)
-	require.Equal(t, uint32(4), hub.Models[0].ActiveSupporterCount)
-	for _, support := range hub.ModelSupports {
-		require.True(t, support.DeclaredSupport)
-		require.True(t, support.SupportActive)
-		require.Equal(t, seed.SupportUntilEpoch, support.SupportFreshUntilEpoch)
-	}
-	// TreasuryState is (balance, treasury_version) now;
-	// total_collected and the per-epoch treasury ledger both left the wire
-	// with TreasuryEpochState. The genesis seed credits the registration fee
-	// into balance, so that is what this pins.
-	require.Equal(t, shared.NewAmount(hubtypes.ModelRegistrationFeeMinMicroUSDC), hub.Treasury.Balance)
-	require.Equal(t, hubtypes.ModelRegistrationFeeMinMicroUSDC, genesisBalanceAmount(
-		bank,
-		authtypes.NewModuleAddress(hubtypes.TreasuryModuleName).String(),
-	))
-	require.NotEmpty(t, seed.FaucetAccounts)
-	for _, faucet := range seed.FaucetAccounts {
-		require.Equal(t, faucet.Balance, genesisBalanceAmount(bank, faucet.Address))
+			updated, err := applyGenesisSeed(cdc, raw, seed)
+			require.NoError(t, err)
+			hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
+			require.NoError(t, hub.Validate())
+			require.NoError(t, bank.Validate())
+			require.NoError(t, authtypes.ValidateGenesis(auth))
+			require.Len(t, hub.Builders, 3)
+			require.Len(t, hub.CortexNodes, 4)
+			require.Len(t, hub.ServiceBonds, 4)
+			require.Len(t, hub.ServiceDescriptors, 3)
+			for i, builder := range seed.Builders {
+				descriptor := hub.ServiceDescriptors[i]
+				require.Equal(t, builder.Address, descriptor.OperatorAddress)
+				expectedEndpoints, err := genesisServiceEndpoints(builder.Descriptor)
+				require.NoError(t, err)
+				require.Equal(t, expectedEndpoints, descriptor.Endpoints)
+				operatorBytes, err := sdk.AccAddressFromBech32(builder.Address)
+				require.NoError(t, err)
+				expectedHash, err := hubtypes.CanonicalServiceDescriptorHash(
+					shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
+					operatorBytes,
+					descriptor.DescriptorVersion,
+					expectedEndpoints,
+					hub.Params.Service,
+				)
+				require.NoError(t, err)
+				require.Equal(t, expectedHash, descriptor.DescriptorHash)
+			}
+			for _, node := range hub.CortexNodes {
+				require.Zero(t, node.CurrentDescriptorVersion)
+			}
+			require.Len(t, hub.ModelCapabilities, 4)
+			require.Len(t, hub.ModelSupports, 4)
+			require.Len(t, hub.DailySupports, 4)
+			require.Len(t, hub.Models, 1)
+			require.Len(t, hub.Profiles, 1)
+			require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
+			require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
+			require.Equal(t, []shared.TaskType{
+				shared.TaskType_TASK_TYPE_TEXT_GENERATION,
+				shared.TaskType_TASK_TYPE_CHAT,
+			}, hub.Profiles[0].TaskTypes)
+			require.Equal(t, uint32(4), hub.Models[0].ActiveSupporterCount)
+			for _, support := range hub.ModelSupports {
+				require.True(t, support.DeclaredSupport)
+				require.True(t, support.SupportActive)
+				require.Equal(t, seed.SupportUntilEpoch, support.SupportFreshUntilEpoch)
+			}
+			// TreasuryState is (balance, treasury_version) now;
+			// total_collected and the per-epoch treasury ledger both left the wire
+			// with TreasuryEpochState. The genesis seed credits the registration fee
+			// into balance, so that is what this pins.
+			require.Equal(t, shared.NewAmount(hubtypes.ModelRegistrationFeeMinMicroUSDC), hub.Treasury.Balance)
+			require.Equal(t, hubtypes.ModelRegistrationFeeMinMicroUSDC, genesisBalanceAmount(
+				bank,
+				authtypes.NewModuleAddress(hubtypes.TreasuryModuleName).String(),
+			))
+			require.NotEmpty(t, seed.FaucetAccounts)
+			for _, faucet := range seed.FaucetAccounts {
+				require.Equal(t, faucet.Balance, genesisBalanceAmount(bank, faucet.Address))
+			}
+		})
 	}
 }
 

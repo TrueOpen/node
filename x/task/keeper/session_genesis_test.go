@@ -118,14 +118,14 @@ func TestSessionGenesisRoundTripAllowsZeroBasedTaskSequence(t *testing.T) {
 	require.Equal(t, uint64(0), exported.OrderSequences[0].OrderSequence)
 }
 
-func TestSessionGenesisRejectsDoneOrEmptyRootPruneCursor(t *testing.T) {
+func TestSessionGenesisRejectsOutOfRangeOrEmptyRootPruneCursor(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		next  uint64
 		root  []byte
 		match string
 	}{
-		{name: "done", next: 1, root: make([]byte, tasktypes.Hash32Len), match: "must remain before"},
+		{name: "beyond tail", next: 6, root: make([]byte, tasktypes.Hash32Len), match: "range/counts"},
 		{name: "empty root", next: 0, root: nil, match: "must be 32 bytes"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestSessionGenesisRejectsDoneOrEmptyRootPruneCursor(t *testing.T) {
 			sessionID := bytes.Repeat([]byte{0x4d}, tasktypes.Hash32Len)
 			genesis.Streams = []tasktypes.StreamState{{
 				SessionId: sessionID, OwnerUserAddress: genesisUser, NextExpectedSequence: 1,
-				LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_CLOSED,
+				LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 5,
 
 				BoundBuilder:          genesisBuilder,
 				BoundChangeHeight:     1,

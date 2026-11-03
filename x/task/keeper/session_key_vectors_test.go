@@ -40,6 +40,7 @@ func vectorStream(t *testing.T, f *internalFixture, id []byte, state sessionfixt
 	stream.FrozenTotal = shared.NewAmount(0)
 	stream.PendingWithdrawAmount = shared.NewAmount(0)
 	if stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
+		stream.ClosedHeight = stream.LastActiveHeight
 		stream.Balance = shared.NewAmount(0)
 	}
 	return stream

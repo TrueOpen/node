@@ -74,3 +74,24 @@ func ValidateParamsVersionGenesis(genesis GenesisState) error {
 	}
 	return validate(genesis.SessionParamsVersionBindings, sessions)
 }
+
+// Index once per validation pass; retained Session bindings can be large.
+func genesisSessionParamsLookup(genesis GenesisState) func([]byte) (TaskParamsV1, error) {
+	history := make(map[uint64]TaskParamsV1, len(genesis.ParamsHistory))
+	bindings := make(map[string]uint64, len(genesis.SessionParamsVersionBindings))
+	for _, row := range genesis.ParamsHistory {
+		history[row.ParamsVersion] = row.Params
+	}
+	for _, row := range genesis.SessionParamsVersionBindings {
+		bindings[string(row.ObjectId)] = row.ParamsVersion
+	}
+	return func(session []byte) (TaskParamsV1, error) {
+		if version, ok := bindings[string(session)]; ok {
+			if params, ok := history[version]; ok {
+				return params, nil
+			}
+			return TaskParamsV1{}, fmt.Errorf("Session parameter history is missing")
+		}
+		return genesis.Params, nil
+	}
+}

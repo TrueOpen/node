@@ -230,9 +230,11 @@ func (m *TaskParamsMetaState) GetUpdatedHeight() uint64 {
 
 // SessionParamsV1 bounds session admission, lifecycle, and retention work.
 type SessionParamsV1 struct {
-	MaxOrderSequencesPerActiveSession           uint32 `protobuf:"varint,1,opt,name=max_order_sequences_per_active_session,json=maxOrderSequencesPerActiveSession,proto3" json:"max_order_sequences_per_active_session,omitempty"`
-	SessionIdleTtlBlocks                        uint64 `protobuf:"varint,2,opt,name=session_idle_ttl_blocks,json=sessionIdleTtlBlocks,proto3" json:"session_idle_ttl_blocks,omitempty"`
-	SessionCloseTtlBlocks                       uint64 `protobuf:"varint,3,opt,name=session_close_ttl_blocks,json=sessionCloseTtlBlocks,proto3" json:"session_close_ttl_blocks,omitempty"`
+	MaxOrderSequencesPerActiveSession uint32 `protobuf:"varint,1,opt,name=max_order_sequences_per_active_session,json=maxOrderSequencesPerActiveSession,proto3" json:"max_order_sequences_per_active_session,omitempty"`
+	SessionIdleTtlBlocks              uint64 `protobuf:"varint,2,opt,name=session_idle_ttl_blocks,json=sessionIdleTtlBlocks,proto3" json:"session_idle_ttl_blocks,omitempty"`
+	SessionCloseTtlBlocks             uint64 `protobuf:"varint,3,opt,name=session_close_ttl_blocks,json=sessionCloseTtlBlocks,proto3" json:"session_close_ttl_blocks,omitempty"`
+	// At least record_deadline_blocks + dispatch_compensation_claim_window_blocks
+	// + dispatch_compensation_rebuttal_blocks. Existing Sessions keep their version.
 	SessionOrderRetentionBlocks                 uint64 `protobuf:"varint,4,opt,name=session_order_retention_blocks,json=sessionOrderRetentionBlocks,proto3" json:"session_order_retention_blocks,omitempty"`
 	MaxSessionHistoryPruneItemsPerBlock         uint32 `protobuf:"varint,5,opt,name=max_session_history_prune_items_per_block,json=maxSessionHistoryPruneItemsPerBlock,proto3" json:"max_session_history_prune_items_per_block,omitempty"`
 	SessionTerminalSummaryRetentionBlocks       uint64 `protobuf:"varint,6,opt,name=session_terminal_summary_retention_blocks,json=sessionTerminalSummaryRetentionBlocks,proto3" json:"session_terminal_summary_retention_blocks,omitempty"`

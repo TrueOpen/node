@@ -532,6 +532,11 @@
           "format": "uint64",
           "type": "string"
         },
+        "revoked_height": {
+          "description": "Explicit emergency-revoke height, present only for a REVOKED current key.\nOn rotation, clip previous_retired_height to this height and clear it.",
+          "format": "uint64",
+          "type": "string"
+        },
         "schema_version": {
           "format": "int64",
           "type": "integer"
@@ -850,6 +855,11 @@
           "format": "uint64",
           "type": "string"
         },
+        "revoked_height": {
+          "description": "Only explicit emergency revoke sets this cutoff; terminal-state revocation\nalone does not. Rotation folds it into previous_retired_height and clears it.",
+          "format": "uint64",
+          "type": "string"
+        },
         "schema_version": {
           "format": "int64",
           "type": "integer"
@@ -902,6 +912,11 @@
         "previous_service_pubkey": {
           "description": "One previous proof identity, with paired presence matching the stored binding.\n\nREST input accepts the standard or URL-safe Base64 alphabet, padded or unpadded; REST output is always the canonical padded standard-alphabet form.",
           "format": "byte",
+          "type": "string"
+        },
+        "revoked_height": {
+          "description": "Explicit current-key revoke cutoff, with presence matching its binding.",
+          "format": "uint64",
           "type": "string"
         },
         "service_address": {
@@ -4190,10 +4205,15 @@
       "type": "string"
     },
     "task.v1.DispatchCompensationClaimState": {
-      "description": "DispatchCompensationClaimState defines the canonical DispatchCompensationClaimState fields.",
+      "description": "DispatchCompensationClaimState is keyed by (session_id, order_sequence).\nA derived ticket index serves replay, rebuttal and Query. Replacing a\nDISMISSED claim atomically removes the old ticket and prune indexes.",
       "properties": {
         "amount": {
           "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "bound_change_height": {
+          "description": "Frozen from the signed ticket; never read from a later live Session.\nRetained unchanged with earliest_submit_height through Query and Genesis.",
+          "format": "uint64",
+          "type": "string"
         },
         "builder_address": {
           "type": "string"
@@ -4217,7 +4237,7 @@
           "type": "string"
         },
         "earliest_submit_height": {
-          "description": "Frozen from the claim's verified original order, including unrecorded orders.\nPositive and strictly below claimed_height; retained unchanged through\nresolution, Query and Genesis. Previous record/reject keys each compare\nthis value with their own retirement height, never another ticket's record.",
+          "description": "Frozen from the claim's verified original order, including unrecorded orders.\nPositive and strictly below claimed_height; retained unchanged through\nresolution, Query and Genesis. Record/reject proofs each compare the maximum\nof this height and bound_change_height with their own key's cutoff.",
           "format": "uint64",
           "type": "string"
         },
@@ -5000,6 +5020,10 @@
           "format": "uint64",
           "type": "string"
         },
+        "compensation_paid": {
+          "description": "Set atomically on compensation PAID, including a zero actual payment.\nNever cleared by cancellation, admission or settlement. An unconsumed\nsequence uses UNUSED to retain this marker until Session compaction.",
+          "type": "boolean"
+        },
         "consumed_height": {
           "format": "uint64",
           "type": "string"
@@ -5701,6 +5725,7 @@
           "$ref": "#/definitions/shared.v1.Amount"
         },
         "session_order_retention_blocks": {
+          "description": "At least record_deadline_blocks + dispatch_compensation_claim_window_blocks\n+ dispatch_compensation_rebuttal_blocks. Existing Sessions keep their version.",
           "format": "uint64",
           "type": "string"
         },
@@ -6066,6 +6091,11 @@
           "type": "string"
         },
         "bound_change_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "closed_height": {
+          "description": "Positive exactly for CLOSED, set once on entry into that state. A closed\nSession accepts a claim only for max(ticket bound height, order ESH) below\nthis height, until history compaction removes the StreamState.",
           "format": "uint64",
           "type": "string"
         },

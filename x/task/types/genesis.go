@@ -75,6 +75,7 @@ func (gs GenesisState) Validate() error {
 }
 
 func validateSessionRows(gs GenesisState) error {
+	paramsForSession := genesisSessionParamsLookup(gs)
 	seenNonces := map[string]struct{}{}
 	for _, s := range gs.SessionNonces {
 		user, err := requireCanonicalNonEmpty("session nonce user_address", s.UserAddress)
@@ -108,6 +109,13 @@ func validateSessionRows(gs GenesisState) error {
 		if err := addUnique(streams, sid, "duplicate stream for session_id %s", sid); err != nil {
 			return err
 		}
+		params, err := paramsForSession(s.SessionId)
+		if err != nil {
+			return err
+		}
+		if s.NextExpectedSequence > uint64(params.Session.MaxOrderSequencesPerActiveSession) {
+			return fmt.Errorf("Session sequence count exceeds its fixed cap")
+		}
 		streamStates[sid] = s
 	}
 
@@ -121,6 +129,16 @@ func validateSessionRows(gs GenesisState) error {
 			return fmt.Errorf("%w for %s/%d", err, sid, s.OrderSequence)
 		}
 		switch s.Status {
+		case OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED:
+			stream, found := streamStates[sid]
+			params, err := paramsForSession(s.SessionId)
+			if err != nil {
+				return err
+			}
+			limit, overflow := shared.CheckedAddUint64(stream.NextExpectedSequence, uint64(params.Dispatch.MaxPendingPerSession))
+			if !found || overflow || s.OrderSequence < stream.NextExpectedSequence || s.OrderSequence >= limit || !s.CompensationPaid || len(s.TaskId) != 0 || s.ConsumedHeight != 0 || s.CancelledHeight != 0 || s.CancelEffectiveHeight != 0 {
+				return fmt.Errorf("UNUSED sequence must retain a bounded paid marker")
+			}
 		case OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING:
 			stream, found := streamStates[sid]
 			if !found || stream.Status == SessionStatus_SESSION_STATUS_CLOSED || stream.NextExpectedSequence != s.OrderSequence || s.CancelEffectiveHeight == 0 || len(s.TaskId) != 0 || s.ConsumedHeight != 0 || s.CancelledHeight != 0 {
@@ -157,8 +175,14 @@ func validateSessionRows(gs GenesisState) error {
 		if !ok || stream.Status != SessionStatus_SESSION_STATUS_CLOSED {
 			return fmt.Errorf("session history prune cursor %s requires a CLOSED stream", sid)
 		}
-		if cursor.NextOrderSequence >= stream.NextExpectedSequence {
-			return fmt.Errorf("session history prune cursor %s must remain before next_expected_sequence", sid)
+		params, err := paramsForSession(cursor.SessionId)
+		if err != nil {
+			return err
+		}
+		limit, overflow := shared.CheckedAddUint64(stream.NextExpectedSequence, uint64(params.Dispatch.MaxPendingPerSession))
+		folded := uint64(cursor.ConsumedCount) + uint64(cursor.CancelledCount) + uint64(cursor.RefundedCount) + uint64(cursor.SettledCount)
+		if overflow || cursor.NextOrderSequence > limit || folded != min(cursor.NextOrderSequence, stream.NextExpectedSequence) {
+			return fmt.Errorf("Session history cursor range/counts disagree")
 		}
 		if len(cursor.RollingSequenceRoot) != Hash32Len {
 			return fmt.Errorf("session history prune cursor %s rolling_sequence_root must be 32 bytes", sid)

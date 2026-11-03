@@ -44,6 +44,10 @@ func DefaultDispatchParams() DispatchParamsV1 {
 }
 
 func validateDispatchParams(p DispatchParamsV1, session SessionParamsV1) error {
+	required, overflow := checkedAddManyUint64(p.RecordDeadlineBlocks, p.DispatchCompensationClaimWindowBlocks, p.DispatchCompensationRebuttalBlocks)
+	if overflow || session.SessionOrderRetentionBlocks < required {
+		return fmt.Errorf("session_order_retention_blocks must cover record, claim and rebuttal windows")
+	}
 	limits := shared.DispatchRotationWindowHardLimits()
 	for _, item := range []struct {
 		name           string

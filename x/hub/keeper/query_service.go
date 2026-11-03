@@ -122,6 +122,9 @@ func (q queryServer) CurrentServiceKey(ctx context.Context, req *types.QueryCurr
 		ServiceAddress: identity.ServiceAddress, ServicePubkey: append([]byte(nil), identity.ServicePubkey...),
 		ServiceAuthorizationNonce: identity.AuthorizationNonce, CurrentDescriptorVersion: identity.CurrentDescriptorVersion,
 	}
+	if identity.RevokedHeight != 0 {
+		view.XRevokedHeight = &types.CurrentServiceKeyViewV1_RevokedHeight{RevokedHeight: identity.RevokedHeight}
+	}
 	if identity.PreviousAuthorizationNonce != 0 {
 		view.XPreviousServicePubkey = &types.CurrentServiceKeyViewV1_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(identity.PreviousServicePubkey)}
 		view.XPreviousServiceAuthorizationNonce = &types.CurrentServiceKeyViewV1_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: identity.PreviousAuthorizationNonce}

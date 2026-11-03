@@ -483,17 +483,23 @@ func validateServiceKeyGenesisClocks(ctx context.Context, state types.GenesisSta
 		if retired == 0 {
 			return nil
 		}
-		if retired%length != 0 || retired > height && retired != next {
+		if retired > height && (retired != next || retired%length != 0) {
 			return fmt.Errorf("previous service key retirement is outside the committed genesis clock")
 		}
 		return nil
 	}
 	for _, row := range state.CortexNodes {
+		if row.GetRevokedHeight() > height {
+			return fmt.Errorf("service revoke height is in the future")
+		}
 		if err := checkPrevious(row.GetPreviousRetiredHeight()); err != nil {
 			return err
 		}
 	}
 	for _, row := range state.Builders {
+		if row.GetRevokedHeight() > height {
+			return fmt.Errorf("service revoke height is in the future")
+		}
 		if err := checkPrevious(row.GetPreviousRetiredHeight()); err != nil {
 			return err
 		}

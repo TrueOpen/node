@@ -35,6 +35,9 @@ func (k Keeper) accountAddressFromStore(field string, raw []byte, optional bool)
 }
 
 func (k Keeper) cortexNodeStateToStore(state types.CortexNodeState) (internaltypes.CortexNodeStoreState, error) {
+	if err := types.ValidateRevokedServiceKeyBinding(state.ServiceKeyStatus, state.GetRevokedHeight(), state.XRevokedHeight != nil); err != nil {
+		return internaltypes.CortexNodeStoreState{}, err
+	}
 	operator, err := k.accountAddressToStore("Cortex operator address", state.OperatorAddress, false)
 	if err != nil {
 		return internaltypes.CortexNodeStoreState{}, err
@@ -57,6 +60,7 @@ func (k Keeper) cortexNodeStateToStore(state types.CortexNodeState) (internaltyp
 		PreviousServicePubkey:             bytes.Clone(state.GetPreviousServicePubkey()),
 		PreviousServiceAuthorizationNonce: state.GetPreviousServiceAuthorizationNonce(),
 		PreviousRetiredHeight:             state.GetPreviousRetiredHeight(),
+		RevokedHeight:                     state.GetRevokedHeight(),
 	}, nil
 }
 
@@ -84,6 +88,12 @@ func (k Keeper) ProjectCortexNodeStore(stored internaltypes.CortexNodeStoreState
 	}
 	if err := types.ValidatePreviousServiceKeyBinding(stored.ServiceAuthorizationNonce, stored.CurrentServicePubkey, stored.PreviousServicePubkey, stored.PreviousServiceAuthorizationNonce, stored.PreviousRetiredHeight); err != nil {
 		return types.CortexNodeState{}, err
+	}
+	if err := types.ValidateRevokedServiceKeyBinding(projected.ServiceKeyStatus, stored.RevokedHeight, stored.RevokedHeight != 0); err != nil {
+		return types.CortexNodeState{}, err
+	}
+	if stored.RevokedHeight != 0 {
+		projected.XRevokedHeight = &types.CortexNodeState_RevokedHeight{RevokedHeight: stored.RevokedHeight}
 	}
 	if stored.PreviousServiceAuthorizationNonce != 0 {
 		projected.XPreviousServicePubkey = &types.CortexNodeState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(stored.PreviousServicePubkey)}
@@ -145,6 +155,9 @@ func (k Keeper) exportCortexNodes(ctx context.Context) ([]types.CortexNodeState,
 }
 
 func (k Keeper) builderStateToStore(state types.BuilderState) (internaltypes.BuilderStoreState, error) {
+	if err := types.ValidateRevokedServiceKeyBinding(state.CurrentServiceKeyStatus, state.GetRevokedHeight(), state.XRevokedHeight != nil); err != nil {
+		return internaltypes.BuilderStoreState{}, err
+	}
 	operator, err := k.accountAddressToStore("Builder operator address", state.BuilderAddress, false)
 	if err != nil {
 		return internaltypes.BuilderStoreState{}, err
@@ -167,6 +180,7 @@ func (k Keeper) builderStateToStore(state types.BuilderState) (internaltypes.Bui
 		PreviousServicePubkey:             bytes.Clone(state.GetPreviousServicePubkey()),
 		PreviousServiceAuthorizationNonce: state.GetPreviousServiceAuthorizationNonce(),
 		PreviousRetiredHeight:             state.GetPreviousRetiredHeight(),
+		RevokedHeight:                     state.GetRevokedHeight(),
 	}, nil
 }
 
@@ -194,6 +208,12 @@ func (k Keeper) ProjectBuilderStore(stored internaltypes.BuilderStoreState) (typ
 	}
 	if err := types.ValidatePreviousServiceKeyBinding(stored.ServiceAuthorizationNonce, stored.CurrentServicePubkey, stored.PreviousServicePubkey, stored.PreviousServiceAuthorizationNonce, stored.PreviousRetiredHeight); err != nil {
 		return types.BuilderState{}, err
+	}
+	if err := types.ValidateRevokedServiceKeyBinding(projected.CurrentServiceKeyStatus, stored.RevokedHeight, stored.RevokedHeight != 0); err != nil {
+		return types.BuilderState{}, err
+	}
+	if stored.RevokedHeight != 0 {
+		projected.XRevokedHeight = &types.BuilderState_RevokedHeight{RevokedHeight: stored.RevokedHeight}
 	}
 	if stored.PreviousServiceAuthorizationNonce != 0 {
 		projected.XPreviousServicePubkey = &types.BuilderState_PreviousServicePubkey{PreviousServicePubkey: bytes.Clone(stored.PreviousServicePubkey)}

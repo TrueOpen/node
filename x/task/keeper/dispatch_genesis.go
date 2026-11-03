@@ -75,6 +75,14 @@ func (k Keeper) initDispatchGenesis(ctx context.Context, genesis types.GenesisSt
 			return err
 		}
 	}
+	for _, row := range genesis.DispatchRoundAcceptors {
+		if row.RegisteredHeight > stateHeight {
+			return fmt.Errorf("round acceptor is in the future")
+		}
+		if err := k.writeDispatchRoundAcceptor(ctx, row); err != nil {
+			return err
+		}
+	}
 	for _, row := range genesis.DispatchChallenges {
 		if max(row.OpenedHeight, row.GetResolvedHeight()) > stateHeight {
 			return fmt.Errorf("dispatch challenge is in the future")
@@ -149,6 +157,17 @@ func (k Keeper) exportDispatchGenesis(ctx context.Context, genesis *types.Genesi
 		return err
 	}
 	if genesis.DispatchCompensationClaims, err = collectProjectedValues(ctx, k.DispatchCompensationClaim, k.ProjectDispatchClaimStore); err != nil {
+		return err
+	}
+	genesis.DispatchRoundAcceptors = nil
+	if err := k.DispatchRoundAcceptor.Walk(ctx, nil, func(key []byte, state internaltypes.DispatchRoundAcceptorStoreState) (bool, error) {
+		row, err := k.projectDispatchRoundAcceptor(key, state)
+		if err != nil {
+			return false, err
+		}
+		genesis.DispatchRoundAcceptors = append(genesis.DispatchRoundAcceptors, row)
+		return false, nil
+	}); err != nil {
 		return err
 	}
 	if genesis.DispatchChallenges, err = collectProjectedValues(ctx, k.DispatchChallenge, k.ProjectDispatchChallengeStore); err != nil {

@@ -26,7 +26,9 @@ func (m *msgServer) cancelOrder(ctx context.Context, req *types.MsgCancelOrder) 
 		return nil, errorsmod.Wrap(types.ErrInvalidOrderSequence, "cancel requires the next unused sequence")
 	}
 	key := types.NewOrderSequenceStateKey(types.NewSessionStoreKey(req.SessionId), req.OrderSequence)
+	var compensationPaid bool
 	if previous, err := m.k.OrderSequence.Get(ctx, key); err == nil {
+		compensationPaid = previous.CompensationPaid
 		if !bytes.Equal(previous.SessionId, req.SessionId) || previous.OrderSequence != req.OrderSequence {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "cancel sequence key/value mismatch")
 		}
@@ -56,7 +58,7 @@ func (m *msgServer) cancelOrder(ctx context.Context, req *types.MsgCancelOrder) 
 		return nil, errorsmod.Wrap(types.ErrInvalidOrderSequence, "cancel order has insufficient remaining gas")
 	}
 	gasMeter.ConsumeGas(currentParams.Session.CancelOrderMinGas, "cancel order guard")
-	if err := m.k.OrderSequence.Set(ctx, key, types.OrderSequenceState{SessionId: bytes.Clone(req.SessionId), OrderSequence: req.OrderSequence, Status: types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING, CancelEffectiveHeight: effective}); err != nil {
+	if err := m.k.OrderSequence.Set(ctx, key, types.OrderSequenceState{SessionId: bytes.Clone(req.SessionId), OrderSequence: req.OrderSequence, Status: types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCEL_PENDING, CancelEffectiveHeight: effective, CompensationPaid: compensationPaid}); err != nil {
 		return nil, err
 	}
 	if err := m.k.OrderCancelIndex.Set(ctx, collections.Join3(effective, req.SessionId, req.OrderSequence)); err != nil {

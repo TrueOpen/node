@@ -13,6 +13,9 @@ import (
 const BuilderFaultSlashBasisPointsMaximum = uint32(10_000)
 
 func (s BuilderState) Validate() error {
+	if err := ValidateRevokedServiceKeyBinding(s.CurrentServiceKeyStatus, s.GetRevokedHeight(), s.XRevokedHeight != nil); err != nil {
+		return err
+	}
 	if s.SchemaVersion != 1 {
 		return fmt.Errorf("builder schema_version must be 1")
 	}

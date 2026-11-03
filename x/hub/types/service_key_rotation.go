@@ -51,6 +51,18 @@ func ServiceKeyNonceMatches(current, previous, nonce uint64) bool {
 	return nonce != 0 && (nonce == current || previous != 0 && nonce == previous)
 }
 
+// ValidateRevokedServiceKeyBinding distinguishes an explicit revoke cutoff from
+// terminal-state revocation, which preserves proofs without inventing a height.
+func ValidateRevokedServiceKeyBinding(status ServiceKeyStatus, height uint64, present bool) error {
+	if !present {
+		return nil
+	}
+	if status != ServiceKeyStatusRevoked || !shared.IsBlockHeightV1(height) {
+		return fmt.Errorf("revoke height requires a REVOKED binding and a positive block height")
+	}
+	return nil
+}
+
 // ValidatePreviousServiceKeyBinding checks the compact, single-generation proof identity.
 func ValidatePreviousServiceKeyBinding(current uint64, currentPubkey, pubkey []byte, nonce, retired uint64) error {
 	if len(pubkey) == 0 && nonce == 0 && retired == 0 {
@@ -88,6 +100,7 @@ func (s CurrentServiceKeySnapshot) ResolveProofKey(nonce uint64) (dispatch.Proof
 			key.Status = dispatch.ProofKeyActive
 		case ServiceKeyStatusRevoked:
 			key.Status = dispatch.ProofKeyRevoked
+			key.RevokedHeight = s.RevokedHeight
 		default:
 			return dispatch.ProofKeyBinding{}, dispatch.ErrProofKeyUnavailable
 		}

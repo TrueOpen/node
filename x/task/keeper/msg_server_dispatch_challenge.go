@@ -282,7 +282,7 @@ func (m msgServer) ChallengeDispatchDoubleDispatch(ctx context.Context, req *typ
 		if !bytes.Equal(record.TaskId, id[:]) || !bytes.Equal(record.TaskHash, hash[:]) || !bytes.Equal(record.SessionId, req.Order.Order.SessionId) || record.OrderSequence != req.Order.Order.OrderSequence {
 			return row, 0, invalidDispatchChallengeProof("double dispatch order/record scope mismatch")
 		}
-		digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &req.Order.Order.EarliestSubmitHeight)
+		digest, err := m.k.verifyDispatchMaterial(ctx, "task.v1.DispatchRecordV1", record, &req.Order.Order.EarliestSubmitHeight, &record.BoundChangeHeight)
 		if err != nil {
 			return row, 0, err
 		}

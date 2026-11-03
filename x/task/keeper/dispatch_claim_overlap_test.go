@@ -43,12 +43,11 @@ func TestDispatchRecordingAfterClaimPreservesMaturityAndGenesis(t *testing.T) {
 			require.NoError(t, err)
 			f.record(t, entry)
 			require.NoError(t, f.keeper.EnsureDispatchInvariant(f.ctx))
-			genesis := types.DefaultGenesis()
-			require.NoError(t, f.keeper.exportDispatchGenesis(f.ctx, genesis))
+			genesis := exportDispatchFixtureGenesis(t, f)
 			require.NoError(t, genesis.Validate())
 			restored := newDispatchFixture(t)
 			restored.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restored.ctx).WithBlockHeight(sdk.UnwrapSDKContext(f.ctx).BlockHeight()))
-			require.NoError(t, restored.keeper.initDispatchGenesis(restored.ctx, *genesis, uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight())))
+			restoreDispatchFixtureGenesis(t, restored, *genesis, uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight()))
 			if !paidFirst {
 				mature()
 			}

@@ -22,6 +22,7 @@ const (
 	dispatchChallengePruning
 	dispatchWinnerPruning
 	dispatchTakeoverPruning
+	dispatchRoundAcceptorPruning
 )
 
 type dispatchDeadlineQueue struct {
@@ -49,6 +50,8 @@ func (k Keeper) newDispatchDeadlineQueue(action dispatchDeadlineAction) *dispatc
 		q.set = k.DispatchWinnerIneligiblePrune
 	case dispatchTakeoverPruning:
 		q.set = k.TakeoverEntryReceiptPrune
+	case dispatchRoundAcceptorPruning:
+		q.set = k.DispatchRoundAcceptorPrune
 	}
 	return q
 }
@@ -82,6 +85,16 @@ func (q *dispatchDeadlineQueue) head(ctx context.Context, height uint64) (deadli
 func (q *dispatchDeadlineQueue) run(ctx context.Context, height, limit, maxBytes uint64) (deadlineSweepUsage, error) {
 	var usage deadlineSweepUsage
 	if limit == 0 {
+		return usage, nil
+	}
+	if maxBytes < evidenceCleanupConservativeBytesV1 {
+		return usage, nil
+	}
+	if present, err := q.set.Has(ctx, q.row); err != nil {
+		return usage, err
+	} else if !present {
+		usage.visited = 1
+		usage.serializedBytes = evidenceCleanupConservativeBytesV1
 		return usage, nil
 	}
 	estimate := taskDeadlineConservativeBytesV1
@@ -168,7 +181,16 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 		}
 		base = row.GetResolvedHeight()
 		floor = row.ClaimWindowCloseHeight
-		remove = func() error { return q.k.DispatchCompensationClaim.Remove(ctx, id) }
+		params, err = q.k.dispatchSessionParams(ctx, row.SessionId)
+		if err != nil {
+			return err
+		}
+		remove = func() error {
+			if err := q.k.DispatchClaimByTicket.Remove(ctx, id); err != nil {
+				return err
+			}
+			return q.k.DispatchCompensationClaim.Remove(ctx, types.NewOrderSequenceStateKey(row.SessionId, row.OrderSequence))
+		}
 	case dispatchChallengePruning:
 		row, err := q.k.readDispatchChallenge(ctx, id)
 		if err != nil {
@@ -209,6 +231,21 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 		}
 		base = max(row.ActivationHeight, row.OrderExpireHeight)
 		remove = func() error { return q.k.TakeoverEntryReceipt.Remove(ctx, id) }
+	case dispatchRoundAcceptorPruning:
+		stored, err := q.k.DispatchRoundAcceptor.Get(ctx, id)
+		if err != nil {
+			return err
+		}
+		row, err := q.k.projectDispatchRoundAcceptor(id, stored)
+		if err != nil {
+			return err
+		}
+		params, err = q.k.dispatchSessionParams(ctx, row.SessionId)
+		if err != nil {
+			return err
+		}
+		base = stored.RegisteredHeight
+		remove = func() error { return q.k.DispatchRoundAcceptor.Remove(ctx, id) }
 	default:
 		return fmt.Errorf("unknown dispatch prune action")
 	}
@@ -227,6 +264,7 @@ func (q *dispatchDeadlineQueue) prune(ctx context.Context, height uint64) error 
 }
 
 func (q *dispatchDeadlineQueue) reschedulePrune(ctx context.Context, height uint64) error {
+
 	if err := q.set.Remove(ctx, q.row); err != nil {
 		return err
 	}

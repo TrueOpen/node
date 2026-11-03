@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -11,16 +12,68 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-func collectDispatchPrimaries[S any](ctx context.Context, table collections.Map[types.Hash32Key, S], identity func(S) []byte) ([]S, error) {
+func collectDispatchPrimaries[K, S any](ctx context.Context, table collections.Map[K, S], identity func(S) K) ([]S, error) {
 	var rows []S
-	err := table.Walk(ctx, nil, func(key types.Hash32Key, row S) (bool, error) {
-		if !bytes.Equal(key, identity(row)) {
+	err := table.Walk(ctx, nil, func(key K, row S) (bool, error) {
+		actual, err := indexKeyBytes(table.KeyCodec(), key)
+		if err != nil {
+			return false, err
+		}
+		expected, err := indexKeyBytes(table.KeyCodec(), identity(row))
+		if err != nil {
+			return false, err
+		}
+		if actual != expected {
 			return false, fmt.Errorf("dispatch primary key/payload mismatch")
 		}
 		rows = append(rows, row)
 		return false, nil
 	})
 	return rows, err
+}
+
+func (d *dispatchInvariantState) collectRoundAcceptors(ctx context.Context) error {
+	return d.keeper.DispatchRoundAcceptor.Walk(ctx, nil, func(key []byte, state internaltypes.DispatchRoundAcceptorStoreState) (bool, error) {
+		if _, err := d.keeper.projectDispatchRoundAcceptor(key, state); err != nil {
+			return false, err
+		}
+		floor, err := dispatchPruneFloor(state.RegisteredHeight)
+		if err != nil {
+			return false, err
+		}
+		d.roundPrunes[string(key)] = floor
+		return false, nil
+	})
+}
+
+func (k Keeper) validateDispatchClaimSequence(ctx context.Context, row types.DispatchCompensationClaimState) error {
+	var stream *types.StreamState
+	var sequence *types.OrderSequenceState
+	var cursor *types.SessionHistoryPruneCursorState
+	if state, err := k.ReadStream(ctx, row.SessionId); err == nil {
+		stream = &state
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+	if state, err := k.OrderSequence.Get(ctx, types.NewOrderSequenceStateKey(row.SessionId, row.OrderSequence)); err == nil {
+		sequence = &state
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+	if state, err := k.SessionHistoryPruneCursor.Get(ctx, row.SessionId); err == nil {
+		cursor = &state
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return err
+	}
+	var params types.TaskParamsV1
+	if stream != nil && row.Status == types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL {
+		var err error
+		params, err = k.ParamsForSession(ctx, row.SessionId)
+		if err != nil {
+			return err
+		}
+	}
+	return types.ValidateDispatchClaimSessionScope(row, stream, sequence, cursor, params)
 }
 
 func indexKeyBytes[K any](codec collectionscodec.KeyCodec[K], key K) (string, error) {
@@ -87,6 +140,8 @@ func checkDispatchPruneSet(ctx context.Context, set collections.KeySet[types.Dea
 func (k Keeper) EnsureDispatchInvariant(ctx context.Context) error {
 	d := dispatchInvariantState{keeper: k,
 		claimDeadlines:     map[string]bool{},
+		claimTickets:       map[string][]byte{},
+		roundPrunes:        map[string]uint64{},
 		challengeDeadlines: map[string]bool{},
 		claimBuilders:      map[string]bool{},
 		challengeBuilders:  map[string]bool{},
@@ -99,7 +154,7 @@ func (k Keeper) EnsureDispatchInvariant(ctx context.Context) error {
 		upheld:             map[string][]byte{},
 		recordHashes:       map[string][]byte{},
 	}
-	for _, check := range []func(context.Context) error{d.collectRecords, d.collectClaims, d.collectChallenges, d.collectWinners, d.collectTakeovers, d.checkIndexes} {
+	for _, check := range []func(context.Context) error{d.collectRecords, d.collectClaims, d.collectChallenges, d.collectWinners, d.collectTakeovers, d.collectRoundAcceptors, d.checkIndexes} {
 		if err := check(ctx); err != nil {
 			return err
 		}
@@ -109,6 +164,8 @@ func (k Keeper) EnsureDispatchInvariant(ctx context.Context) error {
 
 type dispatchInvariantState struct {
 	keeper             Keeper
+	claimTickets       map[string][]byte
+	roundPrunes        map[string]uint64
 	claimDeadlines     map[string]bool
 	challengeDeadlines map[string]bool
 	claimBuilders      map[string]bool
@@ -179,13 +236,26 @@ func (d *dispatchInvariantState) collectRecords(ctx context.Context) error {
 }
 
 func (d *dispatchInvariantState) collectClaims(ctx context.Context) error {
-	claims, err := collectDispatchPrimaries(ctx, d.keeper.DispatchCompensationClaim, func(s internaltypes.DispatchCompensationClaimStoreState) []byte { return s.DispatchTicketHash })
+	claims, err := collectDispatchPrimaries(ctx, d.keeper.DispatchCompensationClaim, func(s internaltypes.DispatchCompensationClaimStoreState) types.OrderSequenceStateKeyPair {
+		return types.NewOrderSequenceStateKey(s.SessionId, s.OrderSequence)
+	})
 	if err != nil {
 		return err
 	}
 	for _, state := range claims {
 		row, err := d.keeper.readDispatchClaim(ctx, state.DispatchTicketHash)
 		if err != nil {
+			return err
+		}
+		encoded, err := indexKeyBytes(d.keeper.DispatchCompensationClaim.KeyCodec(), types.NewOrderSequenceStateKey(row.SessionId, row.OrderSequence))
+		if err != nil {
+			return err
+		}
+		if _, exists := d.claimTickets[string(row.DispatchTicketHash)]; exists {
+			return fmt.Errorf("duplicate claim ticket")
+		}
+		d.claimTickets[string(row.DispatchTicketHash)] = []byte(encoded)
+		if err := d.keeper.validateDispatchClaimSequence(ctx, row); err != nil {
 			return err
 		}
 		if row.Status == types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL {
@@ -206,10 +276,11 @@ func (d *dispatchInvariantState) collectClaims(ctx context.Context) error {
 				return err
 			}
 		} else {
-			floor, err := dispatchPruneFloor(max(row.ClaimWindowCloseHeight, row.GetResolvedHeight()))
+			floor, err := dispatchPruneFloor(row.GetResolvedHeight())
 			if err != nil {
 				return err
 			}
+			floor = max(floor, row.ClaimWindowCloseHeight)
 			d.claimPrunes[string(row.DispatchTicketHash)] = floor
 		}
 	}
@@ -321,10 +392,23 @@ func (d *dispatchInvariantState) checkIndexes(ctx context.Context) error {
 	for _, check := range []struct {
 		set  collections.KeySet[types.DeadlineIndexKey]
 		want map[string]uint64
-	}{{d.keeper.DispatchRecordPrune, d.recordPrunes}, {d.keeper.DispatchClaimPrune, d.claimPrunes}, {d.keeper.DispatchChallengePrune, d.challengePrunes}, {d.keeper.DispatchWinnerIneligiblePrune, d.winnerPrunes}, {d.keeper.TakeoverEntryReceiptPrune, d.takeoverPrunes}} {
+	}{{d.keeper.DispatchRecordPrune, d.recordPrunes}, {d.keeper.DispatchClaimPrune, d.claimPrunes}, {d.keeper.DispatchChallengePrune, d.challengePrunes}, {d.keeper.DispatchWinnerIneligiblePrune, d.winnerPrunes}, {d.keeper.TakeoverEntryReceiptPrune, d.takeoverPrunes}, {d.keeper.DispatchRoundAcceptorPrune, d.roundPrunes}} {
 		if err := checkDispatchPruneSet(ctx, check.set, check.want); err != nil {
 			return err
 		}
+	}
+	if err := d.keeper.DispatchClaimByTicket.Walk(ctx, nil, func(ticket, key []byte) (bool, error) {
+		want, found := d.claimTickets[string(ticket)]
+		if !found || !bytes.Equal(want, key) {
+			return false, fmt.Errorf("claim ticket index/primary mismatch")
+		}
+		delete(d.claimTickets, string(ticket))
+		return false, nil
+	}); err != nil {
+		return err
+	}
+	if len(d.claimTickets) != 0 {
+		return fmt.Errorf("claim primary is missing its ticket index")
 	}
 	if err := d.keeper.DispatchRecordByHash.Walk(ctx, nil, func(hash []byte, id []byte) (bool, error) {
 		want, found := d.recordHashes[string(hash)]

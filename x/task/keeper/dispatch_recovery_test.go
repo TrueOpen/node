@@ -26,7 +26,7 @@ func TestDispatchClaimAuthenticatesRebutsAndPaysAtomically(t *testing.T) {
 			entry.Accept.ServiceSignature[0] ^= 1
 			_, err = server.ClaimDispatchCompensation(f.ctx, request)
 			require.Error(t, err)
-			found, err := f.keeper.DispatchCompensationClaim.Has(f.ctx, entry.Accept.DispatchTicketHash)
+			found, err := f.keeper.DispatchCompensationClaim.Has(f.ctx, types.NewOrderSequenceStateKey(entry.SignedOrder.Order.SessionId, entry.SignedOrder.Order.OrderSequence))
 			require.NoError(t, err)
 			require.False(t, found)
 			entry.Accept.ServiceSignature[0] ^= 1

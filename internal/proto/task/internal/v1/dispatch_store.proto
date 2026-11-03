@@ -97,6 +97,13 @@ message DispatchCompensationClaimStoreState {
   uint64 claim_window_close_height = 16;
   // Original verified claim order height; independent of any accepted record.
   uint64 earliest_submit_height = 17;
+  uint64 bound_change_height = 18;
+}
+
+// DispatchRoundAcceptorStoreState omits the raw identity already in its key.
+message DispatchRoundAcceptorStoreState {
+  bytes dispatch_ticket_hash = 1;
+  uint64 registered_height = 2;
 }
 
 // DispatchWinnerIneligibleStoreState keeps the authenticated winner-specific rejection.

@@ -27,12 +27,12 @@ func (k Keeper) dispatchProofKey(ctx context.Context, signer dispatch.ServicePro
 	return binding.ResolveProofKey(signer.ServiceAuthorizationNonce)
 }
 
-func (k Keeper) verifyDispatchMaterial(ctx context.Context, name string, message proto.Message, earliestSubmitHeight *uint64) ([32]byte, error) {
+func (k Keeper) verifyDispatchMaterial(ctx context.Context, name string, message proto.Message, earliestSubmitHeight, boundChangeHeight *uint64) ([32]byte, error) {
 	raw, err := proto.Marshal(message)
 	if err != nil {
 		return [32]byte{}, err
 	}
-	err = dispatch.VerifyDispatchProof(sdkContextFrom(ctx).ChainID(), name, raw, dispatch.ProofKeyOptions{OrderEarliestSubmitHeight: earliestSubmitHeight, LookupProofKey: func(signer dispatch.ServiceProofSigner) (dispatch.ProofKeyBinding, error) {
+	err = dispatch.VerifyDispatchProof(sdkContextFrom(ctx).ChainID(), name, raw, dispatch.ProofKeyOptions{OrderEarliestSubmitHeight: earliestSubmitHeight, TicketBoundChangeHeight: boundChangeHeight, LookupProofKey: func(signer dispatch.ServiceProofSigner) (dispatch.ProofKeyBinding, error) {
 		return k.dispatchProofKey(ctx, signer)
 	}})
 	if err != nil {

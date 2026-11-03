@@ -136,6 +136,9 @@ func (k Keeper) ensureOrderBudgetTerminal(ctx context.Context, state types.Order
 }
 
 func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.SessionStoreKey, currentHeight uint64, remaining *uint64) (bool, error) {
+	if remaining == nil || *remaining == 0 {
+		return false, nil
+	}
 	params, err := k.ParamsForSession(ctx, sessionKey)
 	if err != nil {
 		return false, err
@@ -169,14 +172,39 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 		return false, errorsmod.Wrap(types.ErrInvariantBroken, "session history cursor does not match stream")
 	}
 	visitedBefore := *remaining
+	end, overflow := checkedSessionAddUint64(stream.NextExpectedSequence, uint64(params.Dispatch.MaxPendingPerSession))
+	if overflow {
+		return false, errorsmod.Wrap(types.ErrInvariantBroken, "Session history range overflows")
+	}
 
-	for cursor.NextOrderSequence < stream.NextExpectedSequence && *remaining > 0 {
+	for cursor.NextOrderSequence < end && *remaining > 0 {
 		sequence := cursor.NextOrderSequence
 		key := types.NewOrderSequenceStateKey(sessionKey, sequence)
-		state, err := k.OrderSequence.Get(ctx, key)
 		(*remaining)--
 		if err := incrementSessionHistoryVisited(&cursor); err != nil {
 			return false, err
+		}
+		if claim, err := k.readDispatchClaimBySequence(ctx, sessionKey, sequence); err == nil {
+			if claim.Status == types.DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL {
+				return false, k.SessionHistoryPruneCursor.Set(ctx, sessionKey, cursor)
+			}
+		} else if !errors.Is(err, collections.ErrNotFound) {
+			return false, err
+		}
+		state, err := k.OrderSequence.Get(ctx, key)
+		if sequence >= stream.NextExpectedSequence {
+			if err == nil {
+				if !bytes.Equal(state.SessionId, stream.SessionId) || state.OrderSequence != sequence || state.Status != types.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_UNUSED || !state.CompensationPaid {
+					return false, errorsmod.Wrap(types.ErrInvariantBroken, "invalid Session history tail marker")
+				}
+				if err := k.OrderSequence.Remove(ctx, key); err != nil {
+					return false, err
+				}
+			} else if !errors.Is(err, collections.ErrNotFound) {
+				return false, err
+			}
+			cursor.NextOrderSequence++
+			continue
 		}
 		if err != nil {
 			if errors.Is(err, collections.ErrNotFound) {
@@ -189,6 +217,15 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 		}
 		if !bytes.Equal(state.SessionId, stream.SessionId) || state.OrderSequence != sequence {
 			return false, errorsmod.Wrap(types.ErrInvariantBroken, "order sequence primary key does not match state")
+		}
+		if len(state.TaskId) != 0 {
+			// Task cleanup owns the evidence, challenge and liability barriers.
+			// Its retained primary is a wait condition, even after settlement.
+			if live, err := k.TaskCore.Has(ctx, state.TaskId); err != nil {
+				return false, err
+			} else if live {
+				return false, k.SessionHistoryPruneCursor.Set(ctx, sessionKey, cursor)
+			}
 		}
 		if err := k.ensureOrderBudgetTerminal(ctx, state); err != nil {
 			return false, err
@@ -211,7 +248,7 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 		cursor.NextOrderSequence = nextSequence
 	}
 
-	if cursor.NextOrderSequence < stream.NextExpectedSequence {
+	if cursor.NextOrderSequence < end {
 		return false, k.SessionHistoryPruneCursor.Set(ctx, sessionKey, cursor)
 	}
 	if stream.NextExpectedSequence > math.MaxUint32 {
@@ -229,7 +266,7 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 	if err != nil {
 		return false, err
 	}
-	if uint64(foldedCount) != cursor.NextOrderSequence || cursor.NextOrderSequence != stream.NextExpectedSequence {
+	if uint64(foldedCount) != stream.NextExpectedSequence || cursor.NextOrderSequence != end {
 		return false, errorsmod.Wrap(types.ErrInvariantBroken, "session folded counts do not match the completed sequence cursor")
 	}
 	summary := types.SessionTerminalSummaryState{
@@ -242,7 +279,7 @@ func (k Keeper) compactSessionHistory(ctx context.Context, sessionKey types.Sess
 		CancelledCount:            cursor.CancelledCount,
 		RefundedCount:             cursor.RefundedCount,
 		SettledCount:              cursor.SettledCount,
-		ClosedHeight:              stream.LastActiveHeight,
+		ClosedHeight:              stream.ClosedHeight,
 		CompactedHeight:           currentHeight,
 	}
 	pruneHeight, overflow := checkedSessionAddUint64(currentHeight, params.Session.SessionTerminalSummaryRetentionBlocks)

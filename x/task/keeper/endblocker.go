@@ -703,6 +703,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{dispatchChallengePruning, endBlockPriorityDispatchPrune + 2, func(n uint64) { result.DispatchPrune += n }},
 		{dispatchWinnerPruning, endBlockPriorityDispatchPrune + 3, func(n uint64) { result.DispatchPrune += n }},
 		{dispatchTakeoverPruning, endBlockPriorityDispatchPrune + 4, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchRoundAcceptorPruning, endBlockPriorityDispatchPrune + 5, func(n uint64) { result.DispatchPrune += n }},
 	} {
 		queue := k.newDispatchDeadlineQueue(item.action)
 		queues = append(queues, sweepQueue{item.priority, queue.head, queue.run, item.count})

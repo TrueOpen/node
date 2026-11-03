@@ -104,7 +104,7 @@ func ValidateDispatchClaim(row DispatchCompensationClaimState) error {
 			return err
 		}
 	}
-	if row.BuilderSetId == "" || row.EarliestSubmitHeight == 0 || row.EarliestSubmitHeight >= row.ClaimedHeight || row.RebuttalDeadlineHeight <= row.ClaimedHeight || row.ClaimWindowCloseHeight < row.ClaimedHeight {
+	if row.BuilderSetId == "" || row.EarliestSubmitHeight == 0 || max(row.EarliestSubmitHeight, row.BoundChangeHeight) >= row.ClaimedHeight || row.RebuttalDeadlineHeight <= row.ClaimedHeight || row.ClaimWindowCloseHeight < row.ClaimedHeight {
 		return fmt.Errorf("claim scope or heights are invalid")
 	}
 	amount, err := shared.ParseAmount(row.Amount)
@@ -140,6 +140,38 @@ func ValidateDispatchClaim(row DispatchCompensationClaimState) error {
 		}
 	default:
 		return fmt.Errorf("unknown compensation claim status")
+	}
+	return nil
+}
+
+// ValidateDispatchRoundAcceptor checks the immutable signed scope and prune anchor.
+func ValidateDispatchRoundAcceptor(row DispatchRoundAcceptorState) error {
+	if len(row.SessionId) != Hash32Len || len(row.DispatchTicketHash) != Hash32Len || !shared.IsBlockHeightV1(row.RegisteredHeight) || row.BoundChangeHeight > row.RegisteredHeight {
+		return fmt.Errorf("invalid dispatch round acceptor identity or clock")
+	}
+	_, err := requireCanonicalNonEmpty("round Builder", row.BuilderAddress)
+	return err
+}
+
+// ValidateDispatchClaimSessionScope is shared by import and stored-state audits.
+// Independent terminal receipts survive compaction; pending claims never do.
+func ValidateDispatchClaimSessionScope(row DispatchCompensationClaimState, stream *StreamState, sequence *OrderSequenceState, cursor *SessionHistoryPruneCursorState, params TaskParamsV1) error {
+	pending := row.Status == DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PENDING_REBUTTAL
+	paid := row.Status == DispatchCompensationClaimStatusV1_DISPATCH_COMPENSATION_CLAIM_STATUS_V1_PAID
+	if stream == nil || cursor != nil && row.OrderSequence < cursor.NextOrderSequence {
+		if pending {
+			return fmt.Errorf("pending claim lost its retained Session/sequence scope")
+		}
+		return nil
+	}
+	if paid && (sequence == nil || !sequence.CompensationPaid) {
+		return fmt.Errorf("paid claim lacks its sequence marker")
+	}
+	if pending {
+		limit, overflow := shared.CheckedAddUint64(stream.NextExpectedSequence, uint64(params.Dispatch.MaxPendingPerSession))
+		if overflow || row.OrderSequence >= limit || sequence != nil && sequence.CompensationPaid || stream.Status == SessionStatus_SESSION_STATUS_CLOSED && max(row.EarliestSubmitHeight, row.BoundChangeHeight) >= stream.ClosedHeight {
+			return fmt.Errorf("pending claim exceeds its Session scope")
+		}
 	}
 	return nil
 }
