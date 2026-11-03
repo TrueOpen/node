@@ -13,17 +13,17 @@
     "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.5.2-0.20261103053637-5d3339a82fc8",
-  "release_commit": "5d3339a82fc82586bee27c799a7fc3c21bdb3985",
+  "release_tag": "v0.5.2-0.20261103094047-742b4ecad062",
+  "release_commit": "742b4ecad062936eb01a89defc3f7ebd8301751e",
   "descriptor": {
     "path": "wire/wire.binpb",
-    "bytes": 1239553,
-    "sha256": "b242530eee395c2eb6a7c67351fa8ffc06bd4cbe1798e3c3cc8e3e37d650fcfc"
+    "bytes": 1240125,
+    "sha256": "b7695bc689a34c866410b41e0d1541d7cbfb1165ff7c4979e9e8679621513898"
   },
   "domain_registry": {
     "path": "registry/v1/domains.json",
-    "bytes": 173220,
-    "sha256": "7b0669ccd23ad6f20106b08b3d25d9dcf1708707506419f7c9afb38f50b0e6e4"
+    "bytes": 173352,
+    "sha256": "ae4071603b8faf23f67b7457f63297920b05e56a57b836435c82adbefea63252"
   },
   "released_packages": [
     "hub.module.v1",
