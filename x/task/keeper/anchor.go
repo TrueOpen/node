@@ -119,14 +119,50 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	if err != nil {
 		return fmt.Errorf("anchor audit %x: %w", assignment.TaskId, err)
 	}
+	verifiers := make([]string, 0, len(assignment.SelectedVerifiers))
+	for _, v := range assignment.SelectedVerifiers {
+		verifiers = append(verifiers, v.OperatorAddress)
+	}
 	state := types.AnchorAuditState{
-		TaskId:       append([]byte(nil), assignment.TaskId...),
-		Sampled:      true,
-		Positions:    anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0),
-		SampleBeacon: append([]byte(nil), assignment.SelectionRandomnessBeacon...),
-		SampleHeight: assignment.SelectionRandomnessHeight,
+		TaskId:            append([]byte(nil), assignment.TaskId...),
+		Sampled:           true,
+		Positions:         anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0),
+		SampleBeacon:      append([]byte(nil), assignment.SelectionRandomnessBeacon...),
+		SampleHeight:      assignment.SelectionRandomnessHeight,
+		WinnerWorker:      receipt.WinnerWorker,
+		SelectedVerifiers: verifiers,
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
+}
+
+// anchorWinner returns the Worker the audit belongs to: stored at sampling,
+// else read from the live receipt (audits sampled before that field existed).
+func (k Keeper) anchorWinner(ctx context.Context, taskKey types.TaskKey, state types.AnchorAuditState) (string, error) {
+	if state.WinnerWorker != "" {
+		return state.WinnerWorker, nil
+	}
+	receipt, err := k.ReadInferReceipt(ctx, taskKey)
+	if err != nil {
+		return "", errorsmod.Wrap(types.ErrInvalidAssignment, "accepted infer receipt is unavailable")
+	}
+	return receipt.WinnerWorker, nil
+}
+
+// anchorVerifiers returns the round-1 selected Verifiers of the audit: stored
+// at sampling, else read from the live assignment.
+func (k Keeper) anchorVerifiers(ctx context.Context, taskID []byte, state types.AnchorAuditState) ([]string, error) {
+	if len(state.SelectedVerifiers) > 0 {
+		return state.SelectedVerifiers, nil
+	}
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskID, 1))
+	if err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "round 1 verifier assignment is unavailable")
+	}
+	out := make([]string, 0, len(assignment.SelectedVerifiers))
+	for _, selected := range assignment.SelectedVerifiers {
+		out = append(out, selected.OperatorAddress)
+	}
+	return out, nil
 }
 
 func positionsEqual(a, b []uint64) bool {
@@ -172,11 +208,11 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
 	}
-	receipt, err := m.k.ReadInferReceipt(ctx, taskKey)
+	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "accepted infer receipt is unavailable")
+		return nil, err
 	}
-	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, receipt.WinnerWorker, req.SubmitterAddress); err != nil {
+	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, winner, req.SubmitterAddress); err != nil {
 		return nil, err
 	}
 	if len(state.OpeningHash) == types.Hash32Len {
@@ -229,11 +265,11 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if !bytes.Equal(state.OpeningHash, req.OpeningHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof names a different opening than the chain recorded")
 	}
-	receipt, err := m.k.ReadInferReceipt(ctx, taskKey)
+	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "accepted infer receipt is unavailable")
+		return nil, err
 	}
-	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, receipt.WinnerWorker, req.SubmitterAddress); err != nil {
+	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, winner, req.SubmitterAddress); err != nil {
 		return nil, err
 	}
 	if len(state.WorkerProofHash) == types.Hash32Len {
@@ -310,14 +346,14 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	if len(req.ProofHash) == types.Hash32Len && len(state.WorkerProofHash) == types.Hash32Len && !bytes.Equal(req.ProofHash, state.WorkerProofHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "audit result names a proof other than the Worker's recorded proof")
 	}
-	assignment, err := m.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(req.TaskId, 1))
+	selected, err := m.k.anchorVerifiers(ctx, req.TaskId, state)
 	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "round 1 verifier assignment is unavailable")
+		return nil, err
 	}
 	var verifier string
-	for _, selected := range assignment.SelectedVerifiers {
-		if m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, selected.OperatorAddress, submitter) == nil {
-			verifier = selected.OperatorAddress
+	for _, operator := range selected {
+		if m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, operator, submitter) == nil {
+			verifier = operator
 			break
 		}
 	}
