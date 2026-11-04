@@ -1,6 +1,7 @@
 # Phase 1 recovery windows
 
-The localnet and testnet seeds use the same recovery policy. Durations below
+The localnet and testnet seeds use the same recovery policy, except for the epoch
+length (see the table). Durations below
 assume 0.5 seconds per block; one-second blocks double the elapsed times.
 
 These windows are deadlines or proof-retention budgets. They are not scheduled
@@ -27,7 +28,8 @@ plane; seed validation alone cannot establish that service-level result.
 | Challenge response / compensation rebuttal | 1800 / 1800 | 15 minutes each |
 | Dispatch receipt / dispatch evidence retention | 28800 / 28800 | 4 hours each |
 | Task evidence retention | 14400 | 2 hours |
-| Epoch | 600 | 5 minutes |
+| Epoch (localnet) | 600 | 5 minutes |
+| Epoch (testnet) | 14400 | 2 hours |
 
 Normal recording consumes the sequence immediately; the next order does not
 wait for the previous Task's finality. Selected-verifier commit completion can

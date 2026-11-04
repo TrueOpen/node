@@ -62,7 +62,7 @@
       "candidate_pool_query_hard_limit": 1000
     },
     "epoch": {
-      "epoch_length_blocks": "600",
+      "epoch_length_blocks": "14400",
       "delta_w_blocks": "1",
       "delta_m_blocks": "10"
     },
