@@ -862,6 +862,10 @@ const (
 	FaultTypeWorkerRevealTimeout  = "worker_reveal_timeout"
 	FaultTypeObjectiveForgery     = "objective_forgery"
 	FaultTypeRoundDivergence      = "round_divergence"
+	// FaultTypeAnchorReject: the consensus validators rejected the Worker's anchor
+	// proof, or the Worker never opened / proved before the verdict deadline
+	// (ADR-0040 v4). Applied at settlement against the Worker's task reservation.
+	FaultTypeAnchorReject = "anchor_reject"
 )
 
 const (

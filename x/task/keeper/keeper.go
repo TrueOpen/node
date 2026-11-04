@@ -39,6 +39,7 @@ type Keeper struct {
 	authKeeper                 types.AuthKeeper
 	bankKeeper                 types.BankKeeper
 	hubKeeper                  types.HubKeeper
+	stakingKeeper              types.StakingKeeper // ADR-0040 v4: nil until the app binds it; validator votes then refuse
 
 	Schema     collections.Schema
 	Params     collections.Item[types.TaskParamsV1]
@@ -104,6 +105,7 @@ type Keeper struct {
 	// which is the only registered derivation and the only one that binds chain_id.
 	InferReceipt                        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
 	AnchorAudit                         collections.Map[types.TaskKey, types.AnchorAuditState]
+	AnchorValidatorVote                 collections.Map[collections.Pair[types.TaskKey, []byte], types.AnchorValidatorVoteState]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
 	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
@@ -261,6 +263,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 
 		InferReceipt:                        collections.NewMap(sb, types.InferReceiptKey, "infer_receipt", types.Hash32KeyCodec, codec.CollValue[internaltypes.InferReceiptStoreState](cdc)),
 		AnchorAudit:                         collections.NewMap(sb, types.AnchorAuditKey, "anchor_audit", types.Hash32KeyCodec, codec.CollValue[types.AnchorAuditState](cdc)),
+		AnchorValidatorVote:                 collections.NewMap(sb, types.AnchorValidatorVoteKey, "anchor_validator_vote", collections.PairKeyCodec(types.Hash32KeyCodec, collections.BytesKey), codec.CollValue[types.AnchorValidatorVoteState](cdc)),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
 		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),
@@ -318,3 +321,10 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 
 func (k Keeper) GetAuthority() []byte       { return k.authority }
 func (k Keeper) HubKeeper() types.HubKeeper { return k.hubKeeper }
+
+// WithStakingKeeper binds the consensus validator set that weighs anchor audit
+// votes (ADR-0040 v4). Tests that never vote may leave it unbound.
+func (k Keeper) WithStakingKeeper(stakingKeeper types.StakingKeeper) Keeper {
+	k.stakingKeeper = stakingKeeper
+	return k
+}

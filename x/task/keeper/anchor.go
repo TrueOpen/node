@@ -119,6 +119,14 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	if err != nil {
 		return fmt.Errorf("anchor audit %x: %w", assignment.TaskId, err)
 	}
+	params, err := k.ParamsForTask(ctx, taskKey)
+	if err != nil {
+		return err
+	}
+	deadline, overflow := checkedHeightAdd(assignment.SelectionRandomnessHeight, params.Verification.AnchorVerdictWindowBlocksOrDefault())
+	if overflow {
+		return fmt.Errorf("anchor audit %x: verdict deadline overflows", assignment.TaskId)
+	}
 	verifiers := make([]string, 0, len(assignment.SelectedVerifiers))
 	for _, v := range assignment.SelectedVerifiers {
 		verifiers = append(verifiers, v.OperatorAddress)
@@ -131,6 +139,8 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		SampleHeight:      assignment.SelectionRandomnessHeight,
 		WinnerWorker:      receipt.WinnerWorker,
 		SelectedVerifiers: verifiers,
+		// ADR-0040 v4: the validators' verdict is due by here; a PASS round settles no earlier.
+		VerdictDeadlineHeight: deadline,
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
 }
@@ -320,10 +330,6 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	height, err := currentBlockHeight(ctx)
-	if err != nil {
-		return nil, err
-	}
 	taskKey := types.NewTaskKey(req.TaskId)
 	state, err := m.k.AnchorAudit.Get(ctx, taskKey)
 	if err != nil {
@@ -363,18 +369,18 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	if state.ResultHeight != 0 {
 		return &types.MsgSubmitAnchorAuditResultResponse{TaskVerdict: state.TaskVerdict, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 	}
+	// ADR-0040 v4: a Verifier's result is advisory. The verdict settlement acts on
+	// comes from the consensus validators (SubmitAnchorValidatorVote) or the deadline.
 	state.ResultVerifierOperatorAddress = verifier
 	state.Verdicts = make([]types.AnchorPositionVerdictV1, len(req.Verdicts))
 	for i, v := range req.Verdicts {
 		state.Verdicts[i] = types.AnchorPositionVerdictV1{Position: v.Position, Verdict: v.Verdict, Reason: v.Reason}
 	}
 	state.ProofHash = append([]byte(nil), req.ProofHash...)
-	state.ResultHeight = height
-	state.TaskVerdict = anchorTaskVerdict(state.Verdicts)
 	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
 		return nil, err
 	}
-	return &types.MsgSubmitAnchorAuditResultResponse{TaskVerdict: state.TaskVerdict, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
+	return &types.MsgSubmitAnchorAuditResultResponse{TaskVerdict: anchorTaskVerdict(state.Verdicts), Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
 }
 
 func (q queryServer) AnchorAudit(ctx context.Context, req *types.QueryAnchorAuditRequest) (*types.QueryAnchorAuditResponse, error) {

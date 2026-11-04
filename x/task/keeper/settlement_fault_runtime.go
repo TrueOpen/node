@@ -135,6 +135,33 @@ func (k Keeper) prepareSettlementFaults(
 		}
 		rows = append(rows, row)
 	}
+	if inputs.Anchor != nil && inputs.Anchor.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT &&
+		inputs.Assignment.WinnerWorker != "" {
+		// ADR-0040 v4: the validators rejected the Worker's anchor proof (or the
+		// Worker never opened / proved by the deadline): slash its task reservation.
+		params, err := k.ParamsForTask(ctx, types.NewTaskKey(inputs.Core.TaskId))
+		if err != nil {
+			return inputs, err
+		}
+		applied, err := k.hubKeeper.ApplyTaskRoleFault(ctx, hubtypes.TaskRoleFaultFact{
+			SessionID: append([]byte(nil), inputs.Core.SessionId...), TaskID: append([]byte(nil), inputs.Core.TaskId...),
+			OperatorAddress: inputs.Assignment.WinnerWorker, Duty: shared.DutyWorker, FaultType: hubtypes.FaultTypeAnchorReject,
+			ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT,
+			EvidenceDigest:       anchorRejectEvidenceDigest(sdkChainID(ctx), *inputs.Anchor),
+			SlashBps:             params.Verification.AnchorRejectSlashBpsOrDefault(), Height: height,
+		})
+		if err != nil {
+			return inputs, err
+		}
+		faults = append(faults, taskRoleFaultRecord{
+			faultID: append([]byte(nil), applied.FaultId...), operatorAddress: applied.OperatorAddress,
+			duty: applied.Duty, faultClass: applied.FaultClass,
+			classificationSource: applied.ClassificationSource,
+			evidenceDigest:       append([]byte(nil), applied.EvidenceDigest...),
+			jailDelta:            applied.JailDelta, status: applied.Status,
+		})
+		inputs.AnchorWorkerFaultID = append([]byte(nil), applied.FaultId...)
+	}
 	faultSummary, err := taskFaultSummaryHash(sdkChainID(ctx), inputs.Core.TaskId, faults)
 	if err != nil {
 		return inputs, err

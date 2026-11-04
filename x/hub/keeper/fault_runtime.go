@@ -774,7 +774,7 @@ func classifyRoleFaultType(faultType string) (types.FaultKind, shared.FailureCla
 	case types.FaultTypeWorkerInferTimeout, types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult,
 		types.FaultTypeResultNoSettleReveal, types.FaultTypeWorkerRevealTimeout:
 		return types.FaultKind_FAULT_KIND_TIMEOUT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE, nil
-	case types.FaultTypeValueOutlier:
+	case types.FaultTypeValueOutlier, types.FaultTypeAnchorReject:
 		return types.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
 	case types.FaultTypeCommitRevealMismatch:
 		return types.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil

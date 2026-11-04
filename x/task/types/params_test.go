@@ -214,7 +214,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 	require.NoError(t, err)
 	seen := map[string]string{hex.EncodeToString(unmutated): "<unmutated>"}
 	mutations := taskParamsFieldMutations(t)
-	require.Len(t, mutations, 89)
+	require.Len(t, mutations, 91)
 	for path, mutated := range mutations {
 		digest := taskParamsHashUncheckedForTest(t, taskParamsGoldenChainID, 1, mutated)
 		hash := hex.EncodeToString(digest)
@@ -223,7 +223,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 		}
 		seen[hash] = path
 	}
-	require.Len(t, seen, 90)
+	require.Len(t, seen, 92)
 }
 
 func taskParamsHashUncheckedForTest(t *testing.T, chainID string, version uint64, params TaskParamsV1) []byte {

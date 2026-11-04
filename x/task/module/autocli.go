@@ -75,6 +75,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
+					RpcMethod:      "AnchorVotes",
+					Use:            "anchor-votes [task-id]",
+					Short:          "Shows the validator votes and tally of one task's anchor audit (ADR-0040 v4)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
 					RpcMethod:      "VerifierCandidateWindow",
 					Use:            "verifier-candidate-window [task-id] [verify-round]",
 					Short:          "Shows one round's frozen verifier window",
@@ -261,7 +267,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				{
 					RpcMethod: "SubmitAnchorAuditResult",
 					Use:       "submit-anchor-audit-result",
-					Short:     "Record a selected Verifier's anchor audit verdicts (ADR-0040)",
+					Short:     "Record a selected Verifier's advisory anchor audit verdicts (ADR-0040 v1)",
+				},
+				{
+					RpcMethod: "SubmitAnchorValidatorVote",
+					Use:       "submit-anchor-validator-vote",
+					Short:     "Record a bonded validator's verdict on the Worker's anchor proof; final at 2/3 of the voting power (ADR-0040 v4)",
 				},
 				{
 					RpcMethod:      "SubmitBuilderEvidence",

@@ -67,6 +67,10 @@ const (
 	DefaultWorkerInferTimeoutSlashBPS                  = uint32(0)
 	DefaultResultRevealMissingSlashBPS                 = uint32(0)
 	DefaultBuilderFaultSlashBPS                        = uint32(0)
+	// ADR-0040 v4: a REJECT anchor verdict forfeits the Worker's whole task reservation.
+	DefaultAnchorRejectSlashBPS = uint32(10_000)
+	// ADR-0040 v4: ~3 h at ~1.05 s blocks; must exceed epoch window + proving + verification.
+	DefaultAnchorVerdictWindowBlocks = uint64(10_300)
 	DefaultMaxEvidenceRetentionBlocks                  = uint64(1000)
 	DefaultMaxInferEvidenceCommitmentsPerReceipt       = uint32(32)
 	DefaultMaxInferReceiptCommitmentBytes              = uint64(8 << 10)
@@ -470,6 +474,7 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		{"verification.worker_infer_timeout_slash_bps", p.WorkerInferTimeoutSlashBps},
 		{"verification.result_reveal_missing_slash_bps", p.ResultRevealMissingSlashBps},
 		{"verification.builder_fault_slash_bps", p.BuilderFaultSlashBps},
+		{"verification.anchor_reject_slash_bps", p.AnchorRejectSlashBps},
 	} {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
@@ -761,11 +766,7 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 			shared.Uint32BE(p.Weights.MaxWeightedDrawAttemptsPerSelection),
 		),
 		// field 6: VerificationParamsV1
-		shared.RawCanonicalFieldsV1(
-			shared.Uint32BE(p.Verification.WorkerInferTimeoutSlashBps),
-			shared.Uint32BE(p.Verification.ResultRevealMissingSlashBps),
-			shared.Uint32BE(p.Verification.BuilderFaultSlashBps),
-		),
+		verificationParamsCanonicalFields(p.Verification),
 		// field 7: EvidenceLimitParamsV1, whose fields 7 and 8 are repeated.
 		append(
 			shared.RawCanonicalFieldsV1(
@@ -879,4 +880,37 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 		params.Session.MaxSessionKeyBlocks = DefaultMaxSessionKeyBlocks
 	}
 	return params.Validate()
+}
+
+// verificationParamsCanonicalFields frames VerificationParamsV1 for the params
+// hash. The ADR-0040 v4 anchor fields enter the frame only when set, so params
+// recorded before v4 (where both read as zero = node default) keep their hash.
+func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
+	fields := [][]byte{
+		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
+		shared.Uint32BE(v.ResultRevealMissingSlashBps),
+		shared.Uint32BE(v.BuilderFaultSlashBps),
+	}
+	if v.AnchorRejectSlashBps != 0 || v.AnchorVerdictWindowBlocks != 0 {
+		fields = append(fields, shared.Uint32BE(v.AnchorRejectSlashBps), shared.Uint64BE(v.AnchorVerdictWindowBlocks))
+	}
+	return shared.RawCanonicalFieldsV1(fields...)
+}
+
+// AnchorRejectSlashBpsOrDefault is the Worker slash on a REJECT anchor verdict;
+// zero in state means the node default (ADR-0040 v4).
+func (v VerificationParamsV1) AnchorRejectSlashBpsOrDefault() uint32 {
+	if v.AnchorRejectSlashBps == 0 {
+		return DefaultAnchorRejectSlashBPS
+	}
+	return v.AnchorRejectSlashBps
+}
+
+// AnchorVerdictWindowBlocksOrDefault is how long after sampling the validators'
+// verdict may take; zero in state means the node default (ADR-0040 v4).
+func (v VerificationParamsV1) AnchorVerdictWindowBlocksOrDefault() uint64 {
+	if v.AnchorVerdictWindowBlocks == 0 {
+		return DefaultAnchorVerdictWindowBlocks
+	}
+	return v.AnchorVerdictWindowBlocks
 }
