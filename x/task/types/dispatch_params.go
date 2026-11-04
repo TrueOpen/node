@@ -9,6 +9,8 @@ import (
 
 const dispatchChallengeKindCount = int(shared.DispatchChallengeKindV1_DISPATCH_CHALLENGE_KIND_V1_DOUBLE_DISPATCH)
 
+const defaultDispatchRetentionBlocks = uint64(28_800)
+
 // DefaultDispatchParams supplies a bounded test-network configuration. Public
 // seeds explicitly list these values so deployment review sees the entire set.
 func DefaultDispatchParams() DispatchParamsV1 {
@@ -25,7 +27,7 @@ func DefaultDispatchParams() DispatchParamsV1 {
 		MaxSkips: 8, StickyWindowBlocks: 120, StickyMaxOrders: 8,
 		DispatchCompensationClaimWindowBlocks: 60, DispatchCompensationRebuttalBlocks: 30,
 		DispatchChallengeWindowBlocks: 60, DispatchChallengeResponseBlocks: 30,
-		DispatchRecordRetentionBlocks: 1440, MaxDispatchRosterBytes: 1 << 20,
+		DispatchRecordRetentionBlocks: defaultDispatchRetentionBlocks, MaxDispatchRosterBytes: 1 << 20,
 		MaxPendingPerSession: 4, BuilderMaxInflightPerSession: 4,
 		OrderFreshnessMarginBlocks: 3, MaxPrerecordOutputTokens: 32,
 		PrefillCompensationByModelTier: []*PrefillCompensationV1{
@@ -37,7 +39,7 @@ func DefaultDispatchParams() DispatchParamsV1 {
 		},
 		DispatchFaultPenaltyByKind: penalties, DispatchChallengeGasCapByKind: gasCaps,
 		BuilderCompensationAccountMinBalance: shared.NewAmount(1_000_000),
-		DispatchEvidenceRetentionBlocks:      1440, WorkerDispatchContradictionSlashBps: 300,
+		DispatchEvidenceRetentionBlocks:      defaultDispatchRetentionBlocks, WorkerDispatchContradictionSlashBps: 300,
 		MaxOrderLifetimeBlocks: 120,
 	}
 }

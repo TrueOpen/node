@@ -4371,7 +4371,7 @@
           "type": "string"
         },
         "max_order_lifetime_blocks": {
-          "description": "Maximum order_expire_height - earliest_submit_height at order admission,\nincluding takeover registration. Positive and at most 240 blocks in V1;\nthe Session freezes this policy. Compensation does not reauthorize orders.",
+          "description": "Maximum order_expire_height - earliest_submit_height at order admission,\nincluding takeover registration. Positive and at most 7200 blocks in V1;\nthe Session freezes this policy. Compensation does not reauthorize orders.",
           "format": "uint64",
           "type": "string"
         },

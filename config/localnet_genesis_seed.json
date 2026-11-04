@@ -17,8 +17,8 @@
     },
     "builder": {
       "builder_set_cap": 15,
-      "builder_set_update_lead_blocks": "300",
-      "open_verify_builder_proposal_window_blocks": "10",
+      "builder_set_update_lead_blocks": "8400",
+      "open_verify_builder_proposal_window_blocks": "60",
       "settlement_builder_grace_blocks": "2",
       "builder_set_retention_epochs": 30,
       "builder_set_header_retention_epochs": 30,
@@ -47,7 +47,7 @@
       "max_beacon_prune_items_per_block": 256,
       "vrf_required_from_height": "0",
       "max_beacon_carrier_bytes": 1024,
-      "max_vrf_key_history_epochs": 30
+      "max_vrf_key_history_epochs": 60
     },
     "candidate_pool": {
       "candidate_slot_hard_capacity": 4096,
@@ -62,7 +62,7 @@
       "candidate_pool_query_hard_limit": 1000
     },
     "epoch": {
-      "epoch_length_blocks": "240",
+      "epoch_length_blocks": "600",
       "delta_w_blocks": "1",
       "delta_m_blocks": "10"
     },
@@ -217,7 +217,7 @@
     "schema_version": 1,
     "session": {
       "max_order_sequences_per_active_session": 4096,
-      "session_idle_ttl_blocks": 1800,
+      "session_idle_ttl_blocks": 7200,
       "session_close_ttl_blocks": 600000,
       "session_order_retention_blocks": 60480,
       "max_session_history_prune_items_per_block": 256,
@@ -226,20 +226,20 @@
       "max_session_sweep_per_block": 1024,
       "cancel_order_min_gas": 50000,
       "max_session_key_blocks": 604800,
-      "session_withdraw_delay_blocks": 180,
-      "session_change_delay_blocks": 180,
+      "session_withdraw_delay_blocks": 720,
+      "session_change_delay_blocks": 720,
       "session_min_prefund": {
         "atomic_units": "1000000"
       },
       "max_active_sessions_per_account": 16
     },
     "deadlines": {
-      "verify_open_deadline_blocks": 360,
-      "commit_window_blocks": 60,
-      "reveal_window_blocks": 60,
-      "collection_window_blocks": 300,
+      "verify_open_deadline_blocks": 1200,
+      "commit_window_blocks": 600,
+      "reveal_window_blocks": 600,
+      "collection_window_blocks": 1800,
       "settle_margin_blocks": 20,
-      "self_rescue_margin_blocks": 30,
+      "self_rescue_margin_blocks": 120,
       "max_deadline_sweep_per_block": 1024
     },
     "proposals": {
@@ -269,7 +269,7 @@
       "builder_fault_slash_bps": 0
     },
     "evidence": {
-      "max_evidence_retention_blocks": 1000,
+      "max_evidence_retention_blocks": 14400,
       "max_infer_evidence_commitments_per_receipt": 32,
       "max_infer_receipt_commitment_bytes": 8192,
       "max_supported_evidence_schema_versions": 16,
@@ -280,7 +280,7 @@
       "min_output_stream_frame_bytes": 16,
       "max_worker_evidence_bytes_v1": "1048576",
       "encryption_activation_height": 0,
-      "verifier_value_evidence_window_blocks": 120,
+      "verifier_value_evidence_window_blocks": 1200,
       "max_verifier_value_evidence_positions": 64,
       "max_verifier_value_evidence_bytes": 1048576
     },
@@ -330,28 +330,28 @@
       "challenge_inconclusive_bond_slash_bps": 0,
       "challenge_fault_slash_bps": 0,
       "candidate_window_delay_blocks": "5",
-      "handraise_window_blocks": "60",
+      "handraise_window_blocks": "600",
       "assignment_delay_blocks": "5",
-      "commit_window_blocks": "120",
-      "reveal_window_blocks": "120",
+      "commit_window_blocks": "600",
+      "reveal_window_blocks": "600",
       "max_round_effect_items_per_block": 1024
     },
     "dispatch": {
-      "record_deadline_blocks": 60,
+      "record_deadline_blocks": 600,
       "max_dispatch_entries_per_record": 16,
       "max_dispatch_record_bytes": 1048576,
       "max_skips": 8,
-      "sticky_window_blocks": 240,
+      "sticky_window_blocks": 3600,
       "sticky_max_orders": 8,
-      "dispatch_compensation_claim_window_blocks": 120,
-      "dispatch_compensation_rebuttal_blocks": 60,
-      "dispatch_challenge_window_blocks": 120,
-      "dispatch_challenge_response_blocks": 60,
-      "dispatch_record_retention_blocks": 1440,
+      "dispatch_compensation_claim_window_blocks": 7200,
+      "dispatch_compensation_rebuttal_blocks": 1800,
+      "dispatch_challenge_window_blocks": 7200,
+      "dispatch_challenge_response_blocks": 1800,
+      "dispatch_record_retention_blocks": 28800,
       "max_dispatch_roster_bytes": 1048576,
       "max_pending_per_session": 4,
       "builder_max_inflight_per_session": 4,
-      "order_freshness_margin_blocks": 10,
+      "order_freshness_margin_blocks": 240,
       "max_prerecord_output_tokens": 32,
       "prefill_compensation_by_model_tier": [
         {
@@ -442,9 +442,9 @@
       "builder_compensation_account_min_balance": {
         "atomic_units": "1000000"
       },
-      "dispatch_evidence_retention_blocks": 1440,
+      "dispatch_evidence_retention_blocks": 28800,
       "worker_dispatch_contradiction_slash_bps": 300,
-      "max_order_lifetime_blocks": 240
+      "max_order_lifetime_blocks": 7200
     }
   },
   "builders": [
@@ -535,7 +535,7 @@
       "operator_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
       "service_address": "trueopen1j5me037hs26kmqz7xy6s5f0y224trsphlqjfd2",
       "service_pubkey": "0298c2da175fd3063bd2e8156303b98a0f77df43c5ca078eaa08dc2533e829f507",
-      "bond": 1000000,
+      "bond": 1000000000,
       "supported_models": [
         {
           "model_ref": "Qwen/Qwen3.8-27B-FP8",
@@ -548,7 +548,7 @@
       "operator_address": "trueopen1q8fazf4duvmw5as74kgyyezdxdewahzydav3vl",
       "service_address": "trueopen1q8fazf4duvmw5as74kgyyezdxdewahzydav3vl",
       "service_pubkey": "039832910fde7c4012d0b00e0305a2b55073e7fa6bf7670908fbf9467bbfe01849",
-      "bond": 1000000,
+      "bond": 1000000000,
       "supported_models": [
         {
           "model_ref": "Qwen/Qwen3.8-27B-FP8",
@@ -561,7 +561,7 @@
       "operator_address": "trueopen1zz29gdunukh0dsckd5kmete0hmnu6d0ta55vgj",
       "service_address": "trueopen1zz29gdunukh0dsckd5kmete0hmnu6d0ta55vgj",
       "service_pubkey": "03ce74fda5a57435f8e7796323d65ac00a239e2b33996e45cdd72899870b387271",
-      "bond": 1000000,
+      "bond": 1000000000,
       "supported_models": [
         {
           "model_ref": "Qwen/Qwen3.8-27B-FP8",
@@ -574,7 +574,7 @@
       "operator_address": "trueopen13f2wj4cc90la25k5dljj4ktukp7chremmddxqv",
       "service_address": "trueopen13f2wj4cc90la25k5dljj4ktukp7chremmddxqv",
       "service_pubkey": "028ed93ad13ccc93e453844503fbad48e8ec02e7df22e082697dfd517c4edccada",
-      "bond": 1000000,
+      "bond": 1000000000,
       "supported_models": [
         {
           "model_ref": "Qwen/Qwen3.8-27B-FP8",

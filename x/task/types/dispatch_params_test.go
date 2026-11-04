@@ -19,19 +19,29 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 		name   string
 		mutate func(*TaskParamsV1)
 	}{
-		{"record exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.RecordDeadlineBlocks = 61 }},
+		{"record exceeds clamp", func(p *TaskParamsV1) {
+			p.Dispatch.RecordDeadlineBlocks = shared.DispatchRotationWindowHardLimits().RecordDeadlineBlocks + 1
+		}},
 		{"zero order lifetime", func(p *TaskParamsV1) { p.Dispatch.MaxOrderLifetimeBlocks = 0 }},
-		{"order lifetime exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.MaxOrderLifetimeBlocks = 241 }},
-		{"record retention omits response", func(p *TaskParamsV1) { p.Dispatch.DispatchRecordRetentionBlocks = 360 }},
+		{"order lifetime exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.MaxOrderLifetimeBlocks = dispatch.MaxOrderLifetimeBlocksV1 + 1 }},
+		{"record retention omits response", func(p *TaskParamsV1) { p.Dispatch.DispatchRecordRetentionBlocks = 18000 }},
 		{"history retention omits response", func(p *TaskParamsV1) {
 			p.Dispatch.DispatchCompensationClaimWindowBlocks, p.Dispatch.DispatchCompensationRebuttalBlocks = 1, 1
 			p.Dispatch.DispatchChallengeWindowBlocks, p.Dispatch.DispatchChallengeResponseBlocks = 120, 60
 			p.Session.SessionOrderRetentionBlocks = 100
 		}},
-		{"claim exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchCompensationClaimWindowBlocks = 121 }},
-		{"rebuttal exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchCompensationRebuttalBlocks = 61 }},
-		{"challenge exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchChallengeWindowBlocks = 121 }},
-		{"response exceeds clamp", func(p *TaskParamsV1) { p.Dispatch.DispatchChallengeResponseBlocks = 61 }},
+		{"claim exceeds clamp", func(p *TaskParamsV1) {
+			p.Dispatch.DispatchCompensationClaimWindowBlocks = shared.DispatchRotationWindowHardLimits().DispatchCompensationClaimWindowBlocks + 1
+		}},
+		{"rebuttal exceeds clamp", func(p *TaskParamsV1) {
+			p.Dispatch.DispatchCompensationRebuttalBlocks = shared.DispatchRotationWindowHardLimits().DispatchCompensationRebuttalBlocks + 1
+		}},
+		{"challenge exceeds clamp", func(p *TaskParamsV1) {
+			p.Dispatch.DispatchChallengeWindowBlocks = shared.DispatchRotationWindowHardLimits().DispatchChallengeWindowBlocks + 1
+		}},
+		{"response exceeds clamp", func(p *TaskParamsV1) {
+			p.Dispatch.DispatchChallengeResponseBlocks = shared.DispatchRotationWindowHardLimits().DispatchChallengeResponseBlocks + 1
+		}},
 		{"withdraw races record", func(p *TaskParamsV1) { p.Session.SessionWithdrawDelayBlocks = p.Dispatch.RecordDeadlineBlocks }},
 		{"key change races record", func(p *TaskParamsV1) { p.Session.SessionChangeDelayBlocks = p.Dispatch.RecordDeadlineBlocks }},
 		{"stale admission", func(p *TaskParamsV1) { p.Dispatch.OrderFreshnessMarginBlocks = p.Dispatch.RecordDeadlineBlocks }},
@@ -66,6 +76,9 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 	p := DefaultTaskParams()
 	limits := shared.DispatchRotationWindowHardLimits()
 	p.Dispatch.RecordDeadlineBlocks = limits.RecordDeadlineBlocks
+	p.Dispatch.MaxOrderLifetimeBlocks = dispatch.MaxOrderLifetimeBlocksV1
+	p.Session.SessionWithdrawDelayBlocks, p.Session.SessionChangeDelayBlocks = limits.RecordDeadlineBlocks+1, limits.RecordDeadlineBlocks+1
+	p.Evidence.MaxEvidenceRetentionBlocks = limits.DispatchChallengeWindowBlocks
 	p.Dispatch.DispatchCompensationClaimWindowBlocks = limits.DispatchCompensationClaimWindowBlocks
 	p.Dispatch.DispatchCompensationRebuttalBlocks = limits.DispatchCompensationRebuttalBlocks
 	p.Dispatch.DispatchChallengeWindowBlocks = limits.DispatchChallengeWindowBlocks
@@ -76,11 +89,11 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 	require.Equal(t, uint64(360), height)
 	interval, err := dispatch.ServiceKeyRotationInterval(limits)
 	require.NoError(t, err)
-	require.Equal(t, uint64(241), interval)
-	allowed, err := dispatch.CanRegisterServiceKeyRotation(601, 360, 1, limits)
+	require.Equal(t, uint64(9601), interval)
+	allowed, err := dispatch.CanRegisterServiceKeyRotation(360+interval, 360, 1, limits)
 	require.NoError(t, err)
 	require.False(t, allowed)
-	allowed, err = dispatch.CanRegisterServiceKeyRotation(601, 360, 0, limits)
+	allowed, err = dispatch.CanRegisterServiceKeyRotation(360+interval, 360, 0, limits)
 	require.NoError(t, err)
 	require.True(t, allowed)
 }
@@ -100,14 +113,21 @@ func TestPhase1SeedParameterSafety(t *testing.T) {
 			var hub hubtypes.HubParamsV2
 			require.NoError(t, jsonpb.Unmarshal(bytes.NewReader(root["hub_params"]), &hub))
 			require.NoError(t, hub.Validate())
+			// At two blocks per second, the admission budget is an hour and
+			// recording can recover for five minutes without delaying success.
+			require.GreaterOrEqual(t, p.Dispatch.MaxOrderLifetimeBlocks, uint64(7200))
+			require.GreaterOrEqual(t, p.Dispatch.RecordDeadlineBlocks, uint64(600))
+			require.GreaterOrEqual(t, p.Dispatch.OrderFreshnessMarginBlocks, uint64(240))
+			retiredProofHorizon := dispatch.MaxOrderLifetimeBlocksV1 + p.Dispatch.DispatchChallengeWindowBlocks + p.Dispatch.DispatchChallengeResponseBlocks
+			require.Greater(t, uint64(hub.Beacon.MaxVrfKeyHistoryEpochs)*hub.Epoch.EpochLengthBlocks, retiredProofHorizon)
 			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, 2*p.Dispatch.RecordDeadlineBlocks, "BuilderSet notice must cover dispatch and takeover recording")
 			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, p.Dispatch.MaxOrderLifetimeBlocks)
 			require.NoError(t, ValidateVerifyOpenClock(p.Deadlines, hub.Epoch.DeltaWBlocks, hub.Builder.OpenVerifyBuilderProposalWindowBlocks))
 			require.NoError(t, ValidateSessionCloseHorizon(p, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
-			require.Equal(t, uint64(240), hub.Epoch.EpochLengthBlocks)
+			require.Equal(t, uint64(600), hub.Epoch.EpochLengthBlocks)
 			require.Less(t, hub.CandidatePool.CandidatePoolBuildLeadBlocks, hub.Epoch.EpochLengthBlocks)
-			require.Equal(t, uint64(180), p.Session.SessionWithdrawDelayBlocks)
-			require.Equal(t, uint64(180), p.Session.SessionChangeDelayBlocks)
+			require.Equal(t, uint64(720), p.Session.SessionWithdrawDelayBlocks)
+			require.Equal(t, uint64(720), p.Session.SessionChangeDelayBlocks)
 		})
 	}
 }

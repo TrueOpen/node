@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/collections"
+	"github.com/TrueOpen/wire/dispatch"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -103,7 +104,10 @@ func TestServiceRotationRegistrationProtectsOnlyPreviousEvidence(t *testing.T) {
 	server := keeper.NewMsgServerImpl(f.keeper)
 	_, err = server.RotateServiceKey(f.ctx, req)
 	require.ErrorContains(t, err, "still protected")
-	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(481))
+	interval, err := dispatch.ServiceKeyRotationInterval(shared.DispatchRotationWindowHardLimits())
+	require.NoError(t, err)
+	eligible := uint64(240) + interval
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(eligible)))
 	_, err = server.RotateServiceKey(f.ctx, req)
 	require.ErrorContains(t, err, "still protected", "the elapsed interval does not discard pending previous evidence")
 	_, err = f.keeper.ReleaseBusObjectiveEvidenceResponsibility(f.ctx, locator)
@@ -114,13 +118,15 @@ func TestServiceRotationRegistrationProtectsOnlyPreviousEvidence(t *testing.T) {
 	require.NoError(t, err)
 	response, err := server.RotateServiceKey(f.ctx, req)
 	require.NoError(t, err, "current evidence responsibilities do not block registration")
-	require.Equal(t, uint64(720), response.PendingRotation.EffectiveHeight)
+	effective, err := dispatch.ServiceKeyRotationHeight(eligible, eligible/120*120, 120)
+	require.NoError(t, err)
+	require.Equal(t, effective, response.PendingRotation.EffectiveHeight)
 	genesis, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.NoError(t, genesis.Validate())
-	genesis.PendingServiceKeyRotations[0].RegisteredHeight = 480
+	genesis.PendingServiceKeyRotations[0].RegisteredHeight = eligible - 1
 	require.ErrorContains(t, genesis.Validate(), "protected", "import cannot bypass the registration interval")
-	genesis.PendingServiceKeyRotations[0].RegisteredHeight = 481
+	genesis.PendingServiceKeyRotations[0].RegisteredHeight = eligible
 	genesis.ServiceKeyResponsibilities[0].ServiceAuthorizationNonce = 1
 	require.ErrorContains(t, genesis.Validate(), "protected", "import cannot overwrite previous evidence authority")
 }

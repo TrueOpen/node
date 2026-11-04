@@ -17,7 +17,10 @@ func TestBlockedRecordPruneMovesBehindAlreadyDueCleanup(t *testing.T) {
 	id, err := types.DeriveTaskIDFromRawSession(f.sessionID, 0)
 	require.NoError(t, err)
 	q := f.keeper.newDispatchDeadlineQueue(dispatchRecordPruning)
-	head, found, err := q.head(f.ctx, 10_000)
+	params, err := f.keeper.ParamsForTask(f.ctx, id[:])
+	require.NoError(t, err)
+	due := uint64(sdk.UnwrapSDKContext(f.ctx).BlockHeight()) + params.Dispatch.DispatchRecordRetentionBlocks
+	head, found, err := q.head(f.ctx, due)
 	require.NoError(t, err)
 	require.True(t, found)
 	_, err = q.run(f.ctx, head.deadline, 1, 1<<20)
