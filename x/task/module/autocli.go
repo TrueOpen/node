@@ -69,6 +69,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
+					RpcMethod:      "AnchorAudit",
+					Use:            "anchor-audit [task-id]",
+					Short:          "Shows one task's anchor commitment audit record (ADR-0040)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
 					RpcMethod:      "VerifierCandidateWindow",
 					Use:            "verifier-candidate-window [task-id] [verify-round]",
 					Short:          "Shows one round's frozen verifier window",
@@ -241,6 +247,16 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "ReportDataUnavailable",
 					Use:       "report-data-unavailable",
 					Short:     "Record one selected Verifier's data-availability report",
+				},
+				{
+					RpcMethod: "SubmitAnchorOpening",
+					Use:       "submit-anchor-opening",
+					Short:     "Record the winner Worker's anchor opening hash for the sampled positions (ADR-0040)",
+				},
+				{
+					RpcMethod: "SubmitAnchorAuditResult",
+					Use:       "submit-anchor-audit-result",
+					Short:     "Record a selected Verifier's anchor audit verdicts (ADR-0040)",
 				},
 				{
 					RpcMethod:      "SubmitBuilderEvidence",

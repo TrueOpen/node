@@ -169,6 +169,10 @@ func (k Keeper) finalizeVerifierAssignmentAtHeight(
 	if err := k.WriteVerifierAssignment(cache, assignmentKey, assignment); err != nil {
 		return false, rowBytes, err
 	}
+	// ADR-0040 first slice: sample the anchor positions from this assignment's selection beacon.
+	if err := k.sampleAnchorAudit(cache, assignment); err != nil {
+		return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+	}
 	if window.VerifyRound == types.VerifyRoundV1 {
 		roundID, err := types.VerifyRoundID(cacheCtx.ChainID(), core.AcceptedTaskHash, types.VerifyRoundV1)
 		if err != nil {

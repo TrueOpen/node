@@ -150,6 +150,7 @@ var (
 
 	// ---- Receipt, verifier window and verification ----
 	InferReceiptKey                        = MustVersionedStorePrefix("infer_receipt", CurrentStoreSchemaVersion)
+	AnchorAuditKey                         = MustVersionedStorePrefix("anchor_audit", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowMemberKey       = MustVersionedStorePrefix("verifier_candidate_window_member", CurrentStoreSchemaVersion)
