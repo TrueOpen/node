@@ -9,7 +9,6 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -48,7 +47,7 @@ func TestCanonicalAminoSignDocMatchesAccountProtocolVector(t *testing.T) {
 
 	typedData, err := buildWeb3TypedData(424242, signDoc)
 	require.NoError(t, err)
-	digest, _, err := apitypes.TypedDataAndHash(typedData)
+	digest, err := web3TypedDataHash(typedData)
 	require.NoError(t, err)
 	require.Equal(t, "4bd4a8e961d9bb127782c1a7c518ec653c4f2aa316d3e2ff4caf253d16557e44", hex.EncodeToString(digest))
 }
@@ -80,7 +79,7 @@ func TestSessionKeyMessagesProduceDistinctWeb3SignDocs(t *testing.T) {
 		require.Equal(t, wireCases[index].Canonical, string(doc), "wire session_key_amino_v1 signing bytes")
 		typed, err := buildWeb3TypedData(424242, doc)
 		require.NoError(t, err)
-		digest, _, err := apitypes.TypedDataAndHash(typed)
+		digest, err := web3TypedDataHash(typed)
 		require.NoError(t, err)
 		require.False(t, seen[string(digest)], "registration, SET and CLEAR must commit distinct actions")
 		seen[string(digest)] = true
