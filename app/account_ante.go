@@ -171,7 +171,7 @@ func (d trueopenSignatureVerificationDecorator) verify(ctx sdk.Context, tx sdk.T
 			if err != nil {
 				return errorsmod.Wrap(sdkerrors.ErrUnauthorized, err.Error())
 			}
-			digest, _, err := apitypes.TypedDataAndHash(typedData)
+			digest, err := web3TypedDataHash(typedData)
 			if err != nil {
 				return errorsmod.Wrap(sdkerrors.ErrUnauthorized, err.Error())
 			}

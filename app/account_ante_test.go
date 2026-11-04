@@ -82,7 +82,7 @@ func requirePublishedWeb3SignDoc(t *testing.T, application *App, message sdk.Msg
 	require.Equal(t, vector.Canonical, string(doc), "pinned wire canonical signing bytes")
 	typed, err := buildWeb3TypedData(424242, doc)
 	require.NoError(t, err)
-	digest, _, err := apitypes.TypedDataAndHash(typed)
+	digest, err := web3TypedDataHash(typed)
 	require.NoError(t, err)
 	require.Equal(t, vector.Digest, hex.EncodeToString(digest), "wire independently computed signing digest")
 	signature, err := hex.DecodeString(vector.Signature)
@@ -123,7 +123,7 @@ func TestFundingWeb3MultiMessageTypeIndexesRemainDeterministic(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		typed, err := buildWeb3TypedData(424242, doc)
 		require.NoError(t, err)
-		digest, _, err := apitypes.TypedDataAndHash(typed)
+		digest, err := web3TypedDataHash(typed)
 		require.NoError(t, err, "every indexed reference must resolve to its normalized type")
 		if i == 0 {
 			first = digest
@@ -146,6 +146,6 @@ func TestWeb3FirstOccurrenceTypeNameCanEndInDigit(t *testing.T) {
 	typed, err := buildWeb3TypedData(424242, signDoc)
 	require.NoError(t, err)
 	require.Equal(t, []apitypes.Type{{Name: "business_denom", Type: "string"}}, typed.Types["TypeValueParamsPhase0"])
-	_, _, err = apitypes.TypedDataAndHash(typed)
+	_, err = web3TypedDataHash(typed)
 	require.NoError(t, err)
 }
