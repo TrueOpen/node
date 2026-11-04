@@ -24,6 +24,7 @@ var msgRegistrations = []msgRegistration{
 	{&MsgReportDataUnavailable{}, "trueopen/x/task/MsgReportDataUnavailable"},
 	{&MsgSubmitAnchorOpening{}, "trueopen/x/task/MsgSubmitAnchorOpening"},
 	{&MsgSubmitAnchorAuditResult{}, "trueopen/x/task/MsgSubmitAnchorAuditResult"},
+	{&MsgSubmitAnchorProof{}, "trueopen/x/task/MsgSubmitAnchorProof"},
 	{&MsgSubmitBuilderEvidence{}, "trueopen/x/task/MsgSubmitBuilderEvidence"},
 	{&MsgSubmitVerifyCommit{}, "trueopen/x/task/MsgSubmitVerifyCommit"},
 	{&MsgBatchSubmitVerifyCommit{}, "trueopen/x/task/MsgBatchSubmitVerifyCommit"},

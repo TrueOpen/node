@@ -195,6 +195,63 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	return &types.MsgSubmitAnchorOpeningResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
 }
 
+// SubmitAnchorProof records the Worker's proof package over its recorded
+// opening (ADR-0040 v2: the Worker proves on its own CPU while serving; a
+// Verifier checks the proof without the weights). First proof wins; the same
+// proof again is a NOOP.
+func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAnchorProof) (*types.MsgSubmitAnchorProofResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "anchor proof request is required")
+	}
+	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || len(req.ProofHash) != types.Hash32Len ||
+		bytes.Equal(req.ProofHash, make([]byte, types.Hash32Len)) || req.ProofSizeBytes == 0 ||
+		strings.TrimSpace(req.ProofUri) == "" || len(req.ProofUri) > maxAnchorOpeningURIBytes {
+		return nil, status.Error(codes.InvalidArgument, "anchor proof envelope is invalid")
+	}
+	if _, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return nil, err
+	}
+	taskKey := types.NewTaskKey(req.TaskId)
+	state, err := m.k.AnchorAudit.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task has no anchor audit sample")
+		}
+		return nil, err
+	}
+	if len(state.OpeningHash) != types.Hash32Len {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening has not been recorded")
+	}
+	if !bytes.Equal(state.OpeningHash, req.OpeningHash) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof names a different opening than the chain recorded")
+	}
+	receipt, err := m.k.ReadInferReceipt(ctx, taskKey)
+	if err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "accepted infer receipt is unavailable")
+	}
+	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, receipt.WinnerWorker, req.SubmitterAddress); err != nil {
+		return nil, err
+	}
+	if len(state.WorkerProofHash) == types.Hash32Len {
+		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes {
+			return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
+		}
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof already recorded with a different hash")
+	}
+	state.WorkerProofHash = append([]byte(nil), req.ProofHash...)
+	state.WorkerProofSizeBytes = req.ProofSizeBytes
+	state.WorkerProofUri = req.ProofUri
+	state.WorkerProofHeight = height
+	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
+		return nil, err
+	}
+	return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
+}
+
 func anchorTaskVerdict(verdicts []types.AnchorPositionVerdictV1) types.AnchorVerdictV1 {
 	out := types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS
 	for _, v := range verdicts {
@@ -247,6 +304,11 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	}
 	if !positionsEqual(state.Positions, positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "audit verdicts do not cover exactly the sampled positions")
+	}
+	// A result that names a proof must name the Worker's recorded proof: the
+	// Verifier checked that package, not one of its own making.
+	if len(req.ProofHash) == types.Hash32Len && len(state.WorkerProofHash) == types.Hash32Len && !bytes.Equal(req.ProofHash, state.WorkerProofHash) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "audit result names a proof other than the Worker's recorded proof")
 	}
 	assignment, err := m.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(req.TaskId, 1))
 	if err != nil {
