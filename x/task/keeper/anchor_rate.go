@@ -100,11 +100,15 @@ func (k Keeper) anchorAuditDraw(ctx context.Context, taskKey types.TaskKey, work
 		bond = k.hubKeeper.GetServiceBondFacts(sdkCtx, canonical).EffectiveBond
 	}
 	v := params.Verification
-	rate := anchorAuditRateBps(orderValue, bond, v.AnchorRejectSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps)
+	// A selected Worker that cheated chooses the cheaper exit: let the proof be
+	// rejected, or never open / never prove and take the timeout slash. The
+	// deterrent is therefore the smaller of the two penalties.
+	deterrentBps := anchorDeterrentSlashBps(v)
+	rate := anchorAuditRateBps(orderValue, bond, deterrentBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps)
 	coin := anchorAuditCoin(sdkCtx.ChainID(), taskKey, beacon)
 	selected := anchorCoinSelects(coin, rate)
-	basis := fmt.Sprintf("order %d; effective bond %d x %d bps slashable; margin %d bps; floor %d bps; rate %d bps; coin %016x; selected %t",
-		orderValue, bond, v.AnchorRejectSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps, rate, coin, selected)
+	basis := fmt.Sprintf("order %d; effective bond %d x %d bps deterrent (min of reject %d, timeout %d); margin %d bps; floor %d bps; rate %d bps; coin %016x; selected %t",
+		orderValue, bond, deterrentBps, v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps, rate, coin, selected)
 	return anchorDraw{rate: rate, selected: selected, basis: basis, bond: bond}
 }
 
@@ -116,4 +120,13 @@ func anchorSlashAmount(base uint64, bps uint32) uint64 {
 		return base
 	}
 	return v.Uint64()
+}
+
+// anchorDeterrentSlashBps is the penalty a selected cheater cannot avoid: the
+// smaller of the reject and timeout slashes.
+func anchorDeterrentSlashBps(v types.VerificationParamsV1) uint32 {
+	if v.AnchorTimeoutSlashBps < v.AnchorRejectSlashBps {
+		return v.AnchorTimeoutSlashBps
+	}
+	return v.AnchorRejectSlashBps
 }
