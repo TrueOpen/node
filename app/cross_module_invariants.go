@@ -287,6 +287,17 @@ func (app *App) ensureRoleFaultEvidenceScope(ctx context.Context) error {
 		if count != 1 {
 			continue
 		}
+		// ADR-0040 v4: a rejected anchor audit slashes the Worker on the audit's own
+		// evidence (opening and proof hashes, verdict, source), not on the round's
+		// classification digest. The audit record names the fault it produced.
+		if audit, auditErr := app.TaskKeeper.AnchorAudit.Get(ctx, taskKey); auditErr == nil &&
+			len(audit.WorkerFaultId) == tasktypes.Hash32Len && bytes.Equal(audit.WorkerFaultId, fault.FaultId) {
+			if audit.TaskVerdict != tasktypes.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT {
+				return fmt.Errorf("role fault %s is recorded as the anchor fault of task %s whose verdict is not REJECT",
+					hex.EncodeToString(fault.FaultId), hex.EncodeToString(fault.TaskId))
+			}
+			continue
+		}
 		if !bytes.Equal(only.EvidenceDigest, fault.EvidenceDigest) ||
 			only.ClassificationSource != fault.ClassificationSource {
 			return fmt.Errorf("role fault %s evidence_digest disagrees with the task failure class of task %s",
