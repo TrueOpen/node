@@ -280,3 +280,24 @@ func modelSupportSnapshot(state types.ModelSupportState) types.ModelSupportSnaps
 		SupportVersion: state.SupportVersion,
 	}
 }
+
+// GetServiceBondFacts reports an operator's active, effective and unbonding
+// bond without the liability checks GetServiceBond applies (ADR-0040 v6: the
+// anchor audit rate and slash base must not collapse to zero when reserved
+// liability exceeds the effective bond).
+func (k Keeper) GetServiceBondFacts(ctx sdk.Context, operatorAddress string) types.ServiceBondFacts {
+	state, err := k.ReadServiceBondValue(ctx, types.NewServiceBondKey(operatorAddress))
+	if err != nil {
+		return types.ServiceBondFacts{}
+	}
+	currentEpoch := uint64(0)
+	if ctx.BlockHeight() > 0 {
+		if epochLength, err := k.epochLengthBlocks(ctx); err == nil {
+			currentEpoch = epochForHeight(uint64(ctx.BlockHeight()), epochLength)
+		}
+	}
+	return types.ServiceBondFacts{
+		ActiveBond: state.ActiveBond, EffectiveBond: types.EffectiveActiveBond(state, currentEpoch),
+		PendingUnbonding: state.PendingUnbondingTotal, Found: true,
+	}
+}

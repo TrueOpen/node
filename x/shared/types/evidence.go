@@ -8,7 +8,7 @@ const (
 	WorkerTokenCommitmentSchemaVersionV1 = uint32(1)
 	// WorkerAnchorCommitmentSchemaVersionV1 is the first anchor-commitment schema (ADR-0040).
 	WorkerAnchorCommitmentSchemaVersionV1 = uint32(1)
-	MaxEvidenceEncodedSizeBytesV1        = uint64(1 << 40)
+	MaxEvidenceEncodedSizeBytesV1         = uint64(1 << 40)
 )
 
 func NewPhase0WorkerEvidenceSchemaV1(maxValueBytes, maxTokenBytes uint64) EvidenceSchemaV1 {

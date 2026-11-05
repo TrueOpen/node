@@ -136,6 +136,14 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err := validateLockedProfileEvidenceCommitments(core, assignment, profile, receipt.RequiredEvidenceCommitments); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// ADR-0040 v6: anchor sampling derives its row count from the token commitment
+	// size; refuse a receipt whose size is not a token-id pair covering the
+	// generated tokens, instead of discovering it inside EndBlock.
+	if err := validateAnchorTokenCommitment(types.InferReceiptState{
+		RequiredEvidenceCommitments: receipt.RequiredEvidenceCommitments, GeneratedTokenCount: receipt.GeneratedTokenCount,
+	}); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	hubParams := m.k.hubKeeper.GetHubParams(sdkCtx)
 	clock, err := freezeVerifierWindowClock(height, verifierWindowClockParams{
 		DeltaWBlocks:                hubParams.DeltaWBlocks,

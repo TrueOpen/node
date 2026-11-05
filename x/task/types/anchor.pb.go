@@ -72,6 +72,7 @@ func (AnchorVerdictV1) EnumDescriptor() ([]byte, []int) {
 type AnchorResultSourceV1 int32
 
 const (
+	// No final verdict yet.
 	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED AnchorResultSourceV1 = 0
 	// A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).
 	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_VERIFIER AnchorResultSourceV1 = 1
@@ -80,6 +81,9 @@ const (
 	// verdict_deadline_height passed without a final vote: REJECT when the Worker never
 	// opened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.
 	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT AnchorResultSourceV1 = 3
+	// The receipt's commitments could not be sampled (malformed token commitment);
+	// the audit is final REJECT at sampling (ADR-0040 v6).
+	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT AnchorResultSourceV1 = 4
 )
 
 var AnchorResultSourceV1_name = map[int32]string{
@@ -87,13 +91,15 @@ var AnchorResultSourceV1_name = map[int32]string{
 	1: "ANCHOR_RESULT_SOURCE_V1_VERIFIER",
 	2: "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
 	3: "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
+	4: "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT",
 }
 
 var AnchorResultSourceV1_value = map[string]int32{
-	"ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED":    0,
-	"ANCHOR_RESULT_SOURCE_V1_VERIFIER":       1,
-	"ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE": 2,
-	"ANCHOR_RESULT_SOURCE_V1_TIMEOUT":        3,
+	"ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED":        0,
+	"ANCHOR_RESULT_SOURCE_V1_VERIFIER":           1,
+	"ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE":     2,
+	"ANCHOR_RESULT_SOURCE_V1_TIMEOUT":            3,
+	"ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT": 4,
 }
 
 func (x AnchorResultSourceV1) String() string {
@@ -170,11 +176,16 @@ func (m *AnchorPositionVerdictV1) GetReason() string {
 // AnchorVoteTallyV1 is the running validator-vote tally of one anchor audit, in
 // units of staking voting power as of the last validator-set update.
 type AnchorVoteTallyV1 struct {
-	PassPower      uint64 `protobuf:"varint,1,opt,name=pass_power,json=passPower,proto3" json:"pass_power,omitempty"`
-	RejectPower    uint64 `protobuf:"varint,2,opt,name=reject_power,json=rejectPower,proto3" json:"reject_power,omitempty"`
+	// pass_power is the summed voting power of PASS votes.
+	PassPower uint64 `protobuf:"varint,1,opt,name=pass_power,json=passPower,proto3" json:"pass_power,omitempty"`
+	// reject_power is the summed voting power of REJECT votes.
+	RejectPower uint64 `protobuf:"varint,2,opt,name=reject_power,json=rejectPower,proto3" json:"reject_power,omitempty"`
+	// no_verdict_power is the summed voting power of NO_VERDICT votes.
 	NoVerdictPower uint64 `protobuf:"varint,3,opt,name=no_verdict_power,json=noVerdictPower,proto3" json:"no_verdict_power,omitempty"`
-	TotalPower     uint64 `protobuf:"varint,4,opt,name=total_power,json=totalPower,proto3" json:"total_power,omitempty"`
-	VoteCount      uint32 `protobuf:"varint,5,opt,name=vote_count,json=voteCount,proto3" json:"vote_count,omitempty"`
+	// total_power is the last total bonded voting power at the latest vote.
+	TotalPower uint64 `protobuf:"varint,4,opt,name=total_power,json=totalPower,proto3" json:"total_power,omitempty"`
+	// vote_count is the number of recorded votes.
+	VoteCount uint32 `protobuf:"varint,5,opt,name=vote_count,json=voteCount,proto3" json:"vote_count,omitempty"`
 }
 
 func (m *AnchorVoteTallyV1) Reset()         { *m = AnchorVoteTallyV1{} }
@@ -401,6 +412,21 @@ type AnchorAuditState struct {
 	Selected bool `protobuf:"varint,27,opt,name=selected,proto3" json:"selected,omitempty"`
 	// audit_basis spells out R, D and the coin for audit.
 	AuditBasis string `protobuf:"bytes,28,opt,name=audit_basis,json=auditBasis,proto3" json:"audit_basis,omitempty"`
+	// Height by which the Worker's opening must be recorded (ADR-0040 v6); later openings are refused.
+	OpeningDeadlineHeight uint64 `protobuf:"varint,29,opt,name=opening_deadline_height,json=openingDeadlineHeight,proto3" json:"opening_deadline_height,omitempty"`
+	// Height by which the Worker's proof must be recorded (ADR-0040 v6); later proofs are refused.
+	ProofDeadlineHeight uint64 `protobuf:"varint,30,opt,name=proof_deadline_height,json=proofDeadlineHeight,proto3" json:"proof_deadline_height,omitempty"`
+	// Slashable base D fixed at sampling: the Worker's effective active bond then (ADR-0040 v6).
+	// A REJECT or TIMEOUT slash is requested against D, so bond moved out after sampling
+	// is reached through the unbonding queue.
+	SlashableBond uint64 `protobuf:"varint,31,opt,name=slashable_bond,json=slashableBond,proto3" json:"slashable_bond,omitempty"`
+	// anchor_commit_uri locates the Worker's anchor_commit artifact in DA; its digest is the
+	// receipt's WORKER_ANCHOR_OPENING commitment.
+	AnchorCommitUri string `protobuf:"bytes,32,opt,name=anchor_commit_uri,json=anchorCommitUri,proto3" json:"anchor_commit_uri,omitempty"`
+	// epoch_manifest_hash is sha256 of the canonical epoch manifest the Worker's proof covers.
+	EpochManifestHash []byte `protobuf:"bytes,33,opt,name=epoch_manifest_hash,json=epochManifestHash,proto3" json:"epoch_manifest_hash,omitempty"`
+	// epoch_manifest_uri locates the epoch manifest in DA.
+	EpochManifestUri string `protobuf:"bytes,34,opt,name=epoch_manifest_uri,json=epochManifestUri,proto3" json:"epoch_manifest_uri,omitempty"`
 }
 
 func (m *AnchorAuditState) Reset()         { *m = AnchorAuditState{} }
@@ -632,6 +658,113 @@ func (m *AnchorAuditState) GetAuditBasis() string {
 	return ""
 }
 
+func (m *AnchorAuditState) GetOpeningDeadlineHeight() uint64 {
+	if m != nil {
+		return m.OpeningDeadlineHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetProofDeadlineHeight() uint64 {
+	if m != nil {
+		return m.ProofDeadlineHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetSlashableBond() uint64 {
+	if m != nil {
+		return m.SlashableBond
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetAnchorCommitUri() string {
+	if m != nil {
+		return m.AnchorCommitUri
+	}
+	return ""
+}
+
+func (m *AnchorAuditState) GetEpochManifestHash() []byte {
+	if m != nil {
+		return m.EpochManifestHash
+	}
+	return nil
+}
+
+func (m *AnchorAuditState) GetEpochManifestUri() string {
+	if m != nil {
+		return m.EpochManifestUri
+	}
+	return ""
+}
+
+// AnchorVoteKeyState delegates anchor votes of one validator to a hot vote address,
+// so the operator key can stay offline (ADR-0040 v6).
+type AnchorVoteKeyState struct {
+	// validator_operator_address is the delegating validator.
+	ValidatorOperatorAddress string `protobuf:"bytes,1,opt,name=validator_operator_address,json=validatorOperatorAddress,proto3" json:"validator_operator_address,omitempty"`
+	// vote_address may sign MsgSubmitAnchorValidatorVote for the validator.
+	VoteAddress string `protobuf:"bytes,2,opt,name=vote_address,json=voteAddress,proto3" json:"vote_address,omitempty"`
+	// height is when the delegation was recorded.
+	Height uint64 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+}
+
+func (m *AnchorVoteKeyState) Reset()         { *m = AnchorVoteKeyState{} }
+func (m *AnchorVoteKeyState) String() string { return proto.CompactTextString(m) }
+func (*AnchorVoteKeyState) ProtoMessage()    {}
+func (*AnchorVoteKeyState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{4}
+}
+func (m *AnchorVoteKeyState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AnchorVoteKeyState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AnchorVoteKeyState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AnchorVoteKeyState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AnchorVoteKeyState.Merge(m, src)
+}
+func (m *AnchorVoteKeyState) XXX_Size() int {
+	return m.Size()
+}
+func (m *AnchorVoteKeyState) XXX_DiscardUnknown() {
+	xxx_messageInfo_AnchorVoteKeyState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AnchorVoteKeyState proto.InternalMessageInfo
+
+func (m *AnchorVoteKeyState) GetValidatorOperatorAddress() string {
+	if m != nil {
+		return m.ValidatorOperatorAddress
+	}
+	return ""
+}
+
+func (m *AnchorVoteKeyState) GetVoteAddress() string {
+	if m != nil {
+		return m.VoteAddress
+	}
+	return ""
+}
+
+func (m *AnchorVoteKeyState) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
 // MsgSubmitAnchorOpening records the Worker's opening of the sampled
 // positions: the material hash, its size and where it can be fetched. The
 // outer Cosmos signer is the winner Worker's current service address.
@@ -643,13 +776,15 @@ type MsgSubmitAnchorOpening struct {
 	OpeningSizeBytes uint64   `protobuf:"varint,4,opt,name=opening_size_bytes,json=openingSizeBytes,proto3" json:"opening_size_bytes,omitempty"`
 	OpeningUri       string   `protobuf:"bytes,5,opt,name=opening_uri,json=openingUri,proto3" json:"opening_uri,omitempty"`
 	SubmitterAddress string   `protobuf:"bytes,6,opt,name=submitter_address,json=submitterAddress,proto3" json:"submitter_address,omitempty"`
+	// anchor_commit_uri locates the anchor_commit artifact in DA (ADR-0040 v6).
+	AnchorCommitUri string `protobuf:"bytes,7,opt,name=anchor_commit_uri,json=anchorCommitUri,proto3" json:"anchor_commit_uri,omitempty"`
 }
 
 func (m *MsgSubmitAnchorOpening) Reset()         { *m = MsgSubmitAnchorOpening{} }
 func (m *MsgSubmitAnchorOpening) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorOpening) ProtoMessage()    {}
 func (*MsgSubmitAnchorOpening) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{4}
+	return fileDescriptor_6c216b85fbaf0a05, []int{5}
 }
 func (m *MsgSubmitAnchorOpening) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -720,6 +855,13 @@ func (m *MsgSubmitAnchorOpening) GetSubmitterAddress() string {
 	return ""
 }
 
+func (m *MsgSubmitAnchorOpening) GetAnchorCommitUri() string {
+	if m != nil {
+		return m.AnchorCommitUri
+	}
+	return ""
+}
+
 // MsgSubmitAnchorOpeningResponse defines the MsgSubmitAnchorOpeningResponse wire type.
 type MsgSubmitAnchorOpeningResponse struct {
 	Status types.MutationStatusV1 `protobuf:"varint,1,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
@@ -729,7 +871,7 @@ func (m *MsgSubmitAnchorOpeningResponse) Reset()         { *m = MsgSubmitAnchorO
 func (m *MsgSubmitAnchorOpeningResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorOpeningResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorOpeningResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{5}
+	return fileDescriptor_6c216b85fbaf0a05, []int{6}
 }
 func (m *MsgSubmitAnchorOpeningResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -776,13 +918,17 @@ type MsgSubmitAnchorProof struct {
 	ProofSizeBytes   uint64 `protobuf:"varint,4,opt,name=proof_size_bytes,json=proofSizeBytes,proto3" json:"proof_size_bytes,omitempty"`
 	ProofUri         string `protobuf:"bytes,5,opt,name=proof_uri,json=proofUri,proto3" json:"proof_uri,omitempty"`
 	SubmitterAddress string `protobuf:"bytes,6,opt,name=submitter_address,json=submitterAddress,proto3" json:"submitter_address,omitempty"`
+	// epoch_manifest_hash is sha256 of the canonical epoch manifest (ADR-0040 v6).
+	EpochManifestHash []byte `protobuf:"bytes,7,opt,name=epoch_manifest_hash,json=epochManifestHash,proto3" json:"epoch_manifest_hash,omitempty"`
+	// epoch_manifest_uri locates the epoch manifest in DA.
+	EpochManifestUri string `protobuf:"bytes,8,opt,name=epoch_manifest_uri,json=epochManifestUri,proto3" json:"epoch_manifest_uri,omitempty"`
 }
 
 func (m *MsgSubmitAnchorProof) Reset()         { *m = MsgSubmitAnchorProof{} }
 func (m *MsgSubmitAnchorProof) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorProof) ProtoMessage()    {}
 func (*MsgSubmitAnchorProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{6}
+	return fileDescriptor_6c216b85fbaf0a05, []int{7}
 }
 func (m *MsgSubmitAnchorProof) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -853,6 +999,20 @@ func (m *MsgSubmitAnchorProof) GetSubmitterAddress() string {
 	return ""
 }
 
+func (m *MsgSubmitAnchorProof) GetEpochManifestHash() []byte {
+	if m != nil {
+		return m.EpochManifestHash
+	}
+	return nil
+}
+
+func (m *MsgSubmitAnchorProof) GetEpochManifestUri() string {
+	if m != nil {
+		return m.EpochManifestUri
+	}
+	return ""
+}
+
 // MsgSubmitAnchorProofResponse defines the MsgSubmitAnchorProofResponse wire type.
 type MsgSubmitAnchorProofResponse struct {
 	Status types.MutationStatusV1 `protobuf:"varint,1,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
@@ -862,7 +1022,7 @@ func (m *MsgSubmitAnchorProofResponse) Reset()         { *m = MsgSubmitAnchorPro
 func (m *MsgSubmitAnchorProofResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorProofResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorProofResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{7}
+	return fileDescriptor_6c216b85fbaf0a05, []int{8}
 }
 func (m *MsgSubmitAnchorProofResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -914,7 +1074,7 @@ func (m *MsgSubmitAnchorAuditResult) Reset()         { *m = MsgSubmitAnchorAudit
 func (m *MsgSubmitAnchorAuditResult) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorAuditResult) ProtoMessage()    {}
 func (*MsgSubmitAnchorAuditResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{8}
+	return fileDescriptor_6c216b85fbaf0a05, []int{9}
 }
 func (m *MsgSubmitAnchorAuditResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -988,7 +1148,7 @@ func (m *MsgSubmitAnchorAuditResultResponse) Reset()         { *m = MsgSubmitAnc
 func (m *MsgSubmitAnchorAuditResultResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorAuditResultResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorAuditResultResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{9}
+	return fileDescriptor_6c216b85fbaf0a05, []int{10}
 }
 func (m *MsgSubmitAnchorAuditResultResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1032,7 +1192,8 @@ func (m *MsgSubmitAnchorAuditResultResponse) GetStatus() types.MutationStatusV1 
 }
 
 // MsgSubmitAnchorValidatorVote is a bonded consensus validator's verdict on the Worker's
-// recorded anchor proof (ADR-0040 v4). The signer must be the validator operator's account.
+// recorded anchor proof (ADR-0040 v4). The signer must be the validator operator's account
+// or the vote address it registered with MsgRegisterAnchorVoteKey (v6).
 // The verdict is final once one side holds >= 2/3 of the last bonded voting power.
 type MsgSubmitAnchorValidatorVote struct {
 	TaskId                   []byte                    `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1048,7 +1209,7 @@ func (m *MsgSubmitAnchorValidatorVote) Reset()         { *m = MsgSubmitAnchorVal
 func (m *MsgSubmitAnchorValidatorVote) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorValidatorVote) ProtoMessage()    {}
 func (*MsgSubmitAnchorValidatorVote) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{10}
+	return fileDescriptor_6c216b85fbaf0a05, []int{11}
 }
 func (m *MsgSubmitAnchorValidatorVote) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1126,18 +1287,23 @@ func (m *MsgSubmitAnchorValidatorVote) GetSubmitterAddress() string {
 	return ""
 }
 
+// MsgSubmitAnchorValidatorVoteResponse reports the audit after the vote.
 type MsgSubmitAnchorValidatorVoteResponse struct {
-	TaskVerdict AnchorVerdictV1        `protobuf:"varint,1,opt,name=task_verdict,json=taskVerdict,proto3,enum=task.v1.AnchorVerdictV1" json:"task_verdict,omitempty"`
-	Finalized   bool                   `protobuf:"varint,2,opt,name=finalized,proto3" json:"finalized,omitempty"`
-	Tally       AnchorVoteTallyV1      `protobuf:"bytes,3,opt,name=tally,proto3" json:"tally"`
-	Status      types.MutationStatusV1 `protobuf:"varint,4,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
+	// task_verdict is the audit verdict (UNSPECIFIED while open).
+	TaskVerdict AnchorVerdictV1 `protobuf:"varint,1,opt,name=task_verdict,json=taskVerdict,proto3,enum=task.v1.AnchorVerdictV1" json:"task_verdict,omitempty"`
+	// finalized is true once the verdict is final.
+	Finalized bool `protobuf:"varint,2,opt,name=finalized,proto3" json:"finalized,omitempty"`
+	// tally is the running tally.
+	Tally AnchorVoteTallyV1 `protobuf:"bytes,3,opt,name=tally,proto3" json:"tally"`
+	// status reports whether the vote changed state.
+	Status types.MutationStatusV1 `protobuf:"varint,4,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
 }
 
 func (m *MsgSubmitAnchorValidatorVoteResponse) Reset()         { *m = MsgSubmitAnchorValidatorVoteResponse{} }
 func (m *MsgSubmitAnchorValidatorVoteResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorValidatorVoteResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorValidatorVoteResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{11}
+	return fileDescriptor_6c216b85fbaf0a05, []int{12}
 }
 func (m *MsgSubmitAnchorValidatorVoteResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1194,6 +1360,314 @@ func (m *MsgSubmitAnchorValidatorVoteResponse) GetStatus() types.MutationStatusV
 	return types.MutationStatusV1_MUTATION_STATUS_V1_UNSPECIFIED
 }
 
+// MsgRegisterAnchorVoteKey lets a validator operator delegate its anchor votes to a hot
+// vote address (ADR-0040 v6). The signer is the validator operator's account; an empty
+// vote_address clears the delegation.
+type MsgRegisterAnchorVoteKey struct {
+	ValidatorOperatorAddress string `protobuf:"bytes,1,opt,name=validator_operator_address,json=validatorOperatorAddress,proto3" json:"validator_operator_address,omitempty"`
+	VoteAddress              string `protobuf:"bytes,2,opt,name=vote_address,json=voteAddress,proto3" json:"vote_address,omitempty"`
+	SubmitterAddress         string `protobuf:"bytes,3,opt,name=submitter_address,json=submitterAddress,proto3" json:"submitter_address,omitempty"`
+}
+
+func (m *MsgRegisterAnchorVoteKey) Reset()         { *m = MsgRegisterAnchorVoteKey{} }
+func (m *MsgRegisterAnchorVoteKey) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterAnchorVoteKey) ProtoMessage()    {}
+func (*MsgRegisterAnchorVoteKey) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{13}
+}
+func (m *MsgRegisterAnchorVoteKey) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgRegisterAnchorVoteKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgRegisterAnchorVoteKey.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgRegisterAnchorVoteKey) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterAnchorVoteKey.Merge(m, src)
+}
+func (m *MsgRegisterAnchorVoteKey) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgRegisterAnchorVoteKey) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterAnchorVoteKey.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgRegisterAnchorVoteKey proto.InternalMessageInfo
+
+func (m *MsgRegisterAnchorVoteKey) GetValidatorOperatorAddress() string {
+	if m != nil {
+		return m.ValidatorOperatorAddress
+	}
+	return ""
+}
+
+func (m *MsgRegisterAnchorVoteKey) GetVoteAddress() string {
+	if m != nil {
+		return m.VoteAddress
+	}
+	return ""
+}
+
+func (m *MsgRegisterAnchorVoteKey) GetSubmitterAddress() string {
+	if m != nil {
+		return m.SubmitterAddress
+	}
+	return ""
+}
+
+// MsgRegisterAnchorVoteKeyResponse defines the MsgRegisterAnchorVoteKeyResponse wire type.
+type MsgRegisterAnchorVoteKeyResponse struct {
+	Status types.MutationStatusV1 `protobuf:"varint,1,opt,name=status,proto3,enum=shared.v1.MutationStatusV1" json:"status,omitempty"`
+}
+
+func (m *MsgRegisterAnchorVoteKeyResponse) Reset()         { *m = MsgRegisterAnchorVoteKeyResponse{} }
+func (m *MsgRegisterAnchorVoteKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterAnchorVoteKeyResponse) ProtoMessage()    {}
+func (*MsgRegisterAnchorVoteKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{14}
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgRegisterAnchorVoteKeyResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterAnchorVoteKeyResponse.Merge(m, src)
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterAnchorVoteKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgRegisterAnchorVoteKeyResponse proto.InternalMessageInfo
+
+func (m *MsgRegisterAnchorVoteKeyResponse) GetStatus() types.MutationStatusV1 {
+	if m != nil {
+		return m.Status
+	}
+	return types.MutationStatusV1_MUTATION_STATUS_V1_UNSPECIFIED
+}
+
+// QueryAnchorAuditsPendingRequest pages over audits awaiting a final verdict.
+type QueryAnchorAuditsPendingRequest struct {
+	// start_after resumes after this task id (exclusive); empty starts at the beginning.
+	StartAfter []byte `protobuf:"bytes,1,opt,name=start_after,json=startAfter,proto3" json:"start_after,omitempty"`
+	// limit caps the page (default 100, maximum 500).
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (m *QueryAnchorAuditsPendingRequest) Reset()         { *m = QueryAnchorAuditsPendingRequest{} }
+func (m *QueryAnchorAuditsPendingRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorAuditsPendingRequest) ProtoMessage()    {}
+func (*QueryAnchorAuditsPendingRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{15}
+}
+func (m *QueryAnchorAuditsPendingRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorAuditsPendingRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorAuditsPendingRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorAuditsPendingRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorAuditsPendingRequest.Merge(m, src)
+}
+func (m *QueryAnchorAuditsPendingRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorAuditsPendingRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorAuditsPendingRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorAuditsPendingRequest proto.InternalMessageInfo
+
+func (m *QueryAnchorAuditsPendingRequest) GetStartAfter() []byte {
+	if m != nil {
+		return m.StartAfter
+	}
+	return nil
+}
+
+func (m *QueryAnchorAuditsPendingRequest) GetLimit() uint32 {
+	if m != nil {
+		return m.Limit
+	}
+	return 0
+}
+
+// QueryAnchorAuditsPendingResponse lists sampled, selected, not yet final audits by task id.
+type QueryAnchorAuditsPendingResponse struct {
+	Audits []AnchorAuditState `protobuf:"bytes,1,rep,name=audits,proto3" json:"audits"`
+	// next is the start_after of the following page; empty at the end.
+	Next []byte `protobuf:"bytes,2,opt,name=next,proto3" json:"next,omitempty"`
+}
+
+func (m *QueryAnchorAuditsPendingResponse) Reset()         { *m = QueryAnchorAuditsPendingResponse{} }
+func (m *QueryAnchorAuditsPendingResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorAuditsPendingResponse) ProtoMessage()    {}
+func (*QueryAnchorAuditsPendingResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{16}
+}
+func (m *QueryAnchorAuditsPendingResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorAuditsPendingResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorAuditsPendingResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorAuditsPendingResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorAuditsPendingResponse.Merge(m, src)
+}
+func (m *QueryAnchorAuditsPendingResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorAuditsPendingResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorAuditsPendingResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorAuditsPendingResponse proto.InternalMessageInfo
+
+func (m *QueryAnchorAuditsPendingResponse) GetAudits() []AnchorAuditState {
+	if m != nil {
+		return m.Audits
+	}
+	return nil
+}
+
+func (m *QueryAnchorAuditsPendingResponse) GetNext() []byte {
+	if m != nil {
+		return m.Next
+	}
+	return nil
+}
+
+// QueryAnchorVoteKeyRequest names one validator.
+type QueryAnchorVoteKeyRequest struct {
+	ValidatorOperatorAddress string `protobuf:"bytes,1,opt,name=validator_operator_address,json=validatorOperatorAddress,proto3" json:"validator_operator_address,omitempty"`
+}
+
+func (m *QueryAnchorVoteKeyRequest) Reset()         { *m = QueryAnchorVoteKeyRequest{} }
+func (m *QueryAnchorVoteKeyRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorVoteKeyRequest) ProtoMessage()    {}
+func (*QueryAnchorVoteKeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{17}
+}
+func (m *QueryAnchorVoteKeyRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorVoteKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorVoteKeyRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorVoteKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorVoteKeyRequest.Merge(m, src)
+}
+func (m *QueryAnchorVoteKeyRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorVoteKeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorVoteKeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorVoteKeyRequest proto.InternalMessageInfo
+
+func (m *QueryAnchorVoteKeyRequest) GetValidatorOperatorAddress() string {
+	if m != nil {
+		return m.ValidatorOperatorAddress
+	}
+	return ""
+}
+
+// QueryAnchorVoteKeyResponse returns the validator's vote delegation.
+type QueryAnchorVoteKeyResponse struct {
+	VoteKey AnchorVoteKeyState `protobuf:"bytes,1,opt,name=vote_key,json=voteKey,proto3" json:"vote_key"`
+}
+
+func (m *QueryAnchorVoteKeyResponse) Reset()         { *m = QueryAnchorVoteKeyResponse{} }
+func (m *QueryAnchorVoteKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorVoteKeyResponse) ProtoMessage()    {}
+func (*QueryAnchorVoteKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{18}
+}
+func (m *QueryAnchorVoteKeyResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorVoteKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorVoteKeyResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorVoteKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorVoteKeyResponse.Merge(m, src)
+}
+func (m *QueryAnchorVoteKeyResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorVoteKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorVoteKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorVoteKeyResponse proto.InternalMessageInfo
+
+func (m *QueryAnchorVoteKeyResponse) GetVoteKey() AnchorVoteKeyState {
+	if m != nil {
+		return m.VoteKey
+	}
+	return AnchorVoteKeyState{}
+}
+
+// QueryAnchorVotesRequest names one task.
 type QueryAnchorVotesRequest struct {
 	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 }
@@ -1202,7 +1676,7 @@ func (m *QueryAnchorVotesRequest) Reset()         { *m = QueryAnchorVotesRequest
 func (m *QueryAnchorVotesRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVotesRequest) ProtoMessage()    {}
 func (*QueryAnchorVotesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{12}
+	return fileDescriptor_6c216b85fbaf0a05, []int{19}
 }
 func (m *QueryAnchorVotesRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1238,6 +1712,7 @@ func (m *QueryAnchorVotesRequest) GetTaskId() []byte {
 	return nil
 }
 
+// QueryAnchorVotesResponse lists the validator votes and the tally of one audit.
 type QueryAnchorVotesResponse struct {
 	Votes []AnchorValidatorVoteState `protobuf:"bytes,1,rep,name=votes,proto3" json:"votes"`
 	Tally AnchorVoteTallyV1          `protobuf:"bytes,2,opt,name=tally,proto3" json:"tally"`
@@ -1247,7 +1722,7 @@ func (m *QueryAnchorVotesResponse) Reset()         { *m = QueryAnchorVotesRespon
 func (m *QueryAnchorVotesResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVotesResponse) ProtoMessage()    {}
 func (*QueryAnchorVotesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{13}
+	return fileDescriptor_6c216b85fbaf0a05, []int{20}
 }
 func (m *QueryAnchorVotesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1299,7 +1774,7 @@ func (m *QueryAnchorAuditRequest) Reset()         { *m = QueryAnchorAuditRequest
 func (m *QueryAnchorAuditRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditRequest) ProtoMessage()    {}
 func (*QueryAnchorAuditRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{14}
+	return fileDescriptor_6c216b85fbaf0a05, []int{21}
 }
 func (m *QueryAnchorAuditRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1344,7 +1819,7 @@ func (m *QueryAnchorAuditResponse) Reset()         { *m = QueryAnchorAuditRespon
 func (m *QueryAnchorAuditResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditResponse) ProtoMessage()    {}
 func (*QueryAnchorAuditResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{15}
+	return fileDescriptor_6c216b85fbaf0a05, []int{22}
 }
 func (m *QueryAnchorAuditResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1387,6 +1862,7 @@ func init() {
 	proto.RegisterType((*AnchorVoteTallyV1)(nil), "task.v1.AnchorVoteTallyV1")
 	proto.RegisterType((*AnchorValidatorVoteState)(nil), "task.v1.AnchorValidatorVoteState")
 	proto.RegisterType((*AnchorAuditState)(nil), "task.v1.AnchorAuditState")
+	proto.RegisterType((*AnchorVoteKeyState)(nil), "task.v1.AnchorVoteKeyState")
 	proto.RegisterType((*MsgSubmitAnchorOpening)(nil), "task.v1.MsgSubmitAnchorOpening")
 	proto.RegisterType((*MsgSubmitAnchorOpeningResponse)(nil), "task.v1.MsgSubmitAnchorOpeningResponse")
 	proto.RegisterType((*MsgSubmitAnchorProof)(nil), "task.v1.MsgSubmitAnchorProof")
@@ -1395,6 +1871,12 @@ func init() {
 	proto.RegisterType((*MsgSubmitAnchorAuditResultResponse)(nil), "task.v1.MsgSubmitAnchorAuditResultResponse")
 	proto.RegisterType((*MsgSubmitAnchorValidatorVote)(nil), "task.v1.MsgSubmitAnchorValidatorVote")
 	proto.RegisterType((*MsgSubmitAnchorValidatorVoteResponse)(nil), "task.v1.MsgSubmitAnchorValidatorVoteResponse")
+	proto.RegisterType((*MsgRegisterAnchorVoteKey)(nil), "task.v1.MsgRegisterAnchorVoteKey")
+	proto.RegisterType((*MsgRegisterAnchorVoteKeyResponse)(nil), "task.v1.MsgRegisterAnchorVoteKeyResponse")
+	proto.RegisterType((*QueryAnchorAuditsPendingRequest)(nil), "task.v1.QueryAnchorAuditsPendingRequest")
+	proto.RegisterType((*QueryAnchorAuditsPendingResponse)(nil), "task.v1.QueryAnchorAuditsPendingResponse")
+	proto.RegisterType((*QueryAnchorVoteKeyRequest)(nil), "task.v1.QueryAnchorVoteKeyRequest")
+	proto.RegisterType((*QueryAnchorVoteKeyResponse)(nil), "task.v1.QueryAnchorVoteKeyResponse")
 	proto.RegisterType((*QueryAnchorVotesRequest)(nil), "task.v1.QueryAnchorVotesRequest")
 	proto.RegisterType((*QueryAnchorVotesResponse)(nil), "task.v1.QueryAnchorVotesResponse")
 	proto.RegisterType((*QueryAnchorAuditRequest)(nil), "task.v1.QueryAnchorAuditRequest")
@@ -1404,109 +1886,132 @@ func init() {
 func init() { proto.RegisterFile("task/v1/anchor.proto", fileDescriptor_6c216b85fbaf0a05) }
 
 var fileDescriptor_6c216b85fbaf0a05 = []byte{
-	// 1631 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0x4b, 0x6f, 0x13, 0x59,
-	0x16, 0x4e, 0xf9, 0x95, 0xf8, 0xf8, 0x81, 0x73, 0x31, 0x49, 0x61, 0xe2, 0xe0, 0x38, 0x01, 0x3c,
-	0x11, 0xc4, 0x93, 0x20, 0xd0, 0x68, 0x46, 0x08, 0xd9, 0x89, 0x19, 0x32, 0x02, 0x12, 0xca, 0x8e,
-	0x47, 0x9a, 0x4d, 0xa9, 0xe2, 0xba, 0xb1, 0x6b, 0xb0, 0xeb, 0x7a, 0xea, 0x96, 0xc3, 0x84, 0xdd,
-	0xcc, 0x66, 0xa4, 0x59, 0x31, 0x9b, 0xf9, 0x05, 0xfd, 0x03, 0x58, 0xa0, 0xde, 0xf6, 0x96, 0x25,
-	0x62, 0xd3, 0x2d, 0xb5, 0xd4, 0x6a, 0xc1, 0x82, 0x5d, 0x6f, 0xba, 0x7f, 0x40, 0xeb, 0x3e, 0xca,
-	0x6f, 0xe3, 0x04, 0xa2, 0xde, 0x44, 0xbe, 0xe7, 0x7c, 0xf7, 0xd4, 0x39, 0xe7, 0xfb, 0xee, 0xb9,
-	0x55, 0x81, 0xa4, 0x6b, 0xd0, 0x67, 0xf9, 0xe3, 0xcd, 0xbc, 0x61, 0xd7, 0x1a, 0xc4, 0xd9, 0x68,
-	0x3b, 0xc4, 0x25, 0x68, 0x96, 0x59, 0x37, 0x8e, 0x37, 0x53, 0xf3, 0x46, 0xcb, 0xb2, 0x49, 0x9e,
-	0xff, 0x15, 0xbe, 0xd4, 0x62, 0x8d, 0xd0, 0x16, 0xa1, 0xf9, 0x16, 0xad, 0xb3, 0x7d, 0x2d, 0x5a,
-	0x97, 0x8e, 0xcb, 0xc2, 0xa1, 0xf3, 0x55, 0x5e, 0x2c, 0xa4, 0x2b, 0x59, 0x27, 0x75, 0x22, 0xec,
-	0xec, 0x97, 0xb4, 0x2e, 0xd0, 0x86, 0xe1, 0x60, 0x93, 0x45, 0xa9, 0x91, 0x56, 0x8b, 0xd8, 0xd2,
-	0x9e, 0xee, 0xd9, 0x1d, 0x4c, 0x5d, 0x1d, 0xdb, 0x35, 0x62, 0x5a, 0xb6, 0x7c, 0x4e, 0xf6, 0x5f,
-	0x0a, 0x2c, 0x16, 0x78, 0xb6, 0xfb, 0x84, 0x5a, 0xae, 0x45, 0xec, 0x2a, 0x76, 0x4c, 0xab, 0xe6,
-	0x56, 0x37, 0x51, 0x0a, 0xe6, 0xda, 0xd2, 0xa8, 0x2a, 0x19, 0x25, 0x17, 0xd0, 0xba, 0x6b, 0xb4,
-	0x05, 0xb3, 0xc7, 0x02, 0xa8, 0xfa, 0x32, 0x4a, 0x2e, 0xbe, 0xa5, 0x6e, 0xc8, 0x32, 0x37, 0x44,
-	0xb8, 0x6e, 0x18, 0xcd, 0x03, 0xa2, 0x05, 0x08, 0x39, 0xd8, 0xa0, 0xc4, 0x56, 0xfd, 0x19, 0x25,
-	0x17, 0xd6, 0xe4, 0x2a, 0xfb, 0x8d, 0x02, 0xf3, 0x72, 0x13, 0x71, 0x71, 0xc5, 0x68, 0x36, 0x4f,
-	0xaa, 0x9b, 0x28, 0x0d, 0xd0, 0x36, 0x28, 0xd5, 0xdb, 0xe4, 0x39, 0x76, 0xe4, 0xf3, 0xc3, 0xcc,
-	0xb2, 0xcf, 0x0c, 0x68, 0x05, 0xa2, 0x0e, 0xfe, 0x3b, 0xae, 0xb9, 0x12, 0xe0, 0xe3, 0x80, 0x88,
-	0xb0, 0x09, 0x48, 0x0e, 0x12, 0x36, 0xd1, 0xe5, 0xd3, 0x25, 0xcc, 0xcf, 0x61, 0x71, 0x9b, 0xc8,
-	0xfc, 0x04, 0xf2, 0x2a, 0x44, 0x5c, 0xe2, 0x1a, 0x4d, 0x09, 0x0a, 0x70, 0x10, 0x70, 0x93, 0x00,
-	0xa4, 0x01, 0x8e, 0x89, 0x8b, 0xf5, 0x1a, 0xe9, 0xd8, 0xae, 0x1a, 0xcc, 0x28, 0xb9, 0x98, 0x16,
-	0x66, 0x96, 0x6d, 0x66, 0xc8, 0x7e, 0xe5, 0x07, 0x55, 0x56, 0x60, 0x34, 0x2d, 0xd3, 0x70, 0x45,
-	0x29, 0x65, 0xd7, 0x70, 0x31, 0x4a, 0x03, 0x57, 0x80, 0x6e, 0x99, 0xbc, 0x8a, 0x68, 0x31, 0xf0,
-	0xe6, 0x67, 0xd5, 0xa7, 0x85, 0x98, 0x71, 0xd7, 0x44, 0x3a, 0xa4, 0x8e, 0xbd, 0x4d, 0x3a, 0x69,
-	0x63, 0x87, 0xff, 0x30, 0x4c, 0xd3, 0xc1, 0x94, 0xf2, 0xb2, 0xc2, 0xc5, 0x95, 0x77, 0xaf, 0x6f,
-	0xa5, 0xa5, 0x08, 0xba, 0x4f, 0x28, 0x08, 0x48, 0xd9, 0x75, 0x2c, 0xbb, 0xae, 0xa9, 0xdd, 0x20,
-	0x7b, 0x32, 0x86, 0xf4, 0xa3, 0x7b, 0x10, 0x63, 0x99, 0xf6, 0x62, 0xf2, 0xee, 0x17, 0xd5, 0x77,
-	0xaf, 0x6f, 0x25, 0x65, 0xcc, 0xc1, 0x50, 0x51, 0x0e, 0xf7, 0xb6, 0xf7, 0x31, 0x1d, 0x38, 0x2d,
-	0xd3, 0xab, 0x00, 0x6d, 0x87, 0x90, 0x23, 0xbd, 0x61, 0xd0, 0x06, 0x6f, 0x97, 0x57, 0x75, 0x98,
-	0xdb, 0x1f, 0x1a, 0xb4, 0xc1, 0xe4, 0xd0, 0xc0, 0x56, 0xbd, 0xe1, 0xaa, 0x21, 0xde, 0x6f, 0xb9,
-	0x42, 0x49, 0x08, 0x0a, 0x1a, 0x66, 0xb9, 0x59, 0x2c, 0x50, 0x11, 0xe6, 0x64, 0x74, 0xaa, 0xce,
-	0x65, 0xfc, 0xb9, 0xc8, 0x56, 0x66, 0x28, 0x8f, 0x11, 0x01, 0x17, 0x03, 0x6f, 0x7e, 0xb8, 0x3a,
-	0xa3, 0x75, 0xf7, 0x65, 0xff, 0x03, 0x90, 0x10, 0xd8, 0x42, 0xc7, 0xb4, 0xdc, 0x53, 0xd1, 0xa3,
-	0xc2, 0x2c, 0x35, 0x5a, 0xed, 0x26, 0x36, 0x39, 0x17, 0x73, 0x9a, 0xb7, 0x44, 0x4b, 0x10, 0xf6,
-	0x8e, 0x03, 0xeb, 0xa9, 0x9f, 0xeb, 0xd3, 0x33, 0xa0, 0xdf, 0x41, 0x4c, 0x00, 0xf5, 0x43, 0x6c,
-	0xd4, 0x88, 0xcd, 0x9b, 0xe7, 0x05, 0x8f, 0x0a, 0x57, 0x91, 0x7b, 0xd0, 0x6a, 0x17, 0x2a, 0xfb,
-	0x11, 0xe4, 0x85, 0x4b, 0xd0, 0x43, 0xd1, 0x95, 0x1b, 0x10, 0x25, 0x6d, 0x6c, 0x5b, 0x76, 0x5d,
-	0x34, 0x35, 0xd4, 0x17, 0x2e, 0x22, 0x3d, 0xbc, 0xad, 0x37, 0x01, 0x79, 0x40, 0x6a, 0xbd, 0xc0,
-	0xfa, 0xe1, 0x89, 0x8b, 0xa9, 0xec, 0x65, 0x42, 0x7a, 0xca, 0xd6, 0x0b, 0x5c, 0x64, 0x76, 0xa6,
-	0x7c, 0x0f, 0xdd, 0x71, 0x2c, 0x75, 0x8e, 0x1f, 0x4c, 0x90, 0xa6, 0x03, 0xc7, 0x42, 0xd7, 0x20,
-	0xde, 0x7d, 0xae, 0xc8, 0x2e, 0xcc, 0x43, 0xc5, 0xbc, 0x67, 0x8a, 0xf4, 0x0c, 0xc8, 0x38, 0x98,
-	0x76, 0x9a, 0x2e, 0x3b, 0x6f, 0xd6, 0x91, 0x85, 0xc7, 0x68, 0x19, 0xa6, 0xe8, 0x2e, 0x2d, 0x22,
-	0x54, 0x65, 0x80, 0x61, 0x1d, 0xf7, 0x2b, 0x20, 0xf2, 0x79, 0x0a, 0x18, 0x12, 0x66, 0x74, 0xbc,
-	0x30, 0x57, 0x21, 0x26, 0x6b, 0x91, 0x15, 0xc7, 0x04, 0x1f, 0xc2, 0x28, 0x0b, 0xfe, 0x13, 0x44,
-	0xb9, 0x6c, 0xbc, 0xb3, 0x11, 0x9f, 0x72, 0x36, 0x22, 0xcc, 0x21, 0x97, 0xe8, 0xf7, 0x30, 0xff,
-	0x9c, 0x38, 0xcf, 0xb0, 0xa3, 0xf7, 0x65, 0x73, 0xa1, 0x2f, 0x9b, 0x0b, 0xc2, 0xbd, 0xdf, 0xcd,
-	0xe9, 0x0e, 0x2c, 0x0e, 0xec, 0xe8, 0xa3, 0x36, 0xc1, 0xb3, 0x4b, 0xf6, 0xed, 0xe8, 0xd1, 0x9b,
-	0x83, 0xc4, 0xc0, 0x36, 0xc6, 0xf1, 0x3c, 0xe7, 0x38, 0xde, 0x87, 0x67, 0x3c, 0x6f, 0xc0, 0xc5,
-	0xc1, 0x94, 0x44, 0xe9, 0x88, 0x07, 0x9f, 0xef, 0x4f, 0x47, 0xd4, 0xbf, 0x0a, 0xb1, 0xe7, 0x96,
-	0x6d, 0x63, 0x47, 0x17, 0x3e, 0xf5, 0x22, 0x0f, 0x1b, 0x15, 0xc6, 0xbf, 0x72, 0x1b, 0xba, 0x05,
-	0x88, 0xe2, 0x26, 0xae, 0xb9, 0xd8, 0xec, 0xea, 0x82, 0xaa, 0xc9, 0x8c, 0x3f, 0x17, 0xd6, 0xe6,
-	0x3d, 0x8f, 0xc7, 0x37, 0x45, 0x77, 0x61, 0xd1, 0x9b, 0xd6, 0x26, 0x36, 0xcc, 0xa6, 0x65, 0x77,
-	0x8f, 0xc4, 0x25, 0x9e, 0xc7, 0x25, 0xe9, 0xde, 0x91, 0x5e, 0x99, 0x4b, 0xb1, 0x4b, 0x18, 0x25,
-	0x1d, 0xa7, 0x86, 0xd5, 0x05, 0x4e, 0x46, 0x7a, 0x88, 0x0c, 0x8d, 0x63, 0xca, 0x1c, 0x52, 0xdd,
-	0xf4, 0xf8, 0x14, 0x6b, 0x74, 0x17, 0x82, 0x2e, 0xbb, 0x79, 0xd4, 0xc5, 0x8c, 0x92, 0x8b, 0x6c,
-	0xa5, 0x86, 0x89, 0xec, 0xdd, 0x4c, 0x52, 0x54, 0x02, 0xde, 0x27, 0x16, 0x79, 0xb7, 0xa9, 0xa2,
-	0x0f, 0xc2, 0xa8, 0x71, 0x1b, 0xba, 0x09, 0x92, 0x50, 0xfd, 0xc8, 0x60, 0x50, 0xcb, 0x54, 0x2f,
-	0xf7, 0xb1, 0x1d, 0x13, 0xce, 0x07, 0xcc, 0xb7, 0x6b, 0xa2, 0x35, 0x88, 0x1b, 0x6c, 0x3e, 0xe9,
-	0x8e, 0xe1, 0x62, 0xfd, 0xb0, 0x4d, 0xd5, 0x14, 0xbf, 0x70, 0xa2, 0xdc, 0xaa, 0x19, 0x2e, 0x2e,
-	0xb6, 0x29, 0xbb, 0x9d, 0xbd, 0x0e, 0xaa, 0x57, 0xf8, 0x64, 0xea, 0xae, 0xd9, 0xa9, 0x16, 0x11,
-	0x0e, 0x0d, 0x6a, 0x51, 0x75, 0x49, 0x9c, 0x6a, 0x6e, 0x2a, 0x32, 0x4b, 0xf6, 0x5b, 0x1f, 0x2c,
-	0x3c, 0xa6, 0xf5, 0x72, 0xe7, 0xb0, 0x65, 0xb9, 0xa2, 0xc2, 0x3d, 0x71, 0x9e, 0xa7, 0xcd, 0xc3,
-	0x81, 0xa9, 0xe7, 0x1b, 0x9e, 0x7a, 0xc3, 0x53, 0xca, 0x7f, 0xb6, 0x29, 0x15, 0x38, 0xdd, 0x94,
-	0x0a, 0x8e, 0x4c, 0xa9, 0x12, 0xcc, 0x53, 0x5e, 0x4b, 0xff, 0x3d, 0x17, 0x9a, 0x32, 0x6f, 0x12,
-	0xdd, 0x2d, 0xd2, 0xfe, 0xc7, 0xc2, 0xbf, 0x3f, 0xbe, 0x5a, 0x1f, 0x8d, 0xf4, 0xdf, 0x8f, 0xaf,
-	0xd6, 0xaf, 0xbb, 0x4e, 0x07, 0xb3, 0x27, 0xe6, 0xff, 0x99, 0xe7, 0xaf, 0x79, 0xe3, 0xdb, 0x97,
-	0x3d, 0x80, 0xe5, 0xf1, 0x1e, 0x0d, 0xd3, 0x36, 0xb1, 0x29, 0x46, 0xb7, 0x21, 0x44, 0x5d, 0xc3,
-	0xed, 0x50, 0xde, 0xdf, 0xf8, 0xd6, 0x95, 0x0d, 0xf1, 0x8a, 0xc6, 0xc4, 0xf6, 0xb8, 0xe3, 0x1a,
-	0xac, 0x93, 0x65, 0x0e, 0xa8, 0x6e, 0x6a, 0x12, 0x9a, 0x7d, 0xe7, 0x83, 0xe4, 0x50, 0x5c, 0x7e,
-	0x1a, 0xa7, 0xd1, 0x35, 0x4c, 0x88, 0x6f, 0x12, 0x21, 0x83, 0x93, 0xd1, 0x3f, 0x7e, 0x32, 0xe6,
-	0x20, 0x31, 0x32, 0x7e, 0x04, 0x67, 0xf1, 0xf6, 0xe0, 0xe0, 0xb9, 0x02, 0xe1, 0xde, 0xc4, 0x11,
-	0x7c, 0xcd, 0xb5, 0xbd, 0x59, 0x73, 0x4e, 0x6c, 0xdd, 0x9f, 0xcc, 0xd6, 0xda, 0x14, 0xb6, 0x78,
-	0xef, 0xb2, 0x65, 0x58, 0x1a, 0x67, 0xff, 0x32, 0xa6, 0xbe, 0xf7, 0x41, 0x6a, 0x28, 0x2a, 0x7f,
-	0xdb, 0x10, 0xd3, 0xe7, 0xdc, 0xf8, 0xea, 0xbf, 0x0d, 0xfd, 0xe7, 0x72, 0x1b, 0x06, 0xc6, 0x73,
-	0x3e, 0x96, 0xac, 0xe0, 0x99, 0xc9, 0x2a, 0x4d, 0x26, 0x6b, 0x7d, 0x0a, 0x59, 0x7d, 0xed, 0xcb,
-	0xfe, 0x5f, 0x81, 0xec, 0x64, 0x77, 0x97, 0xb9, 0xe1, 0xdb, 0x59, 0x39, 0xcb, 0xed, 0xdc, 0xa3,
-	0xdd, 0x77, 0x7a, 0xda, 0x7f, 0xf1, 0x8f, 0x88, 0x69, 0xe0, 0x5b, 0xe0, 0xb7, 0x3d, 0xa8, 0x9f,
-	0xf3, 0xd2, 0xde, 0xaf, 0xa8, 0xe0, 0x67, 0x2a, 0xea, 0xd3, 0x1f, 0x33, 0xa1, 0x2f, 0xff, 0x98,
-	0x19, 0xab, 0xc6, 0xd9, 0x33, 0xab, 0xf1, 0xcf, 0x93, 0xd5, 0x78, 0x73, 0x8a, 0x1a, 0x07, 0x58,
-	0xcd, 0xfe, 0xa4, 0xc0, 0xda, 0xa7, 0x00, 0xe7, 0xa3, 0xc8, 0x25, 0x08, 0x1f, 0x59, 0xb6, 0xd1,
-	0xb4, 0x5e, 0x74, 0x3f, 0x43, 0x7a, 0x86, 0xde, 0xab, 0x8b, 0xff, 0x6c, 0xaf, 0x2e, 0x3d, 0x9d,
-	0x07, 0x4e, 0xaf, 0xf3, 0x3f, 0xc0, 0xe2, 0xd3, 0x0e, 0x76, 0x4e, 0x7a, 0xb1, 0xa9, 0x86, 0xff,
-	0xd1, 0xc1, 0x74, 0xda, 0x68, 0xcb, 0xfe, 0x4f, 0x01, 0x75, 0x74, 0xab, 0x6c, 0xcf, 0x3d, 0x08,
-	0xb2, 0xaf, 0x4e, 0x36, 0x69, 0x99, 0xf2, 0x56, 0x86, 0x6b, 0x18, 0xf9, 0xac, 0xf6, 0x4a, 0xe1,
-	0xbb, 0x7a, 0x2d, 0xf0, 0x9d, 0xa9, 0x05, 0x43, 0xd5, 0xc8, 0x49, 0x72, 0xaa, 0x6a, 0x9e, 0x0e,
-	0x14, 0xe3, 0xcd, 0x20, 0x51, 0xcc, 0x1d, 0x08, 0xf2, 0x77, 0x2d, 0xbe, 0x31, 0xb2, 0x75, 0x79,
-	0x28, 0x9b, 0xde, 0xc7, 0xa7, 0x97, 0x0c, 0x47, 0xaf, 0xbf, 0x54, 0xe0, 0xc2, 0x90, 0x0c, 0xd0,
-	0x0a, 0xa4, 0x0b, 0x4f, 0xb6, 0x1f, 0xee, 0x69, 0x7a, 0xb5, 0xa4, 0xed, 0xec, 0x6e, 0x57, 0xf4,
-	0xea, 0xa6, 0x7e, 0xf0, 0xa4, 0xbc, 0x5f, 0xda, 0xde, 0x7d, 0xb0, 0x5b, 0xda, 0x49, 0xcc, 0xa0,
-	0x14, 0x2c, 0x8c, 0x42, 0xf6, 0x0b, 0xe5, 0x72, 0x42, 0x41, 0x4b, 0xa0, 0x8e, 0xfa, 0xb4, 0xd2,
-	0x5f, 0x4a, 0xdb, 0x95, 0x84, 0x0f, 0x65, 0x60, 0x69, 0xd4, 0xfb, 0x64, 0xcf, 0x5b, 0x25, 0xfc,
-	0xeb, 0x5f, 0x2b, 0x90, 0x1c, 0xf7, 0xf2, 0x8c, 0x6e, 0xc0, 0xaa, 0xdc, 0xaa, 0x95, 0xca, 0x07,
-	0x8f, 0x2a, 0x7a, 0x79, 0xef, 0x40, 0xdb, 0x2e, 0x8d, 0x66, 0xb7, 0x06, 0x99, 0x49, 0xc0, 0x6a,
-	0x49, 0x63, 0x28, 0x2d, 0xa1, 0xa0, 0x75, 0xb8, 0x3e, 0x11, 0x55, 0x78, 0xb4, 0xbb, 0x53, 0xa8,
-	0xb0, 0x24, 0xf7, 0x2a, 0xa5, 0x84, 0x0f, 0xad, 0xc2, 0xd5, 0x49, 0xd8, 0xca, 0xee, 0xe3, 0xd2,
-	0xde, 0x41, 0x25, 0xe1, 0x2f, 0xde, 0x7f, 0xf3, 0x7e, 0x59, 0x79, 0xfb, 0x7e, 0x59, 0xf9, 0xf1,
-	0xfd, 0xb2, 0xf2, 0xf2, 0xc3, 0xf2, 0xcc, 0xdb, 0x0f, 0xcb, 0x33, 0xdf, 0x7d, 0x58, 0x9e, 0xf9,
-	0xdb, 0xb5, 0xba, 0xe5, 0x36, 0x3a, 0x87, 0x1b, 0x35, 0xd2, 0xca, 0x57, 0x9c, 0x0e, 0x66, 0xaf,
-	0x67, 0x79, 0x9b, 0x98, 0xd8, 0x3b, 0xef, 0xee, 0x49, 0x1b, 0xd3, 0xc3, 0x10, 0xff, 0xff, 0xd8,
-	0xed, 0x5f, 0x03, 0x00, 0x00, 0xff, 0xff, 0xb2, 0xe0, 0x48, 0x97, 0xd4, 0x13, 0x00, 0x00,
+	// 1990 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x59, 0xcd, 0x6f, 0x1b, 0xc7,
+	0x15, 0xd7, 0xf2, 0x43, 0x12, 0x1f, 0x29, 0x99, 0x1a, 0xd3, 0xd2, 0x9a, 0x16, 0x25, 0x6a, 0x65,
+	0x27, 0xac, 0x60, 0x8b, 0x95, 0xd2, 0xa4, 0x85, 0xd3, 0x20, 0x20, 0x69, 0xa6, 0x66, 0x1b, 0x7d,
+	0x64, 0x49, 0x31, 0x40, 0x0e, 0x5d, 0xac, 0xb8, 0x23, 0x72, 0x6b, 0x72, 0x97, 0xdd, 0x59, 0xca,
+	0x91, 0xd1, 0x4b, 0xdb, 0x5b, 0x4f, 0xe9, 0xa5, 0x7f, 0x41, 0x4f, 0x3d, 0xe5, 0x10, 0xf4, 0xda,
+	0x4b, 0x0f, 0x46, 0x4f, 0x41, 0x4e, 0x05, 0x0a, 0x14, 0x85, 0x0d, 0xd4, 0xb7, 0x5e, 0xda, 0x3f,
+	0xa0, 0x98, 0x8f, 0x25, 0x97, 0xcb, 0xa5, 0x29, 0xd9, 0x6e, 0x91, 0x8b, 0xa1, 0x79, 0xef, 0x37,
+	0x6f, 0xde, 0xc7, 0x6f, 0xde, 0x9b, 0xa5, 0x21, 0xe3, 0xea, 0xe4, 0x51, 0xf1, 0x7c, 0xaf, 0xa8,
+	0x5b, 0xad, 0x8e, 0xed, 0xec, 0xf6, 0x1d, 0xdb, 0xb5, 0xd1, 0x02, 0x95, 0xee, 0x9e, 0xef, 0x65,
+	0x57, 0xf4, 0x9e, 0x69, 0xd9, 0x45, 0xf6, 0x2f, 0xd7, 0x65, 0xd7, 0x5a, 0x36, 0xe9, 0xd9, 0xa4,
+	0xd8, 0x23, 0x6d, 0xba, 0xaf, 0x47, 0xda, 0x42, 0x71, 0x93, 0x2b, 0x34, 0xb6, 0x2a, 0xf2, 0x85,
+	0x50, 0x65, 0xda, 0x76, 0xdb, 0xe6, 0x72, 0xfa, 0x97, 0x90, 0xae, 0x92, 0x8e, 0xee, 0x60, 0x83,
+	0x5a, 0x69, 0xd9, 0xbd, 0x9e, 0x6d, 0x09, 0x79, 0x6e, 0x24, 0x77, 0x30, 0x71, 0x35, 0x6c, 0xb5,
+	0x6c, 0xc3, 0xb4, 0xc4, 0x39, 0xca, 0x2f, 0x25, 0x58, 0x2b, 0x31, 0x6f, 0x8f, 0x6d, 0x62, 0xba,
+	0xa6, 0x6d, 0x35, 0xb1, 0x63, 0x98, 0x2d, 0xb7, 0xb9, 0x87, 0xb2, 0xb0, 0xd8, 0x17, 0x42, 0x59,
+	0xca, 0x4b, 0x85, 0x98, 0x3a, 0x5c, 0xa3, 0x7d, 0x58, 0x38, 0xe7, 0x40, 0x39, 0x92, 0x97, 0x0a,
+	0xcb, 0xfb, 0xf2, 0xae, 0x08, 0x73, 0x97, 0x9b, 0x1b, 0x9a, 0x51, 0x3d, 0x20, 0x5a, 0x85, 0x79,
+	0x07, 0xeb, 0xc4, 0xb6, 0xe4, 0x68, 0x5e, 0x2a, 0x24, 0x54, 0xb1, 0x52, 0xfe, 0x24, 0xc1, 0x8a,
+	0xd8, 0x64, 0xbb, 0xb8, 0xa1, 0x77, 0xbb, 0x17, 0xcd, 0x3d, 0x94, 0x03, 0xe8, 0xeb, 0x84, 0x68,
+	0x7d, 0xfb, 0x31, 0x76, 0xc4, 0xf9, 0x09, 0x2a, 0x39, 0xa6, 0x02, 0xb4, 0x05, 0x29, 0x07, 0xff,
+	0x0c, 0xb7, 0x5c, 0x01, 0x88, 0x30, 0x40, 0x92, 0xcb, 0x38, 0xa4, 0x00, 0x69, 0xcb, 0xd6, 0xc4,
+	0xe9, 0x02, 0x16, 0x65, 0xb0, 0x65, 0xcb, 0x16, 0xfe, 0x71, 0xe4, 0x26, 0x24, 0x5d, 0xdb, 0xd5,
+	0xbb, 0x02, 0x14, 0x63, 0x20, 0x60, 0x22, 0x0e, 0xc8, 0x01, 0x9c, 0xdb, 0x2e, 0xd6, 0x5a, 0xf6,
+	0xc0, 0x72, 0xe5, 0x78, 0x5e, 0x2a, 0x2c, 0xa9, 0x09, 0x2a, 0xa9, 0x50, 0x81, 0xf2, 0xfb, 0x28,
+	0xc8, 0x22, 0x02, 0xbd, 0x6b, 0x1a, 0xba, 0xcb, 0x43, 0xa9, 0xbb, 0xba, 0x8b, 0x51, 0x0e, 0x18,
+	0x03, 0x34, 0xd3, 0x60, 0x51, 0xa4, 0xca, 0xb1, 0xa7, 0xff, 0x96, 0x23, 0xea, 0x3c, 0x15, 0xd6,
+	0x0c, 0xa4, 0x41, 0xf6, 0xdc, 0xdb, 0xa4, 0xd9, 0x7d, 0xec, 0xb0, 0x3f, 0x74, 0xc3, 0x70, 0x30,
+	0x21, 0x2c, 0xac, 0x44, 0x79, 0xeb, 0x9b, 0xaf, 0xee, 0xe5, 0x04, 0x09, 0x86, 0x27, 0x94, 0x38,
+	0xa4, 0xee, 0x3a, 0xa6, 0xd5, 0x56, 0xe5, 0xa1, 0x91, 0x23, 0x61, 0x43, 0xe8, 0xd1, 0x07, 0xb0,
+	0x44, 0x3d, 0x1d, 0xd9, 0x64, 0xd9, 0x2f, 0xcb, 0xdf, 0x7c, 0x75, 0x2f, 0x23, 0x6c, 0x8e, 0x9b,
+	0x4a, 0x31, 0xb8, 0xb7, 0xdd, 0x57, 0xe9, 0xd8, 0x65, 0x2b, 0xbd, 0x0d, 0xd0, 0x77, 0x6c, 0xfb,
+	0x4c, 0xeb, 0xe8, 0xa4, 0xc3, 0xd2, 0xe5, 0x45, 0x9d, 0x60, 0xf2, 0x87, 0x3a, 0xe9, 0x50, 0x3a,
+	0x74, 0xb0, 0xd9, 0xee, 0xb8, 0xf2, 0x3c, 0xcb, 0xb7, 0x58, 0xa1, 0x0c, 0xc4, 0x79, 0x19, 0x16,
+	0x98, 0x98, 0x2f, 0x50, 0x19, 0x16, 0x85, 0x75, 0x22, 0x2f, 0xe6, 0xa3, 0x85, 0xe4, 0x7e, 0x3e,
+	0xe0, 0xc7, 0x04, 0x81, 0xcb, 0xb1, 0xa7, 0x7f, 0xdf, 0x9c, 0x53, 0x87, 0xfb, 0x94, 0x3f, 0xa4,
+	0x20, 0xcd, 0xb1, 0xa5, 0x81, 0x61, 0xba, 0x97, 0x2a, 0x8f, 0x0c, 0x0b, 0x44, 0xef, 0xf5, 0xbb,
+	0xd8, 0x60, 0xb5, 0x58, 0x54, 0xbd, 0x25, 0x5a, 0x87, 0x84, 0x77, 0x1d, 0x68, 0x4e, 0xa3, 0x8c,
+	0x9f, 0x9e, 0x00, 0x7d, 0x07, 0x96, 0x38, 0x50, 0x3b, 0xc5, 0x7a, 0xcb, 0xb6, 0x58, 0xf2, 0x3c,
+	0xe3, 0x29, 0xae, 0x2a, 0x33, 0x0d, 0xda, 0x1e, 0x42, 0x45, 0x3e, 0xe2, 0x2c, 0x70, 0x01, 0x7a,
+	0xc8, 0xb3, 0xf2, 0x36, 0xa4, 0xec, 0x3e, 0xb6, 0x4c, 0xab, 0xcd, 0x93, 0x3a, 0xef, 0x33, 0x97,
+	0x14, 0x1a, 0x96, 0xd6, 0xbb, 0x80, 0x3c, 0x20, 0x31, 0x9f, 0x60, 0xed, 0xf4, 0xc2, 0xc5, 0x44,
+	0xe4, 0x32, 0x2d, 0x34, 0x75, 0xf3, 0x09, 0x2e, 0x53, 0x39, 0x65, 0xbe, 0x87, 0x1e, 0x38, 0xa6,
+	0xbc, 0xc8, 0x2e, 0x26, 0x08, 0xd1, 0x89, 0x63, 0xa2, 0x3b, 0xb0, 0x3c, 0x3c, 0x97, 0x7b, 0x97,
+	0x60, 0xa6, 0x96, 0xbc, 0x33, 0xb9, 0x7b, 0x3a, 0xe4, 0x1d, 0x4c, 0x06, 0x5d, 0x97, 0xde, 0x37,
+	0xf3, 0xcc, 0xc4, 0x21, 0x5c, 0x86, 0x19, 0xbc, 0xcb, 0x71, 0x0b, 0x4d, 0x61, 0x20, 0xc8, 0x63,
+	0x3f, 0x03, 0x92, 0xaf, 0xc6, 0x80, 0x00, 0x31, 0x53, 0xe1, 0xc4, 0xdc, 0x86, 0x25, 0x11, 0x8b,
+	0x88, 0x78, 0x89, 0xd7, 0x83, 0x0b, 0x45, 0xc0, 0xef, 0x43, 0x8a, 0xd1, 0xc6, 0xbb, 0x1b, 0xcb,
+	0x33, 0xee, 0x46, 0x92, 0x2a, 0xc4, 0x12, 0x7d, 0x17, 0x56, 0x1e, 0xdb, 0xce, 0x23, 0xec, 0x68,
+	0x3e, 0x6f, 0xae, 0xf9, 0xbc, 0xb9, 0xc6, 0xd5, 0xc7, 0x43, 0x9f, 0xde, 0x85, 0xb5, 0xb1, 0x1d,
+	0xbe, 0xd2, 0xa6, 0x99, 0x77, 0x19, 0xdf, 0x8e, 0x51, 0x79, 0x0b, 0x90, 0x1e, 0xdb, 0x46, 0x6b,
+	0xbc, 0xc2, 0x6a, 0xbc, 0xec, 0xc3, 0xd3, 0x3a, 0xef, 0xc2, 0xf5, 0x71, 0x97, 0x78, 0xe8, 0x88,
+	0x19, 0x5f, 0xf1, 0xbb, 0xc3, 0xe3, 0xdf, 0x86, 0xa5, 0xc7, 0xa6, 0x65, 0x61, 0x47, 0xe3, 0x3a,
+	0xf9, 0x3a, 0x33, 0x9b, 0xe2, 0xc2, 0x4f, 0x99, 0x0c, 0xdd, 0x03, 0x44, 0x70, 0x17, 0xb7, 0x5c,
+	0x6c, 0x0c, 0x79, 0x41, 0xe4, 0x4c, 0x3e, 0x5a, 0x48, 0xa8, 0x2b, 0x9e, 0xc6, 0xab, 0x37, 0x41,
+	0xef, 0xc1, 0x9a, 0xd7, 0xad, 0x0d, 0xac, 0x1b, 0x5d, 0xd3, 0x1a, 0x5e, 0x89, 0x1b, 0xcc, 0x8f,
+	0x1b, 0x42, 0xfd, 0x40, 0x68, 0x85, 0x2f, 0xe5, 0x61, 0xc1, 0x88, 0x3d, 0x70, 0x5a, 0x58, 0x5e,
+	0x65, 0xc5, 0xc8, 0x05, 0x8a, 0xa1, 0x32, 0x4c, 0x9d, 0x41, 0x9a, 0x7b, 0x5e, 0x3d, 0xf9, 0x1a,
+	0xbd, 0x07, 0x71, 0x97, 0x4e, 0x1e, 0x79, 0x2d, 0x2f, 0x15, 0x92, 0xfb, 0xd9, 0x60, 0x21, 0x47,
+	0x93, 0x49, 0x90, 0x8a, 0xc3, 0x7d, 0x64, 0x11, 0xb3, 0x4d, 0xe6, 0x79, 0xe0, 0x42, 0x95, 0xc9,
+	0xd0, 0x5d, 0x10, 0x05, 0xd5, 0xce, 0x74, 0x0a, 0x35, 0x0d, 0xf9, 0xa6, 0xaf, 0xda, 0x4b, 0x5c,
+	0xf9, 0x11, 0xd5, 0xd5, 0x0c, 0x74, 0x1b, 0x96, 0x75, 0xda, 0x9f, 0x34, 0x47, 0x77, 0xb1, 0x76,
+	0xda, 0x27, 0x72, 0x96, 0x0d, 0x9c, 0x14, 0x93, 0xaa, 0xba, 0x8b, 0xcb, 0x7d, 0x42, 0xa7, 0xb3,
+	0x97, 0x41, 0xf9, 0x16, 0xeb, 0x4c, 0xc3, 0x35, 0xbd, 0xd5, 0xdc, 0xc2, 0xa9, 0x4e, 0x4c, 0x22,
+	0xaf, 0xf3, 0x5b, 0xcd, 0x44, 0x65, 0x2a, 0xa1, 0x99, 0xf6, 0x6e, 0x75, 0x30, 0xd3, 0x39, 0x9e,
+	0x69, 0xa1, 0x0e, 0x64, 0x7a, 0x1f, 0x6e, 0x70, 0x7a, 0x04, 0x77, 0x6d, 0xb0, 0x5d, 0xd7, 0x99,
+	0x32, 0xb0, 0xe7, 0x0e, 0x2c, 0x93, 0xae, 0x4e, 0x3a, 0xfa, 0x29, 0x6d, 0x86, 0xb6, 0x65, 0xc8,
+	0x9b, 0xbc, 0x83, 0x0c, 0xa5, 0x65, 0xdb, 0x32, 0xd0, 0x0e, 0xac, 0xf0, 0x67, 0x93, 0x46, 0xdf,
+	0x2f, 0xa6, 0xcb, 0xb8, 0x9a, 0x67, 0x9e, 0x5f, 0xe3, 0x8a, 0x0a, 0x93, 0x53, 0xb2, 0x7e, 0x0f,
+	0xae, 0xe3, 0xbe, 0xdd, 0xea, 0x68, 0x3d, 0xdd, 0x32, 0xcf, 0xe8, 0xb3, 0x86, 0xdd, 0xa0, 0x2d,
+	0x5f, 0x4e, 0x57, 0x18, 0xe0, 0x40, 0xe8, 0xbd, 0xce, 0x18, 0xd8, 0x45, 0x8f, 0x50, 0xd8, 0x11,
+	0xe9, 0x31, 0xf8, 0x89, 0x63, 0x2a, 0x7f, 0x91, 0x00, 0x8d, 0x6a, 0xff, 0x13, 0x7c, 0xc1, 0xc7,
+	0xc5, 0xcb, 0xc7, 0xb5, 0xf4, 0xfa, 0xe3, 0xfa, 0x7d, 0x60, 0xf3, 0x37, 0xf0, 0x02, 0x98, 0xde,
+	0x35, 0x93, 0x14, 0xed, 0x6d, 0x1e, 0xcd, 0xd4, 0xa8, 0x7f, 0xa6, 0x2a, 0xbf, 0x8e, 0xc2, 0xea,
+	0x01, 0x69, 0xd7, 0x07, 0xa7, 0x3d, 0xd3, 0xe5, 0x51, 0x1d, 0xf1, 0x02, 0xcf, 0x9a, 0x7f, 0x63,
+	0x53, 0x2e, 0x12, 0x9c, 0x72, 0xc1, 0xa9, 0x14, 0xbd, 0xda, 0x54, 0x8a, 0x5d, 0x6e, 0x2a, 0xc5,
+	0x27, 0xa6, 0x52, 0x15, 0x56, 0x08, 0x8b, 0xc5, 0xff, 0xae, 0x99, 0x9f, 0x91, 0xa9, 0xf4, 0x70,
+	0x8b, 0x97, 0xae, 0x50, 0xce, 0x2d, 0x84, 0x72, 0xee, 0x7e, 0xe9, 0x57, 0x2f, 0xbe, 0xdc, 0x99,
+	0x3c, 0xf5, 0x37, 0x2f, 0xbe, 0xdc, 0x79, 0xcb, 0x75, 0x06, 0x98, 0x7a, 0x57, 0xfc, 0xbc, 0xc8,
+	0x3e, 0x01, 0xc2, 0x53, 0xad, 0x9c, 0xc0, 0x46, 0xb8, 0x46, 0xc5, 0xa4, 0x6f, 0x5b, 0x04, 0xa3,
+	0x77, 0x60, 0x9e, 0xb8, 0xba, 0x3b, 0xe0, 0x4c, 0x5a, 0xde, 0xbf, 0xb5, 0xcb, 0x9f, 0xef, 0xb4,
+	0x11, 0x1d, 0x0c, 0x5c, 0x9d, 0x66, 0xbd, 0xce, 0x00, 0xcd, 0x3d, 0x55, 0x40, 0x95, 0x3f, 0x46,
+	0x21, 0x13, 0xb0, 0xcb, 0x3a, 0xf5, 0xac, 0xd2, 0x06, 0x8b, 0x17, 0x99, 0x56, 0xbc, 0xf1, 0xa9,
+	0x19, 0x0d, 0x9f, 0x9a, 0x05, 0x48, 0x4f, 0x8c, 0x26, 0x5e, 0xdf, 0xe5, 0xfe, 0xf8, 0x50, 0xba,
+	0x05, 0x89, 0xd1, 0x34, 0xe2, 0xb5, 0x5d, 0xec, 0x7b, 0x73, 0xe8, 0x0d, 0x55, 0x76, 0x4a, 0x87,
+	0x58, 0x78, 0x95, 0x0e, 0xb1, 0x18, 0xde, 0x21, 0xee, 0x7f, 0x38, 0x9d, 0x11, 0xb7, 0x67, 0x30,
+	0x82, 0xd5, 0x47, 0xa9, 0xc3, 0x7a, 0x98, 0xfc, 0xf5, 0xd8, 0xf0, 0xb7, 0x08, 0x64, 0x03, 0x56,
+	0xd9, 0x6b, 0x97, 0x4f, 0xbf, 0x37, 0xc6, 0x09, 0xff, 0x6b, 0x2c, 0xfa, 0x46, 0x5e, 0x63, 0xb1,
+	0x70, 0x5e, 0x85, 0x12, 0x22, 0x7e, 0x55, 0x42, 0xdc, 0xaf, 0x4e, 0x2f, 0xd6, 0xce, 0x8c, 0x62,
+	0xf9, 0xd2, 0xa7, 0xfc, 0x4e, 0x02, 0x65, 0xba, 0x7a, 0x58, 0xb9, 0xe0, 0xeb, 0x50, 0xba, 0xca,
+	0xeb, 0x70, 0x54, 0xf6, 0xc8, 0xe5, 0xcb, 0xfe, 0x9f, 0xe8, 0x04, 0x99, 0xc6, 0xbe, 0x45, 0xff,
+	0xbf, 0xcd, 0xe0, 0x55, 0x3e, 0x1a, 0xfd, 0x8c, 0x8a, 0xbf, 0x22, 0xa3, 0x5e, 0x3e, 0x9d, 0xe7,
+	0x5f, 0x7f, 0x3a, 0x87, 0xb2, 0x71, 0xe1, 0xca, 0x6c, 0xfc, 0xd1, 0x74, 0x36, 0xde, 0x9d, 0xc1,
+	0xc6, 0xb1, 0xaa, 0x2a, 0xff, 0x92, 0xe0, 0xf6, 0xcb, 0x00, 0x6f, 0x86, 0x91, 0xeb, 0x90, 0x38,
+	0x33, 0x2d, 0xbd, 0x6b, 0x3e, 0x19, 0x7e, 0x06, 0x8f, 0x04, 0xa3, 0xa7, 0x73, 0xf4, 0x6a, 0x4f,
+	0xe7, 0x11, 0xcf, 0x63, 0x97, 0xe7, 0xf9, 0x9f, 0x23, 0x20, 0x1f, 0x90, 0xb6, 0x8a, 0xdb, 0x26,
+	0xa1, 0x09, 0xf5, 0xbf, 0xd0, 0xbe, 0xe5, 0x8f, 0xb3, 0x50, 0xee, 0x44, 0xaf, 0xcc, 0x9d, 0xca,
+	0x74, 0xee, 0x14, 0x42, 0xb8, 0x13, 0x9a, 0x29, 0xe5, 0x53, 0xc8, 0x4f, 0xd3, 0xbd, 0xde, 0xf8,
+	0xf9, 0x29, 0x6c, 0x7e, 0x32, 0xc0, 0xce, 0x85, 0xaf, 0x37, 0x92, 0x63, 0x6c, 0x19, 0xec, 0x95,
+	0xf3, 0xf3, 0x01, 0x26, 0xf4, 0x83, 0x20, 0x49, 0x5c, 0xdd, 0x71, 0x35, 0xfd, 0xcc, 0x15, 0x3f,
+	0xed, 0x79, 0x2d, 0x04, 0x98, 0xa2, 0x44, 0xe5, 0x28, 0x03, 0xf1, 0xae, 0xd9, 0x33, 0xf9, 0x0f,
+	0x8c, 0x4b, 0x2a, 0x5f, 0x28, 0x03, 0xc8, 0x4f, 0xb7, 0x2f, 0x1c, 0xff, 0x3e, 0xcc, 0xb3, 0x6f,
+	0x1d, 0xea, 0x38, 0xed, 0x23, 0x37, 0x03, 0x8c, 0x1c, 0xfd, 0xfa, 0x23, 0x08, 0x29, 0xe0, 0x48,
+	0x86, 0x98, 0x85, 0x3f, 0x77, 0xc7, 0x9a, 0x1f, 0x93, 0x28, 0xbf, 0x80, 0x9b, 0xbe, 0x63, 0x87,
+	0x99, 0xe2, 0x01, 0xfd, 0xaf, 0x69, 0xa7, 0x7c, 0x06, 0xd9, 0xb0, 0xd3, 0x45, 0xb8, 0x3f, 0x84,
+	0x45, 0x46, 0xca, 0x47, 0xf8, 0x82, 0x1d, 0x96, 0xdc, 0xbf, 0x15, 0x72, 0x05, 0xbd, 0x2f, 0x18,
+	0x11, 0xf2, 0xc2, 0xb9, 0x60, 0xc2, 0x0f, 0x60, 0x2d, 0x60, 0x9b, 0x78, 0x71, 0xbd, 0x7c, 0x64,
+	0x28, 0xbf, 0x95, 0x40, 0x9e, 0xdc, 0x2a, 0x9c, 0xfa, 0x00, 0xe2, 0xf4, 0x04, 0xaf, 0x04, 0x5b,
+	0x41, 0x8f, 0x26, 0x7e, 0x27, 0xf5, 0x7a, 0x03, 0xdb, 0x35, 0xea, 0x29, 0x91, 0x2b, 0xf5, 0x94,
+	0x40, 0x34, 0x62, 0x34, 0x5f, 0x2a, 0x9a, 0x4f, 0xc6, 0x82, 0xf1, 0x86, 0x3a, 0x0f, 0xe6, 0x5d,
+	0x88, 0x33, 0x86, 0x88, 0xf4, 0xce, 0xe4, 0x13, 0x47, 0xef, 0x7c, 0x21, 0xc1, 0xb5, 0x40, 0x5f,
+	0x45, 0x5b, 0x90, 0x2b, 0x1d, 0x56, 0x1e, 0x1e, 0xa9, 0x5a, 0xb3, 0xaa, 0x3e, 0xa8, 0x55, 0x1a,
+	0x5a, 0x73, 0x4f, 0x3b, 0x39, 0xac, 0x1f, 0x57, 0x2b, 0xb5, 0x8f, 0x6a, 0xd5, 0x07, 0xe9, 0x39,
+	0x94, 0x85, 0xd5, 0x49, 0xc8, 0x71, 0xa9, 0x5e, 0x4f, 0x4b, 0x68, 0x1d, 0xe4, 0x49, 0x9d, 0x5a,
+	0xfd, 0x71, 0xb5, 0xd2, 0x48, 0x47, 0x50, 0x1e, 0xd6, 0x27, 0xb5, 0x87, 0x47, 0xde, 0x2a, 0x1d,
+	0xdd, 0xf9, 0xa7, 0x04, 0x99, 0xb0, 0x5f, 0x43, 0xd0, 0xdb, 0xb0, 0x2d, 0xb6, 0xaa, 0xd5, 0xfa,
+	0xc9, 0xc7, 0x0d, 0xad, 0x7e, 0x74, 0xa2, 0x56, 0xaa, 0x93, 0xde, 0xdd, 0x86, 0xfc, 0x34, 0x60,
+	0xb3, 0xaa, 0x52, 0x94, 0x9a, 0x96, 0xd0, 0x0e, 0xbc, 0x35, 0x15, 0x55, 0xfa, 0xb8, 0xf6, 0xa0,
+	0xd4, 0xa0, 0x4e, 0x1e, 0x35, 0xaa, 0xe9, 0x08, 0xda, 0x86, 0xcd, 0x69, 0xd8, 0x46, 0xed, 0xa0,
+	0x7a, 0x74, 0xd2, 0x48, 0x47, 0xd1, 0x2e, 0xec, 0x4c, 0x03, 0xd5, 0x0e, 0x99, 0x49, 0xad, 0x72,
+	0x74, 0x70, 0x50, 0x6b, 0x1c, 0x54, 0x0f, 0x1b, 0xe9, 0x58, 0xf9, 0xc3, 0xa7, 0xcf, 0x36, 0xa4,
+	0xaf, 0x9f, 0x6d, 0x48, 0xff, 0x78, 0xb6, 0x21, 0x7d, 0xf1, 0x7c, 0x63, 0xee, 0xeb, 0xe7, 0x1b,
+	0x73, 0x7f, 0x7d, 0xbe, 0x31, 0xf7, 0xd9, 0x9d, 0xb6, 0xe9, 0x76, 0x06, 0xa7, 0xbb, 0x2d, 0xbb,
+	0x57, 0x6c, 0x38, 0x03, 0x4c, 0xbf, 0xc1, 0x8a, 0x96, 0x6d, 0x60, 0xaf, 0x69, 0xba, 0x17, 0x7d,
+	0x4c, 0x4e, 0xe7, 0xd9, 0x7f, 0x90, 0xbc, 0xf3, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x5e,
+	0x05, 0x7a, 0xd5, 0x19, 0x00, 0x00,
 }
 
 func (m *AnchorPositionVerdictV1) Marshal() (dAtA []byte, err error) {
@@ -1697,6 +2202,54 @@ func (m *AnchorAuditState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.EpochManifestUri) > 0 {
+		i -= len(m.EpochManifestUri)
+		copy(dAtA[i:], m.EpochManifestUri)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.EpochManifestUri)))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x92
+	}
+	if len(m.EpochManifestHash) > 0 {
+		i -= len(m.EpochManifestHash)
+		copy(dAtA[i:], m.EpochManifestHash)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.EpochManifestHash)))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x8a
+	}
+	if len(m.AnchorCommitUri) > 0 {
+		i -= len(m.AnchorCommitUri)
+		copy(dAtA[i:], m.AnchorCommitUri)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.AnchorCommitUri)))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x82
+	}
+	if m.SlashableBond != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.SlashableBond))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xf8
+	}
+	if m.ProofDeadlineHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.ProofDeadlineHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xf0
+	}
+	if m.OpeningDeadlineHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.OpeningDeadlineHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xe8
+	}
 	if len(m.AuditBasis) > 0 {
 		i -= len(m.AuditBasis)
 		copy(dAtA[i:], m.AuditBasis)
@@ -1931,6 +2484,48 @@ func (m *AnchorAuditState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *AnchorVoteKeyState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AnchorVoteKeyState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AnchorVoteKeyState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Height != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.VoteAddress) > 0 {
+		i -= len(m.VoteAddress)
+		copy(dAtA[i:], m.VoteAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.VoteAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ValidatorOperatorAddress) > 0 {
+		i -= len(m.ValidatorOperatorAddress)
+		copy(dAtA[i:], m.ValidatorOperatorAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.ValidatorOperatorAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *MsgSubmitAnchorOpening) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1951,6 +2546,13 @@ func (m *MsgSubmitAnchorOpening) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	_ = i
 	var l int
 	_ = l
+	if len(m.AnchorCommitUri) > 0 {
+		i -= len(m.AnchorCommitUri)
+		copy(dAtA[i:], m.AnchorCommitUri)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.AnchorCommitUri)))
+		i--
+		dAtA[i] = 0x3a
+	}
 	if len(m.SubmitterAddress) > 0 {
 		i -= len(m.SubmitterAddress)
 		copy(dAtA[i:], m.SubmitterAddress)
@@ -2053,6 +2655,20 @@ func (m *MsgSubmitAnchorProof) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.EpochManifestUri) > 0 {
+		i -= len(m.EpochManifestUri)
+		copy(dAtA[i:], m.EpochManifestUri)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.EpochManifestUri)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if len(m.EpochManifestHash) > 0 {
+		i -= len(m.EpochManifestHash)
+		copy(dAtA[i:], m.EpochManifestHash)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.EpochManifestHash)))
+		i--
+		dAtA[i] = 0x3a
+	}
 	if len(m.SubmitterAddress) > 0 {
 		i -= len(m.SubmitterAddress)
 		copy(dAtA[i:], m.SubmitterAddress)
@@ -2349,6 +2965,220 @@ func (m *MsgSubmitAnchorValidatorVoteResponse) MarshalToSizedBuffer(dAtA []byte)
 		i--
 		dAtA[i] = 0x8
 	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgRegisterAnchorVoteKey) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgRegisterAnchorVoteKey) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgRegisterAnchorVoteKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.SubmitterAddress) > 0 {
+		i -= len(m.SubmitterAddress)
+		copy(dAtA[i:], m.SubmitterAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.SubmitterAddress)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.VoteAddress) > 0 {
+		i -= len(m.VoteAddress)
+		copy(dAtA[i:], m.VoteAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.VoteAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ValidatorOperatorAddress) > 0 {
+		i -= len(m.ValidatorOperatorAddress)
+		copy(dAtA[i:], m.ValidatorOperatorAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.ValidatorOperatorAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgRegisterAnchorVoteKeyResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgRegisterAnchorVoteKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgRegisterAnchorVoteKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Status != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Status))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorAuditsPendingRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorAuditsPendingRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorAuditsPendingRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Limit != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Limit))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.StartAfter) > 0 {
+		i -= len(m.StartAfter)
+		copy(dAtA[i:], m.StartAfter)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.StartAfter)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorAuditsPendingResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorAuditsPendingResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorAuditsPendingResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Next) > 0 {
+		i -= len(m.Next)
+		copy(dAtA[i:], m.Next)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.Next)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Audits) > 0 {
+		for iNdEx := len(m.Audits) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Audits[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintAnchor(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorVoteKeyRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorVoteKeyRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorVoteKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorOperatorAddress) > 0 {
+		i -= len(m.ValidatorOperatorAddress)
+		copy(dAtA[i:], m.ValidatorOperatorAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.ValidatorOperatorAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorVoteKeyResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorVoteKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorVoteKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.VoteKey.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintAnchor(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -2697,6 +3527,47 @@ func (m *AnchorAuditState) Size() (n int) {
 	if l > 0 {
 		n += 2 + l + sovAnchor(uint64(l))
 	}
+	if m.OpeningDeadlineHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.OpeningDeadlineHeight))
+	}
+	if m.ProofDeadlineHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.ProofDeadlineHeight))
+	}
+	if m.SlashableBond != 0 {
+		n += 2 + sovAnchor(uint64(m.SlashableBond))
+	}
+	l = len(m.AnchorCommitUri)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.EpochManifestHash)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.EpochManifestUri)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	return n
+}
+
+func (m *AnchorVoteKeyState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.VoteAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	if m.Height != 0 {
+		n += 1 + sovAnchor(uint64(m.Height))
+	}
 	return n
 }
 
@@ -2729,6 +3600,10 @@ func (m *MsgSubmitAnchorOpening) Size() (n int) {
 		n += 1 + l + sovAnchor(uint64(l))
 	}
 	l = len(m.SubmitterAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.AnchorCommitUri)
 	if l > 0 {
 		n += 1 + l + sovAnchor(uint64(l))
 	}
@@ -2773,6 +3648,14 @@ func (m *MsgSubmitAnchorProof) Size() (n int) {
 		n += 1 + l + sovAnchor(uint64(l))
 	}
 	l = len(m.SubmitterAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.EpochManifestHash)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.EpochManifestUri)
 	if l > 0 {
 		n += 1 + l + sovAnchor(uint64(l))
 	}
@@ -2892,6 +3775,98 @@ func (m *MsgSubmitAnchorValidatorVoteResponse) Size() (n int) {
 	if m.Status != 0 {
 		n += 1 + sovAnchor(uint64(m.Status))
 	}
+	return n
+}
+
+func (m *MsgRegisterAnchorVoteKey) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.VoteAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.SubmitterAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgRegisterAnchorVoteKeyResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Status != 0 {
+		n += 1 + sovAnchor(uint64(m.Status))
+	}
+	return n
+}
+
+func (m *QueryAnchorAuditsPendingRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.StartAfter)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	if m.Limit != 0 {
+		n += 1 + sovAnchor(uint64(m.Limit))
+	}
+	return n
+}
+
+func (m *QueryAnchorAuditsPendingResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Audits) > 0 {
+		for _, e := range m.Audits {
+			l = e.Size()
+			n += 1 + l + sovAnchor(uint64(l))
+		}
+	}
+	l = len(m.Next)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorVoteKeyRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorVoteKeyResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.VoteKey.Size()
+	n += 1 + l + sovAnchor(uint64(l))
 	return n
 }
 
@@ -4323,6 +5298,294 @@ func (m *AnchorAuditState) Unmarshal(dAtA []byte) error {
 			}
 			m.AuditBasis = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 29:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OpeningDeadlineHeight", wireType)
+			}
+			m.OpeningDeadlineHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OpeningDeadlineHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 30:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProofDeadlineHeight", wireType)
+			}
+			m.ProofDeadlineHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ProofDeadlineHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 31:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SlashableBond", wireType)
+			}
+			m.SlashableBond = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SlashableBond |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 32:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AnchorCommitUri", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AnchorCommitUri = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 33:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EpochManifestHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EpochManifestHash = append(m.EpochManifestHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.EpochManifestHash == nil {
+				m.EpochManifestHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 34:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EpochManifestUri", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EpochManifestUri = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AnchorVoteKeyState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AnchorVoteKeyState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AnchorVoteKeyState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VoteAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAnchor(dAtA[iNdEx:])
@@ -4599,6 +5862,38 @@ func (m *MsgSubmitAnchorOpening) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.SubmitterAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AnchorCommitUri", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AnchorCommitUri = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4903,6 +6198,72 @@ func (m *MsgSubmitAnchorProof) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.SubmitterAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EpochManifestHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EpochManifestHash = append(m.EpochManifestHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.EpochManifestHash == nil {
+				m.EpochManifestHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EpochManifestUri", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EpochManifestUri = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -5689,6 +7050,607 @@ func (m *MsgSubmitAnchorValidatorVoteResponse) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgRegisterAnchorVoteKey) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgRegisterAnchorVoteKey: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgRegisterAnchorVoteKey: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VoteAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SubmitterAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SubmitterAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgRegisterAnchorVoteKeyResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgRegisterAnchorVoteKeyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgRegisterAnchorVoteKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= types.MutationStatusV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorAuditsPendingRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorAuditsPendingRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorAuditsPendingRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StartAfter", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StartAfter = append(m.StartAfter[:0], dAtA[iNdEx:postIndex]...)
+			if m.StartAfter == nil {
+				m.StartAfter = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Limit", wireType)
+			}
+			m.Limit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Limit |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorAuditsPendingResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorAuditsPendingResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorAuditsPendingResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Audits", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Audits = append(m.Audits, AnchorAuditState{})
+			if err := m.Audits[len(m.Audits)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Next", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Next = append(m.Next[:0], dAtA[iNdEx:postIndex]...)
+			if m.Next == nil {
+				m.Next = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorVoteKeyRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorVoteKeyRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorVoteKeyRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorVoteKeyResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorVoteKeyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorVoteKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteKey", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.VoteKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAnchor(dAtA[iNdEx:])

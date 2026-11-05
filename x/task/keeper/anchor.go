@@ -11,6 +11,7 @@ import (
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -100,6 +101,10 @@ func anchorSamplePositions(taskID, beacon []byte, rows uint64, count int) []uint
 // sampleAnchorAudit writes the AnchorAuditState of a task whose receipt
 // carries an anchor commitment, once its round-1 Verifier assignment is
 // finalized. Tasks without the commitment, and later rounds, are ignored.
+//
+// It runs inside EndBlock, so it returns an error only for store failures
+// (ADR-0040 v6): a receipt whose commitments cannot be sampled is recorded as
+// a final REJECT (the Worker signed it), and missing facts skip the audit.
 func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.VerifierAssignmentState) error {
 	if assignment.VerifyRound != 1 || len(assignment.TaskId) != types.Hash32Len {
 		return nil
@@ -115,44 +120,78 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	if _, ok := anchorCommitmentOf(receipt); !ok {
 		return nil
 	}
-	rows, err := anchorRowsOf(receipt)
-	if err != nil {
-		return fmt.Errorf("anchor audit %x: %w", assignment.TaskId, err)
-	}
 	params, err := k.ParamsForTask(ctx, taskKey)
 	if err != nil {
-		return err
+		sdk.UnwrapSDKContext(ctx).Logger().Error("anchor audit skipped: task params unavailable", "task", fmt.Sprintf("%x", assignment.TaskId), "err", err)
+		return nil
 	}
-	deadline, overflow := checkedHeightAdd(assignment.SelectionRandomnessHeight, params.Verification.AnchorVerdictWindowBlocksOrDefault())
-	if overflow {
-		return fmt.Errorf("anchor audit %x: verdict deadline overflows", assignment.TaskId)
-	}
-	rate, selected, basis, err := k.anchorAuditDraw(ctx, taskKey, receipt.WinnerWorker, assignment.SelectionRandomnessBeacon, params)
-	if err != nil {
-		return err
-	}
-	var positions []uint64
-	if selected {
-		positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
+	v := params.Verification
+	openDeadline, o1 := checkedHeightAdd(assignment.SelectionRandomnessHeight, v.AnchorOpenWindowBlocks)
+	proofDeadline, o2 := checkedHeightAdd(openDeadline, v.AnchorProofWindowBlocks)
+	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, v.AnchorVerdictWindowBlocks)
+	if o1 || o2 || o3 {
+		sdk.UnwrapSDKContext(ctx).Logger().Error("anchor audit skipped: deadline overflows", "task", fmt.Sprintf("%x", assignment.TaskId))
+		return nil
 	}
 	verifiers := make([]string, 0, len(assignment.SelectedVerifiers))
-	for _, v := range assignment.SelectedVerifiers {
-		verifiers = append(verifiers, v.OperatorAddress)
+	for _, sv := range assignment.SelectedVerifiers {
+		verifiers = append(verifiers, sv.OperatorAddress)
 	}
+	draw := k.anchorAuditDraw(ctx, taskKey, receipt.WinnerWorker, assignment.SelectionRandomnessBeacon, params)
 	state := types.AnchorAuditState{
 		TaskId:            append([]byte(nil), assignment.TaskId...),
 		Sampled:           true,
-		Positions:         positions,
 		SampleBeacon:      append([]byte(nil), assignment.SelectionRandomnessBeacon...),
 		SampleHeight:      assignment.SelectionRandomnessHeight,
 		WinnerWorker:      receipt.WinnerWorker,
 		SelectedVerifiers: verifiers,
-		// ADR-0040 v4: the validators' verdict is due by here; a PASS round settles no earlier.
-		VerdictDeadlineHeight: deadline,
-		// ADR-0040 v5: audit probability from the Worker's bond, coin from the beacon.
-		AuditRateBps: rate, Selected: selected, AuditBasis: basis,
+		// ADR-0040 v6: opening, proof and verdict deadlines; a PASS round settles no earlier than the last.
+		OpeningDeadlineHeight: openDeadline,
+		ProofDeadlineHeight:   proofDeadline,
+		VerdictDeadlineHeight: verdictDeadline,
+		// ADR-0040 v5/v6: audit probability from the Worker's bond, coin from the beacon, slash base fixed now.
+		AuditRateBps: draw.rate, Selected: draw.selected, AuditBasis: draw.basis, SlashableBond: draw.bond,
+	}
+	rows, rowsErr := anchorRowsOf(receipt)
+	if rowsErr != nil {
+		// The receipt is admitted with a checked token commitment (ADR-0040 v6);
+		// any older or otherwise unsampleable receipt is the Worker's own signed
+		// fault: audit it, final REJECT, settled and slashed like a rejected proof.
+		height, err := currentBlockHeight(ctx)
+		if err != nil {
+			return err
+		}
+		state.Selected = true
+		state.ResultHeight = height
+		state.TaskVerdict = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
+		state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT
+		state.ResultReason = truncateAnchorReason("receipt commitments cannot be sampled: " + rowsErr.Error())
+		if err := k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
+			return err
+		}
+		return emitAnchorVerdictEvent(ctx, state)
+	}
+	if state.Selected {
+		state.Positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
+}
+
+func truncateAnchorReason(reason string) string {
+	if len(reason) > maxAnchorVerdictReasonBytes {
+		return reason[:maxAnchorVerdictReasonBytes]
+	}
+	return reason
+}
+
+// validateAnchorTokenCommitment is the admission-time check of the token
+// commitment that anchor sampling derives its row count from (ADR-0040 v6).
+func validateAnchorTokenCommitment(receipt types.InferReceiptState) error {
+	if _, ok := anchorCommitmentOf(receipt); !ok {
+		return nil
+	}
+	_, err := anchorRowsOf(receipt)
+	return err
 }
 
 // anchorWinner returns the Worker the audit belongs to: stored at sampling,
@@ -202,7 +241,8 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		return nil, status.Error(codes.InvalidArgument, "anchor opening request is required")
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || bytes.Equal(req.OpeningHash, make([]byte, types.Hash32Len)) ||
-		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 || strings.TrimSpace(req.OpeningUri) == "" || len(req.OpeningUri) > maxAnchorOpeningURIBytes {
+		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 || strings.TrimSpace(req.OpeningUri) == "" || len(req.OpeningUri) > maxAnchorOpeningURIBytes ||
+		strings.TrimSpace(req.AnchorCommitUri) == "" || len(req.AnchorCommitUri) > maxAnchorOpeningURIBytes {
 		return nil, status.Error(codes.InvalidArgument, "anchor opening envelope is invalid")
 	}
 	for i := 1; i < len(req.Positions); i++ {
@@ -228,6 +268,12 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if !anchorSelected(state) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
 	}
+	if state.ResultHeight != 0 {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
+	}
+	if state.OpeningDeadlineHeight != 0 && height > state.OpeningDeadlineHeight {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening deadline %d has passed", state.OpeningDeadlineHeight)
+	}
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
 	}
@@ -235,8 +281,10 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if err != nil {
 		return nil, err
 	}
-	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, winner, req.SubmitterAddress); err != nil {
-		return nil, err
+	// ADR-0040 v6: only the winner Worker's current service may record its own
+	// opening and proof; a Builder cannot write either on the Worker's behalf.
+	if err := m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, winner, req.SubmitterAddress); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
 	if len(state.OpeningHash) == types.Hash32Len {
 		if bytes.Equal(state.OpeningHash, req.OpeningHash) && state.OpeningSizeBytes == req.OpeningSizeBytes {
@@ -247,6 +295,7 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	state.OpeningHash = append([]byte(nil), req.OpeningHash...)
 	state.OpeningSizeBytes = req.OpeningSizeBytes
 	state.OpeningUri = req.OpeningUri
+	state.AnchorCommitUri = req.AnchorCommitUri
 	state.OpeningHeight = height
 	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
 		return nil, err
@@ -264,7 +313,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || len(req.ProofHash) != types.Hash32Len ||
 		bytes.Equal(req.ProofHash, make([]byte, types.Hash32Len)) || req.ProofSizeBytes == 0 ||
-		strings.TrimSpace(req.ProofUri) == "" || len(req.ProofUri) > maxAnchorOpeningURIBytes {
+		strings.TrimSpace(req.ProofUri) == "" || len(req.ProofUri) > maxAnchorOpeningURIBytes ||
+		len(req.EpochManifestHash) != types.Hash32Len || bytes.Equal(req.EpochManifestHash, make([]byte, types.Hash32Len)) ||
+		strings.TrimSpace(req.EpochManifestUri) == "" || len(req.EpochManifestUri) > maxAnchorOpeningURIBytes {
 		return nil, status.Error(codes.InvalidArgument, "anchor proof envelope is invalid")
 	}
 	if _, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
@@ -285,6 +336,12 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if !anchorSelected(state) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
 	}
+	if state.ResultHeight != 0 {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
+	}
+	if state.ProofDeadlineHeight != 0 && height > state.ProofDeadlineHeight {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor proof deadline %d has passed", state.ProofDeadlineHeight)
+	}
 	if len(state.OpeningHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening has not been recorded")
 	}
@@ -295,11 +352,14 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if err != nil {
 		return nil, err
 	}
-	if err := m.k.requireInferReceiptSubmitter(ctx, taskKey, req.TaskId, winner, req.SubmitterAddress); err != nil {
-		return nil, err
+	// ADR-0040 v6: only the winner Worker's current service may record its own
+	// opening and proof; a Builder cannot write either on the Worker's behalf.
+	if err := m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, winner, req.SubmitterAddress); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
 	if len(state.WorkerProofHash) == types.Hash32Len {
-		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes {
+		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes &&
+			bytes.Equal(state.EpochManifestHash, req.EpochManifestHash) {
 			return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 		}
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof already recorded with a different hash")
@@ -308,6 +368,8 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	state.WorkerProofSizeBytes = req.ProofSizeBytes
 	state.WorkerProofUri = req.ProofUri
 	state.WorkerProofHeight = height
+	state.EpochManifestHash = append([]byte(nil), req.EpochManifestHash...)
+	state.EpochManifestUri = req.EpochManifestUri
 	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
 		return nil, err
 	}

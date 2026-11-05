@@ -90,3 +90,52 @@ func (k Keeper) ValidateGenesis(genesis types.GenesisState) error {
 	}
 	return genesis.Validate()
 }
+
+// InitializeAnchorParams writes the ADR-0040 anchor parameter defaults into the
+// current params at the anchor audit upgrade. A params body that already has
+// anchor windows is left alone; the previous version is archived.
+func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+	if params.Verification.AnchorOpenWindowBlocks != 0 {
+		return nil
+	}
+	meta, err := k.GetTaskParamsMeta(ctx)
+	if err != nil {
+		return err
+	}
+	if meta.ParamsVersion == math.MaxUint64 {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "params_version overflow")
+	}
+	current := params
+	d := types.DefaultTaskParams().Verification
+	v := &params.Verification
+	v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
+	v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
+	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = d.AnchorOpenWindowBlocks, d.AnchorProofWindowBlocks, d.AnchorVerdictWindowBlocks
+	if err := params.Validate(); err != nil {
+		return err
+	}
+	version := meta.ParamsVersion + 1
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	hash, err := types.TaskParamsHashV1(sdkCtx.ChainID(), version, params)
+	if err != nil {
+		return err
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return err
+	}
+	if err := k.archiveParamsForUpdate(ctx, meta.ParamsVersion, current); err != nil {
+		return err
+	}
+	if err := k.Params.Set(ctx, params); err != nil {
+		return err
+	}
+	if err := k.ParamsMeta.Set(ctx, types.TaskParamsMetaState{ParamsVersion: version, ParamsHash: hash, UpdatedHeight: height}); err != nil {
+		return err
+	}
+	return emitTypedEvent(ctx, &types.EventTaskParamsUpdated{OldVersion: meta.ParamsVersion, NewVersion: version, ParamsHash: hash})
+}

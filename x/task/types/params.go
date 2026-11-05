@@ -67,40 +67,46 @@ const (
 	DefaultWorkerInferTimeoutSlashBPS                  = uint32(0)
 	DefaultResultRevealMissingSlashBPS                 = uint32(0)
 	DefaultBuilderFaultSlashBPS                        = uint32(0)
-	// ADR-0040 v5: a REJECT anchor verdict forfeits this share of the Worker's whole active bond.
+	// ADR-0040 v6: a REJECT anchor verdict takes this share of the slashable bond D fixed at sampling.
 	DefaultAnchorRejectSlashBPS = uint32(2_500)
+	// ADR-0040 v6: a Worker that never opened or never proved by the deadline loses this share of D.
+	DefaultAnchorTimeoutSlashBPS = uint32(500)
+	// ADR-0040 v6: opening window after sampling (blocks).
+	DefaultAnchorOpenWindowBlocks = uint64(1_800)
+	// ADR-0040 v6: proof window after the opening deadline (blocks).
+	DefaultAnchorProofWindowBlocks = uint64(7_200)
 	// ADR-0040 v5: floor of the per-task audit probability (5%).
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
 	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
-	// ADR-0040 v4: ~3 h at ~1.05 s blocks; must exceed epoch window + proving + verification.
-	DefaultAnchorVerdictWindowBlocks = uint64(10_300)
-	DefaultMaxEvidenceRetentionBlocks                  = uint64(1000)
-	DefaultMaxInferEvidenceCommitmentsPerReceipt       = uint32(32)
-	DefaultMaxInferReceiptCommitmentBytes              = uint64(8 << 10)
-	DefaultMaxSupportedEvidenceSchemaVersions          = uint32(16)
-	DefaultMaxSupportedLeafOrderingVersions            = uint32(16)
-	DefaultMaxOutputMMRLeaves                          = uint64(65_536)
-	DefaultMinOutputStreamFrameBytes                   = uint32(256)
-	DefaultMaxWorkerEvidenceBytesV1                    = uint64(1 << 20)
-	DefaultMaxTaskCleanupItemsPerBlock                 = uint32(1024)
-	DefaultTaskTerminalSummaryRetentionBlocks          = uint64(60_480)
-	DefaultMaxTaskTerminalSummaryPruneItemsPerBlock    = uint32(256)
-	DefaultMaxEpochTaskSummaryItemsPerBlock            = uint32(256)
-	DefaultMaxEpochTaskSummarySupportCandidates        = uint32(64)
-	DefaultMaxEpochTaskSummaryBytes                    = uint64(64 << 10)
-	DefaultMaxTaskFailureClassPruneItemsPerBlock       = uint32(256)
-	DefaultMaxBatchCommitItems                         = uint32(512)
-	DefaultMaxBatchResultItems                         = uint32(512)
-	DefaultMaxBatchCommitBytes                         = uint64(512 << 10)
-	DefaultMaxBatchResultBytes                         = uint64(512 << 10)
-	DefaultStopSequenceMaxItems                        = uint32(16)
-	DefaultStopSequenceMaxBytesEach                    = uint32(128)
-	DefaultStopSequenceMaxTotalBytes                   = uint32(1024)
-	DefaultStopTokenMaxItems                           = uint32(64)
-	DefaultTopKMax                                     = uint32(1000)
-	DefaultGenerationMaxOutputTokens                   = uint64(131_072)
-	DefaultMaxRoundEffectItemsPerBlock                 = uint32(1024)
+	// ADR-0040 v6: validator voting window after the proof deadline (blocks).
+	DefaultAnchorVerdictWindowBlocks                = uint64(1_800)
+	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
+	DefaultMaxInferEvidenceCommitmentsPerReceipt    = uint32(32)
+	DefaultMaxInferReceiptCommitmentBytes           = uint64(8 << 10)
+	DefaultMaxSupportedEvidenceSchemaVersions       = uint32(16)
+	DefaultMaxSupportedLeafOrderingVersions         = uint32(16)
+	DefaultMaxOutputMMRLeaves                       = uint64(65_536)
+	DefaultMinOutputStreamFrameBytes                = uint32(256)
+	DefaultMaxWorkerEvidenceBytesV1                 = uint64(1 << 20)
+	DefaultMaxTaskCleanupItemsPerBlock              = uint32(1024)
+	DefaultTaskTerminalSummaryRetentionBlocks       = uint64(60_480)
+	DefaultMaxTaskTerminalSummaryPruneItemsPerBlock = uint32(256)
+	DefaultMaxEpochTaskSummaryItemsPerBlock         = uint32(256)
+	DefaultMaxEpochTaskSummarySupportCandidates     = uint32(64)
+	DefaultMaxEpochTaskSummaryBytes                 = uint64(64 << 10)
+	DefaultMaxTaskFailureClassPruneItemsPerBlock    = uint32(256)
+	DefaultMaxBatchCommitItems                      = uint32(512)
+	DefaultMaxBatchResultItems                      = uint32(512)
+	DefaultMaxBatchCommitBytes                      = uint64(512 << 10)
+	DefaultMaxBatchResultBytes                      = uint64(512 << 10)
+	DefaultStopSequenceMaxItems                     = uint32(16)
+	DefaultStopSequenceMaxBytesEach                 = uint32(128)
+	DefaultStopSequenceMaxTotalBytes                = uint32(1024)
+	DefaultStopTokenMaxItems                        = uint32(64)
+	DefaultTopKMax                                  = uint32(1000)
+	DefaultGenerationMaxOutputTokens                = uint64(131_072)
+	DefaultMaxRoundEffectItemsPerBlock              = uint32(1024)
 )
 
 const (
@@ -180,6 +186,13 @@ func DefaultTaskParams() TaskParamsV1 {
 			WorkerInferTimeoutSlashBps:  DefaultWorkerInferTimeoutSlashBPS,
 			ResultRevealMissingSlashBps: DefaultResultRevealMissingSlashBPS,
 			BuilderFaultSlashBps:        DefaultBuilderFaultSlashBPS,
+			AnchorRejectSlashBps:        DefaultAnchorRejectSlashBPS,
+			AnchorVerdictWindowBlocks:   DefaultAnchorVerdictWindowBlocks,
+			AnchorAuditMinRateBps:       DefaultAnchorAuditMinRateBPS,
+			AnchorAuditRiskMarginBps:    DefaultAnchorAuditRiskMarginBPS,
+			AnchorOpenWindowBlocks:      DefaultAnchorOpenWindowBlocks,
+			AnchorProofWindowBlocks:     DefaultAnchorProofWindowBlocks,
+			AnchorTimeoutSlashBps:       DefaultAnchorTimeoutSlashBPS,
 		},
 		Evidence: EvidenceLimitParamsV1{
 			MaxEvidenceRetentionBlocks:            DefaultMaxEvidenceRetentionBlocks,
@@ -246,6 +259,10 @@ func (p TaskParamsV1) Validate() error {
 	}
 	if err := validateVerificationParams(p.Verification); err != nil {
 		return err
+	}
+	if p.Verification.AnchorTotalWindowBlocks() >= p.Cleanup.TaskTerminalSummaryRetentionBlocks {
+		return fmt.Errorf("verification anchor windows (%d blocks) must be shorter than cleanup.task_terminal_summary_retention_blocks",
+			p.Verification.AnchorTotalWindowBlocks())
 	}
 	if err := validateEvidenceParams(p.Evidence); err != nil {
 		return err
@@ -480,6 +497,7 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		{"verification.builder_fault_slash_bps", p.BuilderFaultSlashBps},
 		{"verification.anchor_reject_slash_bps", p.AnchorRejectSlashBps},
 		{"verification.anchor_audit_min_rate_bps", p.AnchorAuditMinRateBps},
+		{"verification.anchor_timeout_slash_bps", p.AnchorTimeoutSlashBps},
 	} {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
@@ -488,7 +506,28 @@ func validateVerificationParams(p VerificationParamsV1) error {
 	if p.AnchorAuditRiskMarginBps > AnchorAuditRiskMarginMaximum {
 		return fmt.Errorf("verification.anchor_audit_risk_margin_bps must be <= %d", AnchorAuditRiskMarginMaximum)
 	}
+	for _, item := range []struct {
+		name  string
+		value uint64
+	}{
+		{"verification.anchor_open_window_blocks", p.AnchorOpenWindowBlocks},
+		{"verification.anchor_proof_window_blocks", p.AnchorProofWindowBlocks},
+		{"verification.anchor_verdict_window_blocks", p.AnchorVerdictWindowBlocks},
+	} {
+		if err := positiveUint64(item.name, item.value, AnchorWindowBlocksMaximum); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// AnchorWindowBlocksMaximum caps each anchor window (ADR-0040 v6) so deadline
+// arithmetic cannot overflow and an audit cannot outlive task retention.
+const AnchorWindowBlocksMaximum = uint64(1_000_000)
+
+// AnchorTotalWindowBlocks is how long after sampling an audit may stay open.
+func (v VerificationParamsV1) AnchorTotalWindowBlocks() uint64 {
+	return v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks
 }
 
 // AnchorAuditRiskMarginMaximum caps the risk margin k at 100x (ADR-0040 v5).
@@ -890,59 +929,32 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 	if params.Session.MaxSessionKeyBlocks == 0 {
 		params.Session.MaxSessionKeyBlocks = DefaultMaxSessionKeyBlocks
 	}
+	// Bodies recorded before ADR-0040 v6 carry no anchor windows.
+	if params.Verification.AnchorOpenWindowBlocks == 0 {
+		params.Verification.AnchorOpenWindowBlocks = DefaultAnchorOpenWindowBlocks
+	}
+	if params.Verification.AnchorProofWindowBlocks == 0 {
+		params.Verification.AnchorProofWindowBlocks = DefaultAnchorProofWindowBlocks
+	}
+	if params.Verification.AnchorVerdictWindowBlocks == 0 {
+		params.Verification.AnchorVerdictWindowBlocks = DefaultAnchorVerdictWindowBlocks
+	}
 	return params.Validate()
 }
 
 // verificationParamsCanonicalFields frames VerificationParamsV1 for the params
-// hash. The ADR-0040 v4 anchor fields enter the frame only when set, so params
-// recorded before v4 (where both read as zero = node default) keep their hash.
+// hash: every field, in field-number order (7..13 are ADR-0040).
 func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
-	fields := [][]byte{
+	return shared.RawCanonicalFieldsV1(
 		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
 		shared.Uint32BE(v.ResultRevealMissingSlashBps),
 		shared.Uint32BE(v.BuilderFaultSlashBps),
-	}
-	if v.AnchorRejectSlashBps != 0 || v.AnchorVerdictWindowBlocks != 0 || v.AnchorAuditMinRateBps != 0 || v.AnchorAuditRiskMarginBps != 0 {
-		fields = append(fields, shared.Uint32BE(v.AnchorRejectSlashBps), shared.Uint64BE(v.AnchorVerdictWindowBlocks))
-	}
-	if v.AnchorAuditMinRateBps != 0 || v.AnchorAuditRiskMarginBps != 0 {
-		fields = append(fields, shared.Uint32BE(v.AnchorAuditMinRateBps), shared.Uint32BE(v.AnchorAuditRiskMarginBps))
-	}
-	return shared.RawCanonicalFieldsV1(fields...)
-}
-
-// AnchorRejectSlashBpsOrDefault is the Worker slash on a REJECT anchor verdict;
-// zero in state means the node default (ADR-0040 v4).
-func (v VerificationParamsV1) AnchorRejectSlashBpsOrDefault() uint32 {
-	if v.AnchorRejectSlashBps == 0 {
-		return DefaultAnchorRejectSlashBPS
-	}
-	return v.AnchorRejectSlashBps
-}
-
-// AnchorVerdictWindowBlocksOrDefault is how long after sampling the validators'
-// verdict may take; zero in state means the node default (ADR-0040 v4).
-func (v VerificationParamsV1) AnchorVerdictWindowBlocksOrDefault() uint64 {
-	if v.AnchorVerdictWindowBlocks == 0 {
-		return DefaultAnchorVerdictWindowBlocks
-	}
-	return v.AnchorVerdictWindowBlocks
-}
-
-// AnchorAuditMinRateBpsOrDefault is the floor of the per-task audit probability;
-// zero in state means the node default (ADR-0040 v5).
-func (v VerificationParamsV1) AnchorAuditMinRateBpsOrDefault() uint32 {
-	if v.AnchorAuditMinRateBps == 0 {
-		return DefaultAnchorAuditMinRateBPS
-	}
-	return v.AnchorAuditMinRateBps
-}
-
-// AnchorAuditRiskMarginBpsOrDefault is the risk margin k of the audit rate;
-// zero in state means the node default (ADR-0040 v5).
-func (v VerificationParamsV1) AnchorAuditRiskMarginBpsOrDefault() uint32 {
-	if v.AnchorAuditRiskMarginBps == 0 {
-		return DefaultAnchorAuditRiskMarginBPS
-	}
-	return v.AnchorAuditRiskMarginBps
+		shared.Uint32BE(v.AnchorRejectSlashBps),
+		shared.Uint64BE(v.AnchorVerdictWindowBlocks),
+		shared.Uint32BE(v.AnchorAuditMinRateBps),
+		shared.Uint32BE(v.AnchorAuditRiskMarginBps),
+		shared.Uint64BE(v.AnchorOpenWindowBlocks),
+		shared.Uint64BE(v.AnchorProofWindowBlocks),
+		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+	)
 }

@@ -106,6 +106,7 @@ type Keeper struct {
 	InferReceipt                        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
 	AnchorAudit                         collections.Map[types.TaskKey, types.AnchorAuditState]
 	AnchorValidatorVote                 collections.Map[collections.Pair[types.TaskKey, []byte], types.AnchorValidatorVoteState]
+	AnchorVoteKey                       collections.Map[[]byte, types.AnchorVoteKeyState]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
 	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
@@ -264,6 +265,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		InferReceipt:                        collections.NewMap(sb, types.InferReceiptKey, "infer_receipt", types.Hash32KeyCodec, codec.CollValue[internaltypes.InferReceiptStoreState](cdc)),
 		AnchorAudit:                         collections.NewMap(sb, types.AnchorAuditKey, "anchor_audit", types.Hash32KeyCodec, codec.CollValue[types.AnchorAuditState](cdc)),
 		AnchorValidatorVote:                 collections.NewMap(sb, types.AnchorValidatorVoteKey, "anchor_validator_vote", collections.PairKeyCodec(types.Hash32KeyCodec, collections.BytesKey), codec.CollValue[types.AnchorValidatorVoteState](cdc)),
+		AnchorVoteKey:                       collections.NewMap(sb, types.AnchorVoteDelegationKey, "anchor_vote_key", collections.BytesKey, codec.CollValue[types.AnchorVoteKeyState](cdc)),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
 		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),

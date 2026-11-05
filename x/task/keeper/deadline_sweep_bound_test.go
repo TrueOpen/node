@@ -202,6 +202,7 @@ func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:           45,
 		types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: 25,
 		types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT:         41,
 	}
 	require.Len(t, deadlineKindPriority, len(expected))
 	for kind, priority := range expected {

@@ -3005,13 +3005,14 @@
     },
     "shared.v1.EvidenceKind": {
       "default": "EVIDENCE_KIND_UNSPECIFIED",
-      "description": "EvidenceKind is the single cross-module numeric authority for evidence\nopening semantics. Engine-local artifacts such as trace files and checkpoints\nare not evidence kinds.\nEvidenceKind defines the EvidenceKind wire type.\n\n - EVIDENCE_KIND_UNSPECIFIED: Never written; rejects an unset requirement or commitment.\nEVIDENCE_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_VALUE_OPENING: Selected Worker B-level value-tree opening.\nEVIDENCE_KIND_WORKER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_VERIFIER_VALUE_OPENING: Selected Verifier value and metric opening.\nEVIDENCE_KIND_VERIFIER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING: Settlement duty Builder opening against task_evidence_root.\nEVIDENCE_KIND_SETTLEMENT_ROOT_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_TOKEN_OPENING: Selected Worker A-level input and generated token-ID opening.",
+      "description": "EvidenceKind is the single cross-module numeric authority for evidence\nopening semantics. Engine-local artifacts such as trace files and checkpoints\nare not evidence kinds.\nEvidenceKind defines the EvidenceKind wire type.\n\n - EVIDENCE_KIND_UNSPECIFIED: Never written; rejects an unset requirement or commitment.\nEVIDENCE_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_VALUE_OPENING: Selected Worker B-level value-tree opening.\nEVIDENCE_KIND_WORKER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_VERIFIER_VALUE_OPENING: Selected Verifier value and metric opening.\nEVIDENCE_KIND_VERIFIER_VALUE_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING: Settlement duty Builder opening against task_evidence_root.\nEVIDENCE_KIND_SETTLEMENT_ROOT_OPENING identifies the corresponding protocol value.\n - EVIDENCE_KIND_WORKER_TOKEN_OPENING: Selected Worker A-level input and generated token-ID opening.\n - EVIDENCE_KIND_WORKER_ANCHOR_OPENING: Selected Worker anchor-commitment opening (ADR-0040): the engine-side\nper-position per-layer anchor Merkle root committed at inference time.",
       "enum": [
         "EVIDENCE_KIND_UNSPECIFIED",
         "EVIDENCE_KIND_WORKER_VALUE_OPENING",
         "EVIDENCE_KIND_VERIFIER_VALUE_OPENING",
         "EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING",
-        "EVIDENCE_KIND_WORKER_TOKEN_OPENING"
+        "EVIDENCE_KIND_WORKER_TOKEN_OPENING",
+        "EVIDENCE_KIND_WORKER_ANCHOR_OPENING"
       ],
       "type": "string"
     },
@@ -3430,6 +3431,317 @@
       },
       "type": "object"
     },
+    "task.v1.AnchorAuditState": {
+      "description": "AnchorAuditState is the per-task record of the anchor commitment audit\n(ADR-0040, first slice): the positions the chain sampled from the beacon,\nthe Worker's opening hash and the auditor's verdicts. The anchor commitment\nitself is the WORKER_ANCHOR_OPENING entry of the accepted InferReceipt.\nAnchorAuditState defines the AnchorAuditState wire type.",
+      "properties": {
+        "anchor_commit_uri": {
+          "description": "anchor_commit_uri locates the Worker's anchor_commit artifact in DA; its digest is the\nreceipt's WORKER_ANCHOR_OPENING commitment.",
+          "type": "string"
+        },
+        "audit_basis": {
+          "description": "audit_basis spells out R, D and the coin for audit.",
+          "type": "string"
+        },
+        "audit_rate_bps": {
+          "description": "Audit probability of this task in basis points (ADR-0040 v5): derived at sampling\nfrom the order value R and the Worker's slashable bond D = active_bond * anchor_reject_slash_bps:\ns = k*R / (D + k*R), floored at anchor_audit_min_rate_bps. A larger bond buys a lower rate.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "epoch_manifest_hash": {
+          "description": "epoch_manifest_hash is sha256 of the canonical epoch manifest the Worker's proof covers.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "epoch_manifest_uri": {
+          "description": "epoch_manifest_uri locates the epoch manifest in DA.",
+          "type": "string"
+        },
+        "opening_deadline_height": {
+          "description": "Height by which the Worker's opening must be recorded (ADR-0040 v6); later openings are refused.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "opening_hash": {
+          "description": "Opening material hash (sha256 of the exact bytes) once the Worker opened.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "opening_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "opening_size_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "opening_uri": {
+          "description": "Where the material can be fetched; devnet accepts file:// and http(s)://.",
+          "type": "string"
+        },
+        "positions": {
+          "description": "Sampled positions, strictly ascending, each in [0, rows).",
+          "items": {
+            "format": "uint64",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "proof_deadline_height": {
+          "description": "Height by which the Worker's proof must be recorded (ADR-0040 v6); later proofs are refused.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "proof_hash": {
+          "description": "sha256 of the proof package (zero bytes when the auditor recomputed\ndirectly with the weights instead of proving).",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "result_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "result_reason": {
+          "type": "string"
+        },
+        "result_source": {
+          "$ref": "#/definitions/task.v1.AnchorResultSourceV1"
+        },
+        "result_verifier_operator_address": {
+          "type": "string"
+        },
+        "sample_beacon": {
+          "description": "Randomness the sample was derived from.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "sample_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "sampled": {
+          "description": "Whether the beacon selected this task for an opening.",
+          "type": "boolean"
+        },
+        "selected": {
+          "description": "selected is the beacon coin at audit_rate_bps: only selected tasks open, prove, vote and\nhold settlement; an unselected task settles on the round-1 verdict alone.",
+          "type": "boolean"
+        },
+        "selected_verifiers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "slashable_bond": {
+          "description": "Slashable base D fixed at sampling: the Worker's effective active bond then (ADR-0040 v6).\nA REJECT or TIMEOUT slash is requested against D, so bond moved out after sampling\nis reached through the unbonding queue.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "tally": {
+          "$ref": "#/definitions/task.v1.AnchorVoteTallyV1"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "task_verdict": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1"
+        },
+        "verdict_deadline_height": {
+          "description": "Height by which a final verdict must exist; settlement of a PASS round waits until\nthen (or until the validators finalize earlier). Zero on audits sampled before v4.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "verdicts": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPositionVerdictV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "winner_worker": {
+          "description": "Captured at sampling so the audit outlives the task's receipt and\nassignment records (which the chain prunes once the task is terminal).",
+          "type": "string"
+        },
+        "worker_fault_id": {
+          "description": "Role-fault id of the Worker slash applied at settlement on a REJECT verdict.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "worker_proof_hash": {
+          "description": "Worker-produced proof package covering the sampled positions (ADR-0040\nv2: the Worker proves on its own CPU while it keeps serving; a Verifier\nchecks the proof without the weights). Zero/empty until submitted.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "worker_proof_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "worker_proof_size_bytes": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "worker_proof_uri": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorPositionVerdictV1": {
+      "description": "AnchorPositionVerdictV1 is the auditor's verdict on one sampled position.\nAnchorPositionVerdictV1 defines the AnchorPositionVerdictV1 wire type.",
+      "properties": {
+        "position": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Short diagnostic (rule name and statistic); informational, not consensus.",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorResultSourceV1": {
+      "default": "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
+      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).",
+      "enum": [
+        "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
+        "ANCHOR_RESULT_SOURCE_V1_VERIFIER",
+        "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
+        "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
+        "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorValidatorVoteState": {
+      "description": "AnchorValidatorVoteState is one bonded validator's vote on a Worker's anchor proof.",
+      "properties": {
+        "height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "power": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "proof_hash": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "validator_operator_address": {
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1"
+        },
+        "verdicts": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPositionVerdictV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "voter_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorVerdictV1": {
+      "default": "ANCHOR_VERDICT_V1_UNSPECIFIED",
+      "description": "AnchorVerdictV1 is the verdict of the anchor commitment audit (ADR-0040) on\none sampled position, or on the whole task after all positions are judged.\nAnchorVerdictV1 defines the AnchorVerdictV1 wire type.\n\n - ANCHOR_VERDICT_V1_UNSPECIFIED: ANCHOR_VERDICT_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_VERDICT_V1_PASS: Every anchor, recurrent-state recomputation, direction statistic, glue row\nand token rule holds at the position.\n - ANCHOR_VERDICT_V1_REJECT: At least one rule failed at the position: the Worker did not compute it\nwith the registered weights under the registered precision class.\n - ANCHOR_VERDICT_V1_NO_VERDICT: The auditor could not judge the position (missing material, proof not\nestablished); attributable to the verifier, never to the Worker.",
+      "enum": [
+        "ANCHOR_VERDICT_V1_UNSPECIFIED",
+        "ANCHOR_VERDICT_V1_PASS",
+        "ANCHOR_VERDICT_V1_REJECT",
+        "ANCHOR_VERDICT_V1_NO_VERDICT"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorVoteKeyState": {
+      "description": "AnchorVoteKeyState delegates anchor votes of one validator to a hot vote address,\nso the operator key can stay offline (ADR-0040 v6).",
+      "properties": {
+        "height": {
+          "description": "height is when the delegation was recorded.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "validator_operator_address": {
+          "description": "validator_operator_address is the delegating validator.",
+          "type": "string"
+        },
+        "vote_address": {
+          "description": "vote_address may sign MsgSubmitAnchorValidatorVote for the validator.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorVoteTallyV1": {
+      "description": "AnchorVoteTallyV1 is the running validator-vote tally of one anchor audit, in\nunits of staking voting power as of the last validator-set update.",
+      "properties": {
+        "no_verdict_power": {
+          "description": "no_verdict_power is the summed voting power of NO_VERDICT votes.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "pass_power": {
+          "description": "pass_power is the summed voting power of PASS votes.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "reject_power": {
+          "description": "reject_power is the summed voting power of REJECT votes.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "total_power": {
+          "description": "total_power is the last total bonded voting power at the latest vote.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "vote_count": {
+          "description": "vote_count is the number of recorded votes.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.AssignmentFailureReason": {
       "default": "ASSIGNMENT_FAILURE_REASON_UNSPECIFIED",
       "description": "AssignmentFailureReason is the single closed reason for a failed Worker\nassignment, frozen by this contract.\nAssignmentFailureReason defines the AssignmentFailureReason wire type.\n\n - ASSIGNMENT_FAILURE_REASON_UNSPECIFIED: No failure recorded.\nASSIGNMENT_FAILURE_REASON_UNSPECIFIED identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET: Frozen union bitmap held no usable candidate.\nASSIGNMENT_FAILURE_REASON_EMPTY_LEGAL_SET identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE: Required future beacon never became available.\nASSIGNMENT_FAILURE_REASON_RANDOMNESS_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE: Drawn winner could no longer reserve task liability.\nASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE identifies the corresponding protocol value.\n - ASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED: Order expired before assignment completed.\nASSIGNMENT_FAILURE_REASON_ORDER_EXPIRED identifies the corresponding protocol value.",
@@ -3824,7 +4136,7 @@
     },
     "task.v1.DeadlineKindV1": {
       "default": "DEADLINE_KIND_V1_UNSPECIFIED",
-      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_ASSIGNMENT: Assignment randomness expiry; kind_priority 90.\nDEADLINE_KIND_V1_WORKER_ASSIGNMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.",
+      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_ASSIGNMENT: Assignment randomness expiry; kind_priority 90.\nDEADLINE_KIND_V1_WORKER_ASSIGNMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_ANCHOR_VERDICT: Settlement is held until the anchor audit verdict is final (ADR-0040 v4).\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.",
       "enum": [
         "DEADLINE_KIND_V1_UNSPECIFIED",
         "DEADLINE_KIND_V1_TASK_FINALITY",
@@ -3838,6 +4150,7 @@
         "DEADLINE_KIND_V1_SESSION_LIFECYCLE",
         "DEADLINE_KIND_V1_VERIFY_FINAL",
         "DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE",
+        "DEADLINE_KIND_V1_ANCHOR_VERDICT",
         "DEADLINE_KIND_V1_EVIDENCE_CLEANUP"
       ],
       "type": "string"
@@ -4256,6 +4569,61 @@
         "PAYLOAD_MODE_V1_ENCRYPTED"
       ],
       "type": "string"
+    },
+    "task.v1.QueryAnchorAuditResponse": {
+      "description": "QueryAnchorAuditResponse defines the QueryAnchorAuditResponse wire type.",
+      "properties": {
+        "audit": {
+          "$ref": "#/definitions/task.v1.AnchorAuditState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorAuditsPendingResponse": {
+      "description": "QueryAnchorAuditsPendingResponse lists sampled, selected, not yet final audits by task id.",
+      "properties": {
+        "audits": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorAuditState",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "next": {
+          "description": "next is the start_after of the following page; empty at the end.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorVoteKeyResponse": {
+      "description": "QueryAnchorVoteKeyResponse returns the validator's vote delegation.",
+      "properties": {
+        "vote_key": {
+          "$ref": "#/definitions/task.v1.AnchorVoteKeyState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorVotesResponse": {
+      "description": "QueryAnchorVotesResponse lists the validator votes and the tally of one audit.",
+      "properties": {
+        "tally": {
+          "$ref": "#/definitions/task.v1.AnchorVoteTallyV1"
+        },
+        "votes": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorValidatorVoteState",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
     },
     "task.v1.QueryAssignmentRandomnessResponse": {
       "description": "QueryAssignmentRandomnessResponse returns only the frozen height, beacon and\ndraw digest facts.\nQueryAssignmentRandomnessResponse defines the QueryAssignmentRandomnessResponse wire type.",
@@ -6516,6 +6884,41 @@
     "task.v1.VerificationParamsV1": {
       "description": "VerificationParamsV1 defines registered timeout and fault consequences.",
       "properties": {
+        "anchor_audit_min_rate_bps": {
+          "description": "Floor of the per-task audit probability in basis points.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_audit_risk_margin_bps": {
+          "description": "Risk margin k (basis points) in s = k*R / (D + k*R); 10000 = 1x.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_open_window_blocks": {
+          "description": "Blocks after sampling within which the Worker must record its opening. Must be \u003e 0.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_proof_window_blocks": {
+          "description": "Blocks after the opening deadline within which the Worker must record its proof. Must be \u003e 0.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_reject_slash_bps": {
+          "description": "Basis points of the slashable bond D (fixed at sampling) taken when the\nvalidators REJECT the Worker's anchor proof (ADR-0040 v6). Zero disables it.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_timeout_slash_bps": {
+          "description": "Basis points of D taken when the Worker never opened or never proved by the deadline.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_verdict_window_blocks": {
+          "description": "Validator voting window after the proof deadline (ADR-0040 v6). Must be \u003e 0.",
+          "format": "uint64",
+          "type": "string"
+        },
         "builder_fault_slash_bps": {
           "format": "int64",
           "type": "integer"
@@ -8361,6 +8764,81 @@
         ]
       }
     },
+    "/TrueOpen/task/v1/anchor_audits/pending": {
+      "get": {
+        "operationId": "Query_AnchorAuditsPending",
+        "parameters": [
+          {
+            "description": "start_after resumes after this task id (exclusive); empty starts at the beginning.",
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "start_after",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "limit caps the page (default 100, maximum 500).",
+            "format": "int64",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorAuditsPendingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorAuditsPending pages over sampled, selected audits awaiting a final verdict (ADR-0040 v6).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/anchor_vote_key/{validator_operator_address}": {
+      "get": {
+        "operationId": "Query_AnchorVoteKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "validator_operator_address",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorVoteKeyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorVoteKey returns one validator's anchor vote delegation (ADR-0040 v6).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
     "/TrueOpen/task/v1/epoch/{epoch}/task_summary": {
       "get": {
         "operationId": "Query_EpochTaskSummary",
@@ -8694,6 +9172,76 @@
           }
         },
         "summary": "Task returns the composite view of one task.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/task/{task_id}/anchor_audit": {
+      "get": {
+        "operationId": "Query_AnchorAudit",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "task_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorAuditResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorAudit returns the anchor commitment audit record of one task (ADR-0040).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/task/{task_id}/anchor_votes": {
+      "get": {
+        "operationId": "Query_AnchorVotes",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "task_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorVotesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorVotes returns the validator votes and tally of one task's anchor audit (ADR-0040 v4).",
         "tags": [
           "Query"
         ]

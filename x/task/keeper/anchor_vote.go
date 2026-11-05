@@ -47,11 +47,11 @@ func anchorQuorum(power, total uint64) bool {
 func anchorTimeoutVerdict(state types.AnchorAuditState) (types.AnchorVerdictV1, string) {
 	switch {
 	case len(state.OpeningHash) != types.Hash32Len:
-		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, "worker did not open the sampled rows before the verdict deadline"
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, "worker did not open the sampled rows before the opening deadline"
 	case len(state.WorkerProofHash) != types.Hash32Len:
-		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, "worker did not prove its opening before the verdict deadline"
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, "worker did not prove its opening before the proof deadline"
 	default:
-		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT, "validators did not reach two thirds of the voting power before the verdict deadline"
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT, "validators did not reach two thirds of the voting power within the voting window"
 	}
 }
 
@@ -79,12 +79,14 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 	if !state.Sampled || !anchorSelected(state) {
 		return nil, nil // no audit, or the coin skipped this task: settle on the round verdict
 	}
-	if state.ResultHeight != 0 {
-		return &state, nil
-	}
 	deadline := anchorVerdictDeadline(state)
 	if deadline == 0 {
-		return nil, nil // pre-v4 audit: advisory only
+		// Audit recorded before validator votes existed (pre-v4): any result on it
+		// is a single Verifier's advisory opinion and never binds settlement.
+		return nil, nil
+	}
+	if state.ResultHeight != 0 {
+		return &state, nil
 	}
 	if height < deadline {
 		if roundVerdict != types.TaskVerdict_TASK_VERDICT_PASS {
@@ -171,7 +173,12 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 		return nil, status.Error(codes.InvalidArgument, "validator_operator_address is invalid")
 	}
 	if !bytes.Equal(signer, valAddr) {
-		return nil, errorsmod.Wrap(types.ErrInvalidSignature, "submitter is not the validator operator account")
+		// ADR-0040 v6: a registered vote address may sign for the validator, so
+		// the operator key can stay offline.
+		delegation, err := m.k.AnchorVoteKey.Get(ctx, valAddr)
+		if err != nil || delegation.VoteAddress != req.SubmitterAddress {
+			return nil, errorsmod.Wrap(types.ErrInvalidSignature, "submitter is neither the validator operator account nor its registered vote address")
+		}
 	}
 	validator, err := m.k.stakingKeeper.GetValidator(ctx, sdk.ValAddress(valAddr))
 	if err != nil || !validator.IsBonded() {
@@ -303,4 +310,209 @@ func (q queryServer) AnchorVotes(ctx context.Context, req *types.QueryAnchorVote
 		return nil, err
 	}
 	return &types.QueryAnchorVotesResponse{Votes: votes, Tally: state.Tally}, nil
+}
+
+// RegisterAnchorVoteKey records (or, with an empty vote_address, clears) the hot
+// vote address of a validator. Signed by the operator account (ADR-0040 v6).
+func (m msgServer) RegisterAnchorVoteKey(ctx context.Context, req *types.MsgRegisterAnchorVoteKey) (*types.MsgRegisterAnchorVoteKeyResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "anchor vote key request is required")
+	}
+	if m.k.stakingKeeper == nil {
+		return nil, status.Error(codes.FailedPrecondition, "anchor vote keys require the staking keeper")
+	}
+	signer, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	valAddr, err := m.k.stakingKeeper.ValidatorAddressCodec().StringToBytes(req.ValidatorOperatorAddress)
+	if err != nil || len(valAddr) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "validator_operator_address is invalid")
+	}
+	if !bytes.Equal(signer, valAddr) {
+		return nil, errorsmod.Wrap(types.ErrInvalidSignature, "only the validator operator account may register its vote key")
+	}
+	if _, err := m.k.stakingKeeper.GetValidator(ctx, sdk.ValAddress(valAddr)); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "validator does not exist")
+	}
+	if req.VoteAddress == "" {
+		if err := m.k.AnchorVoteKey.Remove(ctx, valAddr); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			return nil, err
+		}
+		return &types.MsgRegisterAnchorVoteKeyResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
+	}
+	if _, canonical, err := m.k.canonicalAddress("vote_address", req.VoteAddress); err != nil || canonical != req.VoteAddress {
+		return nil, status.Error(codes.InvalidArgument, "vote_address must be a canonical account address")
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if existing, err := m.k.AnchorVoteKey.Get(ctx, valAddr); err == nil && existing.VoteAddress == req.VoteAddress {
+		return &types.MsgRegisterAnchorVoteKeyResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
+	}
+	if err := m.k.AnchorVoteKey.Set(ctx, valAddr, types.AnchorVoteKeyState{
+		ValidatorOperatorAddress: req.ValidatorOperatorAddress, VoteAddress: req.VoteAddress, Height: height,
+	}); err != nil {
+		return nil, err
+	}
+	return &types.MsgRegisterAnchorVoteKeyResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED}, nil
+}
+
+const (
+	anchorPendingDefaultLimit = 100
+	anchorPendingMaxLimit     = 500
+	// anchorPendingScanCap bounds the rows one query may visit.
+	anchorPendingScanCap = 20_000
+)
+
+// AnchorAuditsPending pages over sampled, selected audits without a final verdict.
+func (q queryServer) AnchorAuditsPending(ctx context.Context, req *types.QueryAnchorAuditsPendingRequest) (*types.QueryAnchorAuditsPendingResponse, error) {
+	if req == nil {
+		req = &types.QueryAnchorAuditsPendingRequest{}
+	}
+	if len(req.StartAfter) != 0 && len(req.StartAfter) != types.Hash32Len {
+		return nil, status.Error(codes.InvalidArgument, "start_after must be 32 bytes")
+	}
+	limit := int(req.Limit)
+	if limit <= 0 {
+		limit = anchorPendingDefaultLimit
+	}
+	if limit > anchorPendingMaxLimit {
+		limit = anchorPendingMaxLimit
+	}
+	var rng collections.Ranger[types.TaskKey] // a typed nil *Range would not read as "no range"
+	if len(req.StartAfter) == types.Hash32Len {
+		rng = new(collections.Range[types.TaskKey]).StartExclusive(types.NewTaskKey(req.StartAfter))
+	}
+	iter, err := q.k.AnchorAudit.Iterate(ctx, rng)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+	out := &types.QueryAnchorAuditsPendingResponse{}
+	visited := 0
+	var last []byte
+	for ; iter.Valid(); iter.Next() {
+		visited++
+		kv, err := iter.KeyValue()
+		if err != nil {
+			return nil, err
+		}
+		last = kv.Key
+		state := kv.Value
+		if state.Sampled && anchorSelected(state) && state.ResultHeight == 0 && anchorVerdictDeadline(state) != 0 {
+			out.Audits = append(out.Audits, state)
+			if len(out.Audits) >= limit {
+				break
+			}
+		}
+		if visited >= anchorPendingScanCap {
+			break
+		}
+	}
+	if iter.Valid() && last != nil {
+		out.Next = append([]byte(nil), last...)
+	}
+	return out, nil
+}
+
+// AnchorVoteKey returns a validator's registered vote address.
+func (q queryServer) AnchorVoteKey(ctx context.Context, req *types.QueryAnchorVoteKeyRequest) (*types.QueryAnchorVoteKeyResponse, error) {
+	if req == nil || q.k.stakingKeeper == nil {
+		return nil, status.Error(codes.InvalidArgument, "validator_operator_address is required")
+	}
+	valAddr, err := q.k.stakingKeeper.ValidatorAddressCodec().StringToBytes(req.ValidatorOperatorAddress)
+	if err != nil || len(valAddr) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "validator_operator_address is invalid")
+	}
+	state, err := q.k.AnchorVoteKey.Get(ctx, valAddr)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, "no anchor vote key for validator")
+		}
+		return nil, err
+	}
+	return &types.QueryAnchorVoteKeyResponse{VoteKey: state}, nil
+}
+
+// effectiveSettlementDeadline is the one settlement deadline the index holds
+// for a task (ADR-0040 v6): the round deadline, moved past the anchor verdict
+// deadline of a selected audit on a PASS round. It deliberately ignores whether
+// the verdict is already final, so every recomputation (finalize, manual sweep,
+// cleanup, genesis rebuild) names the same index row.
+func (k Keeper) effectiveSettlementDeadline(ctx context.Context, taskKey types.TaskKey, summary types.TaskRoundSummaryState, params types.TaskParamsV1) (uint64, error) {
+	deadline, err := settlementDeadlineHeight(summary.GetRoundsClosedHeight(), params)
+	if err != nil {
+		return 0, err
+	}
+	state, err := k.AnchorAudit.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return deadline, nil
+		}
+		return 0, err
+	}
+	verdictDeadline := anchorVerdictDeadline(state)
+	if !state.Sampled || !anchorSelected(state) || verdictDeadline == 0 || verdictDeadline+1 <= deadline {
+		return deadline, nil
+	}
+	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, summary.EffectiveVerifyRound))
+	if err != nil {
+		return 0, err
+	}
+	if round.GetVerdict() != types.TaskVerdict_TASK_VERDICT_PASS {
+		return deadline, nil
+	}
+	return verdictDeadline + 1, nil
+}
+
+// cleanupAnchorAudit retires a task's anchor rows at evidence cleanup
+// (ADR-0040 v6): every vote is removed; the audit is removed too, unless it
+// names the Worker role fault it produced. That row is kept, slimmed to the
+// facts the cross-module fault check reads, for as long as the fault exists.
+// It reports how many rows changed (zero once nothing is left to do).
+func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (uint64, error) {
+	state, err := k.AnchorAudit.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	visited := uint64(0)
+	iter, err := k.AnchorValidatorVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
+	if err != nil {
+		return 0, err
+	}
+	keys, err := iter.Keys()
+	iter.Close()
+	if err != nil {
+		return 0, err
+	}
+	for _, key := range keys {
+		if err := k.AnchorValidatorVote.Remove(ctx, key); err != nil {
+			return 0, err
+		}
+		visited++
+	}
+	if len(state.WorkerFaultId) != types.Hash32Len {
+		if err := k.AnchorAudit.Remove(ctx, taskKey); err != nil {
+			return 0, err
+		}
+		return visited + 1, nil
+	}
+	slim := types.AnchorAuditState{
+		TaskId: state.TaskId, Sampled: state.Sampled, Selected: state.Selected, AuditRateBps: state.AuditRateBps,
+		WinnerWorker: state.WinnerWorker, VerdictDeadlineHeight: state.VerdictDeadlineHeight,
+		ResultHeight: state.ResultHeight, TaskVerdict: state.TaskVerdict, ResultSource: state.ResultSource,
+		WorkerFaultId: state.WorkerFaultId, SlashableBond: state.SlashableBond,
+	}
+	if state.AnchorCommitUri == "" && state.OpeningUri == "" && len(state.Positions) == 0 && state.AuditBasis == "" && len(state.Verdicts) == 0 {
+		return visited, nil // already slim
+	}
+	if err := k.AnchorAudit.Set(ctx, taskKey, slim); err != nil {
+		return 0, err
+	}
+	return visited + 1, nil
 }

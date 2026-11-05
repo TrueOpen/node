@@ -398,6 +398,11 @@ func (k Keeper) cleanupReceiptDetails(ctx context.Context, taskKey types.TaskKey
 	if err != nil && !errors.Is(err, collections.ErrNotFound) {
 		return taskCleanupStepResult{}, err
 	}
+	if visited, err := k.cleanupAnchorAudit(ctx, taskKey); err != nil {
+		return taskCleanupStepResult{}, err
+	} else if visited > 0 {
+		return taskCleanupStepResult{visited: visited}, nil
+	}
 	advanceTaskCleanupPhase(cursor)
 	return taskCleanupStepResult{}, nil
 }
@@ -592,7 +597,7 @@ func (k Keeper) removeTaskDeadlineIndexes(ctx context.Context, taskKey types.Tas
 			if err != nil {
 				return err
 			}
-			deadline, err := settlementDeadlineHeight(summary.GetRoundsClosedHeight(), params)
+			deadline, err := k.effectiveSettlementDeadline(ctx, taskKey, summary, params)
 			if err != nil {
 				return err
 			}

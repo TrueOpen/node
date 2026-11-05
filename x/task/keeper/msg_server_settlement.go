@@ -310,7 +310,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	}
 	return settlementInputs{
 		Anchor: anchor,
-		Core: core, Assignment: assignment, BuilderSelection: selection, Round1Assignment: round1Assignment,
+		Core:   core, Assignment: assignment, BuilderSelection: selection, Round1Assignment: round1Assignment,
 		Budget: budget, Infer: infer, Summary: summary,
 		Round1: round1, Round1Cluster: round1Cluster,
 		EffectiveRound: effectiveRound, EffectiveResult: effectiveResult,

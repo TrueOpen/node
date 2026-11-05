@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "94ccf0db1e5271875c8e8bc106135020baee50c9ab928f559ea901e9f76ff4d8"
+const taskParamsGoldenHashV1 = "b034e1876f6c53b45a60a4bc747a85826f79cf69563d6dd6b90bef62938f86ba"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "6ee6ac6144bcbbf22cdc09237b36b0f17d057a37d0dc7339ef0fde4a8449d11a",
+	require.Equal(t, "62a38369606c6e69caf61b30e64a35fdf172b222ef44899c8b9c746cde4b25ad",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	mutated := base
@@ -214,7 +214,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 	require.NoError(t, err)
 	seen := map[string]string{hex.EncodeToString(unmutated): "<unmutated>"}
 	mutations := taskParamsFieldMutations(t)
-	require.Len(t, mutations, 93)
+	require.Len(t, mutations, 96)
 	for path, mutated := range mutations {
 		digest := taskParamsHashUncheckedForTest(t, taskParamsGoldenChainID, 1, mutated)
 		hash := hex.EncodeToString(digest)
@@ -223,7 +223,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 		}
 		seen[hash] = path
 	}
-	require.Len(t, seen, 94)
+	require.Len(t, seen, 97)
 }
 
 func taskParamsHashUncheckedForTest(t *testing.T, chainID string, version uint64, params TaskParamsV1) []byte {
@@ -366,6 +366,13 @@ func flatTaskParamsFieldsForTest(p TaskParamsV1) [][]byte {
 		shared.Uint32BE(p.Verification.WorkerInferTimeoutSlashBps),
 		shared.Uint32BE(p.Verification.ResultRevealMissingSlashBps),
 		shared.Uint32BE(p.Verification.BuilderFaultSlashBps),
+		shared.Uint32BE(p.Verification.AnchorRejectSlashBps),
+		shared.Uint64BE(p.Verification.AnchorVerdictWindowBlocks),
+		shared.Uint32BE(p.Verification.AnchorAuditMinRateBps),
+		shared.Uint32BE(p.Verification.AnchorAuditRiskMarginBps),
+		shared.Uint64BE(p.Verification.AnchorOpenWindowBlocks),
+		shared.Uint64BE(p.Verification.AnchorProofWindowBlocks),
+		shared.Uint32BE(p.Verification.AnchorTimeoutSlashBps),
 	}
 	fields = append(fields, flatEvidenceFieldsForTest(p)...)
 	return append(fields,
@@ -439,7 +446,7 @@ func TestHistoricalTaskParamsRetainPreActivationCommitment(t *testing.T) {
 	require.NoError(t, ValidateHistoricalTaskParams(params))
 	hash, err := TaskParamsHashV1(taskParamsGoldenChainID, 1, params)
 	require.NoError(t, err)
-	require.Equal(t, "4d5994070de40c27bb49fe51d8502093e673f7e5e8fe53625a8bc7588d65b9f7", hex.EncodeToString(hash))
+	require.Equal(t, "fa9ff96bd4a7127af0e812302d5a2dd5ea9d5553a5eaa1e3db845f1a05d4a8ea", hex.EncodeToString(hash))
 	genesis := DefaultGenesis()
 	genesis.Params = params
 	require.Error(t, genesis.Validate())

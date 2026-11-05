@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"math/bits"
 
-	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
@@ -78,31 +77,43 @@ func anchorCoinSelects(coin uint64, rateBps uint32) bool {
 	return hi < uint64(rateBps)
 }
 
+type anchorDraw struct {
+	rate     uint32
+	selected bool
+	basis    string
+	bond     uint64 // slashable base: the Worker's effective active bond at sampling
+}
+
 // anchorAuditDraw fixes the audit rate of a task from the order value and the
-// Worker's bond and throws the coin with the sampling beacon.
-func (k Keeper) anchorAuditDraw(ctx context.Context, taskKey types.TaskKey, worker string, beacon []byte, params types.TaskParamsV1) (uint32, bool, string, error) {
-	core, err := k.TaskCore.Get(ctx, taskKey)
-	if err != nil {
-		return 0, false, "", errorsmod.Wrap(types.ErrInvalidTaskStatus, "task core is unavailable for the audit rate")
-	}
-	orderValue, err := shared.ParseAmount(core.OrderValue)
-	if err != nil {
-		return 0, false, "", errorsmod.Wrap(types.ErrInvariantBroken, "task order value is invalid")
-	}
-	workerAddr, _, err := k.canonicalAddress("winner_worker", worker)
-	if err != nil {
-		return 0, false, "", errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+// Worker's effective bond at sampling, and throws the coin with the sampling
+// beacon. It never fails: missing facts read as zero (zero bond = always audited).
+func (k Keeper) anchorAuditDraw(ctx context.Context, taskKey types.TaskKey, worker string, beacon []byte, params types.TaskParamsV1) anchorDraw {
+	orderValue := uint64(0)
+	if core, err := k.TaskCore.Get(ctx, taskKey); err == nil {
+		if value, err := shared.ParseAmount(core.OrderValue); err == nil {
+			orderValue = value
+		}
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	activeBond := uint64(0)
-	if bond, ok := k.hubKeeper.GetServiceBond(sdkCtx, sdk.AccAddress(workerAddr), orderValue); ok {
-		activeBond = bond.ActiveBond
+	bond := uint64(0)
+	if _, canonical, err := k.canonicalAddress("winner_worker", worker); err == nil {
+		bond = k.hubKeeper.GetServiceBondFacts(sdkCtx, canonical).EffectiveBond
 	}
 	v := params.Verification
-	rate := anchorAuditRateBps(orderValue, activeBond, v.AnchorRejectSlashBpsOrDefault(), v.AnchorAuditRiskMarginBpsOrDefault(), v.AnchorAuditMinRateBpsOrDefault())
+	rate := anchorAuditRateBps(orderValue, bond, v.AnchorRejectSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps)
 	coin := anchorAuditCoin(sdkCtx.ChainID(), taskKey, beacon)
 	selected := anchorCoinSelects(coin, rate)
-	basis := fmt.Sprintf("order %d; active bond %d x %d bps slashable; margin %d bps; floor %d bps; rate %d bps; coin %016x; selected %t",
-		orderValue, activeBond, v.AnchorRejectSlashBpsOrDefault(), v.AnchorAuditRiskMarginBpsOrDefault(), v.AnchorAuditMinRateBpsOrDefault(), rate, coin, selected)
-	return rate, selected, basis, nil
+	basis := fmt.Sprintf("order %d; effective bond %d x %d bps slashable; margin %d bps; floor %d bps; rate %d bps; coin %016x; selected %t",
+		orderValue, bond, v.AnchorRejectSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps, rate, coin, selected)
+	return anchorDraw{rate: rate, selected: selected, basis: basis, bond: bond}
+}
+
+// anchorSlashAmount is the slash of an anchor fault: bps of the base fixed at sampling.
+func anchorSlashAmount(base uint64, bps uint32) uint64 {
+	v := new(big.Int).Mul(new(big.Int).SetUint64(base), big.NewInt(int64(bps)))
+	v.Quo(v, big.NewInt(int64(types.BasisPointsMaximum)))
+	if !v.IsUint64() {
+		return base
+	}
+	return v.Uint64()
 }
