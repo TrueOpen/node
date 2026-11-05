@@ -356,9 +356,18 @@ func TestCleanupAnchorAuditKeepsOnlyAFaultReference(t *testing.T) {
 	state.WorkerFaultId = bytes.Repeat([]byte{0xfa}, 32)
 	require.NoError(t, f.keeper.AnchorAudit.Set(f.ctx, f.taskKey, state))
 
-	visited, err := f.keeper.cleanupAnchorAudit(f.ctx, f.taskKey)
-	require.NoError(t, err)
-	require.NotZero(t, visited)
+	steps := 0
+	for {
+		visited, err := f.keeper.cleanupAnchorAudit(f.ctx, f.taskKey)
+		require.NoError(t, err)
+		require.LessOrEqual(t, visited, uint64(1), "one row per cleanup step: the EndBlock fair-share budget allows a single visited row")
+		if visited == 0 {
+			break
+		}
+		steps++
+		require.Less(t, steps, 10)
+	}
+	require.Equal(t, 2, steps, "one vote, then the slim audit")
 	slim, err := f.keeper.AnchorAudit.Get(f.ctx, f.taskKey)
 	require.NoError(t, err)
 	require.Equal(t, state.WorkerFaultId, slim.WorkerFaultId)
@@ -369,7 +378,7 @@ func TestCleanupAnchorAuditKeepsOnlyAFaultReference(t *testing.T) {
 	iter.Close()
 	require.NoError(t, err)
 	require.Empty(t, keys, "votes are removed")
-	visited, err = f.keeper.cleanupAnchorAudit(f.ctx, f.taskKey)
+	visited, err := f.keeper.cleanupAnchorAudit(f.ctx, f.taskKey)
 	require.NoError(t, err)
 	require.Zero(t, visited, "cleanup is idempotent")
 

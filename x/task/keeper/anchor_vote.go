@@ -468,10 +468,11 @@ func (k Keeper) effectiveSettlementDeadline(ctx context.Context, taskKey types.T
 }
 
 // cleanupAnchorAudit retires a task's anchor rows at evidence cleanup
-// (ADR-0040 v6): every vote is removed; the audit is removed too, unless it
-// names the Worker role fault it produced. That row is kept, slimmed to the
-// facts the cross-module fault check reads, for as long as the fault exists.
-// It reports how many rows changed (zero once nothing is left to do).
+// (ADR-0040 v6), one row per call like every other cleanup step (the EndBlock
+// fair-share budget allows a single visited row): first each vote, then the
+// audit itself - removed, or, when it names the Worker role fault it produced,
+// slimmed to the facts the cross-module fault check reads. It reports 1 while
+// it changed a row and 0 once nothing is left to do.
 func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (uint64, error) {
 	state, err := k.AnchorAudit.Get(ctx, taskKey)
 	if err != nil {
@@ -480,27 +481,18 @@ func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (
 		}
 		return 0, err
 	}
-	visited := uint64(0)
-	iter, err := k.AnchorValidatorVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
-	if err != nil {
-		return 0, err
-	}
-	keys, err := iter.Keys()
-	iter.Close()
-	if err != nil {
-		return 0, err
-	}
-	for _, key := range keys {
-		if err := k.AnchorValidatorVote.Remove(ctx, key); err != nil {
-			return 0, err
-		}
-		visited++
+	if deleted, err := deleteFirstMapRow(ctx, k.AnchorValidatorVote,
+		collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey)); err != nil || deleted {
+		return boolCount(deleted), err
 	}
 	if len(state.WorkerFaultId) != types.Hash32Len {
 		if err := k.AnchorAudit.Remove(ctx, taskKey); err != nil {
 			return 0, err
 		}
-		return visited + 1, nil
+		return 1, nil
+	}
+	if state.AnchorCommitUri == "" && state.OpeningUri == "" && len(state.Positions) == 0 && state.AuditBasis == "" && len(state.Verdicts) == 0 {
+		return 0, nil // already slim
 	}
 	slim := types.AnchorAuditState{
 		TaskId: state.TaskId, Sampled: state.Sampled, Selected: state.Selected, AuditRateBps: state.AuditRateBps,
@@ -508,11 +500,8 @@ func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (
 		ResultHeight: state.ResultHeight, TaskVerdict: state.TaskVerdict, ResultSource: state.ResultSource,
 		WorkerFaultId: state.WorkerFaultId, SlashableBond: state.SlashableBond,
 	}
-	if state.AnchorCommitUri == "" && state.OpeningUri == "" && len(state.Positions) == 0 && state.AuditBasis == "" && len(state.Verdicts) == 0 {
-		return visited, nil // already slim
-	}
 	if err := k.AnchorAudit.Set(ctx, taskKey, slim); err != nil {
 		return 0, err
 	}
-	return visited + 1, nil
+	return 1, nil
 }
