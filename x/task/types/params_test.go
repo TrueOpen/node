@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "b034e1876f6c53b45a60a4bc747a85826f79cf69563d6dd6b90bef62938f86ba"
+const taskParamsGoldenHashV1 = "731e288060cbc105e2269154be55d9cfb0417d2def902e9f2c4df0ed19dc5461"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "62a38369606c6e69caf61b30e64a35fdf172b222ef44899c8b9c746cde4b25ad",
+	require.Equal(t, "bcb3c60210c16ceee775ddab8540a99c4f39962f35b2845beeb43f516ec62503",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	mutated := base
@@ -446,7 +446,7 @@ func TestHistoricalTaskParamsRetainPreActivationCommitment(t *testing.T) {
 	require.NoError(t, ValidateHistoricalTaskParams(params))
 	hash, err := TaskParamsHashV1(taskParamsGoldenChainID, 1, params)
 	require.NoError(t, err)
-	require.Equal(t, "fa9ff96bd4a7127af0e812302d5a2dd5ea9d5553a5eaa1e3db845f1a05d4a8ea", hex.EncodeToString(hash))
+	require.Equal(t, "d3306517b9ca87d3daf6b527f069abf2464df8b9bca71bf29dc5f80b40c30641", hex.EncodeToString(hash))
 	genesis := DefaultGenesis()
 	genesis.Params = params
 	require.Error(t, genesis.Validate())

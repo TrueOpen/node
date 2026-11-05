@@ -72,15 +72,15 @@ const (
 	// ADR-0040 v6: a Worker that never opened or never proved by the deadline loses this share of D.
 	DefaultAnchorTimeoutSlashBPS = uint32(500)
 	// ADR-0040 v6: opening window after sampling (blocks).
-	DefaultAnchorOpenWindowBlocks = uint64(1_800)
+	DefaultAnchorOpenWindowBlocks = uint64(900)
 	// ADR-0040 v6: proof window after the opening deadline (blocks).
-	DefaultAnchorProofWindowBlocks = uint64(7_200)
+	DefaultAnchorProofWindowBlocks = uint64(4_500)
 	// ADR-0040 v5: floor of the per-task audit probability (5%).
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
 	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
 	// ADR-0040 v6: validator voting window after the proof deadline (blocks).
-	DefaultAnchorVerdictWindowBlocks                = uint64(1_800)
+	DefaultAnchorVerdictWindowBlocks                = uint64(900)
 	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
 	DefaultMaxInferEvidenceCommitmentsPerReceipt    = uint32(32)
 	DefaultMaxInferReceiptCommitmentBytes           = uint64(8 << 10)
