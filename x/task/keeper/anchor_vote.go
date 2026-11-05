@@ -76,8 +76,8 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 		}
 		return nil, err
 	}
-	if !state.Sampled {
-		return nil, nil
+	if !state.Sampled || !anchorSelected(state) {
+		return nil, nil // no audit, or the coin skipped this task: settle on the round verdict
 	}
 	if state.ResultHeight != 0 {
 		return &state, nil
@@ -109,7 +109,7 @@ func (k Keeper) anchorSettlementHoldHeight(ctx context.Context, taskKey types.Ta
 		}
 		return 0, err
 	}
-	if !state.Sampled || state.ResultHeight != 0 || anchorVerdictDeadline(state) == 0 {
+	if !state.Sampled || !anchorSelected(state) || state.ResultHeight != 0 || anchorVerdictDeadline(state) == 0 {
 		return 0, nil
 	}
 	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, effectiveRound))
@@ -196,6 +196,9 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task has no anchor audit sample")
 		}
 		return nil, err
+	}
+	if !anchorSelected(state) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
 	}
 	if len(state.OpeningHash) != types.Hash32Len || !bytes.Equal(state.OpeningHash, req.OpeningHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "vote names a different opening than the chain recorded")

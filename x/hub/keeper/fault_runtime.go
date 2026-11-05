@@ -227,7 +227,19 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 			return roleFaultApplyResult{}, reservationErr
 		}
 		requested := types.SlashByFraction(reservation.ReservedAmount, uint64(slashBps), types.ObjectiveForgerySlashDenom)
-		slashable = requested > 0
+		// ADR-0040 v5: a rejected anchor audit forfeits a share of the Worker's
+		// whole active bond, not only of this task's reservation. The reservation
+		// is consumed without money and the bond share is debited in one slash.
+		anchorBondSlash := uint64(0)
+		if faultType == types.FaultTypeAnchorReject {
+			bond, bondErr := k.GetServiceBondState(ctx, roleAddress)
+			if bondErr != nil {
+				return roleFaultApplyResult{}, bondErr
+			}
+			anchorBondSlash = types.SlashByFraction(bond.ActiveBond, uint64(slashBps), types.ObjectiveForgerySlashDenom)
+			requested = 0
+		}
+		slashable = requested > 0 || anchorBondSlash > 0
 		if classificationSource == shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE {
 			if duty != shared.DutyWorker || faultType != types.FaultTypeObjectiveForgery {
 				return roleFaultApplyResult{}, fmt.Errorf("worker objective evidence has invalid attribution")
@@ -260,6 +272,16 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 				ctx, canonicalTaskID, roleAddress, duty, types.TaskLiabilityStatusSlashed, requested, height,
 				newRoleFaultSlashMetadata(prospective),
 			)
+			if err == nil && anchorBondSlash > 0 {
+				metadata := newRoleFaultSlashMetadata(prospective)
+				slash, err = k.applyServiceSlashInCache(ctx, ApplyServiceSlashRequest{
+					OperatorAddress: roleAddress, Duty: duty, TaskID: canonicalTaskID,
+					Requested: anchorBondSlash, Height: height,
+					SummaryID: append([]byte(nil), metadata.SummaryID...), SourceKind: metadata.SourceKind,
+					SourceID: append([]byte(nil), metadata.SourceID...), EffectIndex: metadata.EffectIndex,
+					Destination: metadata.Destination,
+				})
+			}
 		}
 	} else {
 		return roleFaultApplyResult{}, fmt.Errorf("role fault requires canonical session_id and task_id")

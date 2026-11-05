@@ -127,6 +127,14 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	if overflow {
 		return fmt.Errorf("anchor audit %x: verdict deadline overflows", assignment.TaskId)
 	}
+	rate, selected, basis, err := k.anchorAuditDraw(ctx, taskKey, receipt.WinnerWorker, assignment.SelectionRandomnessBeacon, params)
+	if err != nil {
+		return err
+	}
+	var positions []uint64
+	if selected {
+		positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
+	}
 	verifiers := make([]string, 0, len(assignment.SelectedVerifiers))
 	for _, v := range assignment.SelectedVerifiers {
 		verifiers = append(verifiers, v.OperatorAddress)
@@ -134,13 +142,15 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	state := types.AnchorAuditState{
 		TaskId:            append([]byte(nil), assignment.TaskId...),
 		Sampled:           true,
-		Positions:         anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0),
+		Positions:         positions,
 		SampleBeacon:      append([]byte(nil), assignment.SelectionRandomnessBeacon...),
 		SampleHeight:      assignment.SelectionRandomnessHeight,
 		WinnerWorker:      receipt.WinnerWorker,
 		SelectedVerifiers: verifiers,
 		// ADR-0040 v4: the validators' verdict is due by here; a PASS round settles no earlier.
 		VerdictDeadlineHeight: deadline,
+		// ADR-0040 v5: audit probability from the Worker's bond, coin from the beacon.
+		AuditRateBps: rate, Selected: selected, AuditBasis: basis,
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
 }
@@ -215,6 +225,9 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		}
 		return nil, err
 	}
+	if !anchorSelected(state) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
+	}
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
 	}
@@ -268,6 +281,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task has no anchor audit sample")
 		}
 		return nil, err
+	}
+	if !anchorSelected(state) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
 	}
 	if len(state.OpeningHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening has not been recorded")
@@ -337,6 +353,9 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task has no anchor audit sample")
 		}
 		return nil, err
+	}
+	if !anchorSelected(state) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
 	}
 	if len(state.OpeningHash) != types.Hash32Len {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening has not been recorded")

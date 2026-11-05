@@ -67,8 +67,12 @@ const (
 	DefaultWorkerInferTimeoutSlashBPS                  = uint32(0)
 	DefaultResultRevealMissingSlashBPS                 = uint32(0)
 	DefaultBuilderFaultSlashBPS                        = uint32(0)
-	// ADR-0040 v4: a REJECT anchor verdict forfeits the Worker's whole task reservation.
-	DefaultAnchorRejectSlashBPS = uint32(10_000)
+	// ADR-0040 v5: a REJECT anchor verdict forfeits this share of the Worker's whole active bond.
+	DefaultAnchorRejectSlashBPS = uint32(2_500)
+	// ADR-0040 v5: floor of the per-task audit probability (5%).
+	DefaultAnchorAuditMinRateBPS = uint32(500)
+	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
+	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
 	// ADR-0040 v4: ~3 h at ~1.05 s blocks; must exceed epoch window + proving + verification.
 	DefaultAnchorVerdictWindowBlocks = uint64(10_300)
 	DefaultMaxEvidenceRetentionBlocks                  = uint64(1000)
@@ -475,13 +479,20 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		{"verification.result_reveal_missing_slash_bps", p.ResultRevealMissingSlashBps},
 		{"verification.builder_fault_slash_bps", p.BuilderFaultSlashBps},
 		{"verification.anchor_reject_slash_bps", p.AnchorRejectSlashBps},
+		{"verification.anchor_audit_min_rate_bps", p.AnchorAuditMinRateBps},
 	} {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
 		}
 	}
+	if p.AnchorAuditRiskMarginBps > AnchorAuditRiskMarginMaximum {
+		return fmt.Errorf("verification.anchor_audit_risk_margin_bps must be <= %d", AnchorAuditRiskMarginMaximum)
+	}
 	return nil
 }
+
+// AnchorAuditRiskMarginMaximum caps the risk margin k at 100x (ADR-0040 v5).
+const AnchorAuditRiskMarginMaximum = uint32(1_000_000)
 
 func validateEvidenceParams(p EvidenceLimitParamsV1) error {
 	if err := positiveUint64("evidence.max_evidence_retention_blocks", p.MaxEvidenceRetentionBlocks, MaxEvidenceRetentionBlocksLimit); err != nil {
@@ -891,8 +902,11 @@ func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.Canonica
 		shared.Uint32BE(v.ResultRevealMissingSlashBps),
 		shared.Uint32BE(v.BuilderFaultSlashBps),
 	}
-	if v.AnchorRejectSlashBps != 0 || v.AnchorVerdictWindowBlocks != 0 {
+	if v.AnchorRejectSlashBps != 0 || v.AnchorVerdictWindowBlocks != 0 || v.AnchorAuditMinRateBps != 0 || v.AnchorAuditRiskMarginBps != 0 {
 		fields = append(fields, shared.Uint32BE(v.AnchorRejectSlashBps), shared.Uint64BE(v.AnchorVerdictWindowBlocks))
+	}
+	if v.AnchorAuditMinRateBps != 0 || v.AnchorAuditRiskMarginBps != 0 {
+		fields = append(fields, shared.Uint32BE(v.AnchorAuditMinRateBps), shared.Uint32BE(v.AnchorAuditRiskMarginBps))
 	}
 	return shared.RawCanonicalFieldsV1(fields...)
 }
@@ -913,4 +927,22 @@ func (v VerificationParamsV1) AnchorVerdictWindowBlocksOrDefault() uint64 {
 		return DefaultAnchorVerdictWindowBlocks
 	}
 	return v.AnchorVerdictWindowBlocks
+}
+
+// AnchorAuditMinRateBpsOrDefault is the floor of the per-task audit probability;
+// zero in state means the node default (ADR-0040 v5).
+func (v VerificationParamsV1) AnchorAuditMinRateBpsOrDefault() uint32 {
+	if v.AnchorAuditMinRateBps == 0 {
+		return DefaultAnchorAuditMinRateBPS
+	}
+	return v.AnchorAuditMinRateBps
+}
+
+// AnchorAuditRiskMarginBpsOrDefault is the risk margin k of the audit rate;
+// zero in state means the node default (ADR-0040 v5).
+func (v VerificationParamsV1) AnchorAuditRiskMarginBpsOrDefault() uint32 {
+	if v.AnchorAuditRiskMarginBps == 0 {
+		return DefaultAnchorAuditRiskMarginBPS
+	}
+	return v.AnchorAuditRiskMarginBps
 }
