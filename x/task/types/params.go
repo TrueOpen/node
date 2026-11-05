@@ -74,7 +74,7 @@ const (
 	// ADR-0040 v6: opening window after sampling (blocks).
 	DefaultAnchorOpenWindowBlocks = uint64(900)
 	// ADR-0040 v6: proof window after the opening deadline (blocks).
-	DefaultAnchorProofWindowBlocks = uint64(4_500)
+	DefaultAnchorProofWindowBlocks = uint64(6_600)
 	// ADR-0040 v5: floor of the per-task audit probability (5%).
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
