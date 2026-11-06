@@ -57,6 +57,12 @@ func TestModelSupportCandidateGateUsesModelStatusAndNarrowSuspensionExceptions(t
 			s.SuspendReason = hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 			return s
 		}(), bondStatus: hubtypes.ServiceBondStatusActive},
+		{name: "jail marker on a never-activated row after the jail cleared", modelStatus: hubtypes.ModelStatusActive, support: func() hubtypes.ModelSupportSnapshot {
+			s := inactive
+			s.ActivationKind = hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_NONE
+			s.SuspendReason = hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
+			return s
+		}(), bondStatus: hubtypes.ServiceBondStatusRegistered, want: true},
 		{name: "raised model minimum", modelStatus: hubtypes.ModelStatusActive, support: func() hubtypes.ModelSupportSnapshot {
 			s := inactive
 			s.SuspendReason = hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_MIN_STAKE_RAISED

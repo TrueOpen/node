@@ -164,6 +164,9 @@ func (k Keeper) DeclareModelSupport(
 			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		} else {
 			newSupport.SupportActive = false
+			// An unactivated row has no proof to protect, so a JAIL left by an
+			// earlier ineligible declaration must not outlive the jail itself.
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		}
 	} else {
 		newSupport.SupportActive = false
@@ -828,6 +831,11 @@ func (k Keeper) reweightModelSupport(
 		if newSupport.ActivationKind != types.ModelSupportActivationNone {
 			newSupport.SupportActive = true
 			newSupport.ActiveSupportStakeSnapshot = weight
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
+		} else if newSupport.SuspendReason == types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL {
+			// Jail cleared on a row that was declared but never activated: nothing
+			// else resets it, and a stale JAIL keeps record admission refusing a
+			// candidate the snapshot still draws.
 			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		}
 	} else if oldSupport.DeclaredSupport && oldSupport.ActivationKind != types.ModelSupportActivationNone {

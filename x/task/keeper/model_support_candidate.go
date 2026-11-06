@@ -32,7 +32,11 @@ func candidateModelSupportAllowed(
 		// still apply, and it does not count toward the model's ACTIVE support.
 		return support.ActivationKind == hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_NONE
 	case hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL:
-		return bond.Status == hubtypes.ServiceBondStatusJailed
+		// A never-activated row has no proof behind its JAIL label, so once the
+		// bond is no longer jailed it is the same cold-start candidate the
+		// snapshot still draws; refusing it here would block its Sessions forever.
+		return bond.Status == hubtypes.ServiceBondStatusJailed ||
+			support.ActivationKind == hubtypes.ModelSupportActivationKind_MODEL_SUPPORT_ACTIVATION_KIND_NONE
 	case hubtypes.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_MIN_STAKE_RAISED:
 		return true
 	default:
