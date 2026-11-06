@@ -60,7 +60,15 @@ func (k Keeper) prepareSettlementFaults(
 		if verifyRound == types.VerifyRoundV1 && inputs.EffectiveRound == types.ChallengeVerifyRoundV1 {
 			superseded = types.ChallengeVerifyRoundV1
 		}
-		freezeEligible, known := types.FreezeSignalEligibilityForTaskFailureClass(round.GetFailureClass())
+		failureClass := round.GetFailureClass()
+		if verifyRound == inputs.EffectiveRound && inputs.Anchor != nil &&
+			inputs.Anchor.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT &&
+			failureClass == types.TaskFailureClass_TASK_FAILURE_CLASS_NONE {
+			// ADR-0040 v6: the round passed but the anchor audit rejected the
+			// Worker; the task's failure class is the Worker's evidence fault.
+			failureClass = types.TaskFailureClass_TASK_FAILURE_CLASS_WORKER_EVIDENCE_FAULT
+		}
+		freezeEligible, known := types.FreezeSignalEligibilityForTaskFailureClass(failureClass)
 		if !known {
 			return inputs, fmt.Errorf("round %d failure class is not registered", verifyRound)
 		}
@@ -71,7 +79,7 @@ func (k Keeper) prepareSettlementFaults(
 				existing.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_VERIFICATION_ROUND ||
 				!bytes.Equal(existing.TaskId, inputs.Core.TaskId) || existing.VerifyRound != verifyRound ||
 				!bytes.Equal(existing.ModelId, inputs.Core.ModelId) || existing.ProfileVersion != inputs.Core.ProfileVersion ||
-				existing.FailureClass != round.GetFailureClass() || existing.FreezeSignalEligible != freezeEligible ||
+				existing.FailureClass != failureClass || existing.FreezeSignalEligible != freezeEligible ||
 				existing.AcceptedCommitCount != deadlineFacts.AcceptedCommitCount ||
 				existing.AcceptedResultReceiptCount != deadlineFacts.AcceptedResultCount ||
 				len(existing.EvidenceDigest) != types.Hash32Len || existing.XTaskFinalityHeight != nil || existing.XPruneHeight != nil {
@@ -87,7 +95,7 @@ func (k Keeper) prepareSettlementFaults(
 			evidenceDigest = append([]byte(nil), row.EvidenceDigest...)
 		} else {
 			evidenceDigest, err = classificationEvidenceDigest(
-				sdkChainID(ctx), inputs.Core.TaskId, verifyRound, round.GetFailureClass(), classificationSource,
+				sdkChainID(ctx), inputs.Core.TaskId, verifyRound, failureClass, classificationSource,
 				height, inputs.Infer.InferReceiptHash, make([]byte, types.Hash32Len), settlementID,
 				superseded, deadlineFacts.AcceptedCommitCount, deadlineFacts.AcceptedResultCount,
 			)
@@ -98,7 +106,7 @@ func (k Keeper) prepareSettlementFaults(
 				TaskId: append([]byte(nil), inputs.Core.TaskId...), VerifyRound: verifyRound,
 				ModelId: inputs.Core.ModelId, ProfileVersion: inputs.Core.ProfileVersion,
 				XSettlementId: &types.TaskFailureClassState_SettlementId{SettlementId: append([]byte(nil), settlementID...)},
-				FailureClass:  round.GetFailureClass(), FreezeSignalEligible: freezeEligible,
+				FailureClass:  failureClass, FreezeSignalEligible: freezeEligible,
 				ClassificationSource: classificationSource, ClassifiedHeight: height,
 				InferReceiptHashOrZero32:    append([]byte(nil), inputs.Infer.InferReceiptHash...),
 				SettlementFactsHashOrZero32: make([]byte, types.Hash32Len),
@@ -134,6 +142,40 @@ func (k Keeper) prepareSettlementFaults(
 			})
 		}
 		rows = append(rows, row)
+	}
+	if inputs.Anchor != nil && inputs.Anchor.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT &&
+		inputs.Assignment.WinnerWorker != "" {
+		// ADR-0040 v6: the validators rejected the Worker's anchor proof, or its
+		// commitment could not be sampled (anchor_reject, jailed); or the Worker
+		// never opened / proved by the deadline (anchor_timeout, smaller slash).
+		// Both take bps of the bond fixed at sampling, through the full waterfall.
+		params, err := k.ParamsForTask(ctx, types.NewTaskKey(inputs.Core.TaskId))
+		if err != nil {
+			return inputs, err
+		}
+		faultType, bps := hubtypes.FaultTypeAnchorReject, params.Verification.AnchorRejectSlashBps
+		if inputs.Anchor.ResultSource == types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT {
+			faultType, bps = hubtypes.FaultTypeAnchorTimeout, params.Verification.AnchorTimeoutSlashBps
+		}
+		applied, err := k.hubKeeper.ApplyTaskRoleFault(ctx, hubtypes.TaskRoleFaultFact{
+			SessionID: append([]byte(nil), inputs.Core.SessionId...), TaskID: append([]byte(nil), inputs.Core.TaskId...),
+			OperatorAddress: inputs.Assignment.WinnerWorker, Duty: shared.DutyWorker, FaultType: faultType,
+			ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT,
+			EvidenceDigest:       anchorRejectEvidenceDigest(sdkChainID(ctx), *inputs.Anchor),
+			SlashBps:             bps, Height: height,
+			RequestedAmount: anchorSlashAmount(inputs.Anchor.SlashableBond, bps),
+		})
+		if err != nil {
+			return inputs, err
+		}
+		faults = append(faults, taskRoleFaultRecord{
+			faultID: append([]byte(nil), applied.FaultId...), operatorAddress: applied.OperatorAddress,
+			duty: applied.Duty, faultClass: applied.FaultClass,
+			classificationSource: applied.ClassificationSource,
+			evidenceDigest:       append([]byte(nil), applied.EvidenceDigest...),
+			jailDelta:            applied.JailDelta, status: applied.Status,
+		})
+		inputs.AnchorWorkerFaultID = append([]byte(nil), applied.FaultId...)
 	}
 	faultSummary, err := taskFaultSummaryHash(sdkChainID(ctx), inputs.Core.TaskId, faults)
 	if err != nil {

@@ -375,6 +375,9 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 	}
+	if err := k.initGenesisAnchor(ctx, genesis); err != nil {
+		return err
+	}
 	for _, state := range genesis.BuilderDataUnavailableAggregates {
 		taskID, err := genesisHashKey("builder data unavailable aggregate task_id", state.TaskId)
 		if err != nil {
@@ -887,7 +890,7 @@ func (k Keeper) rebuildGenesisIndexes(ctx context.Context, genesis types.Genesis
 		}
 		if summary.XRoundsClosedHeight != nil {
 			if _, settled := findTaskSettlement(genesis.TaskSettlements, summary.TaskId); !settled {
-				deadline, err := settlementDeadlineHeight(summary.GetRoundsClosedHeight(), genesis.Params)
+				deadline, err := k.effectiveSettlementDeadline(ctx, taskID, summary, genesis.Params)
 				if err != nil {
 					return err
 				}
@@ -1024,6 +1027,16 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 	if genesis.BuilderDataUnavailableAggregates, err = k.exportDataUnavailableAggregates(ctx); err != nil {
+		return nil, err
+	}
+	// ADR-0040: anchor audits, validator votes and vote delegations.
+	if genesis.AnchorAudits, err = collectMapValues(ctx, k.AnchorAudit); err != nil {
+		return nil, err
+	}
+	if genesis.AnchorValidatorVotes, err = collectMapValues(ctx, k.AnchorValidatorVote); err != nil {
+		return nil, err
+	}
+	if genesis.AnchorVoteKeys, err = collectMapValues(ctx, k.AnchorVoteKey); err != nil {
 		return nil, err
 	}
 	if genesis.TaskFailureClasses, err = collectMapValues(ctx, k.TaskFailureClass); err != nil {
@@ -1198,4 +1211,64 @@ func setGenesisVerifyRoundIndex(
 		return err
 	}
 	return set.Set(ctx, types.NewVerifyRoundIndexKey(checked, taskID, verifyRound))
+}
+
+// initGenesisAnchor imports the anchor audit tables (ADR-0040). Audits come
+// before the deadline indexes are rebuilt, which read them to place the
+// settlement hold.
+func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisState) error {
+	for _, state := range genesis.AnchorAudits {
+		taskID, err := genesisHashKey("anchor audit task_id", state.TaskId)
+		if err != nil {
+			return err
+		}
+		if has, err := k.AnchorAudit.Has(ctx, taskID); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate anchor audit")
+		}
+		if err := k.AnchorAudit.Set(ctx, taskID, state); err != nil {
+			return err
+		}
+	}
+	if (len(genesis.AnchorValidatorVotes) > 0 || len(genesis.AnchorVoteKeys) > 0) && k.stakingKeeper == nil {
+		return fmt.Errorf("anchor validator votes require the staking keeper")
+	}
+	for _, vote := range genesis.AnchorValidatorVotes {
+		taskID, err := genesisHashKey("anchor vote task_id", vote.TaskId)
+		if err != nil {
+			return err
+		}
+		if has, err := k.AnchorAudit.Has(ctx, taskID); err != nil || !has {
+			return fmt.Errorf("anchor vote names a task without an anchor audit")
+		}
+		valAddr, err := k.stakingKeeper.ValidatorAddressCodec().StringToBytes(vote.ValidatorOperatorAddress)
+		if err != nil || len(valAddr) == 0 {
+			return fmt.Errorf("anchor vote validator_operator_address is invalid")
+		}
+		key := collections.Join(types.NewTaskKey(taskID), valAddr)
+		if has, err := k.AnchorValidatorVote.Has(ctx, key); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate anchor validator vote")
+		}
+		if err := k.AnchorValidatorVote.Set(ctx, key, vote); err != nil {
+			return err
+		}
+	}
+	for _, delegation := range genesis.AnchorVoteKeys {
+		valAddr, err := k.stakingKeeper.ValidatorAddressCodec().StringToBytes(delegation.ValidatorOperatorAddress)
+		if err != nil || len(valAddr) == 0 {
+			return fmt.Errorf("anchor vote key validator_operator_address is invalid")
+		}
+		if has, err := k.AnchorVoteKey.Has(ctx, valAddr); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate anchor vote key")
+		}
+		if err := k.AnchorVoteKey.Set(ctx, valAddr, delegation); err != nil {
+			return err
+		}
+	}
+	return nil
 }

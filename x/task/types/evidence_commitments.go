@@ -165,7 +165,8 @@ func canonicalEvidenceKind(kind shared.EvidenceKind) (uint32, error) {
 	case shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
 		shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
 		shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING,
-		shared.EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING:
+		shared.EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING,
+		shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING:
 		return uint32(kind), nil
 	case shared.EvidenceKind_EVIDENCE_KIND_UNSPECIFIED:
 		return 0, fmt.Errorf("evidence_kind must not be EVIDENCE_KIND_UNSPECIFIED")

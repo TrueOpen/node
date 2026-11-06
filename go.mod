@@ -27,7 +27,7 @@ require (
 	cosmossdk.io/x/feegrant v0.2.0
 	cosmossdk.io/x/tx v0.14.0
 	cosmossdk.io/x/upgrade v0.2.0
-	github.com/TrueOpen/wire v0.5.1
+	github.com/TrueOpen/wire v0.6.0-anchor.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/bufbuild/buf v1.71.0
 	github.com/cometbft/cometbft v0.38.21
@@ -448,3 +448,5 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/TrueOpen/wire => github.com/yuqi19880516-ship-it/wire v0.6.0-anchor.1

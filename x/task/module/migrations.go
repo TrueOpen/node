@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sort"
 
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -29,8 +30,12 @@ var _ migrationRegistrar = module.Configurator(nil)
 
 // migrations lists every in-place state migration of this module, keyed by the
 // version it migrates from. It is empty until the first post-genesis change.
-func migrations(_ keeper.Keeper) map[uint64]module.MigrationHandler {
-	return map[uint64]module.MigrationHandler{}
+func migrations(k keeper.Keeper) map[uint64]module.MigrationHandler {
+	return map[uint64]module.MigrationHandler{
+		// 3 -> 4 (ADR-0040 anchor audit): new store prefixes need no rewrite;
+		// the anchor parameters are initialized to their defaults.
+		3: func(ctx sdk.Context) error { return k.InitializeAnchorParams(ctx) },
+	}
 }
 
 func registerMigrations(registrar migrationRegistrar, handlers map[uint64]module.MigrationHandler) error {

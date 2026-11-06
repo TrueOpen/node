@@ -862,6 +862,13 @@ const (
 	FaultTypeWorkerRevealTimeout  = "worker_reveal_timeout"
 	FaultTypeObjectiveForgery     = "objective_forgery"
 	FaultTypeRoundDivergence      = "round_divergence"
+	// FaultTypeAnchorReject: the consensus validators rejected the Worker's anchor
+	// proof, or its commitment could not be sampled (ADR-0040 v6). Slashes a share
+	// of the bond fixed at sampling and jails.
+	FaultTypeAnchorReject = "anchor_reject"
+	// FaultTypeAnchorTimeout: the Worker never opened or never proved its sampled
+	// anchor audit by the deadline (ADR-0040 v6). A smaller slash, no jail.
+	FaultTypeAnchorTimeout = "anchor_timeout"
 )
 
 const (
