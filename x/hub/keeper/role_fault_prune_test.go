@@ -21,7 +21,7 @@ type fixedRoleFaultConsumerGate struct {
 	digest []byte
 }
 
-func (g *fixedRoleFaultConsumerGate) RoleFaultConsumersClosed(_ context.Context, taskID, evidenceDigest []byte) (bool, error) {
+func (g *fixedRoleFaultConsumerGate) RoleFaultConsumersClosed(_ context.Context, taskID, evidenceDigest, _ []byte) (bool, error) {
 	g.task = append([]byte(nil), taskID...)
 	g.digest = append([]byte(nil), evidenceDigest...)
 	return g.closed, g.err
