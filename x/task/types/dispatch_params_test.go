@@ -99,7 +99,13 @@ func TestDispatchParamsEnforceRotationSafety(t *testing.T) {
 }
 
 func TestPhase1SeedParameterSafety(t *testing.T) {
-	for _, name := range []string{"localnet_genesis_seed.json", "testnet_genesis_seed.json"} {
+	// The localnet epoch is short for fast iteration; the testnet keeps the long
+	// epoch so candidate pools and bond activation do not churn every few minutes.
+	epochLengthBlocks := map[string]uint64{
+		"localnet_genesis_seed.json": 600,
+		"testnet_genesis_seed.json":  14400,
+	}
+	for name, wantEpochLength := range epochLengthBlocks {
 		t.Run(name, func(t *testing.T) {
 			raw, err := os.ReadFile(filepath.Join("..", "..", "..", "config", name))
 			require.NoError(t, err)
@@ -124,7 +130,7 @@ func TestPhase1SeedParameterSafety(t *testing.T) {
 			require.Greater(t, hub.Builder.BuilderSetUpdateLeadBlocks, p.Dispatch.MaxOrderLifetimeBlocks)
 			require.NoError(t, ValidateVerifyOpenClock(p.Deadlines, hub.Epoch.DeltaWBlocks, hub.Builder.OpenVerifyBuilderProposalWindowBlocks))
 			require.NoError(t, ValidateSessionCloseHorizon(p, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
-			require.Equal(t, uint64(600), hub.Epoch.EpochLengthBlocks)
+			require.Equal(t, wantEpochLength, hub.Epoch.EpochLengthBlocks)
 			require.Less(t, hub.CandidatePool.CandidatePoolBuildLeadBlocks, hub.Epoch.EpochLengthBlocks)
 			require.Equal(t, uint64(720), p.Session.SessionWithdrawDelayBlocks)
 			require.Equal(t, uint64(720), p.Session.SessionChangeDelayBlocks)
