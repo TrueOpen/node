@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 
 	"cosmossdk.io/collections"
@@ -17,6 +18,12 @@ import (
 // budget is registered in TaskParamsV1. Keep this explicit consensus constant
 // until the parameter contract is extended.
 const maxDeadlineSweepBytesPerBlockV1 = uint64(1 << 20)
+
+// deadlineSweepFailureRetryBlocksV1 is how far a deadline row is pushed back after
+// its handler fails. It is an explicit consensus constant for the same reason as
+// the byte budget above; the value only has to keep a failing row from being
+// revisited every block.
+const deadlineSweepFailureRetryBlocksV1 = uint64(7200)
 
 // deadlineSweepUsage is internal accounting returned by the bounded drivers.
 // Public sweep helpers keep their historical visited-only signatures.
@@ -187,7 +194,18 @@ func (k Keeper) sweepExpiredTaskDeadlinesWithBudget(
 		cache := sdk.WrapSDKContext(cacheCtx)
 		outcome, rowBytes, err := handle(cache, row.taskID, row.deadline)
 		if err != nil {
-			return usage, err
+			// The handler wrote only into the cache context, which is dropped here.
+			// A task whose deadline cannot be processed must not abort the block:
+			// EndBlock runs on every validator, so one bad row would halt the chain
+			// until a new binary shipped.
+			if err := k.deferFailedDeadlineRow(ctx, set, row.taskID, row.deadline, currentHeight, err); err != nil {
+				return usage, err
+			}
+			deferredBytes := deadlineIndexRowBytes(row.taskID, false)
+			if err := addDeadlineSweepBytes(&usage, deferredBytes); err != nil {
+				return usage, err
+			}
+			continue
 		}
 		switch outcome {
 		case deadlineSweepStale:
@@ -208,6 +226,37 @@ func (k Keeper) sweepExpiredTaskDeadlinesWithBudget(
 		write()
 	}
 	return usage, nil
+}
+
+// deferFailedDeadlineRow moves a row whose handler failed to a later height and
+// logs the failure. Retrying later keeps the task recoverable after a fix, and
+// moving it keeps the failing row from sitting at the head of the height-ordered
+// sweep and consuming the per-block budget every block.
+func (k Keeper) deferFailedDeadlineRow(
+	ctx context.Context,
+	set collections.KeySet[types.DeadlineIndexKey],
+	taskID types.TaskKey,
+	deadline, currentHeight uint64,
+	cause error,
+) error {
+	retryHeight, overflow := checkedAddUint64(currentHeight, deadlineSweepFailureRetryBlocksV1)
+	if overflow {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "deadline sweep retry height overflow")
+	}
+	if err := removeDeadlineIndex(ctx, set, taskID, deadline); err != nil {
+		return err
+	}
+	if err := addDeadlineIndex(ctx, set, taskID, retryHeight); err != nil {
+		return err
+	}
+	sdk.UnwrapSDKContext(ctx).Logger().Error("task deadline handler failed; deferring the row so the block can proceed",
+		"module", types.ModuleName,
+		"task_id", hex.EncodeToString(taskID),
+		"deadline_height", deadline,
+		"retry_height", retryHeight,
+		"error", cause.Error(),
+	)
+	return nil
 }
 
 // sweepExpiredTaskDeadlines preserves the visited-only helper used by message
