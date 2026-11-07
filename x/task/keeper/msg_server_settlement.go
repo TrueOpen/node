@@ -424,7 +424,7 @@ func (k Keeper) settlementDutyBuilder(
 	index, _, err := settlementBuilderSchedule(
 		uint64(len(selection.SelectedTaskBuilders)),
 		k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).SettlementBuilderGraceBlocks,
-		assignment.RevealDeadlineHeight,
+		settlementScheduleAnchor(assignment),
 		height,
 	)
 	if err != nil {
@@ -442,7 +442,7 @@ func (k Keeper) authorizeSettlementSubmitter(
 	grace := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).SettlementBuilderGraceBlocks
 	index, permissionless, err := settlementBuilderSchedule(
 		uint64(len(inputs.BuilderSelection.SelectedTaskBuilders)), grace,
-		inputs.Round1Assignment.RevealDeadlineHeight, height,
+		settlementScheduleAnchor(inputs.Round1Assignment), height,
 	)
 	if err != nil {
 		return false, err
@@ -458,6 +458,20 @@ func (k Keeper) authorizeSettlementSubmitter(
 		return false, err
 	}
 	return true, nil
+}
+
+// settlementScheduleAnchor is the height the SETTLE Builder rank schedule counts
+// from. A round that closes at its commit deadline with too few commits never
+// enters the reveal phase, so its assignment keeps reveal_deadline_height at 0;
+// the commit deadline is then the last height of the verify phase and anchors
+// the schedule. Without this fallback such a task could not be settled at all,
+// and because the deadline sweep runs in EndBlock the resulting invariant error
+// halted the chain.
+func settlementScheduleAnchor(assignment types.VerifierAssignmentState) uint64 {
+	if assignment.RevealDeadlineHeight != 0 {
+		return assignment.RevealDeadlineHeight
+	}
+	return assignment.CommitDeadlineHeight
 }
 
 func settlementBuilderSchedule(builderCount, grace, revealDeadline, height uint64) (uint64, bool, error) {

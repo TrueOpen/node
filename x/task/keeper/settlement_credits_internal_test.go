@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/stretchr/testify/require"
 
@@ -156,6 +157,44 @@ func TestSettlementBuilderScheduleUsesFrozenRanksThenPermissionlessFallback(t *t
 		require.Equal(t, test.wantIndex, index)
 		require.Equal(t, test.permissionless, permissionless)
 	}
+}
+
+// A round that closes at its commit deadline with too few commits never enters
+// the reveal phase, so reveal_deadline_height stays 0. The SETTLE Builder rank
+// schedule must then count from the commit deadline instead of failing the
+// settlement; the deadline sweep runs in EndBlock, so that failure halts the chain.
+func TestSettlementDutyBuilderAnchorsOnCommitDeadlineWhenRoundNeverRevealed(t *testing.T) {
+	f := initInternalFixture(t)
+	builders := []string{
+		settlementTestAddress(t, 0x41), settlementTestAddress(t, 0x42), settlementTestAddress(t, 0x43),
+	}
+	selection := types.TaskBuilderSelectionState{SelectedTaskBuilders: builders}
+	grace := f.keeper.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(f.ctx)).SettlementBuilderGraceBlocks
+	require.NotZero(t, grace)
+
+	thin := types.VerifierAssignmentState{CommitDeadlineHeight: 100}
+	require.Equal(t, uint64(100), settlementScheduleAnchor(thin))
+	revealed := types.VerifierAssignmentState{CommitDeadlineHeight: 100, RevealDeadlineHeight: 160}
+	require.Equal(t, uint64(160), settlementScheduleAnchor(revealed))
+
+	for _, test := range []struct {
+		name   string
+		height uint64
+		want   string
+	}{
+		{name: "first rank at the anchor", height: 100, want: builders[0]},
+		{name: "second rank after one grace window", height: 100 + grace + 1, want: builders[1]},
+		{name: "last rank once permissionless", height: 100 + grace*uint64(len(builders)) + 1, want: builders[2]},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := f.keeper.settlementDutyBuilder(f.ctx, selection, thin, test.height)
+			require.NoError(t, err)
+			require.Equal(t, test.want, got)
+		})
+	}
+
+	_, err := f.keeper.settlementDutyBuilder(f.ctx, selection, types.VerifierAssignmentState{}, 100)
+	require.ErrorIs(t, err, types.ErrInvariantBroken, "an assignment with no frozen deadline at all stays an invariant breach")
 }
 
 func TestSettlementPaidRolesExcludeRoundTwoDisqualifications(t *testing.T) {
