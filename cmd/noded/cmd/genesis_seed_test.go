@@ -756,3 +756,83 @@ func genesisBalanceAmount(state banktypes.GenesisState, address string) uint64 {
 	}
 	return 0
 }
+
+func TestGenesisSeedFundsBuilderCompensationAccount(t *testing.T) {
+	funded := newGenesisSeedTestIdentity()
+	unfunded := newGenesisSeedTestIdentity()
+	fundedService := newGenesisSeedTestIdentity()
+	unfundedService := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	const (
+		accountBalance = uint64(10_000_000)
+		funding        = uint64(4_000_000)
+	)
+	newSeed := func(compensation uint64) genesisSeed {
+		return genesisSeed{
+			Version:        genesisSeedVersion,
+			AccountBalance: accountBalance,
+			Builders: []genesisSeedBuilder{
+				{
+					Address: funded.address, ServiceAddress: fundedService.address, ServicePubKey: fundedService.pubKeyHex,
+					CompensationFunding: compensation,
+					Descriptor: newGenesisSeedTestDescriptor(
+						"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/a", "trueopen-nexus-ingress-v1",
+					),
+				},
+				{
+					Address: unfunded.address, ServiceAddress: unfundedService.address, ServicePubKey: unfundedService.pubKeyHex,
+					Descriptor: newGenesisSeedTestDescriptor(
+						"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/b", "trueopen-nexus-ingress-v1",
+					),
+				},
+			},
+		}
+	}
+
+	updated, err := applyGenesisSeed(cdc, raw, newSeed(funding))
+	require.NoError(t, err)
+	hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
+	require.NoError(t, hub.Validate())
+	require.NoError(t, bank.Validate())
+	require.NoError(t, authtypes.ValidateGenesis(auth))
+
+	// Only the Builder that asked for funding gets a compensation account, and
+	// the money comes out of its own balance without changing total supply.
+	require.Len(t, hub.BuilderCompensationAccounts, 1)
+	account := hub.BuilderCompensationAccounts[0]
+	require.Equal(t, funded.address, account.BuilderAddress)
+	require.Equal(t, shared.NewAmount(funding), account.Balance)
+	require.Equal(t, shared.NewAmount(funding), account.TotalFunded)
+	require.Equal(t, shared.NewAmount(0), account.TotalPaid)
+	require.Equal(t, shared.NewAmount(0), account.TotalPenalized)
+	require.Equal(t, funding, genesisBalanceAmount(
+		bank, authtypes.NewModuleAddress(hubtypes.BuilderCompensationModuleName).String(),
+	))
+	require.Equal(t, accountBalance-funding, genesisBalanceAmount(bank, funded.address))
+	require.Equal(t, accountBalance, genesisBalanceAmount(bank, unfunded.address))
+	require.Equal(t, 4*accountBalance, bank.Supply.AmountOf(hubtypes.DefaultBusinessDenom).Uint64())
+
+	// Reapplying must not fund the same Builder twice.
+	reapplied, err := applyGenesisSeed(cdc, updated, newSeed(funding))
+	require.NoError(t, err)
+	reappliedHub, reappliedBank, _ := decodeGenesisSeedDocument(t, cdc, reapplied)
+	require.Equal(t, hub.BuilderCompensationAccounts, reappliedHub.BuilderCompensationAccounts)
+	require.Equal(t, funding, genesisBalanceAmount(
+		reappliedBank, authtypes.NewModuleAddress(hubtypes.BuilderCompensationModuleName).String(),
+	))
+
+	// Zero funding leaves the genesis free of compensation state.
+	plain, err := applyGenesisSeed(cdc, raw, newSeed(0))
+	require.NoError(t, err)
+	plainHub, _, _ := decodeGenesisSeedDocument(t, cdc, plain)
+	require.Empty(t, plainHub.BuilderCompensationAccounts)
+
+	// A Builder cannot fund more than it holds.
+	_, err = applyGenesisSeed(cdc, raw, newSeed(accountBalance+1))
+	require.ErrorContains(t, err, "compensation account")
+}

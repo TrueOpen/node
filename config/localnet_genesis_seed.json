@@ -452,6 +452,7 @@
       "address": "trueopen1zxpnl7qm588xhfr4vnh6sunjarl0t83lzhseks",
       "service_address": "trueopen1zxpnl7qm588xhfr4vnh6sunjarl0t83lzhseks",
       "service_pubkey": "03f43ccf6784a7fc3d6fd06a263eb8fd0e887fd9226715110f3b7fbe1a58da92dc",
+      "compensation_funding": 1000000000,
       "descriptor": {
         "endpoints": [
           {
@@ -479,6 +480,7 @@
       "address": "trueopen1s7xj7hqja40mxgksz8ec3g4rf30ahxddlpd832",
       "service_address": "trueopen1s7xj7hqja40mxgksz8ec3g4rf30ahxddlpd832",
       "service_pubkey": "0288d96e81bdec3c067747a429d957cef66127f4f2afb4b41d512cb2b3e992994f",
+      "compensation_funding": 1000000000,
       "descriptor": {
         "endpoints": [
           {
@@ -506,6 +508,7 @@
       "address": "trueopen1668vt9fpa97h65c76kskhah0ep6kk39zsv4y05",
       "service_address": "trueopen1668vt9fpa97h65c76kskhah0ep6kk39zsv4y05",
       "service_pubkey": "02ef48091c8c932ac9b6684603d5c65a0abf23f4a3b3fbed136f3947479d32ebff",
+      "compensation_funding": 1000000000,
       "descriptor": {
         "endpoints": [
           {

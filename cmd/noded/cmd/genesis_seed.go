@@ -87,6 +87,12 @@ type genesisSeedBuilder struct {
 	ServiceAddress string                        `json:"service_address"`
 	ServicePubKey  string                        `json:"service_pubkey"`
 	Descriptor     *genesisSeedServiceDescriptor `json:"descriptor"`
+	// CompensationFunding, when positive, moves that many business-denom atomic
+	// units from the Builder's genesis balance into its dispatch compensation
+	// account. Dispatch refuses a Builder whose compensation balance is below
+	// dispatch.builder_compensation_account_min_balance, so a seed without this
+	// leaves a fresh chain unable to dispatch until someone funds the account.
+	CompensationFunding uint64 `json:"compensation_funding,omitempty"`
 }
 
 type genesisSeedCortex struct {
@@ -652,6 +658,20 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 		if err := appendGenesisBuilder(&hub, builder, seedHeight); err != nil {
 			return nil, err
 		}
+		if builder.CompensationFunding == 0 {
+			continue
+		}
+		if err := moveGenesisFunds(&bank, builder.Address, hubtypes.BuilderCompensationModuleName, businessDenom, builder.CompensationFunding); err != nil {
+			return nil, fmt.Errorf("fund compensation account of Builder %s: %w", builder.Address, err)
+		}
+		funded := shared.NewAmount(builder.CompensationFunding)
+		hub.BuilderCompensationAccounts = append(hub.BuilderCompensationAccounts, hubtypes.BuilderCompensationAccountState{
+			BuilderAddress: builder.Address,
+			Balance:        funded,
+			TotalFunded:    funded,
+			TotalPaid:      shared.NewAmount(0),
+			TotalPenalized: shared.NewAmount(0),
+		})
 	}
 	if len(hub.BuilderSets) == 0 && len(hub.Builders) > 0 {
 		addresses := make([]string, 0, len(hub.Builders))
