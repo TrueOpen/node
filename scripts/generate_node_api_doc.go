@@ -380,6 +380,7 @@ var purposeByRPC = map[string]string{
 	"task.UpdateTaskParams":                    "Governance updates the current version and commitment while existing Tasks and Sessions retain their applicable parameter versions.",
 	"task.CreateSession":                       "Creates a prefunded Session bound to an eligible initial Builder, optionally registering a delegated session key in the same owner-authorized transaction.",
 	"task.CancelOrder":                         "Registers a delayed cancellation of the next unrecorded sequence; admission before its effective height can consume that sequence first.",
+	"task.TaskFrozenParams":                    "Reads the parameter version a Task bound when it was accepted and that version's complete body, so a client can price a challenge round with the values the chain will read for this Task.",
 	"hub.FundBuilderCompensation":              "Funds a Builder compensation account through a signed bank transfer; anyone may fund it.",
 	"hub.CandidatePoolSnapshotMember":          "Returns the retained epoch membership and frozen profile-specific Worker weight without consulting current scoring inputs.",
 	"hub.BuilderCompensationAccount":           "Returns the Builder compensation balance and independent funding, compensation and penalty totals.",
@@ -404,6 +405,7 @@ var behaviorByRPC = map[string]string{
 	"hub.DeclareModelSupport":     "Requires operator_address to be the sole Cosmos signer; a first declaration or a logically stale re-declaration establishes a support window, a live capability-only change preserves freshness, and a live declaration of the same value is a NOOP; daily freshness is advanced independently by MsgBatchConfirmModelSupport.",
 	"hub.WithdrawServiceUnbonded": "Validates the mature height, pending TaskLiability and the not-yet-withdrawn status; after the transfer it records withdrawn_amount and debug_rule_version to prevent a repeated withdrawal.",
 	"hub.ClaimEarnings":           "Allows only claimable earnings to be claimed; pending settlement earnings cannot be claimed before the finality/challenge window closes.",
+	"task.TaskFrozenParams":       "Existence follows the Task row: a compacted or unknown task_id is NotFound; a live Task without its binding, or a bound version whose body is missing, is Internal and is never answered with current parameters; a non-canonical task_id is InvalidArgument. Read-only; the Session's own frozen version is returned by Session instead.",
 }
 
 func fatalf(format string, args ...any) {

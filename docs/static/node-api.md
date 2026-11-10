@@ -2,7 +2,7 @@
 
 > Generated from the current branch protobuf FileDescriptorSet by `scripts/generate_node_api_doc.go`. The descriptor is the authority for registered Msg and Query methods; blocked or internal-only methods are intentionally absent.
 
-> Scope: 119 registered `hub.v1` and `task.v1` Msg/Query RPCs.
+> Scope: 120 registered `hub.v1` and `task.v1` Msg/Query RPCs.
 
 ## 1. Client contract
 
@@ -136,6 +136,7 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `task` | `Query` | [`TaskBudget`](#rpc-task-taskbudget) | `/TrueOpen/task/v1/task/{task_id}/budget` |
 | `task` | `Query` | [`TaskBuilders`](#rpc-task-taskbuilders) | `/TrueOpen/task/v1/task/{task_id}/builders` |
 | `task` | `Query` | [`TaskFailureClass`](#rpc-task-taskfailureclass) | `/TrueOpen/task/v1/task/{task_id}/failure_class` |
+| `task` | `Query` | [`TaskFrozenParams`](#rpc-task-taskfrozenparams) | `/TrueOpen/task/v1/task/{task_id}/params` |
 | `task` | `Query` | [`TaskGasReimbursements`](#rpc-task-taskgasreimbursements) | `/TrueOpen/task/v1/task/{task_id}/gas_reimbursements` |
 | `task` | `Query` | [`TaskStage`](#rpc-task-taskstage) | `/TrueOpen/task/v1/task/{task_id}/stage` |
 | `task` | `Query` | [`VerificationRound`](#rpc-task-verificationround) | `/TrueOpen/task/v1/task/{task_id}/verification_round/{verify_round}` |
@@ -3903,6 +3904,41 @@ Response fields:
 | `failure.task_finality_height` | `uint64` / JSON decimal string | task finality height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `failure.prune_height` | `uint64` / JSON decimal string | prune height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `failure.evidence_digest` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | evidence digest; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-taskfrozenparams"></a> `task.TaskFrozenParams`
+
+- gRPC: `/task.v1.Query/TaskFrozenParams`
+- REST: `GET /TrueOpen/task/v1/task/{task_id}/params`
+- Request/response: `task.v1.QueryTaskFrozenParamsRequest` -> `task.v1.QueryTaskFrozenParamsResponse`
+- Purpose: Reads the parameter version a Task bound when it was accepted and that version's complete body, so a client can price a challenge round with the values the chain will read for this Task.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Existence follows the Task row: a compacted or unknown task_id is NotFound; a live Task without its binding, or a bound version whose body is missing, is Internal and is never answered with current parameters; a non-canonical task_id is InvalidArgument. Read-only; the Session's own frozen version is returned by Session instead.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `task_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The task identifier within a session; together with session_id it forms the task primary key. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `params` | `task.v1.TaskParamsV1` object | params; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.schema_version` | `uint32` | schema version; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `params.session` | `task.v1.SessionParamsV1` object | session; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.deadlines` | `task.v1.TaskDeadlineParamsV1` object | deadlines; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.proposals` | `task.v1.TaskProposalParamsV1` object | proposals; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.weights` | `task.v1.CandidateWeightParamsV1` object | weights; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.verification` | `task.v1.VerificationParamsV1` object | verification; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.evidence` | `task.v1.EvidenceLimitParamsV1` object | evidence; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.cleanup` | `task.v1.TaskCleanupParamsV1` object | cleanup; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.batch` | `task.v1.BatchParamsV1` object | batch; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.generation` | `task.v1.GenerationLimitParamsV1` object | generation; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.fee` | `task.v1.TaskFeeParamsV1` object | fee; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.challenge` | `task.v1.ChallengeParamsV1` object | challenge; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params.dispatch` | `task.v1.DispatchParamsV1` object | dispatch; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `params_version` | `uint64` / JSON decimal string | The Task's bound parameter version. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-taskgasreimbursements"></a> `task.TaskGasReimbursements`
 

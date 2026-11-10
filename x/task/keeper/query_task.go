@@ -514,6 +514,45 @@ func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudget
 	return &types.QueryTaskBudgetResponse{Budget: budget}, nil
 }
 
+// TaskFrozenParams is `QueryTaskFrozenParams`: the parameter version a Task bound
+// when it was accepted and that version's body. Existence follows the Task row,
+// so a compacted or unknown task is NotFound. The binding is read directly
+// instead of through the row helper that substitutes the current version for a
+// missing binding: a live Task without one breaks the version invariant, and a
+// query must report that rather than answer with parameters the Task never ran
+// under.
+func (q *queryServer) TaskFrozenParams(ctx context.Context, req *types.QueryTaskFrozenParamsRequest) (*types.QueryTaskFrozenParamsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request is required")
+	}
+	taskKey, err := requireQueryHash32("task_id", req.TaskId)
+	if err != nil {
+		return nil, err
+	}
+	core, err := q.k.TaskCore.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, "task not found")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if !bytes.Equal(core.TaskId, req.TaskId) {
+		return nil, status.Error(codes.Internal, "task_core primary key does not match task_id")
+	}
+	version, err := q.k.TaskParamsVersion.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, status.Error(codes.Internal, "task has no parameter version binding")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	params, err := q.k.paramsAtVersion(ctx, version)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &types.QueryTaskFrozenParamsResponse{Params: params, ParamsVersion: version}, nil
+}
+
 // TaskBuilders is `QueryTaskBuilders`. The three body states are frozen:
 //
 //   - ACTIVE  -> the immutable group's stored member count; an empty array with ACTIVE

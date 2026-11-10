@@ -64,6 +64,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
+					RpcMethod:      "TaskFrozenParams",
+					Use:            "task-frozen-params [task-id]",
+					Short:          "Shows the parameters frozen when one task was accepted, with their version",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
 					RpcMethod:      "InferReceipt",
 					Use:            "infer-receipt [task-id]",
 					Short:          "Shows one task's accepted inference receipt",

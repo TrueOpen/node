@@ -5404,6 +5404,20 @@
       },
       "type": "object"
     },
+    "task.v1.QueryTaskFrozenParamsResponse": {
+      "description": "QueryTaskFrozenParamsResponse returns the parameter version the Task bound\nwhen it was accepted and that version's complete body. It exists because\ncurrent parameters, and the version a Session froze at its own creation, can\nboth differ from the Task's: a client pricing a challenge round needs\nselected_verifier_count, challenge_verifier_count and challenge_open_bond as\nthe chain will read them for this Task.\n\nAn active Task and a terminal Task that has not been compacted return their\nbound version; version 0 is valid. Existence follows the Task row: a missing\nTask row, whether compacted or never accepted, is NotFound, and the terminal\nsummary carries no parameters. The binding is released with the Task at the\nfinal compaction step. A live Task without a binding, or a bound version whose\nbody is missing, is Internal; neither is ever answered with current\nparameters. A non-canonical task_id is InvalidArgument. The query only reads\nthe existing binding and adds no state.",
+      "properties": {
+        "params": {
+          "$ref": "#/definitions/task.v1.TaskParamsV1"
+        },
+        "params_version": {
+          "description": "The Task's bound parameter version.",
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.QueryTaskGasReimbursementsResponse": {
       "description": "QueryTaskGasReimbursementsResponse is ordered by (tx_hash, item_index).",
       "properties": {
@@ -10487,6 +10501,41 @@
           }
         },
         "summary": "InferReceipt returns one task's accepted inference receipt.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/task/{task_id}/params": {
+      "get": {
+        "operationId": "Query_TaskFrozenParams",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "task_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryTaskFrozenParamsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "TaskFrozenParams returns the parameters frozen when one task was accepted.",
         "tags": [
           "Query"
         ]
