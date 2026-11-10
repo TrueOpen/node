@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -64,9 +65,17 @@ func (k Keeper) closeValueEvidenceWindow(ctx context.Context, taskID types.TaskK
 			return err
 		}
 		if round.XRoundEffectPlanRoot == nil {
-			_, result, err := k.rebuildClosedRound(ctx, taskID, round.VerifyRound, round.GetClosedHeight(), round)
-			if err != nil {
-				return err
+			var result roundCloseResult
+			if round.GetRoundOutcome() == shared.RoundOutcomeV1_ROUND_OUTCOME_V1_UNAVAILABLE {
+				// closeUnavailableChallengeRound closed this round without ever
+				// assigning Verifiers, so there is no assignment to replay;
+				// its result is fully described by the closed round itself.
+				result = unavailableChallengeRoundResult(round)
+			} else {
+				_, result, err = k.rebuildClosedRound(ctx, taskID, round.VerifyRound, round.GetClosedHeight(), round)
+				if err != nil {
+					return err
+				}
 			}
 			return k.freezeRoundEconomicEffects(ctx, taskID, round, result, round.GetRoundOutcome(), height)
 		}

@@ -92,6 +92,19 @@ func (k Keeper) closeRoundOnce(
 	return closed, true, nil
 }
 
+// unavailableChallengeRoundResult is what a challenge round closed by
+// closeUnavailableChallengeRound contributes to the task. The round never had a
+// Verifier assignment, so the result is derived from the closed round alone and
+// can be rebuilt later without one.
+func unavailableChallengeRoundResult(round types.VerificationRoundState) roundCloseResult {
+	return roundCloseResult{
+		Verdict:               types.TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE,
+		FailureClass:          types.TaskFailureClass_TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER,
+		ResultReceiptRefsHash: make([]byte, types.Hash32Len), ConsensusClusterHash: make([]byte, types.Hash32Len),
+		RoundFactsHash: append([]byte(nil), round.GetRoundFactsHash()...),
+	}
+}
+
 func (k Keeper) closeUnavailableChallengeRound(
 	ctx context.Context,
 	taskKey types.TaskKey,
@@ -119,12 +132,7 @@ func (k Keeper) closeUnavailableChallengeRound(
 	if err := k.WriteVerificationRound(ctx, key, round); err != nil {
 		return err
 	}
-	result := roundCloseResult{
-		Verdict:               types.TaskVerdict_TASK_VERDICT_VERIFY_UNAVAILABLE,
-		FailureClass:          types.TaskFailureClass_TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER,
-		ResultReceiptRefsHash: make([]byte, types.Hash32Len), ConsensusClusterHash: make([]byte, types.Hash32Len),
-		RoundFactsHash: factsHash[:],
-	}
+	result := unavailableChallengeRoundResult(round)
 	if err := k.closeRoundTwoSummaryAndEffects(ctx, taskKey, round, result,
 		shared.RoundOutcomeV1_ROUND_OUTCOME_V1_UNAVAILABLE, closedHeight); err != nil {
 		return err
