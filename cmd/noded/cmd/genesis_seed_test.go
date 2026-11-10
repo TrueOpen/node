@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -835,4 +836,72 @@ func TestGenesisSeedFundsBuilderCompensationAccount(t *testing.T) {
 	// A Builder cannot fund more than it holds.
 	_, err = applyGenesisSeed(cdc, raw, newSeed(accountBalance+1))
 	require.ErrorContains(t, err, "compensation account")
+}
+
+func TestGenesisSeedActivatesVrfKeysFromEpochZero(t *testing.T) {
+	builder := newGenesisSeedTestIdentity()
+	builderService := newGenesisSeedTestIdentity()
+	validator := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	builderKey := strings.Repeat("11", hubtypes.VrfPubkeyLen)
+	validatorKey := strings.Repeat("22", hubtypes.VrfPubkeyLen)
+	newSeed := func(keys ...genesisSeedVrfKey) genesisSeed {
+		return genesisSeed{
+			Version:        genesisSeedVersion,
+			AccountBalance: 10_000_000,
+			Builders: []genesisSeedBuilder{{
+				Address: builder.address, ServiceAddress: builderService.address, ServicePubKey: builderService.pubKeyHex,
+				Descriptor: newGenesisSeedTestDescriptor(
+					"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/a", "trueopen-nexus-ingress-v1",
+				),
+			}},
+			VrfKeys: keys,
+		}
+	}
+	builderRow := genesisSeedVrfKey{ParticipantType: "PARTICIPANT_TYPE_BUILDER", OperatorAddress: builder.address, VrfPubkey: builderKey}
+	validatorRow := genesisSeedVrfKey{ParticipantType: "PARTICIPANT_TYPE_VALIDATOR", OperatorAddress: validator.address, VrfPubkey: validatorKey}
+
+	updated, err := applyGenesisSeed(cdc, raw, newSeed(builderRow, validatorRow))
+	require.NoError(t, err)
+	hub, _, _ := decodeGenesisSeedDocument(t, cdc, updated)
+	require.NoError(t, hub.Validate())
+	require.Len(t, hub.VrfKeys, 2)
+	for _, state := range hub.VrfKeys {
+		// Active immediately, with nothing pending to wait for.
+		require.Equal(t, uint64(0), state.ActiveFromEpoch)
+		require.Nil(t, state.XPendingVrfPubkey)
+		require.Equal(t, uint64(1), state.VrfAuthorizationNonce)
+	}
+
+	// Reapplying must not duplicate rows.
+	reapplied, err := applyGenesisSeed(cdc, updated, newSeed(builderRow, validatorRow))
+	require.NoError(t, err)
+	reappliedHub, _, _ := decodeGenesisSeedDocument(t, cdc, reapplied)
+	require.Equal(t, hub.VrfKeys, reappliedHub.VrfKeys)
+
+	// A seed without keys leaves the registry empty.
+	plain, err := applyGenesisSeed(cdc, raw, newSeed())
+	require.NoError(t, err)
+	plainHub, _, _ := decodeGenesisSeedDocument(t, cdc, plain)
+	require.Empty(t, plainHub.VrfKeys)
+
+	bad := builderRow
+	bad.OperatorAddress = validator.address
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "not a seeded Builder")
+	bad = validatorRow
+	bad.VrfPubkey = "abcd"
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "vrf_pubkey")
+	bad = validatorRow
+	bad.ParticipantType = "PARTICIPANT_TYPE_CORTEX"
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "participant_type")
+	err = validateGenesisSeed(newSeed(validatorRow, validatorRow))
+	require.ErrorContains(t, err, "repeats")
 }
