@@ -30,9 +30,19 @@ func TestValueEvidenceCloseResolvesUnavailableChallengeRound(t *testing.T) {
 	require.Nil(t, closed.XRoundEffectPlanRoot, "effects wait for the evidence window")
 	require.Equal(t, round.TaskId, closed.TaskId)
 
+	// The close handler used to fail here and defer its row; the retry at the
+	// deferred height must now succeed.
 	deadline := summary.GetVerifierValueEvidenceCloseHeight()
-	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(deadline)))
-	require.NoError(t, f.keeper.closeValueEvidenceWindow(f.ctx, f.taskKey, deadline, deadline))
+	require.NoError(t, f.keeper.deferFailedDeadlineRow(
+		f.ctx, f.keeper.ValueEvidenceWindowCloseIndex, f.taskKey, deadline, deadline, errTestDeferred))
+	retryHeight := deadline + deadlineSweepFailureRetryBlocksV1
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(retryHeight)))
+	visited, err := f.keeper.processValueEvidenceWindowCloses(f.ctx, retryHeight, 1)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), visited)
+	remaining, err := f.keeper.ValueEvidenceWindowCloseIndex.Has(f.ctx, types.NewDeadlineIndexKey(retryHeight, f.taskKey))
+	require.NoError(t, err)
+	require.False(t, remaining, "the deferred row is consumed, not deferred again")
 
 	frozen, err := f.keeper.ReadVerificationRound(f.ctx, key)
 	require.NoError(t, err)

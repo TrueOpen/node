@@ -111,7 +111,11 @@ func checkDerivedKeySet[K any](ctx context.Context, set collections.KeySet[K], e
 	return nil
 }
 
-func checkDispatchPruneSet(ctx context.Context, set collections.KeySet[types.DeadlineIndexKey], minimum map[string]uint64) error {
+// checkDeadlineSetFloor requires exactly one row per task in minimum, scheduled
+// no earlier than that task's floor. A later row is legal: a retention schedule
+// can be longer than the current parameters, and a failing deadline handler
+// defers its row.
+func checkDeadlineSetFloor(ctx context.Context, set collections.KeySet[types.DeadlineIndexKey], minimum map[string]uint64) error {
 	iter, err := set.Iterate(ctx, nil)
 	if err != nil {
 		return err
@@ -124,12 +128,12 @@ func checkDispatchPruneSet(ctx context.Context, set collections.KeySet[types.Dea
 		}
 		floor, found := minimum[string(key.K2())]
 		if !found || key.K1() < floor {
-			return fmt.Errorf("dispatch prune index is orphaned, duplicated or precedes the admissibility floor")
+			return fmt.Errorf("deadline index is orphaned, duplicated or precedes its floor")
 		}
 		delete(minimum, string(key.K2()))
 	}
 	if len(minimum) != 0 {
-		return fmt.Errorf("dispatch terminal primary is missing its prune index")
+		return fmt.Errorf("primary is missing its deadline index row")
 	}
 	return nil
 }
@@ -393,7 +397,7 @@ func (d *dispatchInvariantState) checkIndexes(ctx context.Context) error {
 		set  collections.KeySet[types.DeadlineIndexKey]
 		want map[string]uint64
 	}{{d.keeper.DispatchRecordPrune, d.recordPrunes}, {d.keeper.DispatchClaimPrune, d.claimPrunes}, {d.keeper.DispatchChallengePrune, d.challengePrunes}, {d.keeper.DispatchWinnerIneligiblePrune, d.winnerPrunes}, {d.keeper.TakeoverEntryReceiptPrune, d.takeoverPrunes}, {d.keeper.DispatchRoundAcceptorPrune, d.roundPrunes}} {
-		if err := checkDispatchPruneSet(ctx, check.set, check.want); err != nil {
+		if err := checkDeadlineSetFloor(ctx, check.set, check.want); err != nil {
 			return err
 		}
 	}

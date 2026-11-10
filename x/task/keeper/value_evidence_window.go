@@ -47,7 +47,10 @@ func (k Keeper) closeValueEvidenceWindow(ctx context.Context, taskID types.TaskK
 	if err != nil {
 		return err
 	}
-	if deadline != summary.GetVerifierValueEvidenceCloseHeight() || deadline == 0 || height < deadline {
+	// The row may sit later than the close height: deferFailedDeadlineRow moves a
+	// row whose handler failed. Earlier, or past the current height, is corruption.
+	closeHeight := summary.GetVerifierValueEvidenceCloseHeight()
+	if closeHeight == 0 || deadline < closeHeight || height < deadline {
 		return fmt.Errorf("value evidence close index disagrees with its summary")
 	}
 	if summary.XVerifierValueEvidenceWindowClosedHeight == nil {

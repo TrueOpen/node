@@ -23,7 +23,9 @@ func (k Keeper) ensureValueEvidenceWindows(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	expected := make(map[string]bool)
+	// A failing close handler defers its row (deferFailedDeadlineRow), so an open
+	// window's row may sit later than its close height but never earlier.
+	floors := make(map[string]uint64)
 	for _, summary := range summaries {
 		var revealMax uint64
 		for _, round := range []uint32{types.VerifyRoundV1, types.ChallengeVerifyRoundV1} {
@@ -55,18 +57,13 @@ func (k Keeper) ensureValueEvidenceWindows(ctx context.Context) error {
 				return fmt.Errorf("value window was closed prematurely")
 			}
 		} else {
-			key := types.NewDeadlineIndexKey(closeHeight, summary.TaskId)
-			encoded, err := indexKeyBytes(k.ValueEvidenceWindowCloseIndex.KeyCodec(), key)
-			if err != nil {
-				return err
-			}
-			expected[encoded] = true
+			floors[string(summary.TaskId)] = closeHeight
 			if summary.XRoundsClosedHeight != nil {
 				return fmt.Errorf("task finalized before value evidence closed")
 			}
 		}
 	}
-	return checkDerivedKeySet(ctx, k.ValueEvidenceWindowCloseIndex, expected)
+	return checkDeadlineSetFloor(ctx, k.ValueEvidenceWindowCloseIndex, floors)
 }
 
 func (k Keeper) ensureValueEvidenceReceipts(ctx context.Context) error {

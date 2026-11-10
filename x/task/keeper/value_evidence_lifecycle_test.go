@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"errors"
 	"testing"
 
 	hubtypes "github.com/TrueOpen/node/x/hub/types"
@@ -83,3 +84,24 @@ func TestEvidenceOnlyFaultCannotFundRoundTwoRecoveryPool(t *testing.T) {
 	}
 	require.Equal(t, uint64(1), paid, "the honest verifier retains its slot payment")
 }
+
+// A failing close handler moves its row later (deferFailedDeadlineRow); the
+// invariant checked at every start must accept that, or one deferred row would
+// stop the node from restarting.
+func TestValueEvidenceInvariantAcceptsADeferredWindowRow(t *testing.T) {
+	f, _, _ := valueEvidenceFixture(t, true)
+	summary, err := f.keeper.TaskRoundSummary.Get(f.ctx, f.taskID)
+	require.NoError(t, err)
+	closeHeight := summary.GetVerifierValueEvidenceCloseHeight()
+	require.NoError(t, f.keeper.EnsureValueEvidenceInvariant(f.ctx))
+
+	require.NoError(t, f.keeper.deferFailedDeadlineRow(
+		f.ctx, f.keeper.ValueEvidenceWindowCloseIndex, f.taskID, closeHeight, closeHeight, errTestDeferred))
+	require.NoError(t, f.keeper.EnsureValueEvidenceInvariant(f.ctx))
+
+	// A row earlier than the close height, or a second row, is still corruption.
+	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.ValueEvidenceWindowCloseIndex, f.taskID, closeHeight-1))
+	require.Error(t, f.keeper.EnsureValueEvidenceInvariant(f.ctx))
+}
+
+var errTestDeferred = errors.New("injected handler failure")
