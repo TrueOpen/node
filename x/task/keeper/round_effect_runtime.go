@@ -214,6 +214,19 @@ func (k Keeper) freezeRoundEconomicEffects(
 			RequestedAmount: shared.NewAmount(maxResidual),
 		})
 	}
+	// A round that paid no Verifier and holds no bond (challenge_open_bond 0, or
+	// every Verifier missing) would leave the plan empty, but a closed round must
+	// carry at least one effect: settlement and cleanup replay the plan and reject
+	// RoundEffectCount 0. Record the opener's bond refund at zero, as the DIVERGED
+	// plan already does for a zero bond; applying it is a no-op, and finishing the
+	// plan then returns the unspent Verifier budget to the opener.
+	if len(effects) == 0 {
+		appendEffect(shared.RoundEconomicEffectV1{
+			EffectKind:          shared.RoundEconomicEffectKindV1_ROUND_ECONOMIC_EFFECT_KIND_V1_BOND_REFUND,
+			XDestinationAddress: &shared.RoundEconomicEffectV1_DestinationAddress{DestinationAddress: funding.OpenerAddress},
+			RequestedAmount:     zero,
+		})
+	}
 	// V1 can pay at most challenge_count slots, disqualify/slash the one
 	// Worker plus three round-1 Verifiers, then append recovery, up to two bond
 	// actions and residual.

@@ -13,6 +13,10 @@ import (
 )
 
 func openChallengeQueryFixture(t *testing.T) (*verificationFixture, types.VerifierCandidateWindowState) {
+	return openChallengeFixtureWithBond(t, 100)
+}
+
+func openChallengeFixtureWithBond(t *testing.T, bond uint64) (*verificationFixture, types.VerifierCandidateWindowState) {
 	t.Helper()
 	f := newVerificationFixture(t)
 	core, err := f.keeper.TaskCore.Get(f.ctx, f.taskKey)
@@ -22,7 +26,7 @@ func openChallengeQueryFixture(t *testing.T) (*verificationFixture, types.Verifi
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED
 	core.EffectiveVerifyRound = 1
 	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, f.taskKey, core))
-	closed := types.VerificationRoundState{TaskId: f.taskID, VerifyRound: 1, RoundId: bytes32(0x82), GeneratedTokenCount: 1,
+	closed := types.VerificationRoundState{TaskId: f.taskID, VerifyRound: 1, RoundId: bytes32(0x82), GeneratedTokenCount: 1000,
 		XClosedHeight:   &types.VerificationRoundState_ClosedHeight{ClosedHeight: 10},
 		XVerdict:        &types.VerificationRoundState_Verdict{Verdict: types.TaskVerdict_TASK_VERDICT_PASS},
 		XRoundFactsHash: &types.VerificationRoundState_RoundFactsHash{RoundFactsHash: bytes32(0x83)}}
@@ -30,11 +34,11 @@ func openChallengeQueryFixture(t *testing.T) (*verificationFixture, types.Verifi
 	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, f.taskKey, types.TaskRoundSummaryState{TaskId: f.taskID, MaxClosedRound: 1,
 		Round1FactsHashOrZero32: closed.GetRoundFactsHash(), XChallengeOpenHeight: &types.TaskRoundSummaryState_ChallengeOpenHeight{ChallengeOpenHeight: 10},
 		XChallengeCloseHeight: &types.TaskRoundSummaryState_ChallengeCloseHeight{ChallengeCloseHeight: 100}}))
-	require.NoError(t, f.keeper.TaskBudget.Set(f.ctx, f.taskKey, types.TaskBudgetState{TaskId: f.taskID, PriceBid: shared.NewAmount(1_000_000), BudgetStatus: types.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED}))
+	require.NoError(t, f.keeper.TaskBudget.Set(f.ctx, f.taskKey, types.TaskBudgetState{TaskId: f.taskID, PriceBid: shared.NewAmount(1_000_000), VerifyRatioBpsSnapshot: 3000, BudgetStatus: types.TaskBudgetStatus_TASK_BUDGET_STATUS_RESERVED}))
 	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, f.taskKey, types.InferReceiptState{TaskId: f.taskID, WinnerWorker: f.operators[0], InferReceiptHash: bytes32(0x84)}))
 	params, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
-	params.Challenge.ChallengeOpenBond = shared.NewAmount(100)
+	params.Challenge.ChallengeOpenBond = shared.NewAmount(bond)
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 	bank := dispatchTestBank{store: f.keeper.storeService}
 	f.keeper.bankKeeper = bank
