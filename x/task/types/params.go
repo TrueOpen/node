@@ -74,32 +74,54 @@ const (
 	// ADR-0040 v6: opening window after sampling (blocks).
 	DefaultAnchorOpenWindowBlocks = uint64(900)
 	// ADR-0040 v6: proof window after the opening deadline. The default is part of
-	// the historical params commitment and stays at 6,600; a chain whose Workers
-	// prove one epoch after another on a single GPU should set
-	// RecommendedAnchorProofWindowBlocks through genesis or governance.
+	// the historical params commitment and stays at 6,600; a chain that runs the v7
+	// content track must set RecommendedAnchorProofWindowBlocks through genesis or
+	// governance.
 	DefaultAnchorProofWindowBlocks = uint64(6_600)
 	// RecommendedAnchorProofWindowBlocks sizes the proof window for a fully loaded
 	// single-GPU Worker that must wait for the previous epoch's proof before proving
-	// its own: the production registration measured 51–67 min per epoch on an A40
-	// with 61 cores, so two epochs plus the opening window and margin need
-	// ~9,200 s — 10,000 blocks at 1 s blocks. The default 6,600 (sized for
-	// 2×45 min) made the second epoch miss its deadline under load (audit D-F1,
-	// 2026-11-09): an honest Worker would be slashed anchor_timeout.
+	// its own: the v7 production registration (96 delta_mixed modules) measured
+	// 51–67 min per epoch on an A40 with 61 cores, so two epochs plus the opening
+	// window and margin need ~9,200 s — 10,000 blocks at 1 s blocks. The default
+	// 6,600 (sized for 2×45 min) made the second epoch miss its deadline under load
+	// (audit D-F1, 2026-11-09): an honest Worker would be slashed anchor_timeout.
 	RecommendedAnchorProofWindowBlocks = uint64(10_000)
-	// RecommendedAnchorVerdictWindowBlocks sizes the validator voting window: a
-	// Worker may record its proof at the very end of the proof window, and a
-	// validator (no GPU, no weights) measured 352 s for a one-task epoch and
-	// 2,364 s for three tasks plus material fetches, so the default 900 blocks
-	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
-	// 2026-11-09). One hour at 1 s blocks; set through genesis or governance, the
-	// default is part of the historical params commitment.
+	// RecommendedAnchorVerdictWindowBlocks sizes the validator voting window for
+	// the v7 content track: a Worker may record its proof at the very end of the
+	// proof window, and a validator (no GPU, no weights) measured 352 s for a
+	// one-task epoch and 2,364 s for three tasks plus material fetches, so the
+	// default 900 blocks could expire mid-verification and pay a NO_VERDICT task
+	// (audit A-H1, 2026-11-09). One hour at 1 s blocks; set through genesis or
+	// governance, the default is part of the historical params commitment.
 	RecommendedAnchorVerdictWindowBlocks = uint64(3_600)
 	// ADR-0040 v5: floor of the per-task audit probability (5%).
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
 	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
 	// ADR-0040 v6: validator voting window after the proof deadline (blocks).
-	DefaultAnchorVerdictWindowBlocks                = uint64(900)
+	DefaultAnchorVerdictWindowBlocks = uint64(900)
+	// ADR-0040 v7: positions sampled per selected audit (the former fixed value).
+	DefaultAnchorPositionsPerTask = uint32(2)
+	// ADR-0040 v7: minimum bond multiple M. D is the Worker's slashable bond (its
+	// effective active bond, fixed at sampling); R is the task's order value. The
+	// content-track deterrent needs D >= 40 R (25% slash at ~0.6% per-task detection
+	// of systematic cheap decoding against at most 50% of R saved); below M*R the
+	// task is audited at 100%. The 25% figure holds once the Worker opened: a Worker
+	// that opens on the content track and then withholds the proof is slashed as
+	// anchor_content_reject (2026-11-09), not the smaller anchor_timeout, which
+	// remains only for a Worker that never opened at all.
+	DefaultAnchorMinBondMultiple = uint32(40)
+	// ADR-0040 v7: content verdict window after the compute verdict deadline (blocks).
+	// Zero (the content track off) until Workers seal B1 epochs and validators run
+	// the content checker: with the track on, a selected task whose proof is not
+	// bound to x is REJECT_CONTENT at the deadline. Governance enables it with a
+	// positive window; RecommendedAnchorContentVerdictWindowBlocks is the intended value.
+	DefaultAnchorContentVerdictWindowBlocks = uint64(0)
+	// RecommendedAnchorContentVerdictWindowBlocks is one hour at 1 s blocks: the
+	// validators' fp64 content check is bounded at ~90 s per position.
+	RecommendedAnchorContentVerdictWindowBlocks = uint64(3_600)
+	// ADR-0040 v7: share of D taken (and jail) on a REJECT_CONTENT verdict.
+	DefaultAnchorContentRejectSlashBPS              = uint32(2_500)
 	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
 	DefaultMaxInferEvidenceCommitmentsPerReceipt    = uint32(32)
 	DefaultMaxInferReceiptCommitmentBytes           = uint64(8 << 10)
@@ -202,16 +224,20 @@ func DefaultTaskParams() TaskParamsV1 {
 			MaxWeightedDrawAttemptsPerSelection: DefaultMaxWeightedDrawAttemptsPerSelection,
 		},
 		Verification: VerificationParamsV1{
-			WorkerInferTimeoutSlashBps:  DefaultWorkerInferTimeoutSlashBPS,
-			ResultRevealMissingSlashBps: DefaultResultRevealMissingSlashBPS,
-			BuilderFaultSlashBps:        DefaultBuilderFaultSlashBPS,
-			AnchorRejectSlashBps:        DefaultAnchorRejectSlashBPS,
-			AnchorVerdictWindowBlocks:   DefaultAnchorVerdictWindowBlocks,
-			AnchorAuditMinRateBps:       DefaultAnchorAuditMinRateBPS,
-			AnchorAuditRiskMarginBps:    DefaultAnchorAuditRiskMarginBPS,
-			AnchorOpenWindowBlocks:      DefaultAnchorOpenWindowBlocks,
-			AnchorProofWindowBlocks:     DefaultAnchorProofWindowBlocks,
-			AnchorTimeoutSlashBps:       DefaultAnchorTimeoutSlashBPS,
+			WorkerInferTimeoutSlashBps:       DefaultWorkerInferTimeoutSlashBPS,
+			ResultRevealMissingSlashBps:      DefaultResultRevealMissingSlashBPS,
+			BuilderFaultSlashBps:             DefaultBuilderFaultSlashBPS,
+			AnchorRejectSlashBps:             DefaultAnchorRejectSlashBPS,
+			AnchorVerdictWindowBlocks:        DefaultAnchorVerdictWindowBlocks,
+			AnchorAuditMinRateBps:            DefaultAnchorAuditMinRateBPS,
+			AnchorAuditRiskMarginBps:         DefaultAnchorAuditRiskMarginBPS,
+			AnchorOpenWindowBlocks:           DefaultAnchorOpenWindowBlocks,
+			AnchorProofWindowBlocks:          DefaultAnchorProofWindowBlocks,
+			AnchorTimeoutSlashBps:            DefaultAnchorTimeoutSlashBPS,
+			AnchorPositionsPerTask:           DefaultAnchorPositionsPerTask,
+			AnchorMinBondMultiple:            DefaultAnchorMinBondMultiple,
+			AnchorContentVerdictWindowBlocks: DefaultAnchorContentVerdictWindowBlocks,
+			AnchorContentRejectSlashBps:      DefaultAnchorContentRejectSlashBPS,
 		},
 		Evidence: EvidenceLimitParamsV1{
 			MaxEvidenceRetentionBlocks:            DefaultMaxEvidenceRetentionBlocks,
@@ -261,9 +287,10 @@ func DefaultTaskParams() TaskParamsV1 {
 }
 
 // WithAnchorDefaults returns p with the ADR-0040 anchor parameters filled from
-// the defaults where the body predates them (the opening window is zero).
+// the defaults where the body predates them: the v6 fields when the opening
+// window is zero, the v7 content-track fields when positions per task is zero.
 // Genesis validation and InitGenesis accept a pre-anchor body through it, and the
-// anchor upgrade writes exactly this (audit F-P1-5, 2026-11-09).
+// anchor upgrades write exactly this (audit F-P1-5, 2026-11-09).
 func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
 	d := DefaultTaskParams().Verification
 	v := &p.Verification
@@ -271,6 +298,10 @@ func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
 		v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
 		v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
 		v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = d.AnchorOpenWindowBlocks, d.AnchorProofWindowBlocks, d.AnchorVerdictWindowBlocks
+	}
+	if v.AnchorPositionsPerTask == 0 {
+		v.AnchorPositionsPerTask, v.AnchorMinBondMultiple = d.AnchorPositionsPerTask, d.AnchorMinBondMultiple
+		v.AnchorContentVerdictWindowBlocks, v.AnchorContentRejectSlashBps = d.AnchorContentVerdictWindowBlocks, d.AnchorContentRejectSlashBps
 	}
 	return p
 }
@@ -297,9 +328,9 @@ func RepairAnchorParams(p TaskParamsV1) (TaskParamsV1, []string) {
 }
 
 // HasAnchorParams reports whether the body carries the ADR-0040 anchor
-// parameters.
+// parameters (v6 windows and v7 content-track fields).
 func (p TaskParamsV1) HasAnchorParams() bool {
-	return p.Verification.AnchorOpenWindowBlocks != 0
+	return p.Verification.AnchorOpenWindowBlocks != 0 && p.Verification.AnchorPositionsPerTask != 0
 }
 
 func (p TaskParamsV1) Validate() error {
@@ -559,6 +590,7 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		{"verification.anchor_reject_slash_bps", p.AnchorRejectSlashBps},
 		{"verification.anchor_audit_min_rate_bps", p.AnchorAuditMinRateBps},
 		{"verification.anchor_timeout_slash_bps", p.AnchorTimeoutSlashBps},
+		{"verification.anchor_content_reject_slash_bps", p.AnchorContentRejectSlashBps},
 	} {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
@@ -579,16 +611,48 @@ func validateVerificationParams(p VerificationParamsV1) error {
 			return err
 		}
 	}
+	if err := positiveUint32("verification.anchor_positions_per_task", p.AnchorPositionsPerTask, AnchorPositionsPerTaskMaximum); err != nil {
+		return err
+	}
+	if p.AnchorMinBondMultiple > AnchorMinBondMultipleMaximum {
+		return fmt.Errorf("verification.anchor_min_bond_multiple must be <= %d", AnchorMinBondMultipleMaximum)
+	}
+	// Zero disables the content track; otherwise it is bounded like the other windows.
+	if p.AnchorContentVerdictWindowBlocks > AnchorWindowBlocksMaximum {
+		return fmt.Errorf("verification.anchor_content_verdict_window_blocks must be <= %d", AnchorWindowBlocksMaximum)
+	}
+	// With the content track on, each opening also carries the B1 material, which the
+	// Worker builds per task (measured ~270 s per task on the devnet, versus ~60 s in v6)
+	// and serially; a 900-block opening window let two of four tasks miss the deadline.
+	if p.AnchorContentVerdictWindowBlocks > 0 && p.AnchorOpenWindowBlocks < AnchorContentOpenWindowBlocksMinimum {
+		return fmt.Errorf("verification.anchor_open_window_blocks must be >= %d while the content track is enabled", AnchorContentOpenWindowBlocksMinimum)
+	}
 	return nil
 }
+
+// AnchorContentOpenWindowBlocksMinimum is the smallest opening window accepted while the
+// content-integrity track is enabled (ADR-0040 v7). RecommendedAnchorContentOpenWindowBlocks
+// is the intended value.
+const (
+	AnchorContentOpenWindowBlocksMinimum     = uint64(1_800)
+	RecommendedAnchorContentOpenWindowBlocks = uint64(2_400)
+)
+
+// AnchorPositionsPerTaskMaximum caps the sampled positions per audit (ADR-0040 v7):
+// opening size and validator time grow linearly with it.
+const AnchorPositionsPerTaskMaximum = uint32(64)
+
+// AnchorMinBondMultipleMaximum caps the minimum bond multiple M (ADR-0040 v7).
+const AnchorMinBondMultipleMaximum = uint32(1_000_000)
 
 // AnchorWindowBlocksMaximum caps each anchor window (ADR-0040 v6) so deadline
 // arithmetic cannot overflow and an audit cannot outlive task retention.
 const AnchorWindowBlocksMaximum = uint64(1_000_000)
 
-// AnchorTotalWindowBlocks is how long after sampling an audit may stay open.
+// AnchorTotalWindowBlocks is how long after sampling an audit may stay open,
+// including the content verdict window (ADR-0040 v7).
 func (v VerificationParamsV1) AnchorTotalWindowBlocks() uint64 {
-	return v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks
+	return v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks + v.AnchorContentVerdictWindowBlocks
 }
 
 // AnchorAuditRiskMarginMaximum caps the risk margin k at 100x (ADR-0040 v5).
@@ -1000,11 +1064,15 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 	if params.Verification.AnchorVerdictWindowBlocks == 0 {
 		params.Verification.AnchorVerdictWindowBlocks = DefaultAnchorVerdictWindowBlocks
 	}
+	// Bodies recorded before ADR-0040 v7 sample the former fixed two positions.
+	if params.Verification.AnchorPositionsPerTask == 0 {
+		params.Verification.AnchorPositionsPerTask = DefaultAnchorPositionsPerTask
+	}
 	return params.Validate()
 }
 
 // verificationParamsCanonicalFields frames VerificationParamsV1 for the params
-// hash: every field, in field-number order (7..13 are ADR-0040).
+// hash: every field, in field-number order (7..17 are ADR-0040; 14..17 v7).
 func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
 	return shared.RawCanonicalFieldsV1(
 		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
@@ -1017,5 +1085,9 @@ func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.Canonica
 		shared.Uint64BE(v.AnchorOpenWindowBlocks),
 		shared.Uint64BE(v.AnchorProofWindowBlocks),
 		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+		shared.Uint32BE(v.AnchorPositionsPerTask),
+		shared.Uint32BE(v.AnchorMinBondMultiple),
+		shared.Uint64BE(v.AnchorContentVerdictWindowBlocks),
+		shared.Uint32BE(v.AnchorContentRejectSlashBps),
 	)
 }

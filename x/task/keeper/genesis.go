@@ -1041,6 +1041,12 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.AnchorValidatorVotes, err = collectMapValues(ctx, k.AnchorValidatorVote); err != nil {
 		return nil, err
 	}
+	if genesis.AnchorContentVotes, err = collectMapValues(ctx, k.AnchorContentVote); err != nil {
+		return nil, err
+	}
+	if genesis.AnchorEpochs, err = collectMapValues(ctx, k.AnchorEpoch); err != nil {
+		return nil, err
+	}
 	if genesis.AnchorVoteKeys, err = collectMapValues(ctx, k.AnchorVoteKey); err != nil {
 		return nil, err
 	}
@@ -1236,7 +1242,7 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 			return err
 		}
 	}
-	if (len(genesis.AnchorValidatorVotes) > 0 || len(genesis.AnchorVoteKeys) > 0) && k.stakingKeeper == nil {
+	if (len(genesis.AnchorValidatorVotes) > 0 || len(genesis.AnchorVoteKeys) > 0 || len(genesis.AnchorContentVotes) > 0) && k.stakingKeeper == nil {
 		return fmt.Errorf("anchor validator votes require the staking keeper")
 	}
 	for _, vote := range genesis.AnchorValidatorVotes {
@@ -1258,6 +1264,46 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 			return fmt.Errorf("duplicate anchor validator vote")
 		}
 		if err := k.AnchorValidatorVote.Set(ctx, key, vote); err != nil {
+			return err
+		}
+	}
+	// ADR-0040 v7: content votes (each names an imported audit) and sealed epochs.
+	for _, vote := range genesis.AnchorContentVotes {
+		taskID, err := genesisHashKey("anchor content vote task_id", vote.TaskId)
+		if err != nil {
+			return err
+		}
+		if has, err := k.AnchorAudit.Has(ctx, taskID); err != nil || !has {
+			return fmt.Errorf("anchor content vote names a task without an anchor audit")
+		}
+		valAddr, err := k.stakingKeeper.ValidatorAddressCodec().StringToBytes(vote.ValidatorOperatorAddress)
+		if err != nil || len(valAddr) == 0 {
+			return fmt.Errorf("anchor content vote validator_operator_address is invalid")
+		}
+		key := collections.Join(types.NewTaskKey(taskID), valAddr)
+		if has, err := k.AnchorContentVote.Has(ctx, key); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate anchor content vote")
+		}
+		if err := k.AnchorContentVote.Set(ctx, key, vote); err != nil {
+			return err
+		}
+	}
+	for _, epoch := range genesis.AnchorEpochs {
+		id, err := genesisHashKey("anchor epoch manifest hash", epoch.EpochManifestHash)
+		if err != nil {
+			return err
+		}
+		if len(epoch.TaskIds) == 0 || len(epoch.TaskIds) > maxAnchorEpochTasks || epoch.XBeaconHeight == 0 {
+			return fmt.Errorf("anchor epoch is malformed")
+		}
+		if has, err := k.AnchorEpoch.Has(ctx, types.Hash32Key(id)); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate anchor epoch")
+		}
+		if err := k.AnchorEpoch.Set(ctx, types.Hash32Key(id), epoch); err != nil {
 			return err
 		}
 	}

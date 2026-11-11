@@ -866,10 +866,27 @@ const (
 	// proof, or its commitment could not be sampled (ADR-0040 v6). Slashes a share
 	// of the bond fixed at sampling and jails.
 	FaultTypeAnchorReject = "anchor_reject"
-	// FaultTypeAnchorTimeout: the Worker never opened or never proved its sampled
-	// anchor audit by the deadline (ADR-0040 v6). A smaller slash, no jail.
+	// FaultTypeAnchorTimeout: the Worker never opened its sampled anchor audit by
+	// the deadline, or (off the content track) never proved it (ADR-0040 v6). A
+	// smaller slash, no jail.
 	FaultTypeAnchorTimeout = "anchor_timeout"
+	// FaultTypeAnchorContentReject: the consensus validators rejected the content of
+	// the Worker's anchor proof, the Worker withheld its B1 material, or it opened
+	// its rows on the content track and never proved them (ADR-0040 v7, decision
+	// of 2026-11-09). Slashes a share of the bond fixed at sampling and jails.
+	// Usually applied after the task settled (its reservation already released).
+	FaultTypeAnchorContentReject = "anchor_content_reject"
 )
+
+// IsAnchorFaultType reports whether faultType takes an absolute amount of the
+// bond fixed at anchor sampling instead of a share of the task reservation.
+func IsAnchorFaultType(faultType string) bool {
+	switch faultType {
+	case FaultTypeAnchorReject, FaultTypeAnchorTimeout, FaultTypeAnchorContentReject:
+		return true
+	}
+	return false
+}
 
 const (
 	JailStatusNone       = ""

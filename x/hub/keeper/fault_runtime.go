@@ -232,7 +232,7 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 		// without money and the amount is debited through the full waterfall, so
 		// bond moved into unbonding after sampling is still reached.
 		anchorBondSlash := uint64(0)
-		if faultType == types.FaultTypeAnchorReject || faultType == types.FaultTypeAnchorTimeout {
+		if types.IsAnchorFaultType(faultType) {
 			anchorBondSlash = requestedAmount
 			requested = 0
 		}
@@ -261,6 +261,23 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 				})
 			default:
 				return roleFaultApplyResult{}, fmt.Errorf("worker objective evidence liability is not slashable")
+			}
+		} else if faultType == types.FaultTypeAnchorContentReject && reservation.Status != types.TaskLiabilityStatusReserved {
+			// ADR-0040 v7: the content verdict lands after the task settled, so the
+			// reservation is already closed. The absolute amount is debited through
+			// the full waterfall; the closed reservation is left as it is.
+			if reservation.Status != types.TaskLiabilityStatusReleased && reservation.Status != types.TaskLiabilityStatusSlashed {
+				return roleFaultApplyResult{}, fmt.Errorf("anchor content fault liability has invalid status")
+			}
+			if anchorBondSlash > 0 {
+				metadata := newRoleFaultSlashMetadata(prospective)
+				slash, err = k.applyServiceSlashInCache(ctx, ApplyServiceSlashRequest{
+					OperatorAddress: roleAddress, Duty: duty, TaskID: canonicalTaskID,
+					Requested: anchorBondSlash, Height: height,
+					SummaryID: append([]byte(nil), metadata.SummaryID...), SourceKind: metadata.SourceKind,
+					SourceID: append([]byte(nil), metadata.SourceID...), EffectIndex: metadata.EffectIndex,
+					Destination: metadata.Destination,
+				})
 			}
 		} else {
 			// The reservation close and the debit are one transition for faults
@@ -650,7 +667,7 @@ func (k Keeper) IsTombstoned(ctx context.Context, roleAddress string) (bool, err
 func shouldJailForFault(faultType string) bool {
 	switch strings.TrimSpace(faultType) {
 	case types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult, types.FaultTypeResultNoSettleReveal, types.FaultTypeValueOutlier, types.FaultTypeCommitRevealMismatch, types.FaultTypeWorkerRevealTimeout, types.FaultTypeObjectiveForgery, types.FaultTypeRoundDivergence,
-		types.FaultTypeAnchorReject:
+		types.FaultTypeAnchorReject, types.FaultTypeAnchorContentReject:
 		return true
 	default:
 		return false
@@ -794,7 +811,7 @@ func classifyRoleFaultType(faultType string) (types.FaultKind, shared.FailureCla
 	case types.FaultTypeWorkerInferTimeout, types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult,
 		types.FaultTypeResultNoSettleReveal, types.FaultTypeWorkerRevealTimeout:
 		return types.FaultKind_FAULT_KIND_TIMEOUT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE, nil
-	case types.FaultTypeValueOutlier, types.FaultTypeAnchorReject, types.FaultTypeAnchorTimeout:
+	case types.FaultTypeValueOutlier, types.FaultTypeAnchorReject, types.FaultTypeAnchorTimeout, types.FaultTypeAnchorContentReject:
 		return types.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
 	case types.FaultTypeCommitRevealMismatch:
 		return types.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil

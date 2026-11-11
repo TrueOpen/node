@@ -25,48 +25,7 @@ func TestAnchorFaultSlashesRequestedAmountAndJails(t *testing.T) {
 		{"timeout", types.FaultTypeAnchorTimeout, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := initCandidatePoolFixture(t)
-			genesis := types.DefaultGenesis()
-			genesis.Params.CandidatePool.CandidateSlotHardCapacity = 8
-			genesis.Params.CandidatePool.CandidateBitmapSegmentBytes = 1
-			genesis.Params.CandidatePool.MaxCandidatePoolBuildMembersPerBlock = 8
-			require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
-
-			identity := hubIdentity(t, 219)
-			registerCortexNodeIdentityForTest(t, f, identity.Address, identity, 2*testServiceBondMinInitial, 1, 0)
-			activateServiceBondForTest(t, f, identity.Address, 0)
-			f.bank.seedAccount(identity.Address, 1)
-			_, err := f.keeper.StakeService(f.ctx, identity.Address, 1, 1, 1)
-			require.NoError(t, err)
-			const modelID = "model-anchor-fault"
-			supportVersion := declareTaskLiabilitySupportForTest(
-				t, f, identity.Address, types.ServiceBondRoleVerifier, modelID, 1, testServiceBondMinInitial, 1,
-			)
-			_, err = f.keeper.ProcessDirtyCandidatePools(f.ctx, 1, 8)
-			require.NoError(t, err)
-			f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(2))
-			_, err = f.keeper.ProcessCandidatePoolExpiries(f.ctx, 2, 1)
-			require.NoError(t, err)
-			pool, err := f.keeper.CurrentCandidatePool.Get(f.ctx)
-			require.NoError(t, err)
-			reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
-			require.NoError(t, err)
-			taskID, err := hex.DecodeString(hubHash("anchor-fault-task-" + tc.name))
-			require.NoError(t, err)
-			_, err = f.keeper.AcquireCandidatePoolTaskRef(f.ctx, taskID, pool.SnapshotId, 2)
-			require.NoError(t, err)
-			bond, ok := f.keeper.GetServiceBond(sdk.UnwrapSDKContext(f.ctx), sdk.MustAccAddressFromBech32(identity.Address), 1)
-			require.True(t, ok)
-			_, err = f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, types.FrozenFactLiabilityRequest{
-				TaskID: taskID, CandidatePoolSnapshotID: pool.SnapshotId,
-				OperatorAddress: identity.Address, Duty: shared.DutyVerifier, OrderValue: 1,
-				Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
-				RequiredTaskLiability: bond.RequiredTaskLiability, ActiveBondSnapshot: bond.EffectiveActiveBond,
-				AvailableBondSnapshot: bond.AvailableBond, MinStakeSnapshot: testServiceBondMinInitial,
-				BondVersionSnapshot: bond.BondVersion, CapabilityVersionSnapshot: supportVersion, SupportVersionSnapshot: supportVersion,
-				ModelID: testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), hubAddress(t, 250), modelID), ProfileVersion: 1, Height: 2,
-			})
-			require.NoError(t, err)
+			f, identity, taskID := anchorFaultReservedFixture(t, tc.name)
 			before, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 			require.NoError(t, err)
 
@@ -101,4 +60,100 @@ func TestAnchorFaultSlashesRequestedAmountAndJails(t *testing.T) {
 			require.Equal(t, tc.jailed, jail.JailCount > 0)
 		})
 	}
+}
+
+// anchorFaultReservedFixture registers one bonded identity and reserves its task
+// liability on a fresh task, as task assignment does.
+func anchorFaultReservedFixture(t *testing.T, name string) (*fixture, hubTestIdentity, []byte) {
+	t.Helper()
+	f := initCandidatePoolFixture(t)
+	genesis := types.DefaultGenesis()
+	genesis.Params.CandidatePool.CandidateSlotHardCapacity = 8
+	genesis.Params.CandidatePool.CandidateBitmapSegmentBytes = 1
+	genesis.Params.CandidatePool.MaxCandidatePoolBuildMembersPerBlock = 8
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+
+	identity := hubIdentity(t, 219)
+	registerCortexNodeIdentityForTest(t, f, identity.Address, identity, 2*testServiceBondMinInitial, 1, 0)
+	activateServiceBondForTest(t, f, identity.Address, 0)
+	f.bank.seedAccount(identity.Address, 1)
+	_, err := f.keeper.StakeService(f.ctx, identity.Address, 1, 1, 1)
+	require.NoError(t, err)
+	const modelID = "model-anchor-fault"
+	supportVersion := declareTaskLiabilitySupportForTest(
+		t, f, identity.Address, types.ServiceBondRoleVerifier, modelID, 1, testServiceBondMinInitial, 1,
+	)
+	_, err = f.keeper.ProcessDirtyCandidatePools(f.ctx, 1, 8)
+	require.NoError(t, err)
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(2))
+	_, err = f.keeper.ProcessCandidatePoolExpiries(f.ctx, 2, 1)
+	require.NoError(t, err)
+	pool, err := f.keeper.CurrentCandidatePool.Get(f.ctx)
+	require.NoError(t, err)
+	reverse, err := f.keeper.ReadOperatorCandidateSlot(f.ctx, identity.Address)
+	require.NoError(t, err)
+	taskID, err := hex.DecodeString(hubHash("anchor-fault-task-" + name))
+	require.NoError(t, err)
+	_, err = f.keeper.AcquireCandidatePoolTaskRef(f.ctx, taskID, pool.SnapshotId, 2)
+	require.NoError(t, err)
+	bond, ok := f.keeper.GetServiceBond(sdk.UnwrapSDKContext(f.ctx), sdk.MustAccAddressFromBech32(identity.Address), 1)
+	require.True(t, ok)
+	_, err = f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, types.FrozenFactLiabilityRequest{
+		TaskID: taskID, CandidatePoolSnapshotID: pool.SnapshotId,
+		OperatorAddress: identity.Address, Duty: shared.DutyVerifier, OrderValue: 1,
+		Slot: reverse.Slot, SlotVersion: reverse.SlotVersion,
+		RequiredTaskLiability: bond.RequiredTaskLiability, ActiveBondSnapshot: bond.EffectiveActiveBond,
+		AvailableBondSnapshot: bond.AvailableBond, MinStakeSnapshot: testServiceBondMinInitial,
+		BondVersionSnapshot: bond.BondVersion, CapabilityVersionSnapshot: supportVersion, SupportVersionSnapshot: supportVersion,
+		ModelID: testModelID(sdk.UnwrapSDKContext(f.ctx).ChainID(), hubAddress(t, 250), modelID), ProfileVersion: 1, Height: 2,
+	})
+	require.NoError(t, err)
+	return f, identity, taskID
+}
+
+// TestAnchorContentFaultAfterReleaseSlashesBondAndJails covers ADR-0040 v7 on the
+// hub side: the content verdict lands after the task settled, so the reservation
+// is already released; the absolute amount is still debited through the
+// waterfall, the released reservation is left alone, the Worker is jailed and a
+// replay does not slash twice.
+func TestAnchorContentFaultAfterReleaseSlashesBondAndJails(t *testing.T) {
+	f, identity, taskID := anchorFaultReservedFixture(t, "content")
+	sessionID := hubHashBytes("anchor-content-session")
+	require.NoError(t, f.keeper.ReleaseTaskLiabilities(f.ctx, hex.EncodeToString(sessionID), hex.EncodeToString(taskID), 3))
+	released, err := f.keeper.ReadTaskLiabilityValue(f.ctx, types.NewTaskLiabilityReservationKey(taskID, shared.DutyVerifier, identity.Address))
+	require.NoError(t, err)
+	require.Equal(t, types.TaskLiabilityStatusReleased, released.Status)
+	before, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
+	require.NoError(t, err)
+
+	const requested = uint64(11)
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(4))
+	fact := types.TaskRoleFaultFact{
+		SessionID: sessionID, TaskID: taskID,
+		OperatorAddress: identity.Address, Duty: shared.DutyVerifier, FaultType: types.FaultTypeAnchorContentReject,
+		ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT,
+		EvidenceDigest:       hubHashBytes("anchor-content-evidence"), SlashBps: 2500, Height: 4,
+		RequestedAmount: requested,
+	}
+	fault, err := f.keeper.ApplyTaskRoleFault(f.ctx, fact)
+	require.NoError(t, err)
+	require.Equal(t, types.FaultKind_FAULT_KIND_INVALID_RESULT, fault.FaultClass)
+	require.NotEmpty(t, fault.GetSlashSummaryId())
+	after, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.Equal(t, before.ActiveBond-requested, after.ActiveBond, "the content slash is the absolute amount of D")
+	reservation, err := f.keeper.ReadTaskLiabilityValue(f.ctx, types.NewTaskLiabilityReservationKey(taskID, shared.DutyVerifier, identity.Address))
+	require.NoError(t, err)
+	require.Equal(t, types.TaskLiabilityStatusReleased, reservation.Status, "a released reservation is not reopened")
+
+	replayed, err := f.keeper.ApplyTaskRoleFault(f.ctx, fact)
+	require.NoError(t, err)
+	require.Equal(t, fault.FaultId, replayed.FaultId)
+	again, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.Equal(t, after.ActiveBond, again.ActiveBond, "replay must not slash twice")
+	jail, err := f.keeper.GetJail(f.ctx, identity.Address, types.ServiceBondRoleVerifier)
+	require.NoError(t, err)
+	require.Positive(t, jail.JailCount, "anchor_content_reject jails")
+	require.True(t, types.IsAnchorFaultType(types.FaultTypeAnchorContentReject))
 }

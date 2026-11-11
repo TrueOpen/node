@@ -26,7 +26,8 @@ import (
 // records the opening hash, and a selected Verifier records the per-position
 // verdicts. Sampling policy, escrow and slashing are not in this slice.
 const (
-	// anchorSamplePositionsV0 is the number of positions sampled per task.
+	// anchorSamplePositionsV0 is the number of positions sampled per task under
+	// params bodies recorded before ADR-0040 v7 (anchor_positions_per_task = 0).
 	anchorSamplePositionsV0 = 2
 	// anchorSampleDomainV0 separates the position draw from every other use of
 	// the selection beacon.
@@ -75,7 +76,13 @@ func anchorRowsOf(receipt types.InferReceiptState) (uint64, error) {
 func anchorSamplePositions(taskID, beacon []byte, rows uint64, count int) []uint64 {
 	seen := map[uint64]struct{}{}
 	out := make([]uint64, 0, count)
-	for i := uint32(0); len(out) < count && i < 64; i++ {
+	// 64 draws for the historical two positions; proportionally more for larger
+	// samples (ADR-0040 v7), so the bound never binds below 64 positions.
+	maxDraws := uint32(64)
+	if c := uint32(count) * 8; c > maxDraws {
+		maxDraws = c
+	}
+	for i := uint32(0); len(out) < count && i < maxDraws; i++ {
 		h := sha256.New()
 		h.Write([]byte(anchorSampleDomainV0))
 		h.Write(taskID)
@@ -129,7 +136,12 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	openDeadline, o1 := checkedHeightAdd(assignment.SelectionRandomnessHeight, v.AnchorOpenWindowBlocks)
 	proofDeadline, o2 := checkedHeightAdd(openDeadline, v.AnchorProofWindowBlocks)
 	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, v.AnchorVerdictWindowBlocks)
-	if o1 || o2 || o3 {
+	// ADR-0040 v7: the content verdict has its own, later deadline; zero window = no content track.
+	contentDeadline, o4 := uint64(0), false
+	if v.AnchorContentVerdictWindowBlocks != 0 {
+		contentDeadline, o4 = checkedHeightAdd(verdictDeadline, v.AnchorContentVerdictWindowBlocks)
+	}
+	if o1 || o2 || o3 || o4 {
 		sdk.UnwrapSDKContext(ctx).Logger().Error("anchor audit skipped: deadline overflows", "task", fmt.Sprintf("%x", assignment.TaskId))
 		return nil
 	}
@@ -172,9 +184,19 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		return emitAnchorVerdictEvent(ctx, state)
 	}
 	if state.Selected {
-		state.Positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
+		state.Positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorPositionsPerTask(v))
+		state.ContentVerdictDeadlineHeight = contentDeadline
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
+}
+
+// anchorPositionsPerTask is the sample size of an audit (ADR-0040 v7): the
+// params value, or the former fixed two for bodies recorded before v7.
+func anchorPositionsPerTask(v types.VerificationParamsV1) int {
+	if v.AnchorPositionsPerTask == 0 {
+		return anchorSamplePositionsV0
+	}
+	return int(v.AnchorPositionsPerTask)
 }
 
 func truncateAnchorReason(reason string) string {
@@ -277,6 +299,10 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
 	}
+	if state.XBeaconHeight != 0 && height >= state.XBeaconHeight {
+		// ADR-0040 v7: every opening of a B1 epoch (with its g and v_int rows) precedes x.
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening at or after its epoch's x beacon height %d", state.XBeaconHeight)
+	}
 	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
 		return nil, err
@@ -359,10 +385,15 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if len(state.WorkerProofHash) == types.Hash32Len {
 		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes &&
-			bytes.Equal(state.EpochManifestHash, req.EpochManifestHash) {
+			bytes.Equal(state.EpochManifestHash, req.EpochManifestHash) && req.XBeaconHeight == boundXHeight(state) {
 			return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 		}
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof already recorded with a different hash")
+	}
+	// ADR-0040 v7: a proof carrying the B1 rows Y_x must name the x beacon height the
+	// chain recorded when the epoch was sealed, and a sealed task's proof must carry them.
+	if err := m.k.bindAnchorProofToX(ctx, &state, req, height); err != nil {
+		return nil, err
 	}
 	state.WorkerProofHash = append([]byte(nil), req.ProofHash...)
 	state.WorkerProofSizeBytes = req.ProofSizeBytes

@@ -92,6 +92,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_operator_address"}},
 				},
 				{
+					RpcMethod:      "AnchorEpoch",
+					Use:            "anchor-epoch [epoch-manifest-hash]",
+					Short:          "Shows one sealed B1 anchor epoch and its x beacon (ADR-0040 v7)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "epoch_manifest_hash"}},
+				},
+				{
+					RpcMethod:      "AnchorContentVotes",
+					Use:            "anchor-content-votes [task-id]",
+					Short:          "Shows the content votes and content tally of one task's anchor audit (ADR-0040 v7)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
 					RpcMethod:      "VerifierCandidateWindow",
 					Use:            "verifier-candidate-window [task-id] [verify-round]",
 					Short:          "Shows one round's frozen verifier window",
@@ -289,6 +301,16 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "RegisterAnchorVoteKey",
 					Use:       "register-anchor-vote-key",
 					Short:     "Delegate a validator's anchor votes to a hot vote address; signed by the operator account (ADR-0040 v6)",
+				},
+				{
+					RpcMethod: "SealAnchorEpoch",
+					Use:       "seal-anchor-epoch",
+					Short:     "Seal the winner Worker's B1 proving epoch and fix its x beacon height (ADR-0040 v7)",
+				},
+				{
+					RpcMethod: "SubmitAnchorContentVote",
+					Use:       "submit-anchor-content-vote",
+					Short:     "Record a bonded validator's content verdict on the Worker's anchor proof; final at 2/3 of the voting power (ADR-0040 v7)",
 				},
 				{
 					RpcMethod:      "SubmitBuilderEvidence",

@@ -122,6 +122,22 @@ func TestRoleFaultConsumerGateClosesAnchorFaultNamedByAudit(t *testing.T) {
 	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, faultID)
 	require.NoError(t, err)
 	require.False(t, closed)
+
+	// v7: a content REJECT_CONTENT fault named by the audit closes the same way,
+	// once its content votes are retired too.
+	contentFault := bytes32(0x47)
+	audit.WorkerFaultId = nil
+	audit.ContentWorkerFaultId = contentFault
+	audit.ContentVerdict = types.AnchorContentVerdictV1_ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT
+	require.NoError(t, f.keeper.AnchorAudit.Set(f.ctx, taskKey, audit))
+	require.NoError(t, f.keeper.AnchorContentVote.Set(f.ctx, collections.Join(taskKey, voter), types.AnchorContentVoteState{TaskId: taskID}))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, contentFault)
+	require.NoError(t, err)
+	require.False(t, closed)
+	require.NoError(t, f.keeper.AnchorContentVote.Remove(f.ctx, collections.Join(taskKey, voter)))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, contentFault)
+	require.NoError(t, err)
+	require.True(t, closed)
 }
 
 func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {

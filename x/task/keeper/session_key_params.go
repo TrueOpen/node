@@ -110,6 +110,8 @@ func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "params_version overflow")
 	}
 	current := params
+	// A chain upgrading straight past v6 runs 3->4 and 4->5 in one RunMigrations:
+	// the body must already validate under the v7 rules here (4->5 is then a no-op).
 	params, err = k.repairedAnchorParams(ctx, params)
 	if err != nil {
 		return err
@@ -136,12 +138,62 @@ func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 	return emitTypedEvent(ctx, &types.EventTaskParamsUpdated{OldVersion: meta.ParamsVersion, NewVersion: version, ParamsHash: hash})
 }
 
-// ensureAnchorParamsInitialized runs the anchor parameter upgrade for a chain
-// that starts from a genesis written before it existed (audit F-P1-5,
+// InitializeAnchorContentParams writes the ADR-0040 v7 content-track parameter
+// defaults into the current params at the content verdict upgrade. A params
+// body that already samples a positive number of positions is left alone; the
+// previous version is archived. Tasks keep the params version they were created
+// under, so audits already in flight keep their v6 shape (no content track).
+func (k Keeper) InitializeAnchorContentParams(ctx context.Context) error {
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+	if params.Verification.AnchorPositionsPerTask != 0 {
+		return nil
+	}
+	meta, err := k.GetTaskParamsMeta(ctx)
+	if err != nil {
+		return err
+	}
+	if meta.ParamsVersion == math.MaxUint64 {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "params_version overflow")
+	}
+	current := params
+	params, err = k.repairedAnchorParams(ctx, params)
+	if err != nil {
+		return err
+	}
+	version := meta.ParamsVersion + 1
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	hash, err := types.TaskParamsHashV1(sdkCtx.ChainID(), version, params)
+	if err != nil {
+		return err
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return err
+	}
+	if err := k.archiveParamsForUpdate(ctx, meta.ParamsVersion, current); err != nil {
+		return err
+	}
+	if err := k.Params.Set(ctx, params); err != nil {
+		return err
+	}
+	if err := k.ParamsMeta.Set(ctx, types.TaskParamsMetaState{ParamsVersion: version, ParamsHash: hash, UpdatedHeight: height}); err != nil {
+		return err
+	}
+	return emitTypedEvent(ctx, &types.EventTaskParamsUpdated{OldVersion: meta.ParamsVersion, NewVersion: version, ParamsHash: hash})
+}
+
+// ensureAnchorParamsInitialized runs the anchor parameter upgrades for a chain
+// that starts from a genesis written before they existed (audit F-P1-5,
 // 2026-11-09): a pre-anchor body otherwise fails validation at InitChain, so a
 // new binary could not cold-start from the testnet's genesis.
 func (k Keeper) ensureAnchorParamsInitialized(ctx context.Context) error {
-	return k.InitializeAnchorParams(ctx)
+	if err := k.InitializeAnchorParams(ctx); err != nil {
+		return err
+	}
+	return k.InitializeAnchorContentParams(ctx)
 }
 
 // repairedAnchorParams fills the anchor defaults and applies the automatic

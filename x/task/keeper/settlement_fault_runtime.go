@@ -144,19 +144,20 @@ func (k Keeper) prepareSettlementFaults(
 		rows = append(rows, row)
 	}
 	if inputs.Anchor != nil && inputs.Anchor.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT &&
-		inputs.Assignment.WinnerWorker != "" {
+		inputs.Assignment.WinnerWorker != "" && len(inputs.Anchor.ContentWorkerFaultId) != types.Hash32Len {
 		// ADR-0040 v6: the validators rejected the Worker's anchor proof, or its
 		// commitment could not be sampled (anchor_reject, jailed); or the Worker
-		// never opened / proved by the deadline (anchor_timeout, smaller slash).
-		// Both take bps of the bond fixed at sampling, through the full waterfall.
+		// never opened by the deadline (anchor_timeout, smaller slash). ADR-0040 v7
+		// (2026-11-09): a Worker that opened its rows on the content track and then
+		// never proved committed a content fault (anchor_content_reject, jailed) —
+		// see anchorWorkerFaultForVerdict. All take bps of the bond fixed at
+		// sampling, through the full waterfall. A task is slashed at most once: when
+		// the content deadline already applied this task's fault, nothing is added.
 		params, err := k.ParamsForTask(ctx, types.NewTaskKey(inputs.Core.TaskId))
 		if err != nil {
 			return inputs, err
 		}
-		faultType, bps := hubtypes.FaultTypeAnchorReject, params.Verification.AnchorRejectSlashBps
-		if inputs.Anchor.ResultSource == types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT {
-			faultType, bps = hubtypes.FaultTypeAnchorTimeout, params.Verification.AnchorTimeoutSlashBps
-		}
+		faultType, bps := anchorWorkerFaultForVerdict(*inputs.Anchor, params.Verification)
 		applied, err := k.hubKeeper.ApplyTaskRoleFault(ctx, hubtypes.TaskRoleFaultFact{
 			SessionID: append([]byte(nil), inputs.Core.SessionId...), TaskID: append([]byte(nil), inputs.Core.TaskId...),
 			OperatorAddress: inputs.Assignment.WinnerWorker, Duty: shared.DutyWorker, FaultType: faultType,

@@ -35,6 +35,9 @@ func migrations(k keeper.Keeper) map[uint64]module.MigrationHandler {
 		// 3 -> 4 (ADR-0040 anchor audit): new store prefixes need no rewrite;
 		// the anchor parameters are initialized to their defaults.
 		3: func(ctx sdk.Context) error { return k.InitializeAnchorParams(ctx) },
+		// 4 -> 5 (ADR-0040 v7 content verdict): new store prefixes need no rewrite;
+		// the content-track parameters are initialized to their defaults.
+		4: func(ctx sdk.Context) error { return k.InitializeAnchorContentParams(ctx) },
 	}
 }
 

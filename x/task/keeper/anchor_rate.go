@@ -14,12 +14,22 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// ADR-0040 v5: the audit probability follows the Worker's bond. With order
-// value R, slashable bond D = active_bond * anchor_reject_slash_bps and risk
-// margin k, cheating pays only if (1-s)R > sD, so the chain audits at
-// s = kR / (D + kR) (floored at anchor_audit_min_rate_bps): a Worker that posts
+// ADR-0040 v5: the audit probability follows the Worker's bond. Notation used
+// throughout the anchor code:
+//
+//   - R is the task's order value (TaskCoreState.order_value), the most a Worker
+//     can gain by cheating on one task.
+//   - D is the Worker's slashable bond: its effective active bond read from the
+//     hub at sampling and frozen in AnchorAuditState.slashable_bond (v6). Every
+//     anchor slash (reject, timeout, content reject) takes bps of this D.
+//
+// With slash share b (the smaller of the reject and timeout shares) and risk
+// margin k, cheating pays only if (1-s)R > s*b*D, so the chain audits at
+// s = kR / (b*D + kR) (floored at anchor_audit_min_rate_bps): a Worker that posts
 // more bond is audited less, one that posts little is audited (almost) always.
-// The rate is fixed from on-chain facts at sampling; the beacon throws the coin.
+// v7 adds a hard guard: D < anchor_min_bond_multiple * R (default 40 R, the
+// content-track deterrent) is audited at 100%. The rate is fixed from on-chain
+// facts at sampling; the beacon throws the coin.
 
 const anchorAuditCoinDomainV1 = "TRUEOPEN_ANCHOR_AUDIT_COIN_V1"
 
@@ -105,11 +115,28 @@ func (k Keeper) anchorAuditDraw(ctx context.Context, taskKey types.TaskKey, work
 	// deterrent is therefore the smaller of the two penalties.
 	deterrentBps := anchorDeterrentSlashBps(v)
 	rate := anchorAuditRateBps(orderValue, bond, deterrentBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps)
+	// ADR-0040 v7 bond guard: the content track only deters with D >= M*R, so a
+	// Worker below the multiple is audited on every task.
+	belowMinBond := anchorBondBelowMultiple(bond, orderValue, v.AnchorMinBondMultiple)
+	if belowMinBond {
+		rate = types.BasisPointsMaximum
+	}
 	coin := anchorAuditCoin(sdkCtx.ChainID(), taskKey, beacon)
 	selected := anchorCoinSelects(coin, rate)
-	basis := fmt.Sprintf("order %d; effective bond %d x %d bps deterrent (min of reject %d, timeout %d); margin %d bps; floor %d bps; rate %d bps; coin %016x; selected %t",
-		orderValue, bond, deterrentBps, v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps, rate, coin, selected)
+	basis := fmt.Sprintf("order %d; effective bond %d x %d bps deterrent (min of reject %d, timeout %d); margin %d bps; floor %d bps; min bond multiple %d (below %t); rate %d bps; coin %016x; selected %t",
+		orderValue, bond, deterrentBps, v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps, v.AnchorMinBondMultiple, belowMinBond, rate, coin, selected)
 	return anchorDraw{rate: rate, selected: selected, basis: basis, bond: bond}
+}
+
+// anchorBondBelowMultiple reports D < M*R (ADR-0040 v7). D is the Worker's
+// slashable bond (effective active bond at sampling), R the order value of the
+// task, M anchor_min_bond_multiple; M = 0 disables the guard.
+func anchorBondBelowMultiple(bond, orderValue uint64, multiple uint32) bool {
+	if multiple == 0 {
+		return false
+	}
+	need := new(big.Int).Mul(new(big.Int).SetUint64(orderValue), big.NewInt(int64(multiple)))
+	return new(big.Int).SetUint64(bond).Cmp(need) < 0
 }
 
 // anchorSlashAmount is the slash of an anchor fault: bps of the base fixed at sampling.
