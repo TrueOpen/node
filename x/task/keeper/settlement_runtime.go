@@ -35,6 +35,12 @@ type settlementInputs struct {
 	// round1SelectedVerifierCount is the frozen denominator for Task-funded
 	// verifier payouts. Challenge-round Verifiers are paid from round funding.
 	round1SelectedVerifierCount uint32
+	// Anchor is the task's anchor audit as settlement reads it (ADR-0040 v4): nil
+	// when none applies; otherwise final, or carrying the verdict the passed
+	// deadline imposes (ResultHeight zero until the Tx path records it).
+	Anchor *types.AnchorAuditState
+	// AnchorWorkerFaultID is the Worker role fault applied for a REJECT verdict.
+	AnchorWorkerFaultID []byte
 }
 
 // BuildSettlementFacts derives every non-amount settlement field from

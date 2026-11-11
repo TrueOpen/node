@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"sort"
 
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -30,7 +31,16 @@ var _ migrationRegistrar = module.Configurator(nil)
 // migrations lists every in-place state migration of this module, keyed by the
 // version it migrates from. It is empty until the first post-genesis change.
 func migrations(_ keeper.Keeper) map[uint64]module.MigrationHandler {
-	return map[uint64]module.MigrationHandler{}
+	return map[uint64]module.MigrationHandler{
+		// 2 -> 3 (ADR-0040 anchor audit): anchor_reject / anchor_timeout role
+		// faults and absolute anchor slashes are new behavior with no stored
+		// state to rewrite.
+		2: func(sdk.Context) error { return nil },
+		// 3 -> 4 (ADR-0040 v7): the anchor_content_reject role fault (jailed,
+		// absolute slash, also after the reservation was released) is new
+		// behavior with no stored state to rewrite.
+		3: func(sdk.Context) error { return nil },
+	}
 }
 
 func registerMigrations(registrar migrationRegistrar, handlers map[uint64]module.MigrationHandler) error {

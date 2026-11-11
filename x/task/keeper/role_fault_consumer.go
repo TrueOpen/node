@@ -19,7 +19,7 @@ var _ hubtypes.RoleFaultConsumerGate = Keeper{}
 // prunes a RoleFault. It accepts only a final Task whose round/effect consumers
 // are closed and whose retained classification contains the exact evidence
 // digest carried by the Hub fault.
-func (k Keeper) RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDigest []byte) (bool, error) {
+func (k Keeper) RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDigest, faultID []byte) (bool, error) {
 	taskKey, err := taskStoreKey(taskID)
 	if err != nil {
 		return false, err
@@ -33,8 +33,17 @@ func (k Keeper) RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDi
 		return false, err
 	}
 	matched, err := k.hasFinalFailureEvidence(ctx, taskKey, evidenceDigest)
-	if err != nil || !matched {
+	if err != nil {
 		return false, err
+	}
+	if !matched {
+		// ADR-0040 v4+: an anchor REJECT slashes the Worker on the audit's own
+		// evidence, not on a round classification digest, and evidence cleanup
+		// later slims the audit so that digest cannot be recomputed. The audit
+		// row names the fault it produced; that name is the consumer link.
+		if matched, err = k.anchorAuditNamesFault(ctx, taskKey, faultID); err != nil || !matched {
+			return false, err
+		}
 	}
 
 	if summary, err := k.TaskRoundSummary.Get(ctx, taskKey); err == nil {
@@ -129,4 +138,42 @@ func (k Keeper) hasFinalFailureEvidence(ctx context.Context, taskKey types.TaskK
 		}
 	}
 	return matched, nil
+}
+
+// anchorAuditNamesFault reports whether the task's anchor audit recorded faultID
+// as the Worker role fault of a compute REJECT or a content REJECT_CONTENT
+// verdict, and its validator votes (compute and content) are already retired.
+func (k Keeper) anchorAuditNamesFault(ctx context.Context, taskKey types.TaskKey, faultID []byte) (bool, error) {
+	if len(faultID) != types.Hash32Len {
+		return false, nil
+	}
+	audit, err := k.AnchorAudit.Get(ctx, taskKey)
+	if errors.Is(err, collections.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	compute := len(audit.WorkerFaultId) == types.Hash32Len && bytes.Equal(audit.WorkerFaultId, faultID) &&
+		audit.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
+	content := len(audit.ContentWorkerFaultId) == types.Hash32Len && bytes.Equal(audit.ContentWorkerFaultId, faultID) &&
+		audit.ContentVerdict == types.AnchorContentVerdictV1_ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT
+	if !compute && !content {
+		return false, nil
+	}
+	votes, err := k.AnchorValidatorVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
+	if err != nil {
+		return false, err
+	}
+	pending := votes.Valid()
+	votes.Close()
+	if pending {
+		return false, nil
+	}
+	cvotes, err := k.AnchorContentVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
+	if err != nil {
+		return false, err
+	}
+	defer cvotes.Close()
+	return !cvotes.Valid(), nil
 }

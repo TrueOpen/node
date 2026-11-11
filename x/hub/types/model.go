@@ -101,12 +101,18 @@ func (s ProfileState) Validate() error {
 		return fmt.Errorf("profile evidence_schema: %w", err)
 	}
 	requirements := s.VerificationProfile.EvidenceSchema.RequiredInferEvidence
-	if len(requirements) != 2 ||
+	if (len(requirements) != 2 && len(requirements) != 3) ||
 		requirements[0].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING ||
 		requirements[0].CommitmentSchemaVersion != shared.WorkerValueCommitmentSchemaVersionV3 ||
 		requirements[1].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING ||
 		requirements[1].CommitmentSchemaVersion != shared.WorkerTokenCommitmentSchemaVersionV1 {
 		return fmt.Errorf("Phase 0 text-LLM profile must require ordered Worker value V3 and Worker token V1 evidence")
+	}
+	// ADR-0040 (first slice): a profile may additionally require the Worker's
+	// anchor commitment; the two Phase 0 kinds and their order are unchanged.
+	if len(requirements) == 3 && (requirements[2].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING ||
+		requirements[2].CommitmentSchemaVersion != shared.WorkerAnchorCommitmentSchemaVersionV1) {
+		return fmt.Errorf("the third required Worker evidence must be the anchor commitment V1 (ADR-0040)")
 	}
 	if strings.TrimSpace(s.RuntimeClass) != s.RuntimeClass || s.RuntimeClass == "" {
 		return fmt.Errorf("profile runtime_class must be canonical and non-empty")

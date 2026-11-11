@@ -372,9 +372,24 @@ func (q *queryServer) nextSettlementDeadline(
 	if err != nil {
 		return 0, 0, false, err
 	}
-	deadline, err := settlementDeadlineHeight(summary.GetRoundsClosedHeight(), params)
+	deadline, err := q.k.effectiveSettlementDeadline(ctx, taskKey, summary, params)
 	if err != nil {
 		return 0, 0, false, err
+	}
+	// ADR-0040 v6: while a PASS round waits for the anchor verdict, Builders see
+	// ANCHOR_VERDICT rather than a settlement they would only be refused.
+	hold, err := q.k.anchorSettlementHoldHeight(ctx, taskKey, summary.EffectiveVerifyRound)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	if hold != 0 {
+		height, err := currentBlockHeight(ctx)
+		if err != nil {
+			return 0, 0, false, err
+		}
+		if height < hold {
+			return types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT, hold, true, nil
+		}
 	}
 	return types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT, deadline, true, nil
 }

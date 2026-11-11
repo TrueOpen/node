@@ -31,6 +31,7 @@ import (
 //	|    11 | VERIFY_FINAL      | TaskDeadlineLocator            |            45 |
 //	|    12 | CHALLENGE_CLOSE   | ChallengeDeadlineLocator       |            25 |
 //	|    13 | EVIDENCE_CLEANUP  | TaskDeadlineLocator            |           110 |
+//	|    18 | ANCHOR_VERDICT    | TaskDeadlineLocator            |            41 |
 var deadlineKindPriority = map[types.DeadlineKindV1]uint32{
 	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
 	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:        40,
@@ -44,6 +45,9 @@ var deadlineKindPriority = map[types.DeadlineKindV1]uint32{
 	types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:           45,
 	types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: 25,
 	types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
+	// ADR-0040 v6: the settlement hold for an anchor verdict sweeps as the
+	// settlement deadline it postpones.
+	types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT: 41,
 }
 
 // DeadlineKindPriority resolves the frozen kind_priority. Unknown values
@@ -309,7 +313,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 				return deadlineSweepAdvanced, taskDeadlineConservativeBytesV1, nil
 			},
 		)
-	case types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:
+	case types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT, types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT:
 		summary, loadErr := k.TaskRoundSummary.Get(ctx, taskKey)
 		if loadErr != nil || summary.XRoundsClosedHeight == nil {
 			return nil, errorsmod.Wrap(types.ErrInvalidTaskStatus, "task rounds are not finalized")
@@ -318,7 +322,7 @@ func (k Keeper) sweepTaskDeadline(ctx context.Context, locator *types.TaskDeadli
 		if loadErr != nil {
 			return nil, loadErr
 		}
-		deadline, deadlineErr := settlementDeadlineHeight(summary.GetRoundsClosedHeight(), params)
+		deadline, deadlineErr := k.effectiveSettlementDeadline(ctx, taskKey, summary, params)
 		if deadlineErr != nil {
 			return nil, deadlineErr
 		}

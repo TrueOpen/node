@@ -170,6 +170,17 @@ type TaskRoleFaultFact struct {
 	EvidenceDigest       []byte
 	SlashBps             uint32
 	Height               uint64
+	// RequestedAmount is the absolute slash of an anchor fault (ADR-0040 v6),
+	// computed by Task from the bond fixed at sampling; ignored otherwise.
+	RequestedAmount uint64
+}
+
+// ServiceBondFacts is the raw bond of one operator at the current epoch.
+type ServiceBondFacts struct {
+	ActiveBond       uint64
+	EffectiveBond    uint64
+	PendingUnbonding uint64
+	Found            bool
 }
 
 // RoundEconomicEffectApplyRequest is the Task-owned frozen effect plus the
@@ -242,6 +253,7 @@ type HubKeeper interface {
 	ConsumeEndBlockBudget(ctx context.Context, height, visitedItems, serializedBytes uint64) error
 
 	GetServiceBond(ctx sdk.Context, cortexNode sdk.AccAddress, orderValue uint64) (ServiceBondSnapshot, bool)
+	GetServiceBondFacts(ctx sdk.Context, operatorAddress string) ServiceBondFacts
 	GetRoleScoringSnapshot(ctx sdk.Context, roleAddress sdk.AccAddress, role string) (RoleScoringSnapshot, error)
 	ReserveTaskLiabilityFromFrozenFact(ctx context.Context, req FrozenFactLiabilityRequest) (TaskLiabilityReservationState, error)
 	GetTaskLiabilityReservation(ctx context.Context, taskID []byte, duty shared.Duty, operatorAddress string) (TaskLiabilityReservationSnapshot, error)

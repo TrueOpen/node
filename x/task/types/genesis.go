@@ -38,7 +38,14 @@ func (gs GenesisState) Validate() error {
 func (gs GenesisState) ValidateLegacyGenesis() error { return gs.validate(true) }
 
 func (gs GenesisState) validate(legacy bool) error {
-	validateParams := gs.Params.Validate
+	// A genesis written before the anchor parameters existed (no v6 windows or no
+	// v7 content-track fields) is accepted: InitGenesis fills the defaults
+	// (ensureAnchorParamsInitialized), so validate the body it will hold.
+	params := gs.Params
+	if !legacy && !params.HasAnchorParams() {
+		params = params.WithAnchorDefaults()
+	}
+	validateParams := params.Validate
 	if legacy {
 		validateParams = func() error { return ValidateHistoricalTaskParams(gs.Params) }
 	}

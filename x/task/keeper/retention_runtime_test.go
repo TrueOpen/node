@@ -50,12 +50,94 @@ func TestRoleFaultConsumerGateRequiresFinalityAndExactEvidence(t *testing.T) {
 		},
 	))
 
-	closed, err := f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, evidence)
+	closed, err := f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, evidence, bytes32(0x35))
 	require.NoError(t, err)
 	require.True(t, closed)
-	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, bytes32(0x34))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, bytes32(0x34), bytes32(0x35))
 	require.NoError(t, err)
 	require.False(t, closed)
+}
+
+func TestRoleFaultConsumerGateClosesAnchorFaultNamedByAudit(t *testing.T) {
+	f := initInternalFixture(t)
+	taskID := bytes32(0x41)
+	taskKey := types.NewTaskKey(taskID)
+	faultID := bytes32(0x42)
+	anchorEvidence := bytes32(0x43) // the audit's own digest: never a round classification digest
+
+	require.NoError(t, f.keeper.TaskCore.Set(f.ctx, taskKey, types.TaskCoreState{
+		TaskId: taskID, FinalityStatus: shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL,
+		XTaskFinalityHeight: &types.TaskCoreState_TaskFinalityHeight{TaskFinalityHeight: 20},
+	}))
+	require.NoError(t, f.keeper.WriteTaskSettlement(f.ctx, taskKey, types.TaskSettlementState{
+		TaskId: taskID, SettlementId: bytes32(0x44), TaskFinalityHeight: 20,
+		WorkerGross: shared.NewAmount(0), WorkerMaintenance: shared.NewAmount(0),
+		WorkerNet: shared.NewAmount(0), VerifierSlotGross: shared.NewAmount(0),
+		MaintenanceFee: shared.NewAmount(0), RefundAmount: shared.NewAmount(0),
+		OriginalReservedAmount: shared.NewAmount(0), GasReimbursedTotal: shared.NewAmount(0),
+	}))
+	require.NoError(t, f.keeper.TaskRoundSummary.Set(f.ctx, taskKey, types.TaskRoundSummaryState{
+		TaskId:              taskID,
+		XRoundsClosedHeight: &types.TaskRoundSummaryState_RoundsClosedHeight{RoundsClosedHeight: 20},
+		XSettlementFactsCutoffHeight: &types.TaskRoundSummaryState_SettlementFactsCutoffHeight{
+			SettlementFactsCutoffHeight: 20,
+		},
+	}))
+	require.NoError(t, f.keeper.TaskFailureClass.Set(
+		f.ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1),
+		types.TaskFailureClassState{
+			TaskId: taskID, VerifyRound: types.VerifyRoundV1, EvidenceDigest: bytes32(0x45),
+			XTaskFinalityHeight: &types.TaskFailureClassState_TaskFinalityHeight{TaskFinalityHeight: 20},
+		},
+	))
+
+	// No audit row yet: an anchor-evidence fault stays open.
+	closed, err := f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, faultID)
+	require.NoError(t, err)
+	require.False(t, closed)
+
+	audit := types.AnchorAuditState{TaskId: taskID, Sampled: true, Selected: true,
+		TaskVerdict: types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, WorkerFaultId: faultID}
+	require.NoError(t, f.keeper.AnchorAudit.Set(f.ctx, taskKey, audit))
+
+	// A vote still pending cleanup keeps the consumer open.
+	voter := []byte("validator-vote-key-0000000000000")
+	require.NoError(t, f.keeper.AnchorValidatorVote.Set(f.ctx, collections.Join(taskKey, voter), types.AnchorValidatorVoteState{TaskId: taskID}))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, faultID)
+	require.NoError(t, err)
+	require.False(t, closed)
+	require.NoError(t, f.keeper.AnchorValidatorVote.Remove(f.ctx, collections.Join(taskKey, voter)))
+
+	// The audit names this fault with a REJECT verdict: closed.
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, faultID)
+	require.NoError(t, err)
+	require.True(t, closed)
+
+	// A different fault id, or a non-REJECT verdict, stays open.
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, bytes32(0x46))
+	require.NoError(t, err)
+	require.False(t, closed)
+	audit.TaskVerdict = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS
+	require.NoError(t, f.keeper.AnchorAudit.Set(f.ctx, taskKey, audit))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, faultID)
+	require.NoError(t, err)
+	require.False(t, closed)
+
+	// v7: a content REJECT_CONTENT fault named by the audit closes the same way,
+	// once its content votes are retired too.
+	contentFault := bytes32(0x47)
+	audit.WorkerFaultId = nil
+	audit.ContentWorkerFaultId = contentFault
+	audit.ContentVerdict = types.AnchorContentVerdictV1_ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT
+	require.NoError(t, f.keeper.AnchorAudit.Set(f.ctx, taskKey, audit))
+	require.NoError(t, f.keeper.AnchorContentVote.Set(f.ctx, collections.Join(taskKey, voter), types.AnchorContentVoteState{TaskId: taskID}))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, contentFault)
+	require.NoError(t, err)
+	require.False(t, closed)
+	require.NoError(t, f.keeper.AnchorContentVote.Remove(f.ctx, collections.Join(taskKey, voter)))
+	closed, err = f.keeper.RoleFaultConsumersClosed(f.ctx, taskID, anchorEvidence, contentFault)
+	require.NoError(t, err)
+	require.True(t, closed)
 }
 
 func TestFreezeFailureScanPagesCanonicalProfileIndex(t *testing.T) {

@@ -403,7 +403,8 @@ func (k Keeper) finalizeTaskRounds(ctx context.Context, taskKey types.TaskKey) e
 	if err != nil {
 		return err
 	}
-	settlementDeadline, err := settlementDeadlineHeight(roundsClosedHeight, params)
+	// ADR-0040 v6: a PASS round does not settle before the anchor verdict deadline.
+	settlementDeadline, err := k.effectiveSettlementDeadline(ctx, taskKey, summary, params)
 	if err != nil {
 		return err
 	}

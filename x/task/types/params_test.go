@@ -11,7 +11,7 @@ import (
 )
 
 const taskParamsGoldenChainID = "trueopen-task-params-golden"
-const taskParamsGoldenHashV1 = "94ccf0db1e5271875c8e8bc106135020baee50c9ab928f559ea901e9f76ff4d8"
+const taskParamsGoldenHashV1 = "c864baee5168db5016d49d2f8b4721d36dd81a075f76c9cadec62ba91435fe7e"
 
 func TestDefaultTaskParamsValidate(t *testing.T) {
 	params := DefaultTaskParams()
@@ -87,7 +87,7 @@ func TestTaskParamsHashCoversGroupedFields(t *testing.T) {
 	// TaskParamsHashV1 after any reordering applied to both; this constant does
 	// not. TestTaskParamsHashGoldenIsFrozen pins the same domain on the golden
 	// chain id.
-	require.Equal(t, "6ee6ac6144bcbbf22cdc09237b36b0f17d057a37d0dc7339ef0fde4a8449d11a",
+	require.Equal(t, "c52cf30c4d370cd9b4618d47d5981fa0f5d927cd60c9e5852edb02d66c28c2d4",
 		hex.EncodeToString(baseHash),
 		"TRUEOPEN_TASK_PARAMS_V1 is a frozen consensus preimage; moving this constant is a consensus change and must be re-checked against the domain registry")
 	mutated := base
@@ -214,7 +214,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 	require.NoError(t, err)
 	seen := map[string]string{hex.EncodeToString(unmutated): "<unmutated>"}
 	mutations := taskParamsFieldMutations(t)
-	require.Len(t, mutations, 89)
+	require.Len(t, mutations, 100)
 	for path, mutated := range mutations {
 		digest := taskParamsHashUncheckedForTest(t, taskParamsGoldenChainID, 1, mutated)
 		hash := hex.EncodeToString(digest)
@@ -223,7 +223,7 @@ func TestTaskParamsHashCoversEveryField(t *testing.T) {
 		}
 		seen[hash] = path
 	}
-	require.Len(t, seen, 90)
+	require.Len(t, seen, 101)
 }
 
 func taskParamsHashUncheckedForTest(t *testing.T, chainID string, version uint64, params TaskParamsV1) []byte {
@@ -366,6 +366,17 @@ func flatTaskParamsFieldsForTest(p TaskParamsV1) [][]byte {
 		shared.Uint32BE(p.Verification.WorkerInferTimeoutSlashBps),
 		shared.Uint32BE(p.Verification.ResultRevealMissingSlashBps),
 		shared.Uint32BE(p.Verification.BuilderFaultSlashBps),
+		shared.Uint32BE(p.Verification.AnchorRejectSlashBps),
+		shared.Uint64BE(p.Verification.AnchorVerdictWindowBlocks),
+		shared.Uint32BE(p.Verification.AnchorAuditMinRateBps),
+		shared.Uint32BE(p.Verification.AnchorAuditRiskMarginBps),
+		shared.Uint64BE(p.Verification.AnchorOpenWindowBlocks),
+		shared.Uint64BE(p.Verification.AnchorProofWindowBlocks),
+		shared.Uint32BE(p.Verification.AnchorTimeoutSlashBps),
+		shared.Uint32BE(p.Verification.AnchorPositionsPerTask),
+		shared.Uint32BE(p.Verification.AnchorMinBondMultiple),
+		shared.Uint64BE(p.Verification.AnchorContentVerdictWindowBlocks),
+		shared.Uint32BE(p.Verification.AnchorContentRejectSlashBps),
 	}
 	fields = append(fields, flatEvidenceFieldsForTest(p)...)
 	return append(fields,
@@ -439,9 +450,61 @@ func TestHistoricalTaskParamsRetainPreActivationCommitment(t *testing.T) {
 	require.NoError(t, ValidateHistoricalTaskParams(params))
 	hash, err := TaskParamsHashV1(taskParamsGoldenChainID, 1, params)
 	require.NoError(t, err)
-	require.Equal(t, "4d5994070de40c27bb49fe51d8502093e673f7e5e8fe53625a8bc7588d65b9f7", hex.EncodeToString(hash))
+	require.Equal(t, "f877f7f2801004b141d1c4a1efd8014bc15c86c5b16882417334d9690e8037b8", hex.EncodeToString(hash))
 	genesis := DefaultGenesis()
 	genesis.Params = params
 	require.Error(t, genesis.Validate())
 	require.NoError(t, genesis.ValidateLegacyGenesis())
+}
+
+// TestAnchorContentParamsValidate covers the ADR-0040 v7 verification fields.
+func TestAnchorContentParamsValidate(t *testing.T) {
+	valid := DefaultTaskParams()
+	require.NoError(t, valid.Validate())
+	require.Equal(t, uint32(2), valid.Verification.AnchorPositionsPerTask)
+	require.Equal(t, uint32(40), valid.Verification.AnchorMinBondMultiple)
+
+	for name, mutate := range map[string]func(*VerificationParamsV1){
+		"zero positions":           func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = 0 },
+		"too many positions":       func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = AnchorPositionsPerTaskMaximum + 1 },
+		"bond multiple too large":  func(v *VerificationParamsV1) { v.AnchorMinBondMultiple = AnchorMinBondMultipleMaximum + 1 },
+		"content window too long":  func(v *VerificationParamsV1) { v.AnchorContentVerdictWindowBlocks = AnchorWindowBlocksMaximum + 1 },
+		"content slash above 100%": func(v *VerificationParamsV1) { v.AnchorContentRejectSlashBps = BasisPointsMaximum + 1 },
+		"windows outlive retention": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = valid.Cleanup.TaskTerminalSummaryRetentionBlocks
+		},
+		"content track with a v6 opening window": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowBlocks
+			v.AnchorOpenWindowBlocks = DefaultAnchorOpenWindowBlocks
+		},
+	} {
+		params := DefaultTaskParams()
+		mutate(&params.Verification)
+		require.Error(t, params.Validate(), name)
+	}
+	for name, mutate := range map[string]func(*VerificationParamsV1){
+		"content track off": func(v *VerificationParamsV1) { v.AnchorContentVerdictWindowBlocks = 0 },
+		"bond guard off":    func(v *VerificationParamsV1) { v.AnchorMinBondMultiple = 0 },
+		"no content slash":  func(v *VerificationParamsV1) { v.AnchorContentRejectSlashBps = 0 },
+		"maximum positions": func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = AnchorPositionsPerTaskMaximum },
+		"content track with the recommended opening window": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowBlocks
+			v.AnchorOpenWindowBlocks = RecommendedAnchorContentOpenWindowBlocks
+		},
+	} {
+		params := DefaultTaskParams()
+		mutate(&params.Verification)
+		require.NoError(t, params.Validate(), name)
+	}
+	// A body recorded before v7 has zero positions and still validates historically.
+	legacy := DefaultTaskParams()
+	legacy.Verification.AnchorPositionsPerTask = 0
+	legacy.Verification.AnchorMinBondMultiple = 0
+	legacy.Verification.AnchorContentVerdictWindowBlocks = 0
+	legacy.Verification.AnchorContentRejectSlashBps = 0
+	require.Error(t, legacy.Validate())
+	require.NoError(t, ValidateHistoricalTaskParams(legacy))
+	require.Equal(t, valid.Verification.AnchorTotalWindowBlocks(),
+		valid.Verification.AnchorOpenWindowBlocks+valid.Verification.AnchorProofWindowBlocks+
+			valid.Verification.AnchorVerdictWindowBlocks+valid.Verification.AnchorContentVerdictWindowBlocks)
 }
