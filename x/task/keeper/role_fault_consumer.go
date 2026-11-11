@@ -141,7 +141,8 @@ func (k Keeper) hasFinalFailureEvidence(ctx context.Context, taskKey types.TaskK
 }
 
 // anchorAuditNamesFault reports whether the task's anchor audit recorded faultID
-// as the Worker role fault of a REJECT verdict and its votes are already retired.
+// as the Worker role fault of a compute REJECT or a content REJECT_CONTENT
+// verdict, and its validator votes (compute and content) are already retired.
 func (k Keeper) anchorAuditNamesFault(ctx context.Context, taskKey types.TaskKey, faultID []byte) (bool, error) {
 	if len(faultID) != types.Hash32Len {
 		return false, nil
@@ -153,14 +154,26 @@ func (k Keeper) anchorAuditNamesFault(ctx context.Context, taskKey types.TaskKey
 	if err != nil {
 		return false, err
 	}
-	if len(audit.WorkerFaultId) != types.Hash32Len || !bytes.Equal(audit.WorkerFaultId, faultID) ||
-		audit.TaskVerdict != types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT {
+	compute := len(audit.WorkerFaultId) == types.Hash32Len && bytes.Equal(audit.WorkerFaultId, faultID) &&
+		audit.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
+	content := len(audit.ContentWorkerFaultId) == types.Hash32Len && bytes.Equal(audit.ContentWorkerFaultId, faultID) &&
+		audit.ContentVerdict == types.AnchorContentVerdictV1_ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT
+	if !compute && !content {
 		return false, nil
 	}
 	votes, err := k.AnchorValidatorVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
 	if err != nil {
 		return false, err
 	}
-	defer votes.Close()
-	return !votes.Valid(), nil
+	pending := votes.Valid()
+	votes.Close()
+	if pending {
+		return false, nil
+	}
+	cvotes, err := k.AnchorContentVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
+	if err != nil {
+		return false, err
+	}
+	defer cvotes.Close()
+	return !cvotes.Valid(), nil
 }

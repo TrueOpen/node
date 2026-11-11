@@ -14,6 +14,7 @@ func TestGenesisAcceptsPreAnchorParams(t *testing.T) {
 	gs := DefaultGenesis()
 	v := &gs.Params.Verification
 	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = 0, 0, 0
+	v.AnchorPositionsPerTask, v.AnchorMinBondMultiple, v.AnchorContentVerdictWindowBlocks, v.AnchorContentRejectSlashBps = 0, 0, 0, 0
 	require.False(t, gs.Params.HasAnchorParams())
 	require.Error(t, gs.Params.Validate(), "the raw body still fails: anchor windows must be positive")
 	require.NoError(t, gs.Validate(), "genesis validation fills the anchor parameters first")
@@ -23,13 +24,14 @@ func TestGenesisAcceptsPreAnchorParams(t *testing.T) {
 	require.Equal(t, RecommendedAnchorOpenWindowBlocks, filled.Verification.AnchorOpenWindowBlocks)
 	require.Equal(t, RecommendedAnchorProofWindowBlocks, filled.Verification.AnchorProofWindowBlocks)
 	require.Equal(t, RecommendedAnchorVerdictWindowBlocks, filled.Verification.AnchorVerdictWindowBlocks)
+	require.Equal(t, DefaultTaskParams().Verification.AnchorContentRejectSlashBps, filled.Verification.AnchorContentRejectSlashBps)
 }
 
 // TestRepairAnchorParams pins the offline preview an operator runs before the
 // anchor upgrade height (audit F-P1-4, 2026-11-09).
 func TestRepairAnchorParams(t *testing.T) {
 	p := DefaultTaskParams()
-	p.Verification.AnchorOpenWindowBlocks = 0
+	p.Verification.AnchorOpenWindowBlocks, p.Verification.AnchorPositionsPerTask = 0, 0
 	p.Cleanup.TaskTerminalSummaryRetentionBlocks = 100
 	repaired, notes := RepairAnchorParams(p)
 	require.Len(t, notes, 1)

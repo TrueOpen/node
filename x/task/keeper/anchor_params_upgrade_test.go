@@ -17,6 +17,7 @@ func preAnchorParams() tasktypes.TaskParamsV1 {
 	v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = 0, 0
 	v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = 0, 0
 	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = 0, 0, 0
+	v.AnchorPositionsPerTask, v.AnchorMinBondMultiple, v.AnchorContentVerdictWindowBlocks, v.AnchorContentRejectSlashBps = 0, 0, 0, 0
 	return p
 }
 
@@ -32,7 +33,46 @@ func requireRecommendedAnchorParams(t *testing.T, p tasktypes.TaskParamsV1) {
 	require.Equal(t, tasktypes.DefaultAnchorTimeoutSlashBPS, v.AnchorTimeoutSlashBps)
 	require.Equal(t, tasktypes.DefaultAnchorAuditMinRateBPS, v.AnchorAuditMinRateBps)
 	require.Equal(t, tasktypes.DefaultAnchorAuditRiskMarginBPS, v.AnchorAuditRiskMarginBps)
+	require.Equal(t, tasktypes.DefaultAnchorPositionsPerTask, v.AnchorPositionsPerTask)
+	require.Equal(t, tasktypes.DefaultAnchorMinBondMultiple, v.AnchorMinBondMultiple)
+	require.Equal(t, tasktypes.DefaultAnchorContentRejectSlashBPS, v.AnchorContentRejectSlashBps)
+	require.Zero(t, v.AnchorContentVerdictWindowBlocks, "the content track stays off until governance enables it")
 	require.NoError(t, p.Validate())
+}
+
+// The content verdict upgrade adds only the content-track parameters: the
+// windows the chain already runs on - the recommended ones after the anchor
+// audit upgrade, or any governance chose - are not touched.
+func TestAnchorContentUpgradeKeepsWindows(t *testing.T) {
+	for name, windows := range map[string][3]uint64{
+		"recommended": {tasktypes.RecommendedAnchorOpenWindowBlocks, tasktypes.RecommendedAnchorProofWindowBlocks, tasktypes.RecommendedAnchorVerdictWindowBlocks},
+		"chosen":      {100, 200, 300},
+	} {
+		f := initFixture(t)
+		chainID := sdk.UnwrapSDKContext(f.ctx).ChainID()
+		before := tasktypes.DefaultTaskParams()
+		v := &before.Verification
+		v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = windows[0], windows[1], windows[2]
+		v.AnchorAuditMinRateBps = 7
+		v.AnchorPositionsPerTask, v.AnchorMinBondMultiple, v.AnchorContentVerdictWindowBlocks, v.AnchorContentRejectSlashBps = 0, 0, 0, 0
+		hash, err := tasktypes.TaskParamsHashV1(chainID, 2, before)
+		require.NoError(t, err, name)
+		require.NoError(t, f.keeper.Params.Set(f.ctx, before), name)
+		require.NoError(t, f.keeper.ParamsMeta.Set(f.ctx, tasktypes.TaskParamsMetaState{ParamsVersion: 2, ParamsHash: hash, UpdatedHeight: 1}), name)
+
+		require.NoError(t, f.keeper.InitializeAnchorContentParams(f.ctx), name)
+
+		got, err := f.keeper.Params.Get(f.ctx)
+		require.NoError(t, err, name)
+		want := before
+		want.Verification.AnchorPositionsPerTask = tasktypes.DefaultAnchorPositionsPerTask
+		want.Verification.AnchorMinBondMultiple = tasktypes.DefaultAnchorMinBondMultiple
+		want.Verification.AnchorContentRejectSlashBps = tasktypes.DefaultAnchorContentRejectSlashBPS
+		require.Equal(t, want, got, name)
+		meta, err := f.keeper.GetTaskParamsMeta(f.ctx)
+		require.NoError(t, err, name)
+		require.Equal(t, uint64(3), meta.ParamsVersion, name)
+	}
 }
 
 // The anchor upgrade writes a new params version; that version carries the

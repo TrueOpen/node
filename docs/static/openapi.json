@@ -3447,6 +3447,48 @@
           "format": "int64",
           "type": "integer"
         },
+        "content_result_height": {
+          "description": "content_result_height is when the content verdict became final (zero while open).",
+          "format": "uint64",
+          "type": "string"
+        },
+        "content_result_reason": {
+          "description": "content_result_reason is a short diagnostic of the final content verdict.",
+          "type": "string"
+        },
+        "content_result_source": {
+          "$ref": "#/definitions/task.v1.AnchorResultSourceV1",
+          "description": "content_result_source names who finalized the content verdict."
+        },
+        "content_tally": {
+          "$ref": "#/definitions/task.v1.AnchorVoteTallyV1",
+          "description": "content_tally is the running content-vote tally (AnchorVoteTallyV1.reject_power counts\nREJECT_CONTENT)."
+        },
+        "content_verdict": {
+          "$ref": "#/definitions/task.v1.AnchorContentVerdictV1",
+          "description": "content_verdict is the final content verdict (UNSPECIFIED while open)."
+        },
+        "content_verdict_deadline_height": {
+          "description": "Height by which the content verdict must be final; zero when the audit has no content\ntrack (anchor_content_verdict_window_blocks was zero at sampling). Fixed at sampling as\nverdict_deadline_height + anchor_content_verdict_window_blocks.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "content_verdicts": {
+          "description": "content_verdicts are the per-position content verdicts of the deciding side.",
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorContentPositionVerdictV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "content_worker_fault_id": {
+          "description": "Role-fault id of the content slash (anchor_content_reject).",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
         "epoch_manifest_hash": {
           "description": "epoch_manifest_hash is sha256 of the canonical epoch manifest the Worker's proof covers.",
           "format": "trueopen-hash32",
@@ -3457,6 +3499,11 @@
         },
         "epoch_manifest_uri": {
           "description": "epoch_manifest_uri locates the epoch manifest in DA.",
+          "type": "string"
+        },
+        "epoch_seal_height": {
+          "description": "Opening-set freeze height of this task's B1 epoch: the height of the MsgSealAnchorEpoch\nthat fixed the epoch's members (zero: unsealed). No opening is accepted for a sealed task\nat or after x_beacon_height, and no task can join a sealed epoch.",
+          "format": "uint64",
           "type": "string"
         },
         "opening_deadline_height": {
@@ -3604,6 +3651,170 @@
         },
         "worker_proof_uri": {
           "type": "string"
+        },
+        "worker_proof_x_bound": {
+          "description": "worker_proof_x_bound is true when the recorded proof declared Y_x rows bound to x_beacon_height.",
+          "type": "boolean"
+        },
+        "x_beacon": {
+          "description": "x_beacon is the chain beacon randomness at x_beacon_height (the hub beacon that also\ndrives verifier selection: proposer VRF, or the block-hash placeholder before VRF is\nrequired), recorded with the Worker's proof. Off chain, x is derived from (chain_id,\nepoch_manifest_hash, x_beacon, module key, row index).",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "x_beacon_height": {
+          "description": "B1 beacon height of the epoch: open freeze (seal) height + 1, which is always above the\nhighest opening height of the epoch's tasks. Every opening of the epoch (with its g and\nv_int rows) is on chain before it.",
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorContentPositionVerdictV1": {
+      "description": "AnchorContentPositionVerdictV1 is one validator's content verdict on one sampled position.",
+      "properties": {
+        "position": {
+          "description": "position is the sampled row.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "reason": {
+          "description": "reason is a short diagnostic; informational, not consensus.",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/task.v1.AnchorContentVerdictV1",
+          "description": "verdict is the content verdict at the position."
+        },
+        "z_micro": {
+          "description": "z_micro is the direction statistic z times 10^6 (informational; the input of the\ncross-task CUSUM of AnchorWorkerCusumState once it is enforced).",
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorContentVerdictV1": {
+      "default": "ANCHOR_CONTENT_VERDICT_V1_UNSPECIFIED",
+      "description": "AnchorContentVerdictV1 is the content-integrity verdict of an anchor audit\n(ADR-0040 v7, B1 gradient certification): whether the committed trajectory is\nthe registered model's own decoding, judged by the direction statistic z on\ngradients certified with beacon rows Y_x = x * W. It is a separate track from\nthe compute verdict (AnchorVerdictV1) with its own deadline, tally and slash.\n\n - ANCHOR_CONTENT_VERDICT_V1_UNSPECIFIED: ANCHOR_CONTENT_VERDICT_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_CONTENT_VERDICT_V1_PASS: Every certified gradient identity, glue VJP and direction statistic holds.\n - ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT: The content check failed (or the Worker withheld the B1 material it owed):\nthe Worker's bond D is slashed by anchor_content_reject_slash_bps and it is jailed.\n - ANCHOR_CONTENT_VERDICT_V1_NO_VERDICT: The validators could not judge; never attributable to the Worker, nothing is slashed.",
+      "enum": [
+        "ANCHOR_CONTENT_VERDICT_V1_UNSPECIFIED",
+        "ANCHOR_CONTENT_VERDICT_V1_PASS",
+        "ANCHOR_CONTENT_VERDICT_V1_REJECT_CONTENT",
+        "ANCHOR_CONTENT_VERDICT_V1_NO_VERDICT"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorContentVoteState": {
+      "description": "AnchorContentVoteState is one bonded validator's content vote on a Worker's anchor proof\n(ADR-0040 v7). Separate from AnchorValidatorVoteState: a validator votes once per track.",
+      "properties": {
+        "height": {
+          "description": "height is when the vote was recorded.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "power": {
+          "description": "power is the validator's last voting power at the vote.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "proof_hash": {
+          "description": "proof_hash is the Worker proof the validator checked.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "task_id": {
+          "description": "task_id names the audit.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "validator_operator_address": {
+          "description": "validator_operator_address is the voting validator.",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/task.v1.AnchorContentVerdictV1",
+          "description": "verdict is the validator's content verdict."
+        },
+        "verdicts": {
+          "description": "verdicts are the per-position content verdicts.",
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorContentPositionVerdictV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "voter_address": {
+          "description": "voter_address signed the vote (operator account or registered vote address).",
+          "type": "string"
+        },
+        "x_beacon": {
+          "description": "x_beacon is the B1 beacon the validator checked the Y_x rows against.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorEpochState": {
+      "description": "AnchorEpochState is a Worker's sealed B1 proving epoch (ADR-0040 v7), keyed by its epoch\nmanifest hash. Sealing freezes the epoch's opening set; the x beacon comes from the block\nafter the freeze, so neither the openings (with their g and v_int rows) nor the membership\ncan depend on x.",
+      "properties": {
+        "epoch_manifest_hash": {
+          "description": "epoch_manifest_hash is sha256 of the canonical epoch manifest; it is the epoch id.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "max_opening_height": {
+          "description": "max_opening_height is the highest opening height among the members.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "seal_height": {
+          "description": "seal_height is the opening-set freeze height (the height of the MsgSealAnchorEpoch).",
+          "format": "uint64",
+          "type": "string"
+        },
+        "task_ids": {
+          "description": "task_ids lists the member tasks, strictly ascending.",
+          "items": {
+            "format": "trueopen-hash32",
+            "maxLength": 66,
+            "minLength": 66,
+            "pattern": "^0x[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "worker": {
+          "description": "worker is the winner Worker operator of every member task.",
+          "type": "string"
+        },
+        "x_beacon": {
+          "description": "x_beacon is the chain beacon randomness at x_beacon_height (see AnchorAuditState.x_beacon);\nempty until the first member proof records it. QueryAnchorEpoch returns it as soon as the\nheight exists.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "x_beacon_height": {
+          "description": "x_beacon_height = seal_height + 1 (\u003e max_opening_height).",
+          "format": "uint64",
+          "type": "string"
         }
       },
       "type": "object"
@@ -3627,13 +3838,14 @@
     },
     "task.v1.AnchorResultSourceV1": {
       "default": "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
-      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).",
+      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).\n - ANCHOR_RESULT_SOURCE_V1_COMPUTE_REJECTED: Content track only (ADR-0040 v7): the content verdict was closed without a vote\nbecause the compute verdict of the same audit is REJECT; the Worker is slashed\nonce, by the compute track.",
       "enum": [
         "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
         "ANCHOR_RESULT_SOURCE_V1_VERIFIER",
         "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
         "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
-        "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT"
+        "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT",
+        "ANCHOR_RESULT_SOURCE_V1_COMPUTE_REJECTED"
       ],
       "type": "string"
     },
@@ -4591,6 +4803,42 @@
         },
         "next": {
           "description": "next is the start_after of the following page; empty at the end.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorContentVotesResponse": {
+      "description": "QueryAnchorContentVotesResponse lists the content votes and the content tally of one audit.",
+      "properties": {
+        "tally": {
+          "$ref": "#/definitions/task.v1.AnchorVoteTallyV1",
+          "description": "tally is the content tally."
+        },
+        "votes": {
+          "description": "votes are the recorded content votes.",
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorContentVoteState",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorEpochResponse": {
+      "description": "QueryAnchorEpochResponse returns the epoch and its x beacon once derivable.",
+      "properties": {
+        "epoch": {
+          "$ref": "#/definitions/task.v1.AnchorEpochState",
+          "description": "epoch is the sealed epoch record."
+        },
+        "x_beacon": {
+          "description": "x_beacon is the beacon randomness; empty while the chain has not reached x_beacon_height.",
           "format": "trueopen-hash32",
           "maxLength": 66,
           "minLength": 66,
@@ -6894,10 +7142,30 @@
           "format": "int64",
           "type": "integer"
         },
+        "anchor_content_reject_slash_bps": {
+          "description": "Basis points of D taken, and the Worker jailed, when the content verdict is REJECT_CONTENT\n(validators rejected the content, or the Worker withheld its B1 material).",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_content_verdict_window_blocks": {
+          "description": "Content verdict window after the compute verdict deadline (ADR-0040 v7, blocks). Zero\ndisables the content track for audits sampled under this body.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_min_bond_multiple": {
+          "description": "Minimum bond multiple M (ADR-0040 v7): a Worker whose slashable bond D (effective active\nbond at sampling) is below M times the order value R is audited at 100% instead of\ns = kR/(D+kR). The content-track deterrent needs D \u003e= 40 R; zero disables the guard.",
+          "format": "int64",
+          "type": "integer"
+        },
         "anchor_open_window_blocks": {
           "description": "Blocks after sampling within which the Worker must record its opening. Must be \u003e 0.",
           "format": "uint64",
           "type": "string"
+        },
+        "anchor_positions_per_task": {
+          "description": "Positions sampled per selected audit (ADR-0040 v7). Must be in [1, 64]; bodies recorded\nbefore v7 carry zero and sample the former fixed 2.",
+          "format": "int64",
+          "type": "integer"
         },
         "anchor_proof_window_blocks": {
           "description": "Blocks after the opening deadline within which the Worker must record its proof. Must be \u003e 0.",
@@ -8786,6 +9054,13 @@
             "name": "limit",
             "required": false,
             "type": "integer"
+          },
+          {
+            "description": "content selects the content track (ADR-0040 v7): settled audits whose content verdict is\nstill open, instead of audits awaiting the compute verdict.",
+            "in": "query",
+            "name": "content",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "responses": {
@@ -8803,6 +9078,42 @@
           }
         },
         "summary": "AnchorAuditsPending pages over sampled, selected audits awaiting a final verdict (ADR-0040 v6).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/anchor_epoch/{epoch_manifest_hash}": {
+      "get": {
+        "operationId": "Query_AnchorEpoch",
+        "parameters": [
+          {
+            "description": "epoch_manifest_hash is the epoch id.",
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "epoch_manifest_hash",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorEpochResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorEpoch returns one sealed B1 epoch and its x beacon (ADR-0040 v7).",
         "tags": [
           "Query"
         ]
@@ -9207,6 +9518,42 @@
           }
         },
         "summary": "AnchorAudit returns the anchor commitment audit record of one task (ADR-0040).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/task/{task_id}/anchor_content_votes": {
+      "get": {
+        "operationId": "Query_AnchorContentVotes",
+        "parameters": [
+          {
+            "description": "task_id names the audit.",
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "task_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorContentVotesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorContentVotes returns the content votes and tally of one task's anchor audit (ADR-0040 v7).",
         "tags": [
           "Query"
         ]

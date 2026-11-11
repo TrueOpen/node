@@ -36,6 +36,9 @@ func migrations(k keeper.Keeper) map[uint64]module.MigrationHandler {
 		// the anchor parameters are written as a new params version (default
 		// shares, recommended windows).
 		3: func(ctx sdk.Context) error { return k.InitializeAnchorParams(ctx) },
+		// 4 -> 5 (ADR-0040 v7 content verdict): new store prefixes need no rewrite;
+		// the content-track parameters are initialized to their defaults.
+		4: func(ctx sdk.Context) error { return k.InitializeAnchorContentParams(ctx) },
 	}
 }
 

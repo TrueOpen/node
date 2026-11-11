@@ -1456,11 +1456,9 @@ type TaskStageHandraiseUnionState struct {
 	WindowCloseHeight       uint64                     `protobuf:"varint,9,opt,name=window_close_height,json=windowCloseHeight,proto3" json:"window_close_height,omitempty"`
 	UnionBitmapHash         []byte                     `protobuf:"bytes,10,opt,name=union_bitmap_hash,json=unionBitmapHash,proto3" json:"union_bitmap_hash,omitempty"`
 	// Types that are valid to be assigned to XVerifierLegalSetHash:
-	//
 	//	*TaskStageHandraiseUnionState_VerifierLegalSetHash
 	XVerifierLegalSetHash isTaskStageHandraiseUnionState_XVerifierLegalSetHash `protobuf_oneof:"_verifier_legal_set_hash"`
 	// Types that are valid to be assigned to XSelectionRandomnessHeight:
-	//
 	//	*TaskStageHandraiseUnionState_SelectionRandomnessHeight
 	XSelectionRandomnessHeight isTaskStageHandraiseUnionState_XSelectionRandomnessHeight `protobuf_oneof:"_selection_randomness_height"`
 	// OPEN_VERIFY only; fixed Task Builder order.
@@ -1900,7 +1898,6 @@ type TaskCandidateFinalizeCursorState struct {
 	MaterializedCount uint32             `protobuf:"varint,6,opt,name=materialized_count,json=materializedCount,proto3" json:"materialized_count,omitempty"`
 	RunningCommitment []byte             `protobuf:"bytes,7,opt,name=running_commitment,json=runningCommitment,proto3" json:"running_commitment,omitempty"`
 	// Types that are valid to be assigned to XRandomnessHeight:
-	//
 	//	*TaskCandidateFinalizeCursorState_RandomnessHeight
 	XRandomnessHeight isTaskCandidateFinalizeCursorState_XRandomnessHeight `protobuf_oneof:"_randomness_height"`
 	Status            FinalizeCursorStatusV1                               `protobuf:"varint,9,opt,name=status,proto3,enum=task.v1.FinalizeCursorStatusV1" json:"status,omitempty"`

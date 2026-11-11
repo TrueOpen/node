@@ -610,7 +610,6 @@ type TaskViewV1 struct {
 	// value selects one supported variant.
 	//
 	// Types that are valid to be assigned to Value:
-	//
 	//	*TaskViewV1_Active
 	//	*TaskViewV1_Terminal
 	Value isTaskViewV1_Value `protobuf_oneof:"value"`
@@ -707,11 +706,9 @@ type TaskStageViewV1 struct {
 	SettlementStatus   SettlementStatus           `protobuf:"varint,6,opt,name=settlement_status,json=settlementStatus,proto3,enum=task.v1.SettlementStatus" json:"settlement_status,omitempty"`
 	FinalityStatus     types.TaskFinalityStatusV1 `protobuf:"varint,7,opt,name=finality_status,json=finalityStatus,proto3,enum=shared.v1.TaskFinalityStatusV1" json:"finality_status,omitempty"`
 	// Types that are valid to be assigned to XNextDeadlineKind:
-	//
 	//	*TaskStageViewV1_NextDeadlineKind
 	XNextDeadlineKind isTaskStageViewV1_XNextDeadlineKind `protobuf_oneof:"_next_deadline_kind"`
 	// Types that are valid to be assigned to XNextDeadlineHeight:
-	//
 	//	*TaskStageViewV1_NextDeadlineHeight
 	XNextDeadlineHeight  isTaskStageViewV1_XNextDeadlineHeight `protobuf_oneof:"_next_deadline_height"`
 	UpdatedHeight        uint64                                `protobuf:"varint,10,opt,name=updated_height,json=updatedHeight,proto3" json:"updated_height,omitempty"`
