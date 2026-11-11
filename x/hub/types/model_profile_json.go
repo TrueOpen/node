@@ -431,6 +431,8 @@ func parseModelProfileEvidenceKind(value string) (shared.EvidenceKind, error) {
 		return shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING, nil
 	case "WORKER_TOKEN_OPENING":
 		return shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING, nil
+	case "WORKER_ANCHOR_OPENING":
+		return shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING, nil
 	case "VERIFIER_VALUE_OPENING":
 		return shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING, nil
 	case "SETTLEMENT_ROOT_OPENING":

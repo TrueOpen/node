@@ -37,6 +37,8 @@ type ModuleInputs struct {
 	AuthKeeper types.AuthKeeper
 	BankKeeper types.BankKeeper
 	HubKeeper  types.HubKeeper
+	// StakingKeeper weighs anchor audit validator votes (ADR-0040 v4).
+	StakingKeeper types.StakingKeeper
 }
 
 // ModuleOutputs exposes the task keeper and module (the proven single-keeper
@@ -74,7 +76,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		in.AuthKeeper,
 		in.BankKeeper,
 		in.HubKeeper,
-	)
+	).WithStakingKeeper(in.StakingKeeper)
 	m := NewAppModule(in.Cdc, k)
 
 	return ModuleOutputs{

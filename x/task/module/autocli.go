@@ -69,6 +69,29 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
+					RpcMethod:      "AnchorAudit",
+					Use:            "anchor-audit [task-id]",
+					Short:          "Shows one task's anchor commitment audit record (ADR-0040)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
+					RpcMethod:      "AnchorVotes",
+					Use:            "anchor-votes [task-id]",
+					Short:          "Shows the validator votes and tally of one task's anchor audit (ADR-0040 v4)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
+					RpcMethod: "AnchorAuditsPending",
+					Use:       "anchor-audits-pending",
+					Short:     "Pages over sampled, selected anchor audits awaiting a final verdict (ADR-0040 v6)",
+				},
+				{
+					RpcMethod:      "AnchorVoteKey",
+					Use:            "anchor-vote-key [validator-operator-address]",
+					Short:          "Shows a validator's anchor vote delegation (ADR-0040 v6)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_operator_address"}},
+				},
+				{
 					RpcMethod:      "VerifierCandidateWindow",
 					Use:            "verifier-candidate-window [task-id] [verify-round]",
 					Short:          "Shows one round's frozen verifier window",
@@ -241,6 +264,31 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "ReportDataUnavailable",
 					Use:       "report-data-unavailable",
 					Short:     "Record one selected Verifier's data-availability report",
+				},
+				{
+					RpcMethod: "SubmitAnchorOpening",
+					Use:       "submit-anchor-opening",
+					Short:     "Record the winner Worker's anchor opening hash for the sampled positions (ADR-0040)",
+				},
+				{
+					RpcMethod: "SubmitAnchorProof",
+					Use:       "submit-anchor-proof",
+					Short:     "Record the winner Worker's proof package over its anchor opening (ADR-0040 v2)",
+				},
+				{
+					RpcMethod: "SubmitAnchorAuditResult",
+					Use:       "submit-anchor-audit-result",
+					Short:     "Record a selected Verifier's advisory anchor audit verdicts (ADR-0040 v1)",
+				},
+				{
+					RpcMethod: "SubmitAnchorValidatorVote",
+					Use:       "submit-anchor-validator-vote",
+					Short:     "Record a bonded validator's verdict on the Worker's anchor proof; final at 2/3 of the voting power (ADR-0040 v4)",
+				},
+				{
+					RpcMethod: "RegisterAnchorVoteKey",
+					Use:       "register-anchor-vote-key",
+					Short:     "Delegate a validator's anchor votes to a hot vote address; signed by the operator account (ADR-0040 v6)",
 				},
 				{
 					RpcMethod:      "SubmitBuilderEvidence",

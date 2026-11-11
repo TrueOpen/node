@@ -94,7 +94,7 @@ func (k Keeper) processRoleFaultPrune(ctx context.Context, key types.RoleFaultPr
 	if k.roleFaultConsumers == nil {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "role fault consumer gate is unavailable")
 	}
-	closed, err := k.roleFaultConsumers.RoleFaultConsumersClosed(ctx, state.TaskId, state.EvidenceDigest)
+	closed, err := k.roleFaultConsumers.RoleFaultConsumersClosed(ctx, state.TaskId, state.EvidenceDigest, state.FaultId)
 	if err != nil {
 		return err
 	}

@@ -86,7 +86,7 @@ func (taskSafetyWindowProviderStub) GetTaskSafetyWindows(context.Context) (types
 
 type roleFaultConsumerGateStub struct{}
 
-func (roleFaultConsumerGateStub) RoleFaultConsumersClosed(context.Context, []byte, []byte) (bool, error) {
+func (roleFaultConsumerGateStub) RoleFaultConsumersClosed(context.Context, []byte, []byte, []byte) (bool, error) {
 	return true, nil
 }
 

@@ -107,6 +107,19 @@ func (k Keeper) executeLoadedTaskSettlement(
 	if err != nil {
 		return nil, err
 	}
+	if inputs.Anchor != nil && inputs.Anchor.ResultHeight == 0 &&
+		inputs.Anchor.TaskVerdict != types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED {
+		// The load step derived the deadline verdict; record it before faults are framed on it.
+		state := *inputs.Anchor
+		state.ResultHeight = height
+		if err := k.AnchorAudit.Set(cache, types.NewTaskKey(inputs.Core.TaskId), state); err != nil {
+			return nil, err
+		}
+		if err := emitAnchorVerdictEvent(cache, state); err != nil {
+			return nil, err
+		}
+		inputs.Anchor = &state
+	}
 	inputs, err = k.prepareSettlementFaults(cache, inputs, expectedID[:], height)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidSettlement, err.Error())
@@ -279,12 +292,25 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 		round1Cluster = round1Result.Members
 	}
 
+	anchor, err := k.anchorSettlementView(ctx, taskKey, effectiveResult.Verdict, height)
+	if err != nil {
+		return settlementInputs{}, err
+	}
+	if anchor != nil && anchor.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT &&
+		effectiveResult.Verdict == types.TaskVerdict_TASK_VERDICT_PASS {
+		// ADR-0040 v4: a rejected anchor proof fails the task although the round-1
+		// metric check passed; the Worker is not paid and is slashed at settlement.
+		effectiveResult.Verdict = types.TaskVerdict_TASK_VERDICT_FAIL
+		effectiveResult.FailureClass = types.TaskFailureClass_TASK_FAILURE_CLASS_WORKER_EVIDENCE_FAULT
+	}
+
 	dutyBuilder, err := k.settlementDutyBuilder(ctx, selection, round1Assignment, height)
 	if err != nil {
 		return settlementInputs{}, err
 	}
 	return settlementInputs{
-		Core: core, Assignment: assignment, BuilderSelection: selection, Round1Assignment: round1Assignment,
+		Anchor: anchor,
+		Core:   core, Assignment: assignment, BuilderSelection: selection, Round1Assignment: round1Assignment,
 		Budget: budget, Infer: infer, Summary: summary,
 		Round1: round1, Round1Cluster: round1Cluster,
 		EffectiveRound: effectiveRound, EffectiveResult: effectiveResult,
@@ -584,6 +610,16 @@ func (k Keeper) applySettlementPlan(
 	}
 	if err := k.WriteTaskSettlement(ctx, taskKey, settlement); err != nil {
 		return types.TaskSettlementState{}, err
+	}
+	if len(inputs.AnchorWorkerFaultID) == types.Hash32Len {
+		audit, err := k.AnchorAudit.Get(ctx, taskKey)
+		if err != nil {
+			return types.TaskSettlementState{}, errorsmod.Wrap(types.ErrInvariantBroken, "anchor audit vanished before its fault was recorded")
+		}
+		audit.WorkerFaultId = append([]byte(nil), inputs.AnchorWorkerFaultID...)
+		if err := k.AnchorAudit.Set(ctx, taskKey, audit); err != nil {
+			return types.TaskSettlementState{}, err
+		}
 	}
 	paidRolesHash, err := types.PaidRolesHash(sdkCtx.ChainID(), inputs.Core.TaskId, settlementID, facts.PaidRoles)
 	if err != nil {

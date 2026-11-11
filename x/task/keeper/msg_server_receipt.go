@@ -136,6 +136,14 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err := validateLockedProfileEvidenceCommitments(core, assignment, profile, receipt.RequiredEvidenceCommitments); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// ADR-0040 v6: anchor sampling derives its row count from the token commitment
+	// size; refuse a receipt whose size is not a token-id pair covering the
+	// generated tokens, instead of discovering it inside EndBlock.
+	if err := validateAnchorTokenCommitment(types.InferReceiptState{
+		RequiredEvidenceCommitments: receipt.RequiredEvidenceCommitments, GeneratedTokenCount: receipt.GeneratedTokenCount,
+	}); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	hubParams := m.k.hubKeeper.GetHubParams(sdkCtx)
 	clock, err := freezeVerifierWindowClock(height, verifierWindowClockParams{
 		DeltaWBlocks:                hubParams.DeltaWBlocks,
@@ -334,8 +342,8 @@ func validateLockedProfileEvidenceCommitments(
 		return fmt.Errorf("locked Profile evidence_schema is invalid: %w", err)
 	}
 	requirements := verification.EvidenceSchema.RequiredInferEvidence
-	if len(requirements) != 2 {
-		return fmt.Errorf("locked Profile must require Worker value and Worker token evidence")
+	if len(requirements) != 2 && len(requirements) != 3 {
+		return fmt.Errorf("locked Profile must require Worker value and Worker token evidence (plus optionally the anchor commitment)")
 	}
 	if len(commitments) != len(requirements) {
 		return fmt.Errorf("required_evidence_commitments must exactly match the locked Profile requirement count")
@@ -348,7 +356,9 @@ func validateLockedProfileEvidenceCommitments(
 		if index == 0 && (requirement.CommitmentSchemaVersion != types.WorkerValueCommitmentSchemaVersionV3 ||
 			requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING) ||
 			index == 1 && (requirement.CommitmentSchemaVersion != shared.WorkerTokenCommitmentSchemaVersionV1 ||
-				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING) {
+				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING) ||
+			index == 2 && (requirement.CommitmentSchemaVersion != shared.WorkerAnchorCommitmentSchemaVersionV1 ||
+				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING) {
 			return fmt.Errorf("required_evidence_commitments[%d] uses an unsupported commitment schema", index)
 		}
 		if item.EncodedSizeBytes == 0 || item.EncodedSizeBytes > requirement.MaxEncodedSizeBytes {

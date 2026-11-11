@@ -39,7 +39,7 @@ type FreezeSignalTaskValidator interface {
 // challenge/economic-effect consumer is closed, and the retained failure row
 // matches this exact task/evidence scope.
 type RoleFaultConsumerGate interface {
-	RoleFaultConsumersClosed(context.Context, []byte, []byte) (bool, error)
+	RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDigest, faultID []byte) (bool, error)
 }
 
 type FreezeSignalFailureScanRequest struct {

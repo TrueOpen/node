@@ -1286,6 +1286,8 @@ func genesisSeedProjection(seed genesisSeedProfile, modelID []byte) (shared.Mode
 			kind = shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING
 		case "WORKER_TOKEN_OPENING":
 			kind = shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING
+		case "WORKER_ANCHOR_OPENING":
+			kind = shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING
 		case "VERIFIER_VALUE_OPENING":
 			kind = shared.EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING
 		case "SETTLEMENT_ROOT_OPENING":
