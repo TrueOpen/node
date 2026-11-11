@@ -31,6 +31,7 @@ import (
 //	|    11 | VERIFY_FINAL      | TaskDeadlineLocator            |            45 |
 //	|    12 | CHALLENGE_CLOSE   | ChallengeDeadlineLocator       |            25 |
 //	|    13 | EVIDENCE_CLEANUP  | TaskDeadlineLocator            |           110 |
+//	|    18 | ANCHOR_VERDICT    | TaskDeadlineLocator            |            41 |
 var deadlineKindPriority = map[types.DeadlineKindV1]uint32{
 	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
 	types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:        40,
