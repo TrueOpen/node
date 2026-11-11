@@ -73,8 +73,27 @@ const (
 	DefaultAnchorTimeoutSlashBPS = uint32(500)
 	// ADR-0040 v6: opening window after sampling (blocks).
 	DefaultAnchorOpenWindowBlocks = uint64(900)
-	// ADR-0040 v6: proof window after the opening deadline (blocks).
+	// ADR-0040 v6: proof window after the opening deadline. The default is part of
+	// the historical params commitment and stays at 6,600; a chain whose Workers
+	// prove one epoch after another on a single GPU should set
+	// RecommendedAnchorProofWindowBlocks through genesis or governance.
 	DefaultAnchorProofWindowBlocks = uint64(6_600)
+	// RecommendedAnchorProofWindowBlocks sizes the proof window for a fully loaded
+	// single-GPU Worker that must wait for the previous epoch's proof before proving
+	// its own: the production registration measured 51–67 min per epoch on an A40
+	// with 61 cores, so two epochs plus the opening window and margin need
+	// ~9,200 s — 10,000 blocks at 1 s blocks. The default 6,600 (sized for
+	// 2×45 min) made the second epoch miss its deadline under load (audit D-F1,
+	// 2026-11-09): an honest Worker would be slashed anchor_timeout.
+	RecommendedAnchorProofWindowBlocks = uint64(10_000)
+	// RecommendedAnchorVerdictWindowBlocks sizes the validator voting window: a
+	// Worker may record its proof at the very end of the proof window, and a
+	// validator (no GPU, no weights) measured 352 s for a one-task epoch and
+	// 2,364 s for three tasks plus material fetches, so the default 900 blocks
+	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
+	// 2026-11-09). One hour at 1 s blocks; set through genesis or governance, the
+	// default is part of the historical params commitment.
+	RecommendedAnchorVerdictWindowBlocks = uint64(3_600)
 	// ADR-0040 v5: floor of the per-task audit probability (5%).
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
@@ -239,6 +258,48 @@ func DefaultTaskParams() TaskParamsV1 {
 			RevealWindowBlocks: DefaultRevealWindowBlocks, MaxRoundEffectItemsPerBlock: DefaultMaxRoundEffectItemsPerBlock,
 		},
 	}
+}
+
+// WithAnchorDefaults returns p with the ADR-0040 anchor parameters filled from
+// the defaults where the body predates them (the opening window is zero).
+// Genesis validation and InitGenesis accept a pre-anchor body through it, and the
+// anchor upgrade writes exactly this (audit F-P1-5, 2026-11-09).
+func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
+	d := DefaultTaskParams().Verification
+	v := &p.Verification
+	if v.AnchorOpenWindowBlocks == 0 {
+		v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
+		v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
+		v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = d.AnchorOpenWindowBlocks, d.AnchorProofWindowBlocks, d.AnchorVerdictWindowBlocks
+	}
+	return p
+}
+
+// RepairAnchorParams fills the anchor defaults (WithAnchorDefaults) and then
+// applies the repairs an anchor upgrade may make on its own so that the body
+// validates under the new rules; each repair is described in the returned notes.
+// It never changes a governance-chosen anchor value. Run it offline on the live
+// params before the upgrade height: a body it cannot repair would halt the
+// upgrade (audit F-P1-4, 2026-11-09).
+func RepairAnchorParams(p TaskParamsV1) (TaskParamsV1, []string) {
+	p = p.WithAnchorDefaults()
+	var notes []string
+	if total := p.Verification.AnchorTotalWindowBlocks(); total >= p.Cleanup.TaskTerminalSummaryRetentionBlocks {
+		want := DefaultTaskTerminalSummaryRetentionBlocks
+		if want <= total {
+			want = total + 1
+		}
+		notes = append(notes, fmt.Sprintf("cleanup.task_terminal_summary_retention_blocks %d is not longer than the anchor windows (%d): raised to %d",
+			p.Cleanup.TaskTerminalSummaryRetentionBlocks, total, want))
+		p.Cleanup.TaskTerminalSummaryRetentionBlocks = want
+	}
+	return p, notes
+}
+
+// HasAnchorParams reports whether the body carries the ADR-0040 anchor
+// parameters.
+func (p TaskParamsV1) HasAnchorParams() bool {
+	return p.Verification.AnchorOpenWindowBlocks != 0
 }
 
 func (p TaskParamsV1) Validate() error {

@@ -110,12 +110,8 @@ func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "params_version overflow")
 	}
 	current := params
-	d := types.DefaultTaskParams().Verification
-	v := &params.Verification
-	v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
-	v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
-	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = d.AnchorOpenWindowBlocks, d.AnchorProofWindowBlocks, d.AnchorVerdictWindowBlocks
-	if err := params.Validate(); err != nil {
+	params, err = k.repairedAnchorParams(ctx, params)
+	if err != nil {
 		return err
 	}
 	version := meta.ParamsVersion + 1
@@ -138,4 +134,30 @@ func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 		return err
 	}
 	return emitTypedEvent(ctx, &types.EventTaskParamsUpdated{OldVersion: meta.ParamsVersion, NewVersion: version, ParamsHash: hash})
+}
+
+// ensureAnchorParamsInitialized runs the anchor parameter upgrade for a chain
+// that starts from a genesis written before it existed (audit F-P1-5,
+// 2026-11-09): a pre-anchor body otherwise fails validation at InitChain, so a
+// new binary could not cold-start from the testnet's genesis.
+func (k Keeper) ensureAnchorParamsInitialized(ctx context.Context) error {
+	return k.InitializeAnchorParams(ctx)
+}
+
+// repairedAnchorParams fills the anchor defaults and applies the automatic
+// repairs (types.RepairAnchorParams), logging each one, and refuses with a
+// pointer to the offline preview when the body still does not validate: the
+// params commitment is only defined over valid bodies, so an unrepairable body
+// must stop the upgrade before the height rather than halt the chain at it
+// (audit F-P1-4, 2026-11-09).
+func (k Keeper) repairedAnchorParams(ctx context.Context, params types.TaskParamsV1) (types.TaskParamsV1, error) {
+	repaired, notes := types.RepairAnchorParams(params)
+	logger := sdk.UnwrapSDKContext(ctx).Logger()
+	for _, note := range notes {
+		logger.Error("anchor params upgrade repaired the live params body; confirm it by governance", "repair", note)
+	}
+	if err := repaired.Validate(); err != nil {
+		return params, errorsmod.Wrap(err, "anchor params upgrade: the live params body does not validate under the new rules and cannot be repaired automatically; run types.RepairAnchorParams on it offline before the upgrade height")
+	}
+	return repaired, nil
 }

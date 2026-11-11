@@ -73,6 +73,11 @@ func (k Keeper) initGenesisPrimaries(ctx context.Context, genesis types.GenesisS
 			return err
 		}
 	}
+	if !genesis.Params.HasAnchorParams() {
+		if err := k.ensureAnchorParamsInitialized(ctx); err != nil {
+			return err
+		}
+	}
 
 	for _, state := range genesis.SessionNonces {
 		if err := setUniqueSessionNonce(ctx, k, state); err != nil {
