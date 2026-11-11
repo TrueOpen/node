@@ -401,3 +401,51 @@ func TestAnchorGenesisImportRejectsDuplicatesAndOrphanVotes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, exported, 1)
 }
+
+// TestAnchorTallyWeighsVotesAtCurrentPower pins audit finding C-1 (2026-11-09):
+// a tally weighs stored votes at the validators' current power against the
+// current total, so a stake re-delegated to a new validator between two votes
+// is counted once and a validator that unbonded after voting weighs nothing.
+func TestAnchorTallyWeighsVotesAtCurrentPower(t *testing.T) {
+	a, b, c := string(bytes.Repeat([]byte{0xA1}, 20)), string(bytes.Repeat([]byte{0xA2}, 20)), string(bytes.Repeat([]byte{0xA3}, 20))
+	t.Run("stake moved to a new validator between two votes is counted once", func(t *testing.T) {
+		f := newAnchorFixture(t, 0, anchorGoodTokenSize)
+		f.openAndProve(t)
+		f.staking.powers[a], f.staking.powers[b], f.staking.powers[c] = 40, 30, 30
+		h := f.sampleAt + 3
+		resp, err := f.vote(0, f.valAcct[0], types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS, h)
+		require.NoError(t, err)
+		require.False(t, resp.Finalized)
+		require.Equal(t, uint64(40), resp.Tally.PassPower)
+		require.Equal(t, uint64(100), resp.Tally.TotalPower)
+		// A re-delegates everything to a new validator D in one hop: A leaves the bonded set, D joins with 40.
+		raw := bytes.Repeat([]byte{0xD4}, 20)
+		delete(f.staking.powers, a)
+		f.staking.powers[string(raw)] = 40
+		dOper, err := f.staking.codec.BytesToString(raw)
+		require.NoError(t, err)
+		resp, err = f.server.SubmitAnchorValidatorVote(f.at(int64(h+1)), &types.MsgSubmitAnchorValidatorVote{
+			TaskId: f.taskID, OpeningHash: bytes.Repeat([]byte{0x0c}, 32), ProofHash: bytes.Repeat([]byte{0x0d}, 32),
+			Verdict: types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS, ValidatorOperatorAddress: dOper, SubmitterAddress: sdk.AccAddress(raw).String(),
+		})
+		require.NoError(t, err)
+		require.False(t, resp.Finalized, "40 of 100 is not two thirds: the moved stake voted once")
+		require.Equal(t, uint64(40), resp.Tally.PassPower)
+		require.Equal(t, uint64(100), resp.Tally.TotalPower)
+		require.Equal(t, uint32(2), resp.Tally.VoteCount)
+	})
+	t.Run("a validator that unbonded after voting weighs nothing", func(t *testing.T) {
+		f := newAnchorFixture(t, 0, anchorGoodTokenSize)
+		f.openAndProve(t)
+		f.staking.powers[a], f.staking.powers[b], f.staking.powers[c] = 40, 30, 30
+		h := f.sampleAt + 3
+		_, err := f.vote(0, f.valAcct[0], types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, h)
+		require.NoError(t, err)
+		delete(f.staking.powers, a) // A unbonds: the set is now B + C = 60
+		resp, err := f.vote(1, f.valAcct[1], types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, h+1)
+		require.NoError(t, err)
+		require.False(t, resp.Finalized, "30 of 60 is not two thirds (the old mixed tally saw 70 of 60)")
+		require.Equal(t, uint64(30), resp.Tally.RejectPower)
+		require.Equal(t, uint64(60), resp.Tally.TotalPower)
+	})
+}

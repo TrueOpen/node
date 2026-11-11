@@ -33,6 +33,61 @@ func anchorVerdictDeadline(state types.AnchorAuditState) uint64 {
 	return state.VerdictDeadlineHeight
 }
 
+// anchorCurrentPower is the bonded power a validator holds now: zero once it is
+// unbonded or unknown. Tallies weigh votes with it, so a vote never outlives its
+// validator's stake and a stake moved to another validator votes only there.
+func (k Keeper) anchorCurrentPower(ctx context.Context, valAddr []byte) uint64 {
+	validator, err := k.stakingKeeper.GetValidator(ctx, sdk.ValAddress(valAddr))
+	if err != nil || !validator.IsBonded() {
+		return 0
+	}
+	power, err := k.stakingKeeper.GetLastValidatorPower(ctx, sdk.ValAddress(valAddr))
+	if err != nil || power <= 0 {
+		return 0
+	}
+	return uint64(power)
+}
+
+// anchorCurrentTotalPower is the bonded set's current total power.
+func (k Keeper) anchorCurrentTotalPower(ctx context.Context) (uint64, error) {
+	total, err := k.stakingKeeper.GetLastTotalPower(ctx)
+	if err != nil || !total.IsPositive() || !total.IsUint64() {
+		return 0, errorsmod.Wrap(types.ErrInvariantBroken, "last total voting power is unavailable")
+	}
+	return total.Uint64(), nil
+}
+
+// anchorRecountComputeTally rebuilds the compute-track tally from the task's
+// stored votes at the validators' current power (see anchorCurrentPower). Vote
+// counts are the number of stored votes; numerator and denominator are always
+// the same bonded set.
+func (k Keeper) anchorRecountComputeTally(ctx context.Context, taskKey types.TaskKey) (types.AnchorVoteTallyV1, error) {
+	iter, err := k.AnchorValidatorVote.Iterate(ctx, collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey))
+	if err != nil {
+		return types.AnchorVoteTallyV1{}, err
+	}
+	defer iter.Close()
+	kvs, err := iter.KeyValues()
+	if err != nil {
+		return types.AnchorVoteTallyV1{}, err
+	}
+	var tally types.AnchorVoteTallyV1
+	for _, kv := range kvs {
+		power := k.anchorCurrentPower(ctx, kv.Key.K2())
+		tally.VoteCount++
+		switch kv.Value.Verdict {
+		case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS:
+			tally.PassPower += power
+		case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT:
+			tally.RejectPower += power
+		default:
+			tally.NoVerdictPower += power
+		}
+	}
+	tally.TotalPower, err = k.anchorCurrentTotalPower(ctx)
+	return tally, err
+}
+
 // anchorQuorum reports whether power is at least two thirds of total.
 func anchorQuorum(power, total uint64) bool {
 	if total == 0 {
@@ -188,10 +243,7 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 	if err != nil || power <= 0 {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "validator has no voting power")
 	}
-	total, err := m.k.stakingKeeper.GetLastTotalPower(ctx)
-	if err != nil || !total.IsPositive() || !total.IsUint64() {
-		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "last total voting power is unavailable")
-	}
+	// power is recorded on the vote for the record; tallies re-weigh at current power.
 	height, err := currentBlockHeight(ctx)
 	if err != nil {
 		return nil, err
@@ -242,16 +294,14 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 	if err := m.k.AnchorValidatorVote.Set(ctx, voteKey, vote); err != nil {
 		return nil, err
 	}
-	tally := state.Tally
-	tally.TotalPower = total.Uint64()
-	tally.VoteCount++
-	switch req.Verdict {
-	case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS:
-		tally.PassPower += uint64(power)
-	case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT:
-		tally.RejectPower += uint64(power)
-	default:
-		tally.NoVerdictPower += uint64(power)
+	// The tally weighs every stored vote at its validator's CURRENT power against
+	// the current total (anchorRecountComputeTally), never the power at voting
+	// time: accumulating vote-time power against a total overwritten per vote mixed
+	// snapshots, and one stake re-delegated to a new validator between two votes
+	// was counted twice (a 1/3 stake reached the 2/3 quorum; audit C-1, 2026-11-09).
+	tally, err := m.k.anchorRecountComputeTally(ctx, taskKey)
+	if err != nil {
+		return nil, err
 	}
 	state.Tally = tally
 	final := types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED
