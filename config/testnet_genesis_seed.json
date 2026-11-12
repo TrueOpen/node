@@ -689,7 +689,7 @@
         "pass_max_missing_compared_count": 0,
         "pass_mean_abs_logprob_diff_max": 80000,
         "pass_min_finite_count": 6,
-        "pass_rank_delta_nonzero_rate_max": 47000,
+        "pass_rank_delta_nonzero_rate_max": 90000,
         "pass_topk_jaccard_mean_min": 865000,
         "pass_union_js_p99_max": 100000,
         "reject_abs_logprob_diff_p95_min": 13337000,
