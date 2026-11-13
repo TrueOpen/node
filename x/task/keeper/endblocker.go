@@ -303,7 +303,18 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 				if materialized {
 					return deadlineSweepAdvanced, rowBytes, nil
 				}
-				return deadlineSweepPending, rowBytes, nil
+				// materializeVerifierWindowAtHeight reports (false, nil) only for a
+				// window that can never open: no eligible candidate, no usable
+				// randomness beacon, or an elapsed assignment deadline. Keeping such
+				// a row would pin it as the permanent head of this queue, because
+				// the sweep revisits the head first, and every later task would
+				// then miss its window too. The verify-open deadline fails the task.
+				if window.AssignmentDeadlineHeight <= currentHeight {
+					// That deadline has already fired or is due in this block, so
+					// there is no later terminal key left to check.
+					return deadlineSweepStale, rowBytes, nil
+				}
+				return k.retireVerifierRowToFallbackDeadline(ctx, taskID, window, height, rowBytes)
 			default:
 				return deadlineSweepPending, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "invalid verifier window status")
 			}
@@ -313,7 +324,8 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 // retireVerifierRowToFallbackDeadline drops a verifier queue key for a frozen
 // window that can no longer be finalized — it closed with fewer entrants than
 // selected_verifier_count, or a selected verifier can no longer back its duty
-// (ErrVerifierLiabilityUnavailable), or the assignment deadline has elapsed.
+// (ErrVerifierLiabilityUnavailable), or the assignment deadline has elapsed, or
+// the window can never open.
 // It is the same disposal the empty-union
 // case below already performs, for the same reason: the legal set cannot change
 // after the close height, so the frozen verify-open assignment deadline is the

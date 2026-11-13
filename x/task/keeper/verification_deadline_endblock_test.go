@@ -48,9 +48,32 @@ func TestVerifierRoundIndexStalePendingPoisonAndSuccess(t *testing.T) {
 		require.False(t, has)
 	})
 
-	t.Run("source frozen is pending and charged", func(t *testing.T) {
+	t.Run("unopenable source frozen window is retired to the verify-open deadline", func(t *testing.T) {
 		f := initInternalFixture(t)
 		taskID := bytes.Repeat([]byte{0x82}, types.Hash32Len)
+		taskKey := types.NewTaskKey(taskID)
+		key := types.NewVerifyRoundIndexKey(10, taskKey, types.VerifyRoundV1)
+		window := verifierWindowForDeadlineTest(taskID, types.VerifyRoundV1, types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN)
+		require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), window))
+		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, key))
+		fallbackKey := types.NewDeadlineIndexKey(window.AssignmentDeadlineHeight, taskKey)
+		require.NoError(t, f.keeper.VerifyOpenDeadlineIndex.Set(f.ctx, fallbackKey))
+
+		// The helper window has WindowSize 0, so it can never open.
+		visited, err := f.keeper.processVerifierWindowBuildIndex(f.ctx, 10, 1)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), visited)
+		has, err := f.keeper.VerifierWindowBuildIndex.Has(f.ctx, key)
+		require.NoError(t, err)
+		require.False(t, has)
+		has, err = f.keeper.VerifyOpenDeadlineIndex.Has(f.ctx, fallbackKey)
+		require.NoError(t, err)
+		require.True(t, has)
+	})
+
+	t.Run("unopenable window without a later verify-open deadline fails closed", func(t *testing.T) {
+		f := initInternalFixture(t)
+		taskID := bytes.Repeat([]byte{0x87}, types.Hash32Len)
 		taskKey := types.NewTaskKey(taskID)
 		key := types.NewVerifyRoundIndexKey(10, taskKey, types.VerifyRoundV1)
 		require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1),
@@ -58,11 +81,54 @@ func TestVerifierRoundIndexStalePendingPoisonAndSuccess(t *testing.T) {
 		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, key))
 
 		visited, err := f.keeper.processVerifierWindowBuildIndex(f.ctx, 10, 1)
+		require.Error(t, err)
+		require.Equal(t, uint64(1), visited)
+		has, hasErr := f.keeper.VerifierWindowBuildIndex.Has(f.ctx, key)
+		require.NoError(t, hasErr)
+		require.True(t, has)
+	})
+
+	t.Run("source frozen window past its assignment deadline is dropped", func(t *testing.T) {
+		f := initInternalFixture(t)
+		taskID := bytes.Repeat([]byte{0x88}, types.Hash32Len)
+		taskKey := types.NewTaskKey(taskID)
+		key := types.NewVerifyRoundIndexKey(10, taskKey, types.VerifyRoundV1)
+		window := verifierWindowForDeadlineTest(taskID, types.VerifyRoundV1, types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN)
+		require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), window))
+		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, key))
+
+		// The verify-open deadline row is gone because it already failed the task.
+		visited, err := f.keeper.processVerifierWindowBuildIndex(f.ctx, window.AssignmentDeadlineHeight+1, 1)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1), visited)
 		has, err := f.keeper.VerifierWindowBuildIndex.Has(f.ctx, key)
 		require.NoError(t, err)
-		require.True(t, has)
+		require.False(t, has)
+	})
+
+	t.Run("unopenable head row does not block the rows behind it", func(t *testing.T) {
+		f := initInternalFixture(t)
+		stuckID := bytes.Repeat([]byte{0x89}, types.Hash32Len)
+		stuckKey := types.NewTaskKey(stuckID)
+		stuckRow := types.NewVerifyRoundIndexKey(10, stuckKey, types.VerifyRoundV1)
+		stuck := verifierWindowForDeadlineTest(stuckID, types.VerifyRoundV1, types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN)
+		require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, types.NewVerifyRoundKey(stuckKey, types.VerifyRoundV1), stuck))
+		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, stuckRow))
+		require.NoError(t, f.keeper.VerifyOpenDeadlineIndex.Set(f.ctx, types.NewDeadlineIndexKey(stuck.AssignmentDeadlineHeight, stuckKey)))
+		orphanRow := types.NewVerifyRoundIndexKey(11, taskKeyFromByte(0x8a), types.VerifyRoundV1)
+		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, orphanRow))
+
+		// One row per call, as the EndBlock scheduler drives the queue.
+		for range 2 {
+			visited, err := f.keeper.processVerifierWindowBuildIndex(f.ctx, 11, 1)
+			require.NoError(t, err)
+			require.Equal(t, uint64(1), visited)
+		}
+		for _, row := range []types.VerifyRoundIndexKey{stuckRow, orphanRow} {
+			has, err := f.keeper.VerifierWindowBuildIndex.Has(f.ctx, row)
+			require.NoError(t, err)
+			require.False(t, has)
+		}
 	})
 
 	t.Run("height mismatch is one bounded poison visit", func(t *testing.T) {
@@ -172,4 +238,32 @@ func TestVerifyOpenPublicSweepFailsClosedWithoutDeadlineLocator(t *testing.T) {
 	core, err := f.keeper.TaskCore.Get(f.ctx, taskKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED, core.TaskPhase)
+}
+
+// A frozen window that can never open must not pin the head of the build queue:
+// the EndBlock scheduler revisits the head first, so a row it never removes
+// starves every row behind it.
+func TestEndBlockUnopenableWindowDoesNotStarveLaterWindows(t *testing.T) {
+	f := initInternalFixture(t)
+	rows := make([]types.VerifyRoundIndexKey, 0, 3)
+	for i := byte(0); i < 3; i++ {
+		taskID := bytes.Repeat([]byte{0x90 + i}, types.Hash32Len)
+		taskKey := types.NewTaskKey(taskID)
+		window := verifierWindowForDeadlineTest(taskID, types.VerifyRoundV1, types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN)
+		window.WindowRandomnessHeight = 10 + uint64(i)
+		row := types.NewVerifyRoundIndexKey(window.WindowRandomnessHeight, taskKey, types.VerifyRoundV1)
+		require.NoError(t, f.keeper.VerifierCandidateWindow.Set(f.ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1), window))
+		require.NoError(t, f.keeper.VerifierWindowBuildIndex.Set(f.ctx, row))
+		require.NoError(t, f.keeper.VerifyOpenDeadlineIndex.Set(f.ctx, types.NewDeadlineIndexKey(window.AssignmentDeadlineHeight, taskKey)))
+		rows = append(rows, row)
+	}
+
+	result, err := f.keeper.RunEndBlockDeadlineSweeps(f.ctx, 12, 10)
+	require.NoError(t, err)
+	require.Equal(t, uint64(3), result.VerifierWindowBuild)
+	for _, row := range rows {
+		has, err := f.keeper.VerifierWindowBuildIndex.Has(f.ctx, row)
+		require.NoError(t, err)
+		require.False(t, has)
+	}
 }
