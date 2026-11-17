@@ -7,21 +7,22 @@ import (
 )
 
 // TestGenesisAcceptsPreAnchorParams pins audit F-P1-5 (2026-11-09): a genesis
-// written before the anchor parameters validates through the defaults InitGenesis
-// will fill, so a new binary can cold-start from it.
+// written before the anchor parameters validates through the values InitGenesis
+// will fill, so a new binary can cold-start from it. The windows it fills are
+// the recommended ones, not the historical defaults.
 func TestGenesisAcceptsPreAnchorParams(t *testing.T) {
 	gs := DefaultGenesis()
 	v := &gs.Params.Verification
 	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = 0, 0, 0
 	require.False(t, gs.Params.HasAnchorParams())
 	require.Error(t, gs.Params.Validate(), "the raw body still fails: anchor windows must be positive")
-	require.NoError(t, gs.Validate(), "genesis validation fills the anchor defaults first")
+	require.NoError(t, gs.Validate(), "genesis validation fills the anchor parameters first")
 	filled := gs.Params.WithAnchorDefaults()
 	require.True(t, filled.HasAnchorParams())
 	require.NoError(t, filled.Validate())
-	d := DefaultTaskParams().Verification
-	require.Equal(t, d.AnchorProofWindowBlocks, filled.Verification.AnchorProofWindowBlocks)
-	require.Equal(t, d.AnchorVerdictWindowBlocks, filled.Verification.AnchorVerdictWindowBlocks)
+	require.Equal(t, RecommendedAnchorOpenWindowBlocks, filled.Verification.AnchorOpenWindowBlocks)
+	require.Equal(t, RecommendedAnchorProofWindowBlocks, filled.Verification.AnchorProofWindowBlocks)
+	require.Equal(t, RecommendedAnchorVerdictWindowBlocks, filled.Verification.AnchorVerdictWindowBlocks)
 }
 
 // TestRepairAnchorParams pins the offline preview an operator runs before the

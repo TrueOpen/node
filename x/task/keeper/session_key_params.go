@@ -91,9 +91,15 @@ func (k Keeper) ValidateGenesis(genesis types.GenesisState) error {
 	return genesis.Validate()
 }
 
-// InitializeAnchorParams writes the ADR-0040 anchor parameter defaults into the
-// current params at the anchor audit upgrade. A params body that already has
-// anchor windows is left alone; the previous version is archived.
+// InitializeAnchorParams writes the ADR-0040 anchor parameters into the current
+// params at the anchor audit upgrade, as a new params version: the default slash
+// shares, audit floor and risk margin, and the recommended windows
+// (types.WithAnchorDefaults) - not the historical Default*Window values, which
+// are too short for an honest Worker under load. The windows are block counts
+// sized for types.AnchorWindowBlockTime; a network with another block time must
+// replace them by governance before the first anchor Profile is registered. A
+// params body that already has anchor windows is left alone; the previous
+// version is archived.
 func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -116,6 +122,11 @@ func (k Keeper) InitializeAnchorParams(ctx context.Context) error {
 	}
 	version := meta.ParamsVersion + 1
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	sdkCtx.Logger().Info("anchor params initialized; the windows are block counts for the assumed block time, replace them by governance if the network's block time differs",
+		"assumed_block_time", types.AnchorWindowBlockTime.String(),
+		"anchor_open_window_blocks", params.Verification.AnchorOpenWindowBlocks,
+		"anchor_proof_window_blocks", params.Verification.AnchorProofWindowBlocks,
+		"anchor_verdict_window_blocks", params.Verification.AnchorVerdictWindowBlocks)
 	hash, err := types.TaskParamsHashV1(sdkCtx.ChainID(), version, params)
 	if err != nil {
 		return err
@@ -144,7 +155,7 @@ func (k Keeper) ensureAnchorParamsInitialized(ctx context.Context) error {
 	return k.InitializeAnchorParams(ctx)
 }
 
-// repairedAnchorParams fills the anchor defaults and applies the automatic
+// repairedAnchorParams fills the anchor parameters and applies the automatic
 // repairs (types.RepairAnchorParams), logging each one, and refuses with a
 // pointer to the offline preview when the body still does not validate: the
 // params commitment is only defined over valid bodies, so an unrepairable body

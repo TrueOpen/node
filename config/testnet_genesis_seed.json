@@ -261,7 +261,10 @@
     "verification": {
       "worker_infer_timeout_slash_bps": 0,
       "result_reveal_missing_slash_bps": 0,
-      "builder_fault_slash_bps": 0
+      "builder_fault_slash_bps": 0,
+      "anchor_open_window_blocks": "900",
+      "anchor_proof_window_blocks": "10000",
+      "anchor_verdict_window_blocks": "3600"
     },
     "evidence": {
       "max_evidence_retention_blocks": 1000,

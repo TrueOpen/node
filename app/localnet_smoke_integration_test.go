@@ -130,7 +130,7 @@ func TestQueryParamsAfterBlockProduction(t *testing.T) {
 
 	resp, err := qs.Params(ctx, &tasktypes.QueryTaskParamsRequest{})
 	require.NoError(t, err, "params query must succeed after block production")
-	require.Equal(t, tasktypes.DefaultTaskParams(), resp.Params,
+	require.Equal(t, tasktypes.DefaultGenesis().Params, resp.Params,
 		"params must equal the genesis defaults after several blocks")
 	// Spot-check a representative field so a zero-value response can't
 	// masquerade as a match.

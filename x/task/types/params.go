@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
@@ -71,29 +72,47 @@ const (
 	DefaultAnchorRejectSlashBPS = uint32(2_500)
 	// ADR-0040 v6: a Worker that never opened or never proved by the deadline loses this share of D.
 	DefaultAnchorTimeoutSlashBPS = uint32(500)
-	// ADR-0040 v6: opening window after sampling (blocks).
+	// ADR-0040 v6: opening window after sampling (blocks). Default* anchor windows
+	// are the fallback read into a params body recorded before the windows existed
+	// (ValidateHistoricalTaskParams) and the values of the frozen DefaultTaskParams
+	// body; they are never changed. A chain is started or upgraded with the
+	// Recommended* windows below (RecommendedAnchorWindowBlocks).
 	DefaultAnchorOpenWindowBlocks = uint64(900)
-	// ADR-0040 v6: proof window after the opening deadline. The default is part of
-	// the historical params commitment and stays at 6,600; a chain whose Workers
-	// prove one epoch after another on a single GPU should set
-	// RecommendedAnchorProofWindowBlocks through genesis or governance.
+	// ADR-0040 v6: proof window after the opening deadline. Kept at 6,600 as a
+	// historical value only: it is too short for a loaded Worker, see
+	// RecommendedAnchorProofWindowSeconds.
 	DefaultAnchorProofWindowBlocks = uint64(6_600)
-	// RecommendedAnchorProofWindowBlocks sizes the proof window for a fully loaded
+	// RecommendedAnchorOpenWindowSeconds is the time a Worker has to open the
+	// sampled rows: 15 minutes.
+	RecommendedAnchorOpenWindowSeconds = uint64(900)
+	// RecommendedAnchorProofWindowSeconds sizes the proof window for a fully loaded
 	// single-GPU Worker that must wait for the previous epoch's proof before proving
 	// its own: the production registration measured 51–67 min per epoch on an A40
 	// with 61 cores, so two epochs plus the opening window and margin need
-	// ~9,200 s — 10,000 blocks at 1 s blocks. The default 6,600 (sized for
+	// ~9,200 s; 10,000 s are given. The historical 6,600 blocks (sized for
 	// 2×45 min) made the second epoch miss its deadline under load (audit D-F1,
 	// 2026-11-09): an honest Worker would be slashed anchor_timeout.
-	RecommendedAnchorProofWindowBlocks = uint64(10_000)
-	// RecommendedAnchorVerdictWindowBlocks sizes the validator voting window: a
+	RecommendedAnchorProofWindowSeconds = uint64(10_000)
+	// RecommendedAnchorVerdictWindowSeconds sizes the validator voting window: a
 	// Worker may record its proof at the very end of the proof window, and a
 	// validator (no GPU, no weights) measured 352 s for a one-task epoch and
-	// 2,364 s for three tasks plus material fetches, so the default 900 blocks
+	// 2,364 s for three tasks plus material fetches, so the historical 900 blocks
 	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
-	// 2026-11-09). One hour at 1 s blocks; set through genesis or governance, the
-	// default is part of the historical params commitment.
-	RecommendedAnchorVerdictWindowBlocks = uint64(3_600)
+	// 2026-11-09). One hour.
+	RecommendedAnchorVerdictWindowSeconds = uint64(3_600)
+	// AnchorWindowReferenceBlockSeconds is the block time the Recommended*Blocks
+	// constants are stated for. The anchor windows are counted in blocks while the
+	// work they bound (opening, proving, verifying) takes wall-clock time, so the
+	// block counts hold only at this block time: a network that produces blocks
+	// at another pace must use RecommendedAnchorWindowBlocks with its own block
+	// time and set the result through genesis or governance.
+	AnchorWindowReferenceBlockSeconds = uint64(1)
+	// Recommended*WindowBlocks are the Recommended*WindowSeconds at the reference
+	// block time. The anchor upgrade and the genesis cold start write these; a
+	// stock genesis carries them (DefaultGenesis and the seeds under config/).
+	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds / AnchorWindowReferenceBlockSeconds
 	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
 	// be positive: with a floor of zero a task whose order is worth nothing to
 	// cheat on would never be audited.
@@ -101,6 +120,7 @@ const (
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
 	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
 	// ADR-0040 v6: validator voting window after the proof deadline (blocks).
+	// Historical value only, see RecommendedAnchorVerdictWindowSeconds.
 	DefaultAnchorVerdictWindowBlocks                = uint64(900)
 	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
 	DefaultMaxInferEvidenceCommitmentsPerReceipt    = uint32(32)
@@ -262,27 +282,70 @@ func DefaultTaskParams() TaskParamsV1 {
 	}
 }
 
-// WithAnchorDefaults returns p with the ADR-0040 anchor parameters filled from
-// the defaults where the body predates them (the opening window is zero).
-// Genesis validation and InitGenesis accept a pre-anchor body through it, and the
-// anchor upgrade writes exactly this (audit F-P1-5, 2026-11-09).
-func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
-	d := DefaultTaskParams().Verification
-	v := &p.Verification
-	if v.AnchorOpenWindowBlocks == 0 {
-		v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
-		v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
-		v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = d.AnchorOpenWindowBlocks, d.AnchorProofWindowBlocks, d.AnchorVerdictWindowBlocks
+// AnchorWindowBlockTime is the block time assumed by the anchor windows that
+// the anchor upgrade and the genesis cold start write (WithAnchorDefaults): the
+// reference block time of the Recommended*WindowBlocks constants. Both paths run
+// inside consensus and cannot read a node's block time, so the assumption is
+// fixed here; a network with another block time must replace the windows by
+// governance before the first anchor Profile is registered.
+const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockSeconds) * time.Second
+
+// RecommendedAnchorWindowBlocks converts the recommended opening, proof and
+// verdict windows (Recommended*WindowSeconds) into blocks at blockTime, rounding
+// up so a window is never shorter than the time it stands for. A non-positive
+// blockTime reads as the reference block time. Each result is capped at
+// AnchorWindowBlocksMaximum.
+func RecommendedAnchorWindowBlocks(blockTime time.Duration) (open, proof, verdict uint64) {
+	if blockTime <= 0 {
+		blockTime = AnchorWindowBlockTime
 	}
+	step := uint64(blockTime)
+	blocks := func(seconds uint64) uint64 {
+		// seconds are the small Recommended* constants: no overflow in nanoseconds.
+		window := (seconds*uint64(time.Second) + step - 1) / step
+		if window > AnchorWindowBlocksMaximum {
+			return AnchorWindowBlocksMaximum
+		}
+		return window
+	}
+	return blocks(RecommendedAnchorOpenWindowSeconds), blocks(RecommendedAnchorProofWindowSeconds), blocks(RecommendedAnchorVerdictWindowSeconds)
+}
+
+// WithRecommendedAnchorWindows returns p with the three anchor windows set to
+// the recommended sizes at AnchorWindowBlockTime, whatever p carried.
+func (p TaskParamsV1) WithRecommendedAnchorWindows() TaskParamsV1 {
+	v := &p.Verification
+	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = RecommendedAnchorWindowBlocks(AnchorWindowBlockTime)
 	return p
 }
 
-// RepairAnchorParams fills the anchor defaults (WithAnchorDefaults) and then
-// applies the repairs an anchor upgrade may make on its own so that the body
-// validates under the new rules; each repair is described in the returned notes.
-// It never changes a governance-chosen anchor value that is valid. Run it
-// offline on the live params before the upgrade height: a body it cannot repair
-// would halt the upgrade (audit F-P1-4, 2026-11-09).
+// WithAnchorDefaults returns p with the ADR-0040 anchor parameters filled where
+// the body predates them (the opening window is zero): the default slash shares,
+// audit floor and risk margin, and the recommended windows at
+// AnchorWindowBlockTime. The windows are deliberately not the Default*Window
+// constants, which are too short for an honest Worker under load and are kept
+// only as historical values. A body that already carries anchor windows is
+// returned unchanged. Genesis validation and InitGenesis accept a pre-anchor
+// body through it, and the anchor upgrade writes exactly this (audit F-P1-5,
+// 2026-11-09).
+func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
+	if p.Verification.AnchorOpenWindowBlocks != 0 {
+		return p
+	}
+	d := DefaultTaskParams().Verification
+	v := &p.Verification
+	v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
+	v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
+	return p.WithRecommendedAnchorWindows()
+}
+
+// RepairAnchorParams fills the anchor parameters a pre-anchor body lacks
+// (WithAnchorDefaults) and then applies the repairs an anchor upgrade may make
+// on its own so that the body validates under the new rules; each repair is
+// described in the returned notes. It never changes a governance-chosen anchor
+// value that is valid. Run it offline on the live params before the upgrade
+// height: a body it cannot repair would halt the upgrade (audit F-P1-4,
+// 2026-11-09).
 func RepairAnchorParams(p TaskParamsV1) (TaskParamsV1, []string) {
 	p = p.WithAnchorDefaults()
 	var notes []string

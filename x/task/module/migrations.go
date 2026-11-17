@@ -33,7 +33,8 @@ var _ migrationRegistrar = module.Configurator(nil)
 func migrations(k keeper.Keeper) map[uint64]module.MigrationHandler {
 	return map[uint64]module.MigrationHandler{
 		// 3 -> 4 (ADR-0040 anchor audit): new store prefixes need no rewrite;
-		// the anchor parameters are initialized to their defaults.
+		// the anchor parameters are written as a new params version (default
+		// shares, recommended windows).
 		3: func(ctx sdk.Context) error { return k.InitializeAnchorParams(ctx) },
 	}
 }

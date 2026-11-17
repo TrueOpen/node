@@ -21,8 +21,13 @@ const Hash32Len = shared.Hash32KeySize
 // deleted — there is no migration surface (fresh genesis) and versioned
 // parameter buckets live in x/hub, which this module now only references
 // through TaskBucketRefState. Nothing replaces them here.
+//
+// The parameters are DefaultTaskParams with the recommended anchor windows:
+// DefaultTaskParams is a frozen body whose anchor windows are historical values
+// too short for an honest Worker under load, so a new chain must not start on
+// them.
 func DefaultGenesis() *GenesisState {
-	return &GenesisState{Params: DefaultTaskParams()}
+	return &GenesisState{Params: DefaultTaskParams().WithRecommendedAnchorWindows()}
 }
 
 // Validate checks the fresh V1 Task genesis.
@@ -39,8 +44,8 @@ func (gs GenesisState) ValidateLegacyGenesis() error { return gs.validate(true) 
 
 func (gs GenesisState) validate(legacy bool) error {
 	// A genesis written before the anchor parameters existed is accepted:
-	// InitGenesis fills the defaults (ensureAnchorParamsInitialized), so validate
-	// the body it will hold.
+	// InitGenesis fills them (ensureAnchorParamsInitialized: default shares,
+	// recommended windows), so validate the body it will hold.
 	params := gs.Params
 	if !legacy && !params.HasAnchorParams() {
 		params = params.WithAnchorDefaults()
