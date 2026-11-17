@@ -39,4 +39,14 @@ func TestRepairAnchorParams(t *testing.T) {
 	clean, none := RepairAnchorParams(DefaultTaskParams())
 	require.Empty(t, none)
 	require.NoError(t, clean.Validate())
+	// An audit floor of zero is no longer valid; the repair raises it and says so.
+	zero := DefaultTaskParams()
+	zero.Verification.AnchorAuditMinRateBps = 0
+	require.Error(t, zero.Validate())
+	raised, floorNotes := RepairAnchorParams(zero)
+	require.Len(t, floorNotes, 1)
+	require.Contains(t, floorNotes[0], "anchor_audit_min_rate_bps")
+	require.Equal(t, DefaultAnchorAuditMinRateBPS, raised.Verification.AnchorAuditMinRateBps)
+	require.Equal(t, zero.Verification.AnchorProofWindowBlocks, raised.Verification.AnchorProofWindowBlocks, "chosen windows are kept")
+	require.NoError(t, raised.Validate())
 }

@@ -94,7 +94,9 @@ const (
 	// 2026-11-09). One hour at 1 s blocks; set through genesis or governance, the
 	// default is part of the historical params commitment.
 	RecommendedAnchorVerdictWindowBlocks = uint64(3_600)
-	// ADR-0040 v5: floor of the per-task audit probability (5%).
+	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
+	// be positive: with a floor of zero a task whose order is worth nothing to
+	// cheat on would never be audited.
 	DefaultAnchorAuditMinRateBPS = uint32(500)
 	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
 	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
@@ -278,12 +280,16 @@ func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
 // RepairAnchorParams fills the anchor defaults (WithAnchorDefaults) and then
 // applies the repairs an anchor upgrade may make on its own so that the body
 // validates under the new rules; each repair is described in the returned notes.
-// It never changes a governance-chosen anchor value. Run it offline on the live
-// params before the upgrade height: a body it cannot repair would halt the
-// upgrade (audit F-P1-4, 2026-11-09).
+// It never changes a governance-chosen anchor value that is valid. Run it
+// offline on the live params before the upgrade height: a body it cannot repair
+// would halt the upgrade (audit F-P1-4, 2026-11-09).
 func RepairAnchorParams(p TaskParamsV1) (TaskParamsV1, []string) {
 	p = p.WithAnchorDefaults()
 	var notes []string
+	if p.Verification.AnchorAuditMinRateBps == 0 {
+		notes = append(notes, fmt.Sprintf("verification.anchor_audit_min_rate_bps 0 is not a valid audit floor: raised to %d", DefaultAnchorAuditMinRateBPS))
+		p.Verification.AnchorAuditMinRateBps = DefaultAnchorAuditMinRateBPS
+	}
 	if total := p.Verification.AnchorTotalWindowBlocks(); total >= p.Cleanup.TaskTerminalSummaryRetentionBlocks {
 		want := DefaultTaskTerminalSummaryRetentionBlocks
 		if want <= total {
@@ -563,6 +569,12 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
 		}
+	}
+	// A floor of zero would let the audit rate itself be zero (no margin, or an
+	// order worth nothing): such a task is never selected, so the floor would
+	// switch the audit off instead of bounding it from below.
+	if p.AnchorAuditMinRateBps == 0 {
+		return fmt.Errorf("verification.anchor_audit_min_rate_bps must be greater than 0")
 	}
 	if p.AnchorAuditRiskMarginBps > AnchorAuditRiskMarginMaximum {
 		return fmt.Errorf("verification.anchor_audit_risk_margin_bps must be <= %d", AnchorAuditRiskMarginMaximum)
@@ -999,6 +1011,11 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 	}
 	if params.Verification.AnchorVerdictWindowBlocks == 0 {
 		params.Verification.AnchorVerdictWindowBlocks = DefaultAnchorVerdictWindowBlocks
+	}
+	// The audit floor had no lower bound when those bodies were recorded, and a
+	// pre-anchor body has none at all; live code treats a zero rate as unselected.
+	if params.Verification.AnchorAuditMinRateBps == 0 {
+		params.Verification.AnchorAuditMinRateBps = DefaultAnchorAuditMinRateBPS
 	}
 	return params.Validate()
 }

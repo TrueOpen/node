@@ -101,6 +101,9 @@ func anchorQuorum(power, total uint64) bool {
 // is NO_VERDICT (the Worker is paid, nothing is slashed).
 func anchorTimeoutVerdict(state types.AnchorAuditState) (types.AnchorVerdictV1, string) {
 	switch {
+	case len(state.Positions) == 0:
+		// Nothing was sampled, so there was nothing to open: never the Worker's fault.
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT, "no rows were sampled for this audit"
 	case len(state.OpeningHash) != types.Hash32Len:
 		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, "worker did not open the sampled rows before the opening deadline"
 	case len(state.WorkerProofHash) != types.Hash32Len:
@@ -131,15 +134,14 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 		}
 		return nil, err
 	}
-	if !state.Sampled || !anchorSelected(state) {
-		return nil, nil // no audit, or the coin skipped this task: settle on the round verdict
-	}
-	deadline := anchorVerdictDeadline(state)
-	if deadline == 0 {
-		// Audit recorded before validator votes existed (pre-v4): any result on it
-		// is a single Verifier's advisory opinion and never binds settlement.
+	if !anchorAuditBinds(state) {
+		// No audit; or the coin skipped this task; or the audit was recorded before
+		// validator votes existed (pre-v4), where any result is a single Verifier's
+		// advisory opinion; or nothing was sampled for the Worker to open. Settle
+		// on the round verdict.
 		return nil, nil
 	}
+	deadline := anchorVerdictDeadline(state)
 	if state.ResultHeight != 0 {
 		return &state, nil
 	}
@@ -166,7 +168,7 @@ func (k Keeper) anchorSettlementHoldHeight(ctx context.Context, taskKey types.Ta
 		}
 		return 0, err
 	}
-	if !state.Sampled || !anchorSelected(state) || state.ResultHeight != 0 || anchorVerdictDeadline(state) == 0 {
+	if !anchorAuditBinds(state) || state.ResultHeight != 0 {
 		return 0, nil
 	}
 	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, effectiveRound))
@@ -451,7 +453,7 @@ func (q queryServer) AnchorAuditsPending(ctx context.Context, req *types.QueryAn
 		}
 		last = kv.Key
 		state := kv.Value
-		if state.Sampled && anchorSelected(state) && state.ResultHeight == 0 && anchorVerdictDeadline(state) != 0 {
+		if anchorAuditBinds(state) && state.ResultHeight == 0 {
 			out.Audits = append(out.Audits, state)
 			if len(out.Audits) >= limit {
 				break
@@ -504,7 +506,7 @@ func (k Keeper) effectiveSettlementDeadline(ctx context.Context, taskKey types.T
 		return 0, err
 	}
 	verdictDeadline := anchorVerdictDeadline(state)
-	if !state.Sampled || !anchorSelected(state) || verdictDeadline == 0 || verdictDeadline+1 <= deadline {
+	if !anchorAuditBinds(state) || verdictDeadline+1 <= deadline {
 		return deadline, nil
 	}
 	round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, summary.EffectiveVerifyRound))

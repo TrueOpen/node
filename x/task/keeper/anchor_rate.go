@@ -24,9 +24,34 @@ import (
 const anchorAuditCoinDomainV1 = "TRUEOPEN_ANCHOR_AUDIT_COIN_V1"
 
 // anchorSelected reports whether an audit record demands opening, proof and
-// verdict. Records written before v5 carry no rate and were always selected.
+// verdict. The coin outcome recorded at sampling decides: a record whose coin
+// did not select it is unselected whatever its rate, including a rate of zero.
+//
+// Records written before the rate existed were always audited and carry neither
+// the coin outcome nor the rate. They are recognised by the empty audit basis:
+// the basis was introduced together with the rate and the coin, and every draw
+// since then writes a non-empty one (anchorAuditDraw), so no record of the
+// current format is mistaken for an old one. Cleanup keeps a slimmed record only
+// for an audit that produced a fault, which was selected, so dropping the basis
+// there never turns an unselected record into a selected one.
 func anchorSelected(state types.AnchorAuditState) bool {
-	return state.Selected || state.AuditRateBps == 0
+	if state.Selected {
+		return true
+	}
+	return state.AuditRateBps == 0 && state.AuditBasis == ""
+}
+
+// anchorAuditBinds reports whether settlement waits for, and follows, the
+// verdict of an audit: it was sampled and selected, it has a verdict deadline
+// (audits recorded before validator votes existed have none and are advisory),
+// and it either is final already or names the rows the Worker must open. An
+// open audit without sampled rows gives the Worker nothing it could open, so it
+// never holds a round and never times out against the Worker.
+func anchorAuditBinds(state types.AnchorAuditState) bool {
+	if !state.Sampled || !anchorSelected(state) || anchorVerdictDeadline(state) == 0 {
+		return false
+	}
+	return state.ResultHeight != 0 || len(state.Positions) > 0
 }
 
 // anchorAuditRateBps computes s in basis points from R, the active bond, the
