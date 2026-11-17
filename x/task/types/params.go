@@ -295,6 +295,12 @@ const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockSeconds) *
 // up so a window is never shorter than the time it stands for. A non-positive
 // blockTime reads as the reference block time. Each result is capped at
 // AnchorWindowBlocksMaximum.
+//
+// The chain itself only ever calls it with AnchorWindowBlockTime (the upgrade
+// and the cold start cannot read a node's block time). The parameter is the
+// documented entry point for a network with another block time: its operators
+// call this with their block time and put the three results into genesis or a
+// governance params update.
 func RecommendedAnchorWindowBlocks(blockTime time.Duration) (open, proof, verdict uint64) {
 	if blockTime <= 0 {
 		blockTime = AnchorWindowBlockTime
