@@ -133,6 +133,9 @@ const (
 	// that opens on the content track and then withholds the proof is slashed as
 	// anchor_content_reject (2026-11-09), not the smaller anchor_timeout, which
 	// remains only for a Worker that never opened at all.
+	// The multiple takes effect only while the content track is on
+	// (anchor_content_verdict_window_blocks > 0); with the track off the audit
+	// rate does not read it.
 	DefaultAnchorMinBondMultiple = uint32(40)
 	// ADR-0040 v7: content verdict window after the compute verdict deadline (blocks).
 	// Zero (the content track off) until Workers seal B1 epochs and validators run

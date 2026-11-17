@@ -141,8 +141,10 @@ func (k Keeper) anchorAuditDraw(ctx context.Context, taskKey types.TaskKey, work
 	deterrentBps := anchorDeterrentSlashBps(v)
 	rate := anchorAuditRateBps(orderValue, bond, deterrentBps, v.AnchorAuditRiskMarginBps, v.AnchorAuditMinRateBps)
 	// ADR-0040 v7 bond guard: the content track only deters with D >= M*R, so a
-	// Worker below the multiple is audited on every task.
-	belowMinBond := anchorBondBelowMultiple(bond, orderValue, v.AnchorMinBondMultiple)
+	// Worker below the multiple is audited on every task. The guard belongs to
+	// the content track: while the track is off (content verdict window 0) the
+	// rate is the compute-track rate alone, whatever the multiple is set to.
+	belowMinBond := v.AnchorContentVerdictWindowBlocks != 0 && anchorBondBelowMultiple(bond, orderValue, v.AnchorMinBondMultiple)
 	if belowMinBond {
 		rate = types.BasisPointsMaximum
 	}
