@@ -30,50 +30,63 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 func init() { proto.RegisterFile("task/v1/tx.proto", fileDescriptor_68feb0c89782b8e7) }
 
 var fileDescriptor_68feb0c89782b8e7 = []byte{
-	// 680 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x95, 0xd1, 0x4e, 0xd4, 0x40,
-	0x14, 0x86, 0xd9, 0x18, 0x35, 0x19, 0x43, 0x42, 0x1a, 0x01, 0x19, 0x48, 0x15, 0x45, 0x51, 0x20,
-	0xdb, 0x80, 0x0f, 0x60, 0xc2, 0x62, 0xd4, 0x18, 0x82, 0xd9, 0x85, 0x35, 0x31, 0x26, 0x64, 0xda,
-	0x1e, 0xba, 0xe3, 0xb6, 0x33, 0xcd, 0xcc, 0x74, 0x61, 0xef, 0x7c, 0x04, 0x1f, 0xc5, 0x77, 0xf0,
-	0xc6, 0x4b, 0x2e, 0xbd, 0x34, 0x70, 0xe1, 0x6b, 0x98, 0x6e, 0xdb, 0xd9, 0x29, 0xdb, 0x2e, 0x7b,
-	0x7b, 0xbe, 0x7f, 0xfe, 0x73, 0xce, 0xf4, 0x74, 0x0e, 0x5a, 0x50, 0x44, 0xf6, 0x9d, 0xc1, 0xae,
-	0xa3, 0x2e, 0x9a, 0xb1, 0xe0, 0x8a, 0x5b, 0xf7, 0xd3, 0x48, 0x73, 0xb0, 0x8b, 0x97, 0x3d, 0x2e,
-	0x23, 0x2e, 0x9d, 0x48, 0x06, 0xa9, 0x20, 0x92, 0x41, 0xa6, 0xc0, 0x9b, 0xb2, 0x47, 0x04, 0xf8,
-	0x69, 0x10, 0x06, 0xd4, 0x07, 0xe6, 0xc1, 0xa9, 0x00, 0x19, 0x73, 0x26, 0xa9, 0x4b, 0x43, 0xaa,
-	0x86, 0xb9, 0xd0, 0x2e, 0xcc, 0xdd, 0x84, 0x86, 0x3e, 0x88, 0xd3, 0x42, 0x9e, 0xf3, 0xa5, 0x82,
-	0xfb, 0x40, 0xfc, 0x90, 0xb2, 0x22, 0xbe, 0x56, 0xc4, 0x23, 0x19, 0x9c, 0x12, 0x29, 0x69, 0xc0,
-	0x22, 0x60, 0x2a, 0xa7, 0xab, 0x26, 0xf5, 0x7a, 0x24, 0x0c, 0x81, 0x05, 0xc5, 0xd1, 0x15, 0x13,
-	0x4a, 0x90, 0x92, 0x72, 0x56, 0xe5, 0x2a, 0x41, 0xa9, 0x10, 0x0c, 0x57, 0xdb, 0xa4, 0x03, 0x10,
-	0xf4, 0x8c, 0x7a, 0x44, 0xe9, 0xd3, 0x7b, 0xbf, 0xe6, 0xd1, 0x9d, 0x43, 0x19, 0x58, 0x5d, 0xb4,
-	0x70, 0x12, 0xfb, 0x44, 0xc1, 0x31, 0x91, 0xfd, 0x4f, 0x44, 0x90, 0x48, 0x5a, 0x6b, 0xcd, 0xfc,
-	0xce, 0x9a, 0x87, 0x32, 0xb8, 0x49, 0xf1, 0xc6, 0x34, 0xda, 0xce, 0xee, 0x0d, 0xac, 0x43, 0x34,
-	0xdf, 0x12, 0x40, 0x14, 0x74, 0xb2, 0xa2, 0xad, 0x15, 0xf3, 0x58, 0x09, 0xe1, 0xf5, 0x5a, 0xa4,
-	0xed, 0x74, 0x99, 0x39, 0xf8, 0x08, 0xc3, 0xaa, 0x32, 0xc7, 0xb4, 0xaa, 0xcc, 0x31, 0xd5, 0xbe,
-	0xef, 0xd0, 0x83, 0x16, 0x61, 0x1e, 0x84, 0x47, 0xc2, 0x07, 0x61, 0x2d, 0x97, 0x2a, 0x19, 0x03,
-	0xfc, 0xb8, 0x06, 0x68, 0xa3, 0x1e, 0x5a, 0xea, 0x24, 0x6e, 0x44, 0xd5, 0x67, 0x2e, 0xfa, 0x20,
-	0xde, 0x13, 0xe6, 0x0b, 0x42, 0x25, 0x48, 0xeb, 0xa9, 0x79, 0xb4, 0x5a, 0x83, 0xb7, 0x6e, 0xd7,
-	0xe8, 0x4c, 0x5f, 0x91, 0x95, 0x29, 0x3e, 0xb0, 0xb3, 0xb4, 0x00, 0x0f, 0x68, 0xac, 0x2c, 0x7b,
-	0xd2, 0xc1, 0xe4, 0xf8, 0xc5, 0x74, 0xae, 0xdd, 0x5d, 0xf4, 0xd0, 0xcc, 0xff, 0x36, 0x9f, 0x70,
-	0xeb, 0x49, 0x5d, 0x85, 0x85, 0x02, 0xbf, 0xbc, 0x4d, 0xa1, 0x73, 0x9c, 0xa3, 0xd5, 0x8c, 0x77,
-	0x47, 0x73, 0x09, 0xa2, 0x4b, 0xc2, 0x04, 0x74, 0xaa, 0xcd, 0x49, 0xa3, 0x4a, 0x21, 0x76, 0x66,
-	0x14, 0xea, 0xc4, 0x0c, 0x3d, 0x2a, 0xcb, 0x8c, 0xcf, 0xb4, 0x51, 0x6f, 0x66, 0x7c, 0xa8, 0x9d,
-	0x59, 0x54, 0x3a, 0x1f, 0xa0, 0xc5, 0x36, 0xc4, 0x5c, 0xa8, 0x03, 0xa2, 0xc8, 0x09, 0x23, 0x03,
-	0x42, 0x43, 0xe2, 0x86, 0x60, 0x95, 0x26, 0xbe, 0x52, 0x82, 0x5f, 0xdd, 0x2a, 0x31, 0x66, 0x6f,
-	0x31, 0x2b, 0x65, 0x3f, 0x7b, 0x97, 0xf4, 0x4d, 0xae, 0x4f, 0x56, 0x7b, 0x43, 0x82, 0x77, 0x9a,
-	0xd9, 0xeb, 0x97, 0x8a, 0x72, 0x76, 0xe4, 0x7e, 0x03, 0x4f, 0xd1, 0x81, 0x71, 0x7f, 0xa3, 0x19,
-	0xe9, 0xee, 0x8d, 0x67, 0x6f, 0xd4, 0xf4, 0xb0, 0xc5, 0xa3, 0x88, 0x56, 0xce, 0x9e, 0xc9, 0xab,
-	0x66, 0xcf, 0xe4, 0xba, 0x8f, 0x3e, 0x5a, 0xde, 0x27, 0xca, 0xeb, 0x55, 0xa4, 0x78, 0x66, 0x5a,
-	0xd4, 0x88, 0xf0, 0xf6, 0x0c, 0xa2, 0xc9, 0xdf, 0x28, 0xa3, 0x6d, 0x90, 0x49, 0x38, 0xa5, 0x95,
-	0x8c, 0xd7, 0xb7, 0x92, 0xf1, 0xa9, 0xad, 0xe4, 0x29, 0xa6, 0xb7, 0x92, 0xe7, 0xd9, 0x9e, 0x41,
-	0x64, 0xb6, 0x72, 0x14, 0x03, 0x6b, 0x15, 0xbb, 0xa3, 0xcd, 0x13, 0xe6, 0x97, 0x5b, 0x99, 0xe4,
-	0xe5, 0x56, 0x26, 0xb9, 0x76, 0x3f, 0x40, 0xa8, 0x33, 0xda, 0x2e, 0xe9, 0x2b, 0x6f, 0x2d, 0x95,
-	0x2e, 0x40, 0xc7, 0xb1, 0x5d, 0x1d, 0x37, 0xf7, 0x41, 0xe7, 0x1c, 0x20, 0x3e, 0xc8, 0x57, 0x63,
-	0x79, 0x1f, 0x94, 0x50, 0x79, 0x1f, 0x94, 0x50, 0x61, 0x87, 0xef, 0x7e, 0xff, 0xf7, 0x73, 0xab,
-	0xb1, 0xff, 0xe6, 0xf7, 0x95, 0xdd, 0xb8, 0xbc, 0xb2, 0x1b, 0x7f, 0xaf, 0xec, 0xc6, 0x8f, 0x6b,
-	0x7b, 0xee, 0xf2, 0xda, 0x9e, 0xfb, 0x73, 0x6d, 0xcf, 0x7d, 0x79, 0x1e, 0x50, 0xd5, 0x4b, 0xdc,
-	0xa6, 0xc7, 0x23, 0xe7, 0x58, 0x24, 0x90, 0x36, 0xe8, 0x30, 0xee, 0x83, 0x73, 0xe1, 0x8c, 0x56,
-	0xa3, 0x1a, 0xc6, 0x20, 0xdd, 0x7b, 0xa3, 0x6d, 0xf8, 0xfa, 0x7f, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0x55, 0xb3, 0xba, 0x77, 0x38, 0x08, 0x00, 0x00,
+	// 886 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x96, 0x51, 0x6f, 0xe3, 0x34,
+	0x1c, 0xc0, 0x57, 0x21, 0x40, 0x32, 0x02, 0x4e, 0x11, 0xbb, 0x31, 0xef, 0x94, 0xe3, 0xb8, 0x3b,
+	0x0e, 0xd8, 0xd1, 0xe8, 0xee, 0x3e, 0x00, 0xd2, 0x5a, 0x04, 0x08, 0x4d, 0x9d, 0xda, 0xad, 0x93,
+	0x10, 0xd2, 0xe4, 0x24, 0xff, 0xa5, 0xa6, 0x89, 0x1d, 0x6c, 0xa7, 0x5d, 0xdf, 0x90, 0xf8, 0x02,
+	0x7c, 0x14, 0x3e, 0x06, 0x8f, 0x7b, 0xe4, 0x11, 0x6d, 0x0f, 0x7c, 0x02, 0xde, 0x51, 0x9a, 0xc4,
+	0xb5, 0x9b, 0xa4, 0x2d, 0x6f, 0x9b, 0x7f, 0x3f, 0xff, 0xff, 0xfe, 0xbb, 0xf6, 0xdf, 0x41, 0x0f,
+	0x14, 0x91, 0x53, 0x6f, 0xf6, 0xca, 0x53, 0x37, 0xdd, 0x54, 0x70, 0xc5, 0x9d, 0x77, 0xf3, 0x91,
+	0xee, 0xec, 0x15, 0x3e, 0x08, 0xb8, 0x4c, 0xb8, 0xf4, 0x12, 0x19, 0xe5, 0x42, 0x22, 0xa3, 0xc2,
+	0xc0, 0x2f, 0xe4, 0x84, 0x08, 0x08, 0xf3, 0x41, 0x98, 0xd1, 0x10, 0x58, 0x00, 0x57, 0x02, 0x64,
+	0xca, 0x99, 0xa4, 0x3e, 0x8d, 0xa9, 0x5a, 0x94, 0xa2, 0x5b, 0x05, 0xf7, 0x33, 0x1a, 0x87, 0x20,
+	0xae, 0x2a, 0xbd, 0xe4, 0x0f, 0x2b, 0x1e, 0x02, 0x09, 0x63, 0xca, 0xaa, 0xf1, 0x47, 0xd5, 0x78,
+	0x22, 0xa3, 0x2b, 0x22, 0x25, 0x8d, 0x58, 0x02, 0x4c, 0x95, 0xf4, 0xc8, 0xa4, 0xc1, 0x84, 0xc4,
+	0x31, 0xb0, 0xa8, 0x9a, 0x8a, 0x4d, 0x18, 0x52, 0x99, 0x12, 0x15, 0x4c, 0x4a, 0x76, 0x68, 0x32,
+	0x09, 0x52, 0x52, 0xce, 0x9a, 0x32, 0x4a, 0x50, 0x2a, 0x06, 0x23, 0xa3, 0x6b, 0xd2, 0x19, 0x08,
+	0x7a, 0x4d, 0x03, 0xa2, 0xf4, 0xec, 0xd7, 0xff, 0xee, 0xa3, 0xb7, 0x4e, 0x65, 0xe4, 0x8c, 0xd1,
+	0x83, 0x8b, 0x34, 0x24, 0x0a, 0xce, 0x89, 0x9c, 0x9e, 0x11, 0x41, 0x12, 0xe9, 0x3c, 0xea, 0x96,
+	0xfb, 0xd9, 0x3d, 0x95, 0xd1, 0x3a, 0xc5, 0xcf, 0x36, 0xd1, 0x61, 0xb1, 0xa7, 0xe0, 0x9c, 0xa2,
+	0xf7, 0x7b, 0x02, 0x88, 0x82, 0x51, 0xb1, 0x68, 0xe7, 0xd0, 0x9c, 0x66, 0x21, 0xfc, 0xa4, 0x15,
+	0xe9, 0x70, 0x7a, 0x99, 0x25, 0xf8, 0x01, 0x16, 0x4d, 0xcb, 0x5c, 0xd1, 0xa6, 0x65, 0xae, 0xa8,
+	0x8e, 0xfb, 0x2d, 0x7a, 0xaf, 0x47, 0x58, 0x00, 0xf1, 0x40, 0x84, 0x20, 0x9c, 0x03, 0x6b, 0x25,
+	0x2b, 0x80, 0x1f, 0xb7, 0x00, 0x1d, 0xe8, 0x27, 0xe4, 0x8c, 0x32, 0x3f, 0xa1, 0xea, 0x7b, 0x76,
+	0x9d, 0x0f, 0x07, 0x40, 0x53, 0xe5, 0xb8, 0xe6, 0xb4, 0x3a, 0xc7, 0x9f, 0x6d, 0xe6, 0x3a, 0xba,
+	0x8f, 0x3e, 0x2a, 0xe8, 0x25, 0x17, 0x53, 0x10, 0xdf, 0x94, 0x67, 0xd2, 0xf9, 0xa4, 0x3e, 0xdf,
+	0x36, 0xf0, 0xe7, 0xdb, 0x0c, 0x9d, 0x63, 0x8e, 0x8e, 0x0a, 0x3e, 0x5e, 0x9e, 0x16, 0x10, 0x63,
+	0x12, 0x67, 0xa0, 0x53, 0xbd, 0xa8, 0x07, 0x6a, 0x14, 0xb1, 0xb7, 0xa3, 0xa8, 0x13, 0x33, 0xf4,
+	0xb1, 0xad, 0x7d, 0x47, 0x58, 0x28, 0x08, 0x95, 0x20, 0x9d, 0x67, 0xed, 0xc1, 0x56, 0x16, 0x7e,
+	0xb9, 0x8b, 0xa5, 0xf3, 0x01, 0xda, 0x1f, 0x42, 0xca, 0x85, 0xea, 0x13, 0x45, 0x2e, 0x18, 0x99,
+	0x11, 0x1a, 0x13, 0x3f, 0x06, 0xc7, 0x3a, 0x87, 0x8d, 0x0a, 0xfe, 0x62, 0xab, 0xa2, 0xd3, 0x4c,
+	0xd0, 0x7e, 0xb1, 0x94, 0x93, 0xa2, 0x93, 0xe8, 0x9d, 0x7c, 0x52, 0x5f, 0xed, 0x9a, 0x82, 0x5f,
+	0x76, 0x8b, 0x7e, 0x95, 0x4b, 0x25, 0x1b, 0xf8, 0x3f, 0x43, 0xa0, 0xe8, 0xcc, 0xd8, 0xbf, 0xe5,
+	0x19, 0x19, 0xbf, 0x5e, 0x9d, 0xbd, 0x65, 0xd1, 0x8b, 0x1e, 0x4f, 0x12, 0xda, 0x78, 0xf6, 0x4c,
+	0xde, 0x74, 0xf6, 0x4c, 0xae, 0xeb, 0x98, 0xa2, 0x83, 0x93, 0xbc, 0x23, 0x35, 0xa4, 0x78, 0x6a,
+	0x86, 0x68, 0x91, 0xf0, 0xf1, 0x0e, 0x52, 0xfd, 0x1a, 0x15, 0x74, 0x08, 0x32, 0x8b, 0x37, 0x94,
+	0x52, 0xf0, 0xf6, 0x52, 0x0a, 0xbe, 0xb1, 0x94, 0x32, 0xc5, 0xe6, 0x52, 0xca, 0x3c, 0xc7, 0x3b,
+	0x48, 0x66, 0x29, 0x83, 0x14, 0x58, 0xaf, 0xea, 0xf6, 0x43, 0x9e, 0xb1, 0xd0, 0x2e, 0xa5, 0xce,
+	0xed, 0x52, 0xea, 0x5c, 0x47, 0xef, 0x23, 0x34, 0x5a, 0xf6, 0xfc, 0xbc, 0xf7, 0x3a, 0x0f, 0xad,
+	0x0d, 0xd0, 0xe3, 0xd8, 0x6d, 0x1e, 0x37, 0xbb, 0xf4, 0x68, 0x0e, 0x90, 0xf6, 0xcb, 0xc7, 0xcc,
+	0xee, 0xd2, 0x16, 0xb2, 0xbb, 0xb4, 0x85, 0x74, 0xb8, 0x33, 0xf4, 0xc1, 0x10, 0x02, 0x2e, 0xc2,
+	0x7e, 0xf9, 0x8a, 0x39, 0xd8, 0xbe, 0x2f, 0x26, 0xc3, 0x9f, 0xb6, 0x33, 0x1d, 0xf1, 0x17, 0x74,
+	0xd8, 0x8b, 0x09, 0x4d, 0x2a, 0xd0, 0xe3, 0x49, 0x0a, 0x4c, 0x2e, 0x5f, 0x32, 0xe7, 0xb9, 0xd5,
+	0x94, 0xdb, 0x34, 0xfc, 0xd5, 0x4e, 0x9a, 0x99, 0x72, 0x08, 0x7e, 0xa6, 0xb6, 0xa7, 0x6c, 0xd5,
+	0xec, 0x94, 0xad, 0x9a, 0x55, 0x65, 0xf5, 0x33, 0x57, 0xe2, 0x20, 0xa1, 0xc5, 0xc3, 0x69, 0x57,
+	0xd9, 0xa6, 0xad, 0x55, 0xd9, 0xa6, 0x99, 0x4d, 0xb0, 0x26, 0xf5, 0x05, 0x99, 0xdb, 0xdd, 0xa9,
+	0x51, 0xb1, 0x9b, 0x60, 0xa3, 0xb2, 0x31, 0xcd, 0x68, 0x4a, 0xd3, 0x2d, 0x69, 0x72, 0x65, 0x4b,
+	0x9a, 0x5c, 0xd1, 0x69, 0x7e, 0xeb, 0xa0, 0xc7, 0x65, 0x37, 0xae, 0x4e, 0x10, 0x97, 0x0a, 0x84,
+	0xd9, 0xdd, 0x8f, 0x1b, 0x5a, 0x77, 0x9b, 0x8c, 0xdf, 0xfc, 0x0f, 0xd9, 0x5a, 0x45, 0x7d, 0x3b,
+	0x78, 0xe6, 0xc7, 0xfa, 0x3f, 0x7b, 0x15, 0x5b, 0x64, 0x7b, 0x15, 0x5b, 0x64, 0xf3, 0x39, 0x2d,
+	0xfe, 0xd6, 0xb7, 0x49, 0xcf, 0xb4, 0x9f, 0xd3, 0x36, 0xcb, 0x7e, 0x4e, 0xdb, 0x2c, 0xf3, 0xd2,
+	0xf7, 0x21, 0xe5, 0x92, 0xaa, 0xea, 0x53, 0xcf, 0xba, 0xf4, 0x36, 0xb3, 0x2f, 0xbd, 0xcd, 0x74,
+	0xc4, 0x11, 0xfa, 0xf0, 0x92, 0xaa, 0x49, 0x28, 0xc8, 0xbc, 0x0a, 0x79, 0x64, 0x4e, 0x5b, 0x83,
+	0xf8, 0xe9, 0x06, 0x58, 0x05, 0xc5, 0x6f, 0xff, 0xfa, 0xcf, 0x1f, 0x5f, 0x76, 0x4e, 0xbe, 0xfe,
+	0xf3, 0xce, 0xed, 0xdc, 0xde, 0xb9, 0x9d, 0xbf, 0xef, 0xdc, 0xce, 0xef, 0xf7, 0xee, 0xde, 0xed,
+	0xbd, 0xbb, 0xf7, 0xd7, 0xbd, 0xbb, 0xf7, 0xe3, 0xf3, 0x88, 0xaa, 0x49, 0xe6, 0x77, 0x03, 0x9e,
+	0x78, 0xe7, 0x22, 0x83, 0xbc, 0xf9, 0x7a, 0x8c, 0x87, 0xe0, 0xdd, 0x78, 0xcb, 0x8f, 0x69, 0xb5,
+	0x48, 0x41, 0xfa, 0xef, 0x2c, 0xbf, 0x9f, 0xdf, 0xfc, 0x17, 0x00, 0x00, 0xff, 0xff, 0x89, 0xb6,
+	0xe7, 0x6e, 0x86, 0x0c, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -96,17 +109,13 @@ type MsgClient interface {
 	UpdateSessionKey(ctx context.Context, in *MsgUpdateSessionKey, opts ...grpc.CallOption) (*MsgUpdateSessionKeyResponse, error)
 	// CancelOrder skips one unused order sequence.
 	CancelOrder(ctx context.Context, in *MsgCancelOrder, opts ...grpc.CallOption) (*MsgCancelOrderResponse, error)
-	// SubmitWorkerHandraises is the single Task admission and Worker candidate
-	// entry; it replaces the deleted MsgAssign.
-	// SubmitWorkerHandraises executes the SubmitWorkerHandraises operation.
-	SubmitWorkerHandraises(ctx context.Context, in *MsgSubmitWorkerHandraises, opts ...grpc.CallOption) (*MsgSubmitWorkerHandraisesResponse, error)
 	// SubmitInferReceipt accepts the winner Worker's inference receipt; it
 	// replaces the deleted MsgInferReceiptCommitOnly.
 	// SubmitInferReceipt executes the SubmitInferReceipt operation.
 	SubmitInferReceipt(ctx context.Context, in *MsgSubmitInferReceipt, opts ...grpc.CallOption) (*MsgSubmitInferReceiptResponse, error)
 	// SubmitWorkerEvidence accepts one strict-encoded objective Worker proof.
 	SubmitWorkerEvidence(ctx context.Context, in *MsgSubmitWorkerEvidence, opts ...grpc.CallOption) (*MsgSubmitWorkerEvidenceResponse, error)
-	// SubmitVerifierValueEvidence is registered but returns ERR_NOT_ACTIVATED.
+	// SubmitVerifierValueEvidence accepts bounded committed-value contradictions.
 	SubmitVerifierValueEvidence(ctx context.Context, in *MsgSubmitVerifierValueEvidence, opts ...grpc.CallOption) (*MsgSubmitVerifierValueEvidenceResponse, error)
 	// SubmitVerifierHandraises is the single Open Verify entry; it replaces the
 	// deleted MsgOpenVerify.
@@ -136,6 +145,28 @@ type MsgClient interface {
 	// MsgSweepExpiredTask and MsgSessionSweep.
 	// SweepDeadline executes the SweepDeadline operation.
 	SweepDeadline(ctx context.Context, in *MsgSweepDeadline, opts ...grpc.CallOption) (*MsgSweepDeadlineResponse, error)
+	// RecordDispatch executes the RecordDispatch operation.
+	RecordDispatch(ctx context.Context, in *MsgRecordDispatch, opts ...grpc.CallOption) (*MsgRecordDispatchResponse, error)
+	// ClaimDispatchCompensation executes the ClaimDispatchCompensation operation.
+	ClaimDispatchCompensation(ctx context.Context, in *MsgClaimDispatchCompensation, opts ...grpc.CallOption) (*MsgClaimDispatchCompensationResponse, error)
+	// RebutDispatchCompensation executes the RebutDispatchCompensation operation.
+	RebutDispatchCompensation(ctx context.Context, in *MsgRebutDispatchCompensation, opts ...grpc.CallOption) (*MsgRebutDispatchCompensationResponse, error)
+	// ChallengeDispatchOmission executes the ChallengeDispatchOmission operation.
+	ChallengeDispatchOmission(ctx context.Context, in *MsgChallengeDispatchOmission, opts ...grpc.CallOption) (*MsgChallengeDispatchOmissionResponse, error)
+	// ChallengeDispatchDraw executes the ChallengeDispatchDraw operation.
+	ChallengeDispatchDraw(ctx context.Context, in *MsgChallengeDispatchDraw, opts ...grpc.CallOption) (*MsgChallengeDispatchDrawResponse, error)
+	// ChallengeDispatchSkip executes the ChallengeDispatchSkip operation.
+	ChallengeDispatchSkip(ctx context.Context, in *MsgChallengeDispatchSkip, opts ...grpc.CallOption) (*MsgChallengeDispatchSkipResponse, error)
+	// ReportDispatchRosterUnavailable executes the ReportDispatchRosterUnavailable operation.
+	ReportDispatchRosterUnavailable(ctx context.Context, in *MsgReportDispatchRosterUnavailable, opts ...grpc.CallOption) (*MsgReportDispatchRosterUnavailableResponse, error)
+	// ChallengeDispatchDoubleDispatch executes the ChallengeDispatchDoubleDispatch operation.
+	ChallengeDispatchDoubleDispatch(ctx context.Context, in *MsgChallengeDispatchDoubleDispatch, opts ...grpc.CallOption) (*MsgChallengeDispatchDoubleDispatchResponse, error)
+	// RespondDispatchChallenge executes the RespondDispatchChallenge operation.
+	RespondDispatchChallenge(ctx context.Context, in *MsgRespondDispatchChallenge, opts ...grpc.CallOption) (*MsgRespondDispatchChallengeResponse, error)
+	// DepositSession executes the DepositSession operation.
+	DepositSession(ctx context.Context, in *MsgDepositSession, opts ...grpc.CallOption) (*MsgDepositSessionResponse, error)
+	// WithdrawSession executes the WithdrawSession operation.
+	WithdrawSession(ctx context.Context, in *MsgWithdrawSession, opts ...grpc.CallOption) (*MsgWithdrawSessionResponse, error)
 }
 
 type msgClient struct {
@@ -176,15 +207,6 @@ func (c *msgClient) UpdateSessionKey(ctx context.Context, in *MsgUpdateSessionKe
 func (c *msgClient) CancelOrder(ctx context.Context, in *MsgCancelOrder, opts ...grpc.CallOption) (*MsgCancelOrderResponse, error) {
 	out := new(MsgCancelOrderResponse)
 	err := c.cc.Invoke(ctx, "/task.v1.Msg/CancelOrder", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *msgClient) SubmitWorkerHandraises(ctx context.Context, in *MsgSubmitWorkerHandraises, opts ...grpc.CallOption) (*MsgSubmitWorkerHandraisesResponse, error) {
-	out := new(MsgSubmitWorkerHandraisesResponse)
-	err := c.cc.Invoke(ctx, "/task.v1.Msg/SubmitWorkerHandraises", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +330,105 @@ func (c *msgClient) SweepDeadline(ctx context.Context, in *MsgSweepDeadline, opt
 	return out, nil
 }
 
+func (c *msgClient) RecordDispatch(ctx context.Context, in *MsgRecordDispatch, opts ...grpc.CallOption) (*MsgRecordDispatchResponse, error) {
+	out := new(MsgRecordDispatchResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/RecordDispatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ClaimDispatchCompensation(ctx context.Context, in *MsgClaimDispatchCompensation, opts ...grpc.CallOption) (*MsgClaimDispatchCompensationResponse, error) {
+	out := new(MsgClaimDispatchCompensationResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ClaimDispatchCompensation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) RebutDispatchCompensation(ctx context.Context, in *MsgRebutDispatchCompensation, opts ...grpc.CallOption) (*MsgRebutDispatchCompensationResponse, error) {
+	out := new(MsgRebutDispatchCompensationResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/RebutDispatchCompensation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ChallengeDispatchOmission(ctx context.Context, in *MsgChallengeDispatchOmission, opts ...grpc.CallOption) (*MsgChallengeDispatchOmissionResponse, error) {
+	out := new(MsgChallengeDispatchOmissionResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ChallengeDispatchOmission", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ChallengeDispatchDraw(ctx context.Context, in *MsgChallengeDispatchDraw, opts ...grpc.CallOption) (*MsgChallengeDispatchDrawResponse, error) {
+	out := new(MsgChallengeDispatchDrawResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ChallengeDispatchDraw", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ChallengeDispatchSkip(ctx context.Context, in *MsgChallengeDispatchSkip, opts ...grpc.CallOption) (*MsgChallengeDispatchSkipResponse, error) {
+	out := new(MsgChallengeDispatchSkipResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ChallengeDispatchSkip", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ReportDispatchRosterUnavailable(ctx context.Context, in *MsgReportDispatchRosterUnavailable, opts ...grpc.CallOption) (*MsgReportDispatchRosterUnavailableResponse, error) {
+	out := new(MsgReportDispatchRosterUnavailableResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ReportDispatchRosterUnavailable", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ChallengeDispatchDoubleDispatch(ctx context.Context, in *MsgChallengeDispatchDoubleDispatch, opts ...grpc.CallOption) (*MsgChallengeDispatchDoubleDispatchResponse, error) {
+	out := new(MsgChallengeDispatchDoubleDispatchResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/ChallengeDispatchDoubleDispatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) RespondDispatchChallenge(ctx context.Context, in *MsgRespondDispatchChallenge, opts ...grpc.CallOption) (*MsgRespondDispatchChallengeResponse, error) {
+	out := new(MsgRespondDispatchChallengeResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/RespondDispatchChallenge", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) DepositSession(ctx context.Context, in *MsgDepositSession, opts ...grpc.CallOption) (*MsgDepositSessionResponse, error) {
+	out := new(MsgDepositSessionResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/DepositSession", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) WithdrawSession(ctx context.Context, in *MsgWithdrawSession, opts ...grpc.CallOption) (*MsgWithdrawSessionResponse, error) {
+	out := new(MsgWithdrawSessionResponse)
+	err := c.cc.Invoke(ctx, "/task.v1.Msg/WithdrawSession", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// UpdateTaskParams applies one governance Task params version.
@@ -318,17 +439,13 @@ type MsgServer interface {
 	UpdateSessionKey(context.Context, *MsgUpdateSessionKey) (*MsgUpdateSessionKeyResponse, error)
 	// CancelOrder skips one unused order sequence.
 	CancelOrder(context.Context, *MsgCancelOrder) (*MsgCancelOrderResponse, error)
-	// SubmitWorkerHandraises is the single Task admission and Worker candidate
-	// entry; it replaces the deleted MsgAssign.
-	// SubmitWorkerHandraises executes the SubmitWorkerHandraises operation.
-	SubmitWorkerHandraises(context.Context, *MsgSubmitWorkerHandraises) (*MsgSubmitWorkerHandraisesResponse, error)
 	// SubmitInferReceipt accepts the winner Worker's inference receipt; it
 	// replaces the deleted MsgInferReceiptCommitOnly.
 	// SubmitInferReceipt executes the SubmitInferReceipt operation.
 	SubmitInferReceipt(context.Context, *MsgSubmitInferReceipt) (*MsgSubmitInferReceiptResponse, error)
 	// SubmitWorkerEvidence accepts one strict-encoded objective Worker proof.
 	SubmitWorkerEvidence(context.Context, *MsgSubmitWorkerEvidence) (*MsgSubmitWorkerEvidenceResponse, error)
-	// SubmitVerifierValueEvidence is registered but returns ERR_NOT_ACTIVATED.
+	// SubmitVerifierValueEvidence accepts bounded committed-value contradictions.
 	SubmitVerifierValueEvidence(context.Context, *MsgSubmitVerifierValueEvidence) (*MsgSubmitVerifierValueEvidenceResponse, error)
 	// SubmitVerifierHandraises is the single Open Verify entry; it replaces the
 	// deleted MsgOpenVerify.
@@ -358,6 +475,28 @@ type MsgServer interface {
 	// MsgSweepExpiredTask and MsgSessionSweep.
 	// SweepDeadline executes the SweepDeadline operation.
 	SweepDeadline(context.Context, *MsgSweepDeadline) (*MsgSweepDeadlineResponse, error)
+	// RecordDispatch executes the RecordDispatch operation.
+	RecordDispatch(context.Context, *MsgRecordDispatch) (*MsgRecordDispatchResponse, error)
+	// ClaimDispatchCompensation executes the ClaimDispatchCompensation operation.
+	ClaimDispatchCompensation(context.Context, *MsgClaimDispatchCompensation) (*MsgClaimDispatchCompensationResponse, error)
+	// RebutDispatchCompensation executes the RebutDispatchCompensation operation.
+	RebutDispatchCompensation(context.Context, *MsgRebutDispatchCompensation) (*MsgRebutDispatchCompensationResponse, error)
+	// ChallengeDispatchOmission executes the ChallengeDispatchOmission operation.
+	ChallengeDispatchOmission(context.Context, *MsgChallengeDispatchOmission) (*MsgChallengeDispatchOmissionResponse, error)
+	// ChallengeDispatchDraw executes the ChallengeDispatchDraw operation.
+	ChallengeDispatchDraw(context.Context, *MsgChallengeDispatchDraw) (*MsgChallengeDispatchDrawResponse, error)
+	// ChallengeDispatchSkip executes the ChallengeDispatchSkip operation.
+	ChallengeDispatchSkip(context.Context, *MsgChallengeDispatchSkip) (*MsgChallengeDispatchSkipResponse, error)
+	// ReportDispatchRosterUnavailable executes the ReportDispatchRosterUnavailable operation.
+	ReportDispatchRosterUnavailable(context.Context, *MsgReportDispatchRosterUnavailable) (*MsgReportDispatchRosterUnavailableResponse, error)
+	// ChallengeDispatchDoubleDispatch executes the ChallengeDispatchDoubleDispatch operation.
+	ChallengeDispatchDoubleDispatch(context.Context, *MsgChallengeDispatchDoubleDispatch) (*MsgChallengeDispatchDoubleDispatchResponse, error)
+	// RespondDispatchChallenge executes the RespondDispatchChallenge operation.
+	RespondDispatchChallenge(context.Context, *MsgRespondDispatchChallenge) (*MsgRespondDispatchChallengeResponse, error)
+	// DepositSession executes the DepositSession operation.
+	DepositSession(context.Context, *MsgDepositSession) (*MsgDepositSessionResponse, error)
+	// WithdrawSession executes the WithdrawSession operation.
+	WithdrawSession(context.Context, *MsgWithdrawSession) (*MsgWithdrawSessionResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -375,9 +514,6 @@ func (*UnimplementedMsgServer) UpdateSessionKey(ctx context.Context, req *MsgUpd
 }
 func (*UnimplementedMsgServer) CancelOrder(ctx context.Context, req *MsgCancelOrder) (*MsgCancelOrderResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelOrder not implemented")
-}
-func (*UnimplementedMsgServer) SubmitWorkerHandraises(ctx context.Context, req *MsgSubmitWorkerHandraises) (*MsgSubmitWorkerHandraisesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitWorkerHandraises not implemented")
 }
 func (*UnimplementedMsgServer) SubmitInferReceipt(ctx context.Context, req *MsgSubmitInferReceipt) (*MsgSubmitInferReceiptResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitInferReceipt not implemented")
@@ -417,6 +553,39 @@ func (*UnimplementedMsgServer) SettleTask(ctx context.Context, req *MsgSettleTas
 }
 func (*UnimplementedMsgServer) SweepDeadline(ctx context.Context, req *MsgSweepDeadline) (*MsgSweepDeadlineResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SweepDeadline not implemented")
+}
+func (*UnimplementedMsgServer) RecordDispatch(ctx context.Context, req *MsgRecordDispatch) (*MsgRecordDispatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RecordDispatch not implemented")
+}
+func (*UnimplementedMsgServer) ClaimDispatchCompensation(ctx context.Context, req *MsgClaimDispatchCompensation) (*MsgClaimDispatchCompensationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClaimDispatchCompensation not implemented")
+}
+func (*UnimplementedMsgServer) RebutDispatchCompensation(ctx context.Context, req *MsgRebutDispatchCompensation) (*MsgRebutDispatchCompensationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RebutDispatchCompensation not implemented")
+}
+func (*UnimplementedMsgServer) ChallengeDispatchOmission(ctx context.Context, req *MsgChallengeDispatchOmission) (*MsgChallengeDispatchOmissionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChallengeDispatchOmission not implemented")
+}
+func (*UnimplementedMsgServer) ChallengeDispatchDraw(ctx context.Context, req *MsgChallengeDispatchDraw) (*MsgChallengeDispatchDrawResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChallengeDispatchDraw not implemented")
+}
+func (*UnimplementedMsgServer) ChallengeDispatchSkip(ctx context.Context, req *MsgChallengeDispatchSkip) (*MsgChallengeDispatchSkipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChallengeDispatchSkip not implemented")
+}
+func (*UnimplementedMsgServer) ReportDispatchRosterUnavailable(ctx context.Context, req *MsgReportDispatchRosterUnavailable) (*MsgReportDispatchRosterUnavailableResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReportDispatchRosterUnavailable not implemented")
+}
+func (*UnimplementedMsgServer) ChallengeDispatchDoubleDispatch(ctx context.Context, req *MsgChallengeDispatchDoubleDispatch) (*MsgChallengeDispatchDoubleDispatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChallengeDispatchDoubleDispatch not implemented")
+}
+func (*UnimplementedMsgServer) RespondDispatchChallenge(ctx context.Context, req *MsgRespondDispatchChallenge) (*MsgRespondDispatchChallengeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RespondDispatchChallenge not implemented")
+}
+func (*UnimplementedMsgServer) DepositSession(ctx context.Context, req *MsgDepositSession) (*MsgDepositSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DepositSession not implemented")
+}
+func (*UnimplementedMsgServer) WithdrawSession(ctx context.Context, req *MsgWithdrawSession) (*MsgWithdrawSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawSession not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -491,24 +660,6 @@ func _Msg_CancelOrder_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MsgServer).CancelOrder(ctx, req.(*MsgCancelOrder))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Msg_SubmitWorkerHandraises_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgSubmitWorkerHandraises)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MsgServer).SubmitWorkerHandraises(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/task.v1.Msg/SubmitWorkerHandraises",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).SubmitWorkerHandraises(ctx, req.(*MsgSubmitWorkerHandraises))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -747,6 +898,204 @@ func _Msg_SweepDeadline_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_RecordDispatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRecordDispatch)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).RecordDispatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/RecordDispatch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).RecordDispatch(ctx, req.(*MsgRecordDispatch))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ClaimDispatchCompensation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgClaimDispatchCompensation)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ClaimDispatchCompensation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ClaimDispatchCompensation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ClaimDispatchCompensation(ctx, req.(*MsgClaimDispatchCompensation))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_RebutDispatchCompensation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRebutDispatchCompensation)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).RebutDispatchCompensation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/RebutDispatchCompensation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).RebutDispatchCompensation(ctx, req.(*MsgRebutDispatchCompensation))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ChallengeDispatchOmission_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgChallengeDispatchOmission)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ChallengeDispatchOmission(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ChallengeDispatchOmission",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ChallengeDispatchOmission(ctx, req.(*MsgChallengeDispatchOmission))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ChallengeDispatchDraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgChallengeDispatchDraw)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ChallengeDispatchDraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ChallengeDispatchDraw",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ChallengeDispatchDraw(ctx, req.(*MsgChallengeDispatchDraw))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ChallengeDispatchSkip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgChallengeDispatchSkip)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ChallengeDispatchSkip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ChallengeDispatchSkip",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ChallengeDispatchSkip(ctx, req.(*MsgChallengeDispatchSkip))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ReportDispatchRosterUnavailable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgReportDispatchRosterUnavailable)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ReportDispatchRosterUnavailable(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ReportDispatchRosterUnavailable",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ReportDispatchRosterUnavailable(ctx, req.(*MsgReportDispatchRosterUnavailable))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ChallengeDispatchDoubleDispatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgChallengeDispatchDoubleDispatch)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ChallengeDispatchDoubleDispatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/ChallengeDispatchDoubleDispatch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ChallengeDispatchDoubleDispatch(ctx, req.(*MsgChallengeDispatchDoubleDispatch))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_RespondDispatchChallenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRespondDispatchChallenge)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).RespondDispatchChallenge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/RespondDispatchChallenge",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).RespondDispatchChallenge(ctx, req.(*MsgRespondDispatchChallenge))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_DepositSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgDepositSession)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).DepositSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/DepositSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).DepositSession(ctx, req.(*MsgDepositSession))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_WithdrawSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgWithdrawSession)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).WithdrawSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/task.v1.Msg/WithdrawSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).WithdrawSession(ctx, req.(*MsgWithdrawSession))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Msg_serviceDesc = _Msg_serviceDesc
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "task.v1.Msg",
@@ -767,10 +1116,6 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelOrder",
 			Handler:    _Msg_CancelOrder_Handler,
-		},
-		{
-			MethodName: "SubmitWorkerHandraises",
-			Handler:    _Msg_SubmitWorkerHandraises_Handler,
 		},
 		{
 			MethodName: "SubmitInferReceipt",
@@ -823,6 +1168,50 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SweepDeadline",
 			Handler:    _Msg_SweepDeadline_Handler,
+		},
+		{
+			MethodName: "RecordDispatch",
+			Handler:    _Msg_RecordDispatch_Handler,
+		},
+		{
+			MethodName: "ClaimDispatchCompensation",
+			Handler:    _Msg_ClaimDispatchCompensation_Handler,
+		},
+		{
+			MethodName: "RebutDispatchCompensation",
+			Handler:    _Msg_RebutDispatchCompensation_Handler,
+		},
+		{
+			MethodName: "ChallengeDispatchOmission",
+			Handler:    _Msg_ChallengeDispatchOmission_Handler,
+		},
+		{
+			MethodName: "ChallengeDispatchDraw",
+			Handler:    _Msg_ChallengeDispatchDraw_Handler,
+		},
+		{
+			MethodName: "ChallengeDispatchSkip",
+			Handler:    _Msg_ChallengeDispatchSkip_Handler,
+		},
+		{
+			MethodName: "ReportDispatchRosterUnavailable",
+			Handler:    _Msg_ReportDispatchRosterUnavailable_Handler,
+		},
+		{
+			MethodName: "ChallengeDispatchDoubleDispatch",
+			Handler:    _Msg_ChallengeDispatchDoubleDispatch_Handler,
+		},
+		{
+			MethodName: "RespondDispatchChallenge",
+			Handler:    _Msg_RespondDispatchChallenge_Handler,
+		},
+		{
+			MethodName: "DepositSession",
+			Handler:    _Msg_DepositSession_Handler,
+		},
+		{
+			MethodName: "WithdrawSession",
+			Handler:    _Msg_WithdrawSession_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

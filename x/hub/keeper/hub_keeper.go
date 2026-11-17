@@ -145,9 +145,8 @@ func (k Keeper) GetHubParams(ctx sdk.Context) types.HubParamsSnapshot {
 		UnbondingSlashSafetyMarginBlocks:      params.Service.UnbondingSlashSafetyMarginBlocks,
 		ObjectiveForgerySlashBps:              params.Service.ObjectiveForgerySlashBps,
 		CandidateSlotHardCapacity:             params.CandidatePool.CandidateSlotHardCapacity,
-		BuildersPerTask:                       params.Builder.BuildersPerTask,
-		AssignmentBuilderProposalWindowBlocks: params.Builder.AssignmentBuilderProposalWindowBlocks,
 		OpenVerifyBuilderProposalWindowBlocks: params.Builder.OpenVerifyBuilderProposalWindowBlocks,
+		BuilderSetUpdateLeadBlocks:            params.Builder.BuilderSetUpdateLeadBlocks,
 		SettlementBuilderGraceBlocks:          params.Builder.SettlementBuilderGraceBlocks,
 		FreezeFailureIndexRetentionBlocks:     params.Freeze.FreezeFailureIndexRetentionBlocks,
 		MaxQueryPageTokenBytes:                params.QueryEvent.MaxQueryPageTokenBytes, MaxQueryPageLimit: params.QueryEvent.MaxQueryPageLimit,
@@ -174,10 +173,7 @@ func (k Keeper) GetServiceBond(ctx sdk.Context, cortexNode sdk.AccAddress, order
 		currentEpoch = epochForHeight(uint64(ctx.BlockHeight()), epochLength)
 	}
 	effectiveBond := types.EffectiveActiveBond(state, currentEpoch)
-	availableBond, err := types.AvailableBond(state, currentEpoch)
-	if err != nil {
-		return types.ServiceBondSnapshot{}, false
-	}
+	availableBond := types.AvailableBond(state, currentEpoch)
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		return types.ServiceBondSnapshot{}, false

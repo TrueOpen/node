@@ -174,10 +174,9 @@ func initTestnetFiles(
 	nodeIDs := make([]string, args.numValidators)
 	valPubKeys := make([]cryptotypes.PubKey, args.numValidators)
 
-	appConfig := srvconfig.DefaultConfig()
+	appConfig := defaultAppConfig()
 	appConfig.MinGasPrices = args.minGasPrices
 	appConfig.API.Enable = false
-	appConfig.BaseConfig.MinGasPrices = "0.0001" + sdk.DefaultBondDenom
 	appConfig.Telemetry.EnableHostnameLabel = false
 	appConfig.Telemetry.Enabled = false
 	appConfig.Telemetry.PrometheusRetentionTime = 0
@@ -291,7 +290,8 @@ func initTestnetFiles(
 			WithChainID(args.chainID).
 			WithMemo(memo).
 			WithKeybase(kb).
-			WithTxConfig(clientCtx.TxConfig)
+			WithTxConfig(clientCtx.TxConfig).
+			WithPreprocessTxHook(clientCtx.PreprocessTxHook)
 
 		if err := tx.Sign(cmd.Context(), txFactory, nodeDirName, txBuilder, true); err != nil {
 			return err

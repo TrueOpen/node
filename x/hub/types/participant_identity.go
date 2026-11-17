@@ -13,6 +13,9 @@ import (
 const BuilderFaultSlashBasisPointsMaximum = uint32(10_000)
 
 func (s BuilderState) Validate() error {
+	if err := ValidateRevokedServiceKeyBinding(s.CurrentServiceKeyStatus, s.GetRevokedHeight(), s.XRevokedHeight != nil); err != nil {
+		return err
+	}
 	if s.SchemaVersion != 1 {
 		return fmt.Errorf("builder schema_version must be 1")
 	}
@@ -25,6 +28,12 @@ func (s BuilderState) Validate() error {
 	if len(s.CurrentServicePubkey) == 0 || !IsValidServiceKeyStatus(s.CurrentServiceKeyStatus) ||
 		s.ServiceAuthorizationNonce == 0 || s.CurrentDescriptorVersion == 0 || s.RegisteredHeight == 0 {
 		return fmt.Errorf("builder %s has invalid current service binding", s.BuilderAddress)
+	}
+	if (s.XPreviousServicePubkey == nil) != (s.XPreviousServiceAuthorizationNonce == nil) || (s.XPreviousServicePubkey == nil) != (s.XPreviousRetiredHeight == nil) || s.XPreviousServicePubkey != nil && len(s.GetPreviousServicePubkey()) == 0 {
+		return fmt.Errorf("previous service key fields must be present together")
+	}
+	if err := ValidatePreviousServiceKeyBinding(s.ServiceAuthorizationNonce, s.CurrentServicePubkey, s.GetPreviousServicePubkey(), s.GetPreviousServiceAuthorizationNonce(), s.GetPreviousRetiredHeight()); err != nil {
+		return err
 	}
 	// The pubkey must derive the service address it is stored next to. Genesis
 	// already applied this rule (genesis.go ValidateCurrentServiceKeyBinding) but

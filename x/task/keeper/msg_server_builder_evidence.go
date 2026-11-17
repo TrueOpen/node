@@ -8,7 +8,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/TrueOpen/wire/bus"
+	"github.com/TrueOpen/wire/dispatch"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
@@ -21,20 +21,14 @@ func (m msgServer) SubmitBuilderEvidence(ctx context.Context, req *types.MsgSubm
 	if err := m.k.requireCanonicalTaskAddress("submitter_address", req.SubmitterAddress); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidUserAddress, err.Error())
 	}
-	// The exact BuilderEvidenceV2 subtree is strict-decoded before any Task state
-	// is read. The size bound, the unknown/reserved/duplicate field rejections and
-	// the non-minimal varint rejection all live in the wire decoder rather than in
-	// the global Tx decoder, so nothing this keeper reads has been through a
-	// laxer parse than the evidence identity was derived from.
-	decoded, err := bus.DecodeBuilderEvidenceV2(req.EvidenceBytes)
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
-	}
-
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, commit := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
-	fact, err := m.k.publicBuilderObjectiveEvidence(cache, sdkCtx.ChainID(), decoded)
+	verified, err := m.k.verifyBuilderEvidence(cache, sdkCtx.ChainID(), req.EvidenceBytes)
+	if err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
+	}
+	fact, err := m.k.publicBuilderObjectiveEvidence(cache, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +55,7 @@ func (k Keeper) requireCanonicalTaskAddress(name, address string) error {
 // publicBuilderObjectiveEvidence is the MsgSubmitBuilderEvidence half of Builder fault evidence.
 //
 // tag 2 and tag 3 are public first-application entry points: the submitter
-// proves the fault with signed Bus bytes, and Task authority is the only thing
+// proves the fault with signed business messages, and Task authority is the only thing
 // standing between the message and the Hub fault kernel.
 //
 // tag 5 is not. A data-unavailable fault is derived by the chain from retained
@@ -70,9 +64,9 @@ func (k Keeper) requireCanonicalTaskAddress(name, address string) error {
 // transaction has run, where the same preimage is already landed and the call
 // can only be an exact replay. Accepting it earlier would turn a caller into a
 // second, later-timed punishment path for a fault the chain already owns.
-func (k Keeper) publicBuilderObjectiveEvidence(ctx context.Context, chainID string, decoded bus.DecodedBuilderEvidenceV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
-	if decoded.EvidenceTag == bus.EvidenceTagDataUnavailable {
-		reference := decoded.DataUnavailable
+func (k Keeper) publicBuilderObjectiveEvidence(ctx context.Context, verified dispatch.VerifiedBuilderEvidenceV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
+	if verified.Tag == dispatch.EvidenceTagDataUnavailable {
+		reference := verified.DataUnavailable
 		if reference == nil {
 			return shared.BuilderObjectiveEvidenceFactV2{}, errorsmod.Wrap(types.ErrInvalidAssignment, "data-unavailable evidence is required")
 		}
@@ -84,7 +78,7 @@ func (k Keeper) publicBuilderObjectiveEvidence(ctx context.Context, chainID stri
 			return shared.BuilderObjectiveEvidenceFactV2{}, err
 		}
 	}
-	fact, err := k.canonicalBuilderObjectiveEvidence(ctx, chainID, decoded)
+	fact, err := k.canonicalBuilderObjectiveEvidence(ctx, verified)
 	if err != nil {
 		return shared.BuilderObjectiveEvidenceFactV2{}, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 	}
@@ -124,118 +118,54 @@ func (k Keeper) requireTaskFinalityReached(ctx context.Context, taskID []byte) e
 	return nil
 }
 
-func (k Keeper) canonicalBuilderObjectiveEvidence(ctx context.Context, chainID string, decoded bus.DecodedBuilderEvidenceV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
-	if chainID == "" || decoded.SchemaVersion != bus.BuilderEvidenceSchemaVersionV2 {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("chain_id and BuilderEvidenceV2 schema_version=2 are required")
-	}
-	switch decoded.EvidenceTag {
-	case bus.EvidenceTagEquivocation:
-		if decoded.Equivocation == nil {
-			return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("equivocation evidence is required")
-		}
-		return k.canonicalBuilderEquivocation(ctx, chainID, *decoded.Equivocation)
-	case bus.EvidenceTagInvalidStageSubmission:
-		if decoded.InvalidStageSubmission == nil {
-			return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("invalid-stage evidence is required")
-		}
-		return k.canonicalBuilderProtocolFault(ctx, chainID, *decoded.InvalidStageSubmission)
-	case bus.EvidenceTagDataUnavailable:
-		if decoded.DataUnavailable == nil {
+func (k Keeper) canonicalBuilderObjectiveEvidence(ctx context.Context, verified dispatch.VerifiedBuilderEvidenceV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
+	if verified.Tag == dispatch.EvidenceTagDataUnavailable {
+		if verified.DataUnavailable == nil {
 			return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("data-unavailable evidence is required")
 		}
-		return k.canonicalBuilderDataUnavailable(ctx, *decoded.DataUnavailable)
+		return k.canonicalBuilderDataUnavailable(ctx, *verified.DataUnavailable)
+	}
+	if verified.MessageA == nil {
+		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("signed Builder message is required")
+	}
+	a := *verified.MessageA
+	authority, err := k.loadBuilderEvidenceTaskAuthority(ctx, a)
+	if err != nil {
+		return shared.BuilderObjectiveEvidenceFactV2{}, err
+	}
+	switch verified.Tag {
+	case dispatch.EvidenceTagEquivocation:
+		if verified.MessageB == nil {
+			return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("second signed Builder message is required")
+		}
+		if err := k.validateBuilderEvidenceAction(ctx, authority, a); err != nil {
+			return shared.BuilderObjectiveEvidenceFactV2{}, err
+		}
+		if err := k.validateBuilderEvidenceAction(ctx, authority, *verified.MessageB); err != nil {
+			return shared.BuilderObjectiveEvidenceFactV2{}, err
+		}
+	case dispatch.EvidenceTagInvalidStageSubmission:
+		if err := k.validateInvalidBuilderProtocolFault(ctx, authority, a, types.BuilderProtocolViolation(verified.Violation)); err != nil {
+			return shared.BuilderObjectiveEvidenceFactV2{}, err
+		}
 	default:
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("exactly one ACTIVE BuilderEvidenceV2 branch is required")
+		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("inactive Builder evidence branch")
 	}
-}
-
-func (k Keeper) canonicalBuilderEquivocation(ctx context.Context, chainID string, evidence bus.SignedEnvelopeEquivocationV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
-	a, err := k.verifyBuilderEvidenceEnvelope(ctx, chainID, evidence.EnvelopeA)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("envelope_a: %w", err)
-	}
-	b, err := k.verifyBuilderEvidenceEnvelope(ctx, chainID, evidence.EnvelopeB)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("envelope_b: %w", err)
-	}
-	if err := bus.EquivocationPreconditions(a, b); err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	authorityA, err := k.loadBuilderEvidenceTaskAuthority(ctx, a)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	authorityB, err := k.loadBuilderEvidenceTaskAuthority(ctx, b)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	if authorityA.builder != authorityB.builder || !bytes.Equal(authorityA.core.TaskId, authorityB.core.TaskId) {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("equivocation envelopes do not resolve to one Task Builder authority")
-	}
-	if err := k.validateBuilderEvidenceAction(ctx, authorityA, a); err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("envelope_a Task authority: %w", err)
-	}
-	if err := k.validateBuilderEvidenceAction(ctx, authorityB, b); err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("envelope_b Task authority: %w", err)
-	}
-	digest, err := bus.EquivocationDigest(bus.EquivocationContent{DigestA: a.SigningDigest[:], DigestB: b.SigningDigest[:]})
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	return builderObjectiveEvidenceFact(
-		authorityA.builder,
-		shared.BuilderEvidenceKind_BUILDER_EVIDENCE_KIND_PROPOSAL_EQUIVOCATION,
-		a.Scope.TaskID,
-		digest,
-		authorityA.frozenSlashBps,
-	)
-}
-
-func (k Keeper) canonicalBuilderProtocolFault(ctx context.Context, chainID string, evidence bus.SignedEnvelopeProtocolFaultV2) (shared.BuilderObjectiveEvidenceFactV2, error) {
-	violation := types.BuilderProtocolViolation(evidence.Violation)
-	if violation == types.BuilderProtocolViolation_BUILDER_PROTOCOL_VIOLATION_UNSPECIFIED ||
-		types.BuilderProtocolViolation_name[evidence.Violation] == "" {
-		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("a non-zero registered BuilderProtocolViolation is required")
-	}
-	verified, err := k.verifyBuilderEvidenceEnvelope(ctx, chainID, evidence.Envelope)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	authority, err := k.loadBuilderEvidenceTaskAuthority(ctx, verified)
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	if err := k.validateInvalidBuilderProtocolFault(ctx, authority, verified, violation); err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	digest, err := bus.InvalidStageDigest(bus.InvalidStageContent{
-		SigningDigest: verified.SigningDigest[:],
-		Violation:     evidence.Violation,
-	})
-	if err != nil {
-		return shared.BuilderObjectiveEvidenceFactV2{}, err
-	}
-	return builderObjectiveEvidenceFact(
-		authority.builder,
-		shared.BuilderEvidenceKind_BUILDER_EVIDENCE_KIND_INVALID_STAGE_SUBMISSION,
-		verified.Scope.TaskID,
-		digest,
-		authority.frozenSlashBps,
-	)
+	return builderObjectiveEvidenceFact(authority.builder, shared.BuilderEvidenceKind(verified.Kind), a.Scope.TaskID[:], verified.ContentDigest, authority.frozenSlashBps)
 }
 
 // canonicalBuilderDataUnavailable rebuilds the tag 5 fact from retained state
 // only. The caller supplies the primary key; the deadline, the accepted
 // attestation set, the report count, the threshold and the frozen rate are all
 // loaded here, so a submitter cannot widen the fault or price it.
-func (k Keeper) canonicalBuilderDataUnavailable(ctx context.Context, evidence bus.DataUnavailableStateReferenceV1) (shared.BuilderObjectiveEvidenceFactV2, error) {
+func (k Keeper) canonicalBuilderDataUnavailable(ctx context.Context, evidence dispatch.DataUnavailableContent) (shared.BuilderObjectiveEvidenceFactV2, error) {
 	// verify_round is pinned to original verification round 1: a challenge
 	// round has no new on-chain data-ready attestation, so it can close as
 	// UNRESOLVED but can never produce a Builder availability fault.
 	if len(evidence.TaskID) != types.Hash32Len || evidence.VerifyRound != types.VerifyRoundV1 {
 		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("data-unavailable task_id and verify_round %d are required", types.VerifyRoundV1)
 	}
-	builder, err := k.canonicalBusOperator(evidence.BuilderOperator)
+	builder, err := k.canonicalEvidenceOperator(evidence.BuilderOperator)
 	if err != nil || builder != evidence.BuilderOperator {
 		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("data-unavailable builder_operator is not canonical")
 	}
@@ -272,7 +202,7 @@ func (k Keeper) canonicalBuilderDataUnavailable(ctx context.Context, evidence bu
 		aggregate.Status != types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED {
 		return shared.BuilderObjectiveEvidenceFactV2{}, fmt.Errorf("data-unavailable aggregate is not a retained CONFIRMED objective fault")
 	}
-	digest, err := bus.DataUnavailableDigest(bus.DataUnavailableContent{
+	digest, err := dispatch.DataUnavailableDigest(dispatch.DataUnavailableContent{
 		TaskID: evidence.TaskID, VerifyRound: evidence.VerifyRound, BuilderOperator: builder,
 	})
 	if err != nil {

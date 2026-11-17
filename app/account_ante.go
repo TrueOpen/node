@@ -378,7 +378,11 @@ func buildWeb3TypedData(chainID uint64, signDoc []byte) (apitypes.TypedData, err
 		if strings.HasPrefix(name, "Type") && strings.HasSuffix(name, "0") {
 			base := strings.TrimSuffix(name, "0")
 			if _, exists := typedData.Types[base]; exists {
-				return apitypes.TypedData{}, fmt.Errorf("ambiguous EIP-712 type names %q and %q", name, base)
+				// Upstream allocates duplicate indices consecutively. Thus an
+				// existing base identifies index 10/20/etc., or a distinct type
+				// whose name must not be shadowed. Numeric field names such as
+				// phase0 still normalize their actual first occurrence (phase00).
+				continue
 			}
 			renames[name] = base
 		}
@@ -401,7 +405,46 @@ func buildWeb3TypedData(chainID uint64, signDoc []byte) (apitypes.TypedData, err
 		}
 		typedData.Types[name] = fields
 	}
+	if err := freezeFundingValueFieldOrder(typedData.Types); err != nil {
+		return apitypes.TypedData{}, err
+	}
 	return typedData, nil
+}
+
+// Funding's signing contract freezes its value-field order. Keep that order
+// while retaining upstream inference for every
+// other message, nested type, and repeated-message type index.
+func freezeFundingValueFieldOrder(types apitypes.Types) error {
+	orders := map[string][]string{
+		"TypeMsgDepositSession":          {"session_id", "amount", "signer_address"},
+		"TypeMsgWithdrawSession":         {"session_id", "signer_address", "amount", "close"},
+		"TypeMsgFundBuilderCompensation": {"builder_address", "amount", "signer_address"},
+	}
+	for name, fields := range types {
+		order, frozen := orders[strings.TrimRight(name, "0123456789")]
+		if !frozen {
+			continue
+		}
+		for _, field := range fields {
+			if field.Name != "value" {
+				continue
+			}
+			values := types[field.Type]
+			sorted := make([]apitypes.Type, 0, len(values))
+			for _, key := range order {
+				for _, value := range values {
+					if value.Name == key {
+						sorted = append(sorted, value)
+					}
+				}
+			}
+			if len(sorted) != len(values) || len(values) == 0 {
+				return fmt.Errorf("unexpected funding signing fields for %s", name)
+			}
+			types[field.Type] = sorted
+		}
+	}
+	return nil
 }
 
 func keccak256(input []byte) [32]byte {

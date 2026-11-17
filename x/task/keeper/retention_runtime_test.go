@@ -124,7 +124,7 @@ func TestTaskCleanupProposalPhaseDeletesOneRowPerVisit(t *testing.T) {
 	f := initInternalFixture(t)
 	taskID := bytes32(0x61)
 	taskKey := types.NewTaskKey(taskID)
-	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK
+	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY
 	for _, marker := range []byte{0x62, 0x63} {
 		digest := bytes32(marker)
 		require.NoError(t, f.keeper.WriteBuilderStageProposal(
@@ -169,7 +169,7 @@ func TestTaskTerminalSummaryHashCommitsEveryField(t *testing.T) {
 		ModelId:          bytes32(0x6d), ProfileVersion: 1,
 		TaskType:                shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		CandidatePoolSnapshotId: hash, CandidatePoolHash: hash,
-		AssignmentCandidateSetHash: hash, CandidatePoolRefReleased: true,
+		DispatchRecordHash: hash, CandidatePoolRefReleased: true,
 		Round1SelectedVerifiersHashOrZero32: hash,
 		Round2SelectedVerifiersHashOrZero32: hash,
 		BuilderSetVersion:                   1, BuilderSetId: "set-a", BuilderSetHash: hash,
@@ -244,7 +244,7 @@ func TestBuilderStageProposalStoresEmptyProposerOperator(t *testing.T) {
 	f := initInternalFixture(t)
 	taskID := bytes32(0x81)
 	taskKey := types.NewTaskKey(taskID)
-	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK
+	stage := types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY
 	digest := bytes32(0x82)
 	key := types.NewBuilderStageProposalKey(taskKey, stage, digest)
 

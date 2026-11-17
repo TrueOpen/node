@@ -123,6 +123,10 @@ func (k Keeper) loadVerifierEligibilityFacts(
 	if !ok || node.OperatorAddress != operator || node.ServiceKeyStatus != hubtypes.ServiceKeyStatusActive {
 		return zero, fmt.Errorf("verifier service binding is unavailable")
 	}
+	_, err = k.hubKeeper.GetCurrentServiceKey(ctx, shared.ParticipantTypeCortexNode, operator)
+	if err != nil {
+		return zero, err
+	}
 	modelStatus := k.hubKeeper.GetModelStatus(sdkCtx, core.ModelId)
 	profile, ok := k.hubKeeper.GetProfileState(sdkCtx, core.ModelId, core.ProfileVersion)
 	if !ok || (profile.Status != hubtypes.ModelStatusRegistered && profile.Status != hubtypes.ModelStatusActive) ||
@@ -168,7 +172,7 @@ func (k Keeper) loadVerifierEligibilityFacts(
 		scoring.PerformanceVersion == 0 || scoring.PerformanceVersion > uint64(^uint32(0)) {
 		return zero, fmt.Errorf("verifier scoring snapshot is outside the registered range")
 	}
-	jailFactor := candidateJailFactorPpm(scoring.JailCount)
+	jailFactor := shared.CandidateJailFactorPPM(scoring.JailCount)
 	if jailFactor == 0 {
 		return zero, fmt.Errorf("verifier is hard-invalidated")
 	}
@@ -712,24 +716,6 @@ func verifierWindowHash(
 	return [32]byte(digest), nil
 }
 
-func verifierCandidateWeightPpm(
-	activeBond, minStake uint64,
-	performance, jailFactor, stakeWeight, performanceWeight, maximum uint32,
-) (uint32, error) {
-	if activeBond == 0 || minStake == 0 || performance == 0 || performance > types.PartsPerMillion ||
-		jailFactor == 0 || jailFactor > types.PartsPerMillion ||
-		uint64(stakeWeight)+uint64(performanceWeight) != uint64(types.PartsPerMillion) || maximum == 0 {
-		return 0, fmt.Errorf("verifier candidate weight inputs are invalid")
-	}
-	stakeScore := stakeScorePpm(activeBond, minStake)
-	weighted := (stakeScore*uint64(stakeWeight) + uint64(performance)*uint64(performanceWeight)) / uint64(types.PartsPerMillion)
-	weight := weighted * uint64(jailFactor) / uint64(types.PartsPerMillion)
-	if weight == 0 || weight > uint64(maximum) {
-		return 0, fmt.Errorf("verifier candidate weight is outside the registered range")
-	}
-	return uint32(weight), nil
-}
-
 func (k Keeper) freezeVerifierCandidateFact(
 	ctx context.Context,
 	core types.TaskCoreState,
@@ -789,7 +775,7 @@ func (k Keeper) freezeVerifierCandidateFact(
 	if err != nil {
 		return types.TaskCandidateFactState{}, err
 	}
-	weight, err := verifierCandidateWeightPpm(
+	weight, err := shared.CandidateWeightPPM(
 		eligibility.Bond.EffectiveActiveBond, eligibility.MinStake,
 		eligibility.PerformanceScore, eligibility.JailFactor,
 		params.Weights.VerifierStakeWeightPpm, params.Weights.VerifierPerformanceWeightPpm,

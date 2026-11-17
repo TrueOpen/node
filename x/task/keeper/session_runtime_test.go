@@ -10,6 +10,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -31,7 +32,13 @@ func TestCancelOrderGasGuardIsZeroWriteAndRetryable(t *testing.T) {
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: ownerString, LastActiveHeight: 1,
 		Status: types.SessionStatus_SESSION_STATUS_ACTIVE,
-	}))
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	params, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	server := NewMsgServerImpl(f.keeper)
@@ -53,16 +60,22 @@ func TestCancelOrderGasGuardIsZeroWriteAndRetryable(t *testing.T) {
 		WithGasMeter(storetypes.NewGasMeter(highLimit))
 	response, err := server.CancelOrder(sdk.WrapSDKContext(highSDKCtx), req)
 	require.NoError(t, err)
-	require.Equal(t, uint64(1), response.NextExpectedSequence)
+	require.Zero(t, response.NextExpectedSequence)
+	require.Equal(t, uint64(3)+params.Session.SessionChangeDelayBlocks, response.CancelEffectiveHeight)
 	require.LessOrEqual(t, highSDKCtx.GasMeter().GasRemaining(), highLimit-params.Session.CancelOrderMinGas)
-
-	replaySDKCtx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(4).
-		WithGasMeter(storetypes.NewGasMeter(highLimit))
+	replaySDKCtx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(4).WithGasMeter(storetypes.NewGasMeter(highLimit))
 	_, err = server.CancelOrder(sdk.WrapSDKContext(replaySDKCtx), req)
-	require.ErrorIs(t, err, types.ErrInvalidOrderSequence)
-	stream, err = f.keeper.ReadStream(f.ctx, sessionKey)
+	require.ErrorIs(t, err, types.ErrSessionChangePending)
+	effectiveCtx := sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(response.CancelEffectiveHeight)))
+	advanced, err := f.keeper.applySessionPendingRow(effectiveCtx, sessionPendingCancel, sessionPendingRow{height: response.CancelEffectiveHeight, sessionID: sessionID, sequence: 0}, response.CancelEffectiveHeight)
+	require.NoError(t, err)
+	require.True(t, advanced)
+	stream, err = f.keeper.ReadStream(effectiveCtx, sessionKey)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), stream.NextExpectedSequence)
+	_, err = server.CancelOrder(effectiveCtx, req)
+	require.ErrorIs(t, err, types.ErrInvalidOrderSequence)
+
 }
 
 func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
@@ -75,8 +88,14 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 		OwnerUserAddress:     sessionTestOwner(t, f),
 		NextExpectedSequence: 2,
 		LastActiveHeight:     9,
-		Status:               types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+		Status:               types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	for sequence := uint64(0); sequence < 2; sequence++ {
 		require.NoError(t, f.keeper.OrderSequence.Set(f.ctx, types.NewOrderSequenceStateKey(sessionKey, sequence), types.OrderSequenceState{
 			SessionId: sessionID, OrderSequence: sequence,
@@ -95,7 +114,7 @@ func TestSessionHistoryPrunePersistsCursorAndCountsVisitedRows(t *testing.T) {
 
 	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, uint64(types.DefaultMaxSessionHistoryPruneItemsPerBlock))
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 5, CompactedCount: 1}, result)
 	_, err = f.keeper.ReadStream(f.ctx, sessionKey)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
@@ -112,8 +131,14 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
-		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	require.NoError(t, f.keeper.SessionHistoryPruneIndex.Set(f.ctx, types.NewSessionHistoryPruneIndexKey(10, sessionKey)))
 
 	for expectedVisited := uint64(1); expectedVisited <= 2; expectedVisited++ {
@@ -130,15 +155,21 @@ func TestSessionHistoryPruneMissingSequenceChargesButDoesNotAdvance(t *testing.T
 	}
 }
 
-func TestSessionHistoryPrunePrecompletedCursorStillConsumesVisited(t *testing.T) {
+func TestSessionHistoryPruneTailCursorRespectsVisitedBudget(t *testing.T) {
 	f := initInternalFixture(t)
 	sessionID := bytes.Repeat([]byte{0x46}, types.Hash32Len)
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), NextExpectedSequence: 1,
-		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+		LastActiveHeight: 9, Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	require.NoError(t, f.keeper.SessionHistoryPruneCursor.Set(f.ctx, sessionKey, types.SessionHistoryPruneCursorState{
 		SessionId: sessionID, NextOrderSequence: 1, RollingSequenceRoot: bytes.Repeat([]byte{0x7a}, types.Hash32Len),
 		CancelledCount: 1, VisitedCount: 1,
@@ -147,23 +178,43 @@ func TestSessionHistoryPrunePrecompletedCursorStillConsumesVisited(t *testing.T)
 
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 1)
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1}, result)
+	cursor, err := f.keeper.SessionHistoryPruneCursor.Get(f.ctx, sessionKey)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), cursor.NextOrderSequence)
+	require.Equal(t, uint32(1), cursor.CancelledCount)
+	require.Equal(t, bytes.Repeat([]byte{0x7a}, types.Hash32Len), cursor.RollingSequenceRoot)
+	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 3)
+	require.NoError(t, err)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 3, CompactedCount: 1}, result)
 }
 
-func TestSessionHistoryPruneEmptySessionConsumesVisited(t *testing.T) {
+func TestSessionHistoryPruneEmptySessionClearsItsBoundedTail(t *testing.T) {
 	f := initInternalFixture(t)
 	sessionID := bytes.Repeat([]byte{0x4e}, types.Hash32Len)
 	sessionKey, err := sessionStoreKey(sessionID)
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
-		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+		Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	require.NoError(t, f.keeper.SessionHistoryPruneIndex.Set(f.ctx, types.NewSessionHistoryPruneIndexKey(10, sessionKey)))
 
 	result, err := f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 1)
 	require.NoError(t, err)
-	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1, CompactedCount: 1}, result)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 1}, result)
+	cursor, err := f.keeper.SessionHistoryPruneCursor.Get(f.ctx, sessionKey)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), cursor.NextOrderSequence)
+	result, err = f.keeper.SweepSessionHistoryPrune(f.ctx, 10, 3)
+	require.NoError(t, err)
+	require.Equal(t, SessionHistoryPruneResult{VisitedCount: 3, CompactedCount: 1}, result)
 	summary, err := f.keeper.ReadSessionTerminalSummary(f.ctx, sessionKey)
 	require.NoError(t, err)
 	require.Zero(t, summary.SequenceCount)
@@ -176,8 +227,14 @@ func TestSessionHistoryPruneRejectsVisitedOverflow(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.keeper.setStreamState(f.ctx, types.StreamState{
 		SessionId: sessionID, OwnerUserAddress: sessionTestOwner(t, f), LastActiveHeight: 9,
-		Status: types.SessionStatus_SESSION_STATUS_CLOSED,
-	}))
+		Status: types.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 9,
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}))
 	require.NoError(t, f.keeper.SessionHistoryPruneCursor.Set(f.ctx, sessionKey, types.SessionHistoryPruneCursorState{
 		SessionId: sessionID, RollingSequenceRoot: make([]byte, types.Hash32Len), VisitedCount: math.MaxUint64,
 	}))
@@ -232,7 +289,13 @@ func TestSessionLifecycleClosesAndSchedulesHistoryPrune(t *testing.T) {
 		OwnerUserAddress: sessionTestOwner(t, f),
 		LastActiveHeight: 1,
 		Status:           types.SessionStatus_SESSION_STATUS_ACTIVE,
-	}
+
+		PendingWithdrawKind:   types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder:          sessionTestOwner(t, f),
+		BoundChangeHeight:     1}
 	require.NoError(t, f.keeper.setStreamState(f.ctx, stream))
 	ownerBytes, err := f.keeper.sessionAddressToStore("session owner index", stream.OwnerUserAddress)
 	require.NoError(t, err)

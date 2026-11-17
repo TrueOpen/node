@@ -23,16 +23,16 @@ exists in REST exists in gRPC, and REST never carries a method gRPC does not.
 
 ## Services
 
-| Service | Methods | Purpose |
-|---|---|---|
-| `hub.v1.Query` | 34 | Registry, staking, models and profiles, candidate pool, rewards, treasury, bridge, beacon |
-| `hub.v1.Msg` | 20 | Registration, bonding, governance, model and profile lifecycle |
-| `task.v1.Query` | 28 | Sessions, tasks, assignments, verification rounds, settlement |
-| `task.v1.Msg` | 16 | Session and order submission, assignment, verification, settlement, evidence |
-| `hub.v1.HubEventService` | 1 | Typed hub event stream |
-| `task.v1.TaskEventService` | 2 | Typed task event stream |
+| Service | Purpose |
+|---|---|
+| `hub.v1.Query` | Registry, staking, models and profiles, candidate pool, rewards, treasury, bridge, beacon |
+| `hub.v1.Msg` | Registration, bonding, governance, model and profile lifecycle |
+| `task.v1.Query` | Sessions, tasks, assignments, verification rounds, settlement |
+| `task.v1.Msg` | Prefunded Sessions, dispatch recording/takeover, compensation, challenges, verification and settlement |
+| `hub.v1.HubEventService` | Typed hub event stream |
+| `task.v1.TaskEventService` | Typed task event stream |
 
-REST exposes 63 paths, all under the `/TrueOpen/` prefix, for example:
+REST paths are generated from the pinned descriptor, all under the `/TrueOpen/` prefix, for example:
 
 ```
 GET /TrueOpen/hub/v1/model/{model_id}
@@ -151,3 +151,21 @@ this node in `wire/pin.json`, by release tag, commit and SHA-256. Pin an exact
 wire release; do not track its main branch. Field numbers and registered method
 names are frozen within a release, and a breaking change requires a new release
 that declares it.
+
+## Phase 1 activation
+
+Phase 1 starts from a fresh Genesis. Retired Worker handraise assignment,
+legacy Session storage and retired messages have no compatibility decoder.
+CreateSession requires an owner-authorized prefund and an initial Builder;
+an optional session key can be registered in the same transaction. Later
+Task orders can use that delegated key. Deposits, delayed withdrawals and
+CLOSE require the owner. Recording freezes existing Session funds instead
+of transferring another owner payment.
+
+Dispatch signatures and output evidence bind one dispatch ticket. Challenges
+use retained epoch weight inputs and the snapshot header's scoring policy.
+Service keys switch at the fixed E+2 boundary. Proofs select the current or sole
+previous binding by signed nonce and immutable order height; live transport uses
+the current binding. Value evidence
+records compact receipts and leaves financial consequences to final settlement.
+See the generated API reference for message fields and recovery queries.

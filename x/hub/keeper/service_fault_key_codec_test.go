@@ -126,7 +126,7 @@ func TestServiceFaultInvariantsRejectKeyValueMismatch(t *testing.T) {
 	roleFault := func(faultID []byte) types.RoleFaultState {
 		return types.RoleFaultState{
 			FaultId: faultID, TaskId: taskID, OperatorAddress: operator,
-			Duty: shared.DutyVerifier, FaultClass: types.FaultKind_FAULT_KIND_TIMEOUT,
+			Duty: shared.DutyVerifier, FaultClass: shared.FaultKind_FAULT_KIND_TIMEOUT,
 			ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE,
 			EvidenceDigest:       evidence, RecordedHeight: 10,
 			Status: types.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED,

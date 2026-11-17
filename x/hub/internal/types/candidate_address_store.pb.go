@@ -279,11 +279,12 @@ func (m *OperatorCandidateSlotStoreState) GetSlotVersion() uint64 {
 
 // CandidatePoolMemberStoreState stores the operator as codec bytes.
 type CandidatePoolMemberStoreState struct {
-	Epoch           uint64 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	Slot            uint32 `protobuf:"varint,2,opt,name=slot,proto3" json:"slot,omitempty"`
-	SlotVersion     uint64 `protobuf:"varint,3,opt,name=slot_version,json=slotVersion,proto3" json:"slot_version,omitempty"`
-	OperatorAddress []byte `protobuf:"bytes,4,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
-	BindingHash     []byte `protobuf:"bytes,5,opt,name=binding_hash,json=bindingHash,proto3" json:"binding_hash,omitempty"`
+	Epoch           uint64                           `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Slot            uint32                           `protobuf:"varint,2,opt,name=slot,proto3" json:"slot,omitempty"`
+	SlotVersion     uint64                           `protobuf:"varint,3,opt,name=slot_version,json=slotVersion,proto3" json:"slot_version,omitempty"`
+	OperatorAddress []byte                           `protobuf:"bytes,4,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
+	BindingHash     []byte                           `protobuf:"bytes,5,opt,name=binding_hash,json=bindingHash,proto3" json:"binding_hash,omitempty"`
+	WeightInputs    *CandidateWeightInputsStoreState `protobuf:"bytes,6,opt,name=weight_inputs,json=weightInputs,proto3" json:"weight_inputs,omitempty"`
 }
 
 func (m *CandidatePoolMemberStoreState) Reset()         { *m = CandidatePoolMemberStoreState{} }
@@ -354,11 +355,206 @@ func (m *CandidatePoolMemberStoreState) GetBindingHash() []byte {
 	return nil
 }
 
+func (m *CandidatePoolMemberStoreState) GetWeightInputs() *CandidateWeightInputsStoreState {
+	if m != nil {
+		return m.WeightInputs
+	}
+	return nil
+}
+
+// CandidateWeightInputsStoreState stores bounded numeric facts without Amount wrappers.
+type CandidateWeightInputsStoreState struct {
+	ActiveBond               uint64                                   `protobuf:"varint,1,opt,name=active_bond,json=activeBond,proto3" json:"active_bond,omitempty"`
+	AvailableBond            uint64                                   `protobuf:"varint,2,opt,name=available_bond,json=availableBond,proto3" json:"available_bond,omitempty"`
+	PerformanceScorePpm      uint32                                   `protobuf:"varint,3,opt,name=performance_score_ppm,json=performanceScorePpm,proto3" json:"performance_score_ppm,omitempty"`
+	PerformanceMethodVersion uint32                                   `protobuf:"varint,4,opt,name=performance_method_version,json=performanceMethodVersion,proto3" json:"performance_method_version,omitempty"`
+	CandidateJailFactorPpm   uint32                                   `protobuf:"varint,5,opt,name=candidate_jail_factor_ppm,json=candidateJailFactorPpm,proto3" json:"candidate_jail_factor_ppm,omitempty"`
+	InferenceCapable         bool                                     `protobuf:"varint,6,opt,name=inference_capable,json=inferenceCapable,proto3" json:"inference_capable,omitempty"`
+	Unbonding                bool                                     `protobuf:"varint,7,opt,name=unbonding,proto3" json:"unbonding,omitempty"`
+	Tombstoned               bool                                     `protobuf:"varint,8,opt,name=tombstoned,proto3" json:"tombstoned,omitempty"`
+	Profiles                 []*CandidateProfileWeightInputStoreState `protobuf:"bytes,9,rep,name=profiles,proto3" json:"profiles,omitempty"`
+}
+
+func (m *CandidateWeightInputsStoreState) Reset()         { *m = CandidateWeightInputsStoreState{} }
+func (m *CandidateWeightInputsStoreState) String() string { return proto.CompactTextString(m) }
+func (*CandidateWeightInputsStoreState) ProtoMessage()    {}
+func (*CandidateWeightInputsStoreState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_802021d933ff7db1, []int{4}
+}
+func (m *CandidateWeightInputsStoreState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *CandidateWeightInputsStoreState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_CandidateWeightInputsStoreState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *CandidateWeightInputsStoreState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CandidateWeightInputsStoreState.Merge(m, src)
+}
+func (m *CandidateWeightInputsStoreState) XXX_Size() int {
+	return m.Size()
+}
+func (m *CandidateWeightInputsStoreState) XXX_DiscardUnknown() {
+	xxx_messageInfo_CandidateWeightInputsStoreState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CandidateWeightInputsStoreState proto.InternalMessageInfo
+
+func (m *CandidateWeightInputsStoreState) GetActiveBond() uint64 {
+	if m != nil {
+		return m.ActiveBond
+	}
+	return 0
+}
+
+func (m *CandidateWeightInputsStoreState) GetAvailableBond() uint64 {
+	if m != nil {
+		return m.AvailableBond
+	}
+	return 0
+}
+
+func (m *CandidateWeightInputsStoreState) GetPerformanceScorePpm() uint32 {
+	if m != nil {
+		return m.PerformanceScorePpm
+	}
+	return 0
+}
+
+func (m *CandidateWeightInputsStoreState) GetPerformanceMethodVersion() uint32 {
+	if m != nil {
+		return m.PerformanceMethodVersion
+	}
+	return 0
+}
+
+func (m *CandidateWeightInputsStoreState) GetCandidateJailFactorPpm() uint32 {
+	if m != nil {
+		return m.CandidateJailFactorPpm
+	}
+	return 0
+}
+
+func (m *CandidateWeightInputsStoreState) GetInferenceCapable() bool {
+	if m != nil {
+		return m.InferenceCapable
+	}
+	return false
+}
+
+func (m *CandidateWeightInputsStoreState) GetUnbonding() bool {
+	if m != nil {
+		return m.Unbonding
+	}
+	return false
+}
+
+func (m *CandidateWeightInputsStoreState) GetTombstoned() bool {
+	if m != nil {
+		return m.Tombstoned
+	}
+	return false
+}
+
+func (m *CandidateWeightInputsStoreState) GetProfiles() []*CandidateProfileWeightInputStoreState {
+	if m != nil {
+		return m.Profiles
+	}
+	return nil
+}
+
+// CandidateProfileWeightInputStoreState keeps raw32 model identity and compact stake.
+type CandidateProfileWeightInputStoreState struct {
+	ModelId             []byte `protobuf:"bytes,1,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	ProfileVersion      uint32 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileSupportFresh bool   `protobuf:"varint,3,opt,name=profile_support_fresh,json=profileSupportFresh,proto3" json:"profile_support_fresh,omitempty"`
+	MinStakeSnapshot    uint64 `protobuf:"varint,4,opt,name=min_stake_snapshot,json=minStakeSnapshot,proto3" json:"min_stake_snapshot,omitempty"`
+	InferenceCapable    bool   `protobuf:"varint,5,opt,name=inference_capable,json=inferenceCapable,proto3" json:"inference_capable,omitempty"`
+}
+
+func (m *CandidateProfileWeightInputStoreState) Reset()         { *m = CandidateProfileWeightInputStoreState{} }
+func (m *CandidateProfileWeightInputStoreState) String() string { return proto.CompactTextString(m) }
+func (*CandidateProfileWeightInputStoreState) ProtoMessage()    {}
+func (*CandidateProfileWeightInputStoreState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_802021d933ff7db1, []int{5}
+}
+func (m *CandidateProfileWeightInputStoreState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *CandidateProfileWeightInputStoreState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_CandidateProfileWeightInputStoreState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *CandidateProfileWeightInputStoreState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CandidateProfileWeightInputStoreState.Merge(m, src)
+}
+func (m *CandidateProfileWeightInputStoreState) XXX_Size() int {
+	return m.Size()
+}
+func (m *CandidateProfileWeightInputStoreState) XXX_DiscardUnknown() {
+	xxx_messageInfo_CandidateProfileWeightInputStoreState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CandidateProfileWeightInputStoreState proto.InternalMessageInfo
+
+func (m *CandidateProfileWeightInputStoreState) GetModelId() []byte {
+	if m != nil {
+		return m.ModelId
+	}
+	return nil
+}
+
+func (m *CandidateProfileWeightInputStoreState) GetProfileVersion() uint32 {
+	if m != nil {
+		return m.ProfileVersion
+	}
+	return 0
+}
+
+func (m *CandidateProfileWeightInputStoreState) GetProfileSupportFresh() bool {
+	if m != nil {
+		return m.ProfileSupportFresh
+	}
+	return false
+}
+
+func (m *CandidateProfileWeightInputStoreState) GetMinStakeSnapshot() uint64 {
+	if m != nil {
+		return m.MinStakeSnapshot
+	}
+	return 0
+}
+
+func (m *CandidateProfileWeightInputStoreState) GetInferenceCapable() bool {
+	if m != nil {
+		return m.InferenceCapable
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*CandidateSlotCurrentStoreState)(nil), "hub.internal.v1.CandidateSlotCurrentStoreState")
 	proto.RegisterType((*CandidateSlotBindingStoreState)(nil), "hub.internal.v1.CandidateSlotBindingStoreState")
 	proto.RegisterType((*OperatorCandidateSlotStoreState)(nil), "hub.internal.v1.OperatorCandidateSlotStoreState")
 	proto.RegisterType((*CandidatePoolMemberStoreState)(nil), "hub.internal.v1.CandidatePoolMemberStoreState")
+	proto.RegisterType((*CandidateWeightInputsStoreState)(nil), "hub.internal.v1.CandidateWeightInputsStoreState")
+	proto.RegisterType((*CandidateProfileWeightInputStoreState)(nil), "hub.internal.v1.CandidateProfileWeightInputStoreState")
 }
 
 func init() {
@@ -366,39 +562,60 @@ func init() {
 }
 
 var fileDescriptor_802021d933ff7db1 = []byte{
-	// 505 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0x4f, 0x8e, 0xd3, 0x3e,
-	0x14, 0xc7, 0xeb, 0x4e, 0xdb, 0xdf, 0x4f, 0x9e, 0xfe, 0x53, 0x84, 0x50, 0x36, 0x84, 0x52, 0x09,
-	0x4d, 0x90, 0x98, 0x46, 0x23, 0x4e, 0xc0, 0x54, 0x88, 0xd9, 0xa0, 0x41, 0xe9, 0x88, 0x05, 0x9b,
-	0xc8, 0x49, 0x5e, 0xeb, 0x68, 0x52, 0x3b, 0xb2, 0x5f, 0x2a, 0x58, 0x73, 0x01, 0x2e, 0xc1, 0x25,
-	0xe0, 0x02, 0x2c, 0x67, 0xc9, 0x12, 0xb5, 0x17, 0x41, 0x71, 0x92, 0xd2, 0x19, 0x22, 0x84, 0x58,
-	0xb0, 0x6a, 0xfd, 0xf1, 0x7b, 0xf2, 0xfb, 0x7e, 0xe4, 0x98, 0x9e, 0xf2, 0x3c, 0xf4, 0x12, 0x81,
-	0xa0, 0x04, 0x4b, 0xbd, 0xcd, 0x99, 0x17, 0x31, 0x11, 0x27, 0x31, 0x43, 0x08, 0x58, 0x1c, 0x2b,
-	0xd0, 0x3a, 0xd0, 0x28, 0x15, 0xcc, 0x32, 0x25, 0x51, 0x5a, 0x23, 0x9e, 0x87, 0xb3, 0xba, 0x7c,
-	0xb6, 0x39, 0x9b, 0x7e, 0x69, 0x53, 0x67, 0x5e, 0xb7, 0x2c, 0x52, 0x89, 0xf3, 0x5c, 0x29, 0x10,
-	0xb8, 0x28, 0x9a, 0x16, 0xc8, 0x10, 0xac, 0xc7, 0x74, 0xa8, 0x23, 0x0e, 0x6b, 0x16, 0x6c, 0x40,
-	0xe9, 0x44, 0x0a, 0x9b, 0x4c, 0x88, 0x3b, 0xf0, 0x07, 0x25, 0x7d, 0x53, 0x42, 0xcb, 0xa2, 0x1d,
-	0x9d, 0x4a, 0xb4, 0xdb, 0x66, 0xd3, 0xfc, 0xb7, 0x1e, 0xd1, 0x7e, 0xf1, 0xbb, 0x6f, 0x3c, 0x9a,
-	0x10, 0xb7, 0xe3, 0x1f, 0x17, 0xac, 0x6e, 0x7b, 0x42, 0xc7, 0x32, 0x03, 0xc5, 0x50, 0xaa, 0x7a,
-	0x62, 0xbb, 0x33, 0x21, 0x6e, 0xdf, 0x1f, 0xd5, 0xfc, 0x79, 0x89, 0xad, 0xfb, 0xb4, 0xa7, 0x91,
-	0x61, 0xae, 0xed, 0xee, 0x84, 0xb8, 0x5d, 0xbf, 0x5a, 0x59, 0x27, 0x74, 0xc4, 0xd2, 0x54, 0x46,
-	0x0c, 0x21, 0x0e, 0x20, 0x93, 0x11, 0xb7, 0x7b, 0xe6, 0xa0, 0xe1, 0x1e, 0xbf, 0x28, 0x68, 0x91,
-	0x44, 0x01, 0x26, 0x0a, 0xe2, 0x80, 0x43, 0xb2, 0xe2, 0x68, 0xff, 0x67, 0xea, 0x06, 0x15, 0xbd,
-	0x30, 0xd0, 0x72, 0xe9, 0x98, 0x45, 0x98, 0x6c, 0x20, 0x40, 0xa6, 0xaf, 0x03, 0x05, 0x4b, 0x6d,
-	0xff, 0x6f, 0x52, 0x0d, 0x4b, 0x7e, 0xc5, 0xf4, 0xb5, 0x0f, 0x4b, 0x3d, 0xfd, 0x74, 0xd7, 0xde,
-	0x79, 0x22, 0xe2, 0x44, 0xac, 0x0e, 0xec, 0xd5, 0x5a, 0xc8, 0x6f, 0xb4, 0xb4, 0xff, 0x4c, 0xcb,
-	0x51, 0xb3, 0x96, 0x86, 0xf8, 0x9d, 0xc6, 0xf8, 0x27, 0x74, 0xa4, 0x20, 0x05, 0xa6, 0x7f, 0xe6,
-	0xef, 0x96, 0x85, 0x35, 0xae, 0x04, 0x3c, 0xa5, 0x96, 0x16, 0x2c, 0xd3, 0x5c, 0x62, 0x91, 0x3e,
-	0x88, 0x64, 0x2e, 0xd0, 0x38, 0x1d, 0xf8, 0xe3, 0x7a, 0xc7, 0x87, 0xe5, 0xbc, 0xe0, 0x45, 0x9a,
-	0xb0, 0x8c, 0x1d, 0x70, 0xa6, 0xb9, 0x71, 0xda, 0xf7, 0x8f, 0x2b, 0x76, 0xc1, 0x34, 0x9f, 0x7e,
-	0x20, 0xf4, 0xe1, 0x65, 0x35, 0xf6, 0x2d, 0x5f, 0x07, 0xa2, 0x9a, 0x12, 0x93, 0xe6, 0xc4, 0x7f,
-	0x77, 0xd5, 0xa6, 0x9f, 0x09, 0x7d, 0xb0, 0x3f, 0xfd, 0xb5, 0x94, 0xe9, 0x2b, 0x58, 0x87, 0xa0,
-	0x0e, 0x66, 0xb8, 0x47, 0xbb, 0xa5, 0x40, 0x62, 0xba, 0xcb, 0xc5, 0x3f, 0xb8, 0xd9, 0x77, 0x15,
-	0x76, 0x7f, 0x51, 0x78, 0xfe, 0xf2, 0xeb, 0xd6, 0x21, 0x37, 0x5b, 0x87, 0x7c, 0xdf, 0x3a, 0xe4,
-	0xe3, 0xce, 0x69, 0xdd, 0xec, 0x9c, 0xd6, 0xb7, 0x9d, 0xd3, 0x7a, 0x7b, 0xba, 0x4a, 0xb0, 0xf8,
-	0xac, 0x23, 0xb9, 0xf6, 0xae, 0x54, 0x0e, 0x97, 0x19, 0x08, 0x4f, 0xc8, 0x18, 0xbc, 0x77, 0xde,
-	0xad, 0xd7, 0x01, 0xdf, 0x67, 0xa0, 0xc3, 0x9e, 0x79, 0x09, 0x9e, 0xfd, 0x08, 0x00, 0x00, 0xff,
-	0xff, 0x03, 0x54, 0x47, 0x5d, 0x3a, 0x04, 0x00, 0x00,
+	// 839 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0xdd, 0x6e, 0x1b, 0x45,
+	0x18, 0xcd, 0x26, 0x76, 0xea, 0x8e, 0xe3, 0xc4, 0x4c, 0xa1, 0xda, 0x22, 0xd8, 0x18, 0x4b, 0x55,
+	0x8d, 0xa0, 0x36, 0x0d, 0x12, 0x12, 0x12, 0x37, 0x24, 0xa2, 0xb4, 0x48, 0x55, 0xa3, 0x71, 0x01,
+	0x89, 0x9b, 0xd1, 0xec, 0xee, 0xb7, 0xd9, 0x21, 0xbb, 0x33, 0xab, 0x99, 0x59, 0x17, 0xae, 0x79,
+	0x01, 0x78, 0x08, 0x9e, 0x82, 0x17, 0xe0, 0xb2, 0x37, 0x48, 0x5c, 0xa2, 0xe4, 0x2d, 0xb8, 0x42,
+	0x33, 0xfb, 0xe3, 0x4d, 0x30, 0x50, 0x71, 0xd1, 0x2b, 0x7b, 0xcf, 0x77, 0xbe, 0x9d, 0x39, 0xe7,
+	0xcc, 0x7c, 0x8b, 0xee, 0xa7, 0x65, 0xb8, 0xe0, 0xc2, 0x80, 0x12, 0x2c, 0x5b, 0xac, 0x1e, 0x2c,
+	0x22, 0x26, 0x62, 0x1e, 0x33, 0x03, 0x94, 0xc5, 0xb1, 0x02, 0xad, 0xa9, 0x36, 0x52, 0xc1, 0xbc,
+	0x50, 0xd2, 0x48, 0x7c, 0x90, 0x96, 0xe1, 0xbc, 0xa1, 0xcf, 0x57, 0x0f, 0xa6, 0xbf, 0x6c, 0xa3,
+	0xe0, 0xa4, 0x69, 0x59, 0x66, 0xd2, 0x9c, 0x94, 0x4a, 0x81, 0x30, 0x4b, 0xdb, 0xb4, 0x34, 0xcc,
+	0x00, 0xbe, 0x8b, 0xf6, 0x75, 0x94, 0x42, 0xce, 0xe8, 0x0a, 0x94, 0xe6, 0x52, 0xf8, 0xde, 0xc4,
+	0x9b, 0x8d, 0xc8, 0xa8, 0x42, 0xbf, 0xaa, 0x40, 0x8c, 0x51, 0x4f, 0x67, 0xd2, 0xf8, 0xdb, 0xae,
+	0xe8, 0xfe, 0xe3, 0x77, 0xd0, 0x9e, 0xfd, 0x6d, 0x1b, 0x77, 0x26, 0xde, 0xac, 0x47, 0x86, 0x16,
+	0x6b, 0xda, 0xde, 0x45, 0x63, 0x59, 0x80, 0x62, 0x46, 0xaa, 0x66, 0xc7, 0x7e, 0x6f, 0xe2, 0xcd,
+	0xf6, 0xc8, 0x41, 0x83, 0x7f, 0x5a, 0xc1, 0xf8, 0x36, 0xda, 0xd5, 0x86, 0x99, 0x52, 0xfb, 0xfd,
+	0x89, 0x37, 0xeb, 0x93, 0xfa, 0x09, 0xdf, 0x43, 0x07, 0x2c, 0xcb, 0x64, 0xc4, 0x0c, 0xc4, 0x14,
+	0x0a, 0x19, 0xa5, 0xfe, 0xae, 0x5b, 0x68, 0xbf, 0x85, 0x3f, 0xb3, 0xa8, 0x55, 0xa2, 0xc0, 0x70,
+	0x05, 0x31, 0x4d, 0x81, 0x9f, 0xa5, 0xc6, 0xbf, 0xe1, 0x78, 0xa3, 0x1a, 0x7d, 0xe4, 0x40, 0x3c,
+	0x43, 0x63, 0x16, 0x19, 0xbe, 0x02, 0x6a, 0x98, 0x3e, 0xa7, 0x0a, 0x12, 0xed, 0x0f, 0x9c, 0xaa,
+	0xfd, 0x0a, 0x7f, 0xc6, 0xf4, 0x39, 0x81, 0x44, 0x4f, 0x7f, 0xbe, 0xee, 0xde, 0x31, 0x17, 0x31,
+	0x17, 0x67, 0x1d, 0xf7, 0x1a, 0x5b, 0xbc, 0x7f, 0xb1, 0x65, 0xfb, 0xe5, 0x6c, 0xd9, 0xd9, 0x6c,
+	0xcb, 0x06, 0xf9, 0xbd, 0x8d, 0xf2, 0xef, 0xa1, 0x03, 0x05, 0x19, 0x30, 0xbd, 0xd6, 0xdf, 0xaf,
+	0x88, 0x0d, 0x5c, 0x1b, 0xf0, 0x3e, 0xc2, 0x5a, 0xb0, 0x42, 0xa7, 0xd2, 0x58, 0xf5, 0x34, 0x92,
+	0xa5, 0x30, 0xce, 0xd3, 0x11, 0x19, 0x37, 0x15, 0x02, 0xc9, 0x89, 0xc5, 0xad, 0x9a, 0xb0, 0x92,
+	0x4d, 0x53, 0xa6, 0x53, 0xe7, 0xe9, 0x1e, 0x19, 0xd6, 0xd8, 0x23, 0xa6, 0xd3, 0xe9, 0x0f, 0x1e,
+	0x3a, 0x7c, 0x5a, 0x6f, 0xfb, 0x8a, 0x5f, 0x1d, 0xa3, 0x36, 0x29, 0xf6, 0x36, 0x2b, 0xfe, 0x7f,
+	0x47, 0x6d, 0xfa, 0xd3, 0x36, 0x7a, 0xbb, 0x5d, 0xfd, 0x54, 0xca, 0xec, 0x09, 0xe4, 0x21, 0xa8,
+	0xce, 0x1e, 0x5e, 0x47, 0xfd, 0xca, 0x40, 0xcf, 0x75, 0x57, 0x0f, 0xaf, 0xe0, 0x64, 0x5f, 0xb7,
+	0xb0, 0xff, 0x37, 0x0b, 0xf1, 0x97, 0x68, 0xf4, 0xdc, 0xa5, 0x43, 0xb9, 0x28, 0x4a, 0xa3, 0x5d,
+	0x1c, 0xc3, 0xa3, 0x0f, 0xe6, 0xd7, 0x6e, 0xf4, 0xbc, 0x55, 0xf8, 0xb5, 0xa3, 0x3f, 0x76, 0xec,
+	0xb5, 0x46, 0xb2, 0xf7, 0xbc, 0x83, 0x4f, 0x7f, 0xdb, 0x41, 0x87, 0xff, 0xd1, 0x81, 0x0f, 0xd1,
+	0xb0, 0xbe, 0x0f, 0xa1, 0x14, 0x71, 0xed, 0x0d, 0xaa, 0xa0, 0x63, 0x29, 0x62, 0x7b, 0xaf, 0xd8,
+	0x8a, 0xf1, 0x8c, 0x85, 0x59, 0xcd, 0xa9, 0x4e, 0xf4, 0xa8, 0x45, 0x1d, 0xed, 0x08, 0xbd, 0x51,
+	0x80, 0x4a, 0xa4, 0xca, 0x99, 0x88, 0x80, 0xea, 0x48, 0x2a, 0xa0, 0x45, 0x91, 0x3b, 0xf3, 0x46,
+	0xe4, 0x56, 0xa7, 0xb8, 0xb4, 0xb5, 0xd3, 0x22, 0xc7, 0x9f, 0xa0, 0x37, 0xbb, 0x3d, 0x39, 0x98,
+	0x54, 0xc6, 0xad, 0xeb, 0x3d, 0xd7, 0xe8, 0x77, 0x18, 0x4f, 0x1c, 0xa1, 0x89, 0xe0, 0x63, 0x74,
+	0x67, 0x3d, 0x0f, 0xbf, 0x65, 0x3c, 0xa3, 0x09, 0x8b, 0x6c, 0x1e, 0x76, 0xd5, 0xbe, 0x6b, 0xbe,
+	0xdd, 0x12, 0xbe, 0x60, 0x3c, 0x7b, 0xe8, 0xca, 0x76, 0xe1, 0xf7, 0xd0, 0x6b, 0x5c, 0x24, 0xa0,
+	0xc0, 0x2e, 0x1b, 0xb1, 0xc2, 0xaa, 0x70, 0x9e, 0x0f, 0xc8, 0xb8, 0x2d, 0x9c, 0x54, 0x38, 0x7e,
+	0x0b, 0xdd, 0x2c, 0x85, 0x15, 0xce, 0xc5, 0x99, 0x3b, 0xff, 0x03, 0xb2, 0x06, 0x70, 0x80, 0x90,
+	0x91, 0x79, 0xa8, 0x8d, 0x14, 0x10, 0xbb, 0x49, 0x32, 0x20, 0x1d, 0x04, 0x13, 0x34, 0x28, 0x94,
+	0x4c, 0x78, 0x06, 0xda, 0xbf, 0x39, 0xd9, 0x99, 0x0d, 0x8f, 0x3e, 0xfa, 0xe7, 0x54, 0x4f, 0x2b,
+	0x66, 0x27, 0xaa, 0x4e, 0xb6, 0xed, 0x7b, 0xa6, 0x7f, 0x7a, 0xe8, 0xee, 0x4b, 0xf5, 0xe0, 0x3b,
+	0x68, 0x90, 0xcb, 0x18, 0x32, 0xca, 0xe3, 0xfa, 0xbe, 0xdd, 0x70, 0xcf, 0x8f, 0x63, 0x3b, 0x30,
+	0xea, 0x17, 0x5e, 0x19, 0x55, 0x23, 0xb2, 0x5f, 0xc3, 0x8d, 0xcf, 0x36, 0xd9, 0x9a, 0xa8, 0xcb,
+	0xa2, 0x90, 0xca, 0xd0, 0x44, 0x81, 0x4e, 0x5d, 0xb2, 0x03, 0x72, 0xab, 0x2e, 0x2e, 0xab, 0xda,
+	0x43, 0x5b, 0xb2, 0x43, 0x26, 0xe7, 0x82, 0x6a, 0xc3, 0xce, 0x81, 0x36, 0x43, 0xa5, 0x9e, 0x5c,
+	0xe3, 0x9c, 0x8b, 0xa5, 0x2d, 0x2c, 0x6b, 0x7c, 0x73, 0x1c, 0xfd, 0xcd, 0x71, 0x1c, 0x7f, 0xfe,
+	0xeb, 0x45, 0xe0, 0xbd, 0xb8, 0x08, 0xbc, 0x3f, 0x2e, 0x02, 0xef, 0xc7, 0xcb, 0x60, 0xeb, 0xc5,
+	0x65, 0xb0, 0xf5, 0xfb, 0x65, 0xb0, 0xf5, 0xcd, 0xfd, 0x33, 0x6e, 0xac, 0xb5, 0x91, 0xcc, 0x17,
+	0xcf, 0x54, 0x09, 0x4f, 0x0b, 0x10, 0x0b, 0x21, 0x63, 0x58, 0x7c, 0xb7, 0xb8, 0xf2, 0x25, 0x35,
+	0xdf, 0x17, 0xa0, 0xc3, 0x5d, 0xf7, 0xd5, 0xfc, 0xf0, 0xaf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb6,
+	0x5a, 0x06, 0x0c, 0x66, 0x07, 0x00, 0x00,
 }
 
 func (m *CandidateSlotCurrentStoreState) Marshal() (dAtA []byte, err error) {
@@ -588,6 +805,18 @@ func (m *CandidatePoolMemberStoreState) MarshalToSizedBuffer(dAtA []byte) (int, 
 	_ = i
 	var l int
 	_ = l
+	if m.WeightInputs != nil {
+		{
+			size, err := m.WeightInputs.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCandidateAddressStore(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x32
+	}
 	if len(m.BindingHash) > 0 {
 		i -= len(m.BindingHash)
 		copy(dAtA[i:], m.BindingHash)
@@ -616,6 +845,158 @@ func (m *CandidatePoolMemberStoreState) MarshalToSizedBuffer(dAtA []byte) (int, 
 		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.Epoch))
 		i--
 		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *CandidateWeightInputsStoreState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CandidateWeightInputsStoreState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CandidateWeightInputsStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Profiles) > 0 {
+		for iNdEx := len(m.Profiles) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Profiles[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintCandidateAddressStore(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if m.Tombstoned {
+		i--
+		if m.Tombstoned {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.Unbonding {
+		i--
+		if m.Unbonding {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.InferenceCapable {
+		i--
+		if m.InferenceCapable {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.CandidateJailFactorPpm != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.CandidateJailFactorPpm))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.PerformanceMethodVersion != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.PerformanceMethodVersion))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.PerformanceScorePpm != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.PerformanceScorePpm))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.AvailableBond != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.AvailableBond))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.ActiveBond != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.ActiveBond))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *CandidateProfileWeightInputStoreState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *CandidateProfileWeightInputStoreState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CandidateProfileWeightInputStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.InferenceCapable {
+		i--
+		if m.InferenceCapable {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.MinStakeSnapshot != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.MinStakeSnapshot))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.ProfileSupportFresh {
+		i--
+		if m.ProfileSupportFresh {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.ProfileVersion != 0 {
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(m.ProfileVersion))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.ModelId) > 0 {
+		i -= len(m.ModelId)
+		copy(dAtA[i:], m.ModelId)
+		i = encodeVarintCandidateAddressStore(dAtA, i, uint64(len(m.ModelId)))
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -738,6 +1119,74 @@ func (m *CandidatePoolMemberStoreState) Size() (n int) {
 	l = len(m.BindingHash)
 	if l > 0 {
 		n += 1 + l + sovCandidateAddressStore(uint64(l))
+	}
+	if m.WeightInputs != nil {
+		l = m.WeightInputs.Size()
+		n += 1 + l + sovCandidateAddressStore(uint64(l))
+	}
+	return n
+}
+
+func (m *CandidateWeightInputsStoreState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ActiveBond != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.ActiveBond))
+	}
+	if m.AvailableBond != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.AvailableBond))
+	}
+	if m.PerformanceScorePpm != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.PerformanceScorePpm))
+	}
+	if m.PerformanceMethodVersion != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.PerformanceMethodVersion))
+	}
+	if m.CandidateJailFactorPpm != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.CandidateJailFactorPpm))
+	}
+	if m.InferenceCapable {
+		n += 2
+	}
+	if m.Unbonding {
+		n += 2
+	}
+	if m.Tombstoned {
+		n += 2
+	}
+	if len(m.Profiles) > 0 {
+		for _, e := range m.Profiles {
+			l = e.Size()
+			n += 1 + l + sovCandidateAddressStore(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *CandidateProfileWeightInputStoreState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ModelId)
+	if l > 0 {
+		n += 1 + l + sovCandidateAddressStore(uint64(l))
+	}
+	if m.ProfileVersion != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.ProfileVersion))
+	}
+	if m.ProfileSupportFresh {
+		n += 2
+	}
+	if m.MinStakeSnapshot != 0 {
+		n += 1 + sovCandidateAddressStore(uint64(m.MinStakeSnapshot))
+	}
+	if m.InferenceCapable {
+		n += 2
 	}
 	return n
 }
@@ -1454,6 +1903,443 @@ func (m *CandidatePoolMemberStoreState) Unmarshal(dAtA []byte) error {
 				m.BindingHash = []byte{}
 			}
 			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WeightInputs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.WeightInputs == nil {
+				m.WeightInputs = &CandidateWeightInputsStoreState{}
+			}
+			if err := m.WeightInputs.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCandidateAddressStore(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CandidateWeightInputsStoreState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCandidateAddressStore
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CandidateWeightInputsStoreState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CandidateWeightInputsStoreState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ActiveBond", wireType)
+			}
+			m.ActiveBond = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ActiveBond |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AvailableBond", wireType)
+			}
+			m.AvailableBond = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AvailableBond |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PerformanceScorePpm", wireType)
+			}
+			m.PerformanceScorePpm = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PerformanceScorePpm |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PerformanceMethodVersion", wireType)
+			}
+			m.PerformanceMethodVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PerformanceMethodVersion |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CandidateJailFactorPpm", wireType)
+			}
+			m.CandidateJailFactorPpm = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CandidateJailFactorPpm |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InferenceCapable", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.InferenceCapable = bool(v != 0)
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Unbonding", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Unbonding = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tombstoned", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Tombstoned = bool(v != 0)
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Profiles", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Profiles = append(m.Profiles, &CandidateProfileWeightInputStoreState{})
+			if err := m.Profiles[len(m.Profiles)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCandidateAddressStore(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CandidateProfileWeightInputStoreState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCandidateAddressStore
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CandidateProfileWeightInputStoreState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CandidateProfileWeightInputStoreState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ModelId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCandidateAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ModelId = append(m.ModelId[:0], dAtA[iNdEx:postIndex]...)
+			if m.ModelId == nil {
+				m.ModelId = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProfileVersion", wireType)
+			}
+			m.ProfileVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ProfileVersion |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProfileSupportFresh", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ProfileSupportFresh = bool(v != 0)
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinStakeSnapshot", wireType)
+			}
+			m.MinStakeSnapshot = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MinStakeSnapshot |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InferenceCapable", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCandidateAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.InferenceCapable = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCandidateAddressStore(dAtA[iNdEx:])

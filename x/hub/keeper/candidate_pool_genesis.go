@@ -231,6 +231,9 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 	// that now, and candidateHashKey has already rejected a zero-length id.
 	var activeKey shared.Hash32Key
 	for _, state := range genState.CandidatePoolSnapshots {
+		if err := state.ValidateWorkerWeightPolicy(); err != nil {
+			return err
+		}
 		key, err := candidateHashKey(state.SnapshotId)
 		if err != nil {
 			return fmt.Errorf("candidate snapshot: %w", err)
@@ -280,7 +283,8 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			// Bounded body pruning leaves the header EXPIRED while rows are
 			// removed. A complete body must still reproduce its commitments; a
 			// partial body is legal only after all task references are gone.
-			if bodyMemberCounts[state.Epoch] == state.ActiveCount {
+			completeBody := bodyMemberCounts[state.Epoch] == state.ActiveCount
+			if completeBody {
 				if err := k.verifyCandidatePoolBody(ctx, state); err != nil {
 					return fmt.Errorf("candidate snapshot %s body commitment mismatch: %w", hexRef(key), err)
 				}
@@ -291,10 +295,14 @@ func (k Keeper) initCandidatePoolGenesis(ctx context.Context, genState types.Gen
 			// pruning; one that is still referenced waits for
 			// ReleaseCandidatePoolTaskRef to enqueue it.
 			if state.TaskRefCount == 0 {
-				if err := k.CandidatePoolPruneIndex.Set(ctx, types.NewCandidatePoolPruneIndexKey(
-					state.ExpiresHeight, key, types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY,
-				)); err != nil {
-					return err
+				if completeBody {
+					if err := k.scheduleCandidateBodyPrune(ctx, state, sdkWrappedContextHeight(ctx)); err != nil {
+						return err
+					}
+				} else {
+					if err := k.CandidatePoolPruneIndex.Set(ctx, types.NewCandidatePoolPruneIndexKey(state.ExpiresHeight, key, types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY)); err != nil {
+						return err
+					}
 				}
 			}
 		case candidateSnapshotPruned:

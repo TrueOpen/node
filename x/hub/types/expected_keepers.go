@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -101,20 +102,29 @@ type ValidatorSnapshotMember struct {
 	VotingPower      uint64
 }
 
-// TaskSafetyWindowProvider exposes the task-owned challenge windows required
-// to validate the service-bond slashability horizon.
+// TaskSafetyWindowProvider exposes current and still-referenced Task clocks for
+// Hub governance, without scanning the live Task or Session objects.
 type TaskSafetyWindowProvider interface {
 	GetTaskSafetyWindows(context.Context) (TaskSafetyWindows, error)
+}
+
+// WorkerCandidateWeightProvider reads Task-owned policy only when an epoch activates.
+type WorkerCandidateWeightProvider interface {
+	GetWorkerCandidateWeightPolicy(context.Context, uint64) (shared.WorkerCandidateWeightPolicy, error)
 }
 
 type TaskSafetyWindows struct {
 	ChallengeResolveWindowBlocks uint64
 	EvidenceResponseWindowBlocks uint64
+	VerifyOpenDeadlineBlocks     uint64
+	SelfRescueMarginBlocks       uint64
+	MinimumBuilderSetLeadBlocks  uint64
 }
 
 type MsgServerDependencies struct {
-	FreezeTaskValidator       FreezeSignalTaskValidator
-	ValidatorSnapshotProvider ValidatorSnapshotProvider
-	TaskSafetyWindowProvider  TaskSafetyWindowProvider
-	RoleFaultConsumerGate     RoleFaultConsumerGate
+	FreezeTaskValidator           FreezeSignalTaskValidator
+	ValidatorSnapshotProvider     ValidatorSnapshotProvider
+	TaskSafetyWindowProvider      TaskSafetyWindowProvider
+	RoleFaultConsumerGate         RoleFaultConsumerGate
+	WorkerCandidateWeightProvider WorkerCandidateWeightProvider
 }

@@ -81,10 +81,10 @@ echo "current params_version: $EXPECTED_VERSION"
 ```
 
 **Step 2.2 — change only the field you mean to change** (example:
-`builders_per_task` 3 → 5), leaving the rest untouched:
+`query_event.max_query_page_limit` 1000 → 200), leaving the rest untouched:
 
 ```bash
-jq '.builders_per_task = "5"' /tmp/hubparams.json > /tmp/hubparams.new.json
+jq '.query_event.max_query_page_limit = 200' /tmp/hubparams.json > /tmp/hubparams.new.json
 diff <(jq -S . /tmp/hubparams.json) <(jq -S . /tmp/hubparams.new.json)   # confirm only that one line differs
 ```
 
@@ -105,8 +105,8 @@ jq -n --slurpfile p /tmp/hubparams.new.json --arg auth "$GOV_AUTH" \
   ],
   metadata: "",
   deposit: "10000000uusdc",
-  title: "Update hub params: builders_per_task 3 -> 5",
-  summary: "Raise builders_per_task from 3 to 5 to widen per-task builder assignment."
+  title: "Update hub params: query_event.max_query_page_limit 1000 -> 200",
+  summary: "Reduce the maximum Query page limit from 1000 to 200."
 }' > /tmp/proposal.json
 cat /tmp/proposal.json
 ```
@@ -180,7 +180,7 @@ did not get the votes; `FAILED` = passed but execution errored (wrong
 ## 6. Verify the change took effect
 
 ```bash
-noded query hub params -o json | jq '.params.builders_per_task'   # expect "5"
+noded query hub params -o json | jq '.params.query_event.max_query_page_limit'   # expect 200
 
 # params_version has incremented; the next proposal must name the new value
 noded query hub params -o json | jq -r '.meta.params_version'
@@ -221,8 +221,8 @@ GOV_FAST=1 RESET=1 scripts/localnet_single_node.sh
 
 ## 9. Related operations (same flow, different message)
 
-- **Change task params**: swap the message for `/task.v1.MsgUpdateParams` (same
-  rules — `authority` = the gov address, `params` complete).
+- **Change task params**: swap the message for `/task.v1.MsgUpdateTaskParams` (same
+  rules — `authority` = the gov address, `params` complete, and `expected_version` copied from the same TaskParams query).
 - **List/delist a model**: swap the message for `/hub.v1.MsgSetModelStatus` or
   `MsgSetProfileStatus` (both gov-gated); fill in the corresponding fields.
 - A single proposal's `messages` array may hold several messages; on passing they

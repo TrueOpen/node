@@ -221,6 +221,9 @@ func (k Keeper) startRevealPhase(
 			return false, errorsmod.Wrap(types.ErrInvariantBroken, "challenge reveal deadline is outside the frozen round clock")
 		}
 	}
+	if err := k.extendValueEvidenceWindow(ctx, taskKey, revealDeadline); err != nil {
+		return false, err
+	}
 	assignment.RevealDeadlineHeight = revealDeadline
 	advanceTaskPhase(&core, types.TaskPhase_TASK_PHASE_REVEALING)
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_REVEALING

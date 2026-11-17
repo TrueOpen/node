@@ -198,20 +198,33 @@ func (k Keeper) candidatePoolMemberToStore(state types.CandidatePoolMemberState)
 	if err != nil {
 		return internaltypes.CandidatePoolMemberStoreState{}, err
 	}
+	weights, err := candidateWeightInputsToStore(state.WeightInputs)
+	if err != nil {
+		return internaltypes.CandidatePoolMemberStoreState{}, err
+	}
 	return internaltypes.CandidatePoolMemberStoreState{
 		Epoch: state.Epoch, Slot: state.Slot, SlotVersion: state.SlotVersion,
 		OperatorAddress: address, BindingHash: append([]byte(nil), state.BindingHash...),
+		WeightInputs: weights,
 	}, nil
 }
 
-func (k Keeper) ProjectCandidatePoolMemberStore(stored internaltypes.CandidatePoolMemberStoreState) (types.CandidatePoolMemberState, error) {
+func (k Keeper) ProjectCandidatePoolMemberStore(ctx context.Context, stored internaltypes.CandidatePoolMemberStoreState) (types.CandidatePoolMemberState, error) {
 	address, err := k.accountAddressFromStore("candidate pool member operator", stored.OperatorAddress, false)
 	if err != nil {
+		return types.CandidatePoolMemberState{}, err
+	}
+	weights, err := candidateWeightInputsFromStore(stored.WeightInputs)
+	if err != nil {
+		return types.CandidatePoolMemberState{}, err
+	}
+	if err := k.applyCandidateProfileAdditions(ctx, stored.Epoch, weights); err != nil {
 		return types.CandidatePoolMemberState{}, err
 	}
 	return types.CandidatePoolMemberState{
 		Epoch: stored.Epoch, Slot: stored.Slot, SlotVersion: stored.SlotVersion,
 		OperatorAddress: address, BindingHash: append([]byte(nil), stored.BindingHash...),
+		WeightInputs: weights,
 	}, nil
 }
 
@@ -223,7 +236,7 @@ func (k Keeper) ReadCandidatePoolMember(ctx context.Context, key types.Candidate
 	if stored.Epoch != key.K1() || stored.Slot != key.K2() {
 		return types.CandidatePoolMemberState{}, fmt.Errorf("candidate pool member key mismatch")
 	}
-	return k.ProjectCandidatePoolMemberStore(stored)
+	return k.ProjectCandidatePoolMemberStore(ctx, stored)
 }
 
 func (k Keeper) WriteCandidatePoolMember(ctx context.Context, key types.CandidatePoolMemberKeyPair, state types.CandidatePoolMemberState) error {
@@ -252,7 +265,7 @@ func (k Keeper) exportCandidatePoolMembers(ctx context.Context) ([]types.Candida
 		if entry.Value.Epoch != entry.Key.K1() || entry.Value.Slot != entry.Key.K2() {
 			return nil, fmt.Errorf("candidate pool member key mismatch")
 		}
-		state, err := k.ProjectCandidatePoolMemberStore(entry.Value)
+		state, err := k.ProjectCandidatePoolMemberStore(ctx, entry.Value)
 		if err != nil {
 			return nil, err
 		}

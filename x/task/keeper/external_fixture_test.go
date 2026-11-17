@@ -44,7 +44,7 @@ func initFixture(t *testing.T) *fixture {
 	k := keeper.NewKeeper(storeService, transientStoreService, encCfg.Codec, addressCodec, authority, taskExternalAuthKeeper{}, taskExternalBankKeeper{}, stubHubKeeper{})
 	// Every registered hash binds chain_id, so the test context
 	// must carry one or the canonical helpers correctly refuse to hash.
-	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1")), keeper: k}
+	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1").WithBlockHeight(11)), keeper: k}
 }
 
 // Canonical bech32 addresses: the protocol requires every
@@ -69,27 +69,28 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 	taskID := repeatByte(0x22)
 	poolSnapshotID := repeatByte(0x33)
 	poolHash := repeatByte(0x44)
-	unionBitmapHash := repeatByte(0x55)
-	legalSetHash := repeatByte(0x66)
 	builderSetHash := repeatByte(0x77)
-	anchorHash := repeatByte(0x88)
 
 	genesis.SessionNonces = []tasktypes.SessionNonceState{{UserAddress: genesisUser, NextSessionNonce: 1}}
 	genesis.Streams = []tasktypes.StreamState{{
 		SessionId:            sessionID,
 		OwnerUserAddress:     genesisUser,
 		NextExpectedSequence: 2,
-		LastActiveHeight:     5,
+		LastActiveHeight:     6,
 		OpenPendingCount:     1,
 		Status:               tasktypes.SessionStatus_SESSION_STATUS_ACTIVE,
 		SessionKeySpendCap:   shared.NewAmount(0), SessionKeySpent: shared.NewAmount(0),
-	}}
+		Balance: shared.NewAmount(1000), FrozenTotal: shared.NewAmount(1000), PendingWithdrawAmount: shared.NewAmount(0),
+		BoundBuilder: genesisBuilder, BoundChangeHeight: 1,
+
+		PendingWithdrawKind: tasktypes.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE},
+	}
 	genesis.OrderSequences = []tasktypes.OrderSequenceState{{
 		SessionId:      sessionID,
 		OrderSequence:  1,
 		Status:         tasktypes.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CONSUMED,
 		TaskId:         taskID,
-		ConsumedHeight: 5,
+		ConsumedHeight: 6,
 	}}
 	genesis.TaskCores = []tasktypes.TaskCoreState{{
 		TaskId:                           taskID,
@@ -103,32 +104,32 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		ProfileVersion:                   1,
 		TaskType:                         shared.TaskType_TASK_TYPE_TEXT_GENERATION,
 		OrderValue:                       shared.NewAmount(800),
-		TaskPhase:                        tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
-		AssignmentStatus:                 tasktypes.AssignmentStatus_ASSIGNMENT_STATUS_WORKER_ASSIGNED,
+		TaskPhase:                        tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING,
+		AssignmentStatus:                 tasktypes.AssignmentStatus_ASSIGNMENT_STATUS_WORKER_RECORDED,
 		ReceiptStatus:                    tasktypes.ReceiptStatus_RECEIPT_STATUS_NONE,
 		VerificationStatus:               tasktypes.VerificationStatus_VERIFICATION_STATUS_NONE,
 		SettlementStatus:                 tasktypes.SettlementStatus_SETTLEMENT_STATUS_NONE,
 		FinalityStatus:                   shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_PENDING,
-		CreatedHeight:                    5,
+		CreatedHeight:                    6,
 		UpdatedHeight:                    6,
 		EvidenceRetentionBlocksSnapshot:  tasktypes.DefaultMaxEvidenceRetentionBlocks,
 		ObjectiveForgerySlashBpsSnapshot: types.DefaultObjectiveForgerySlashBps,
 	}}
 	genesis.TaskAssignments = []tasktypes.TaskAssignmentState{{
-		TaskId:                     taskID,
-		AssignAcceptHeight:         5,
-		AssignmentRandomnessHeight: 6,
-		WinnerConfirmHeight:        6,
-		InferDeadlineHeight:        46,
-		InferTimeoutBlocks:         40,
-		CandidatePoolSnapshotId:    poolSnapshotID,
-		CandidatePoolHash:          poolHash,
-		AssignmentCandidateSetHash: legalSetHash,
-		WinnerWorker:               genesisWorker,
-		WinnerDrawDigest:           repeatByte(0xcc),
-		GenerationParamsDigest:     repeatByte(0xce),
-		MinStakeSnapshot:           shared.NewAmount(10_000),
+		RecordHeight: 6, DispatchRecordHash: repeatByte(0xbc), DispatchTicketHash: repeatByte(0xcd),
+		TaskId:                  taskID,
+		WinnerConfirmHeight:     6,
+		InferDeadlineHeight:     46,
+		InferTimeoutBlocks:      40,
+		CandidatePoolSnapshotId: poolSnapshotID,
+		CandidatePoolHash:       poolHash,
+		WinnerWorker:            genesisWorker,
+		GenerationParamsDigest:  repeatByte(0xce),
+		MinStakeSnapshot:        shared.NewAmount(10_000),
 	}}
+
+	member := &tasktypes.CandidateMemberRefV1{CandidatePoolSnapshotId: poolSnapshotID, Slot: 1, SlotVersion: 1, OperatorAddress: genesisWorker}
+	genesis.DispatchRecords = []tasktypes.DispatchRecordState{{TaskId: taskID, ServiceAuthorizationNonce: 1, BoundChangeHeight: 1, DispatchRecordHash: repeatByte(0xbc), DispatchTicketHash: repeatByte(0xcd), BuilderAddress: genesisBuilder, ReferenceHeight: 1, CandidatePoolSnapshotId: poolSnapshotID, VrfEpoch: 1, EarliestSubmitHeight: 5, VrfOutput: repeatByte(0xd1), VrfProof: bytes.Repeat([]byte{0xd2}, 80), RandomnessScheme: tasktypes.DispatchRandomnessSchemeV1_DISPATCH_RANDOMNESS_SCHEME_V1_BUILDER_VRF, StickyAnchorSequence: 1, StickyRunCount: 1, StickySnapshot: &tasktypes.DispatchStickySnapshotV1{}, Winner: member, RecordedHeight: 6, AcceptedEntryDigest: repeatByte(0xd3), ClaimWindowCloseHeight: 100, Rounds: []*tasktypes.DispatchRoundV1{{DispatchRound: 0, HandraiseRootDigest: repeatByte(0xd4), RosterHash: repeatByte(0xd5), Attempts: []*tasktypes.DispatchAttemptV1{{DispatchTicketHash: repeatByte(0xcd), Rank: 0, Member: member, Outcome: tasktypes.DispatchAttemptOutcomeV1_DISPATCH_ATTEMPT_OUTCOME_V1_ACCEPTED, RejectDigestOrZero32: make([]byte, 32)}}}}}}
 	genesis.TaskBudgets = []tasktypes.TaskBudgetState{{
 		TaskId:                 taskID,
 		FeeRuleVersion:         1,
@@ -152,63 +153,10 @@ func taskGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisState {
 		MaxReimbursementPerTxSnapshot:    shared.NewAmount(50),
 		MaxReimbursementPerTaskSnapshot:  shared.NewAmount(100),
 	}}
-	genesis.TaskStageHandraiseUnions = []tasktypes.TaskStageHandraiseUnionState{{
-		SchemaVersion:           1,
-		TaskId:                  taskID,
-		Stage:                   tasktypes.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK,
-		CandidatePoolSnapshotId: poolSnapshotID,
-		CandidatePoolHash:       poolHash,
-		UnionCount:              1,
-		AcceptedProposalCount:   1,
-		Status:                  tasktypes.TaskCandidateStageStatusV1_TASK_CANDIDATE_STAGE_STATUS_V1_FINALIZED,
-		WindowCloseHeight:       6,
-		UnionBitmapHash:         unionBitmapHash,
-	}}
-	genesis.TaskCandidateFacts = []tasktypes.TaskCandidateFactState{{
-		SchemaVersion:                  1,
-		TaskId:                         taskID,
-		Stage:                          tasktypes.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK,
-		Slot:                           7,
-		SlotVersion:                    1,
-		OperatorAddress:                genesisWorker,
-		Duty:                           shared.Duty_DUTY_WORKER,
-		ActiveBondSnapshot:             shared.NewAmount(1_000_000),
-		AvailableBondSnapshot:          shared.NewAmount(900_000),
-		RequiredTaskLiabilitySnapshot:  shared.NewAmount(30_000),
-		MinStakeSnapshot:               shared.NewAmount(10_000),
-		PerformanceScoreSnapshotPpm:    uint32(types.PerformanceScoreDefaultPpm),
-		PerformanceMethodVersion:       uint32(types.PerformanceScoreMethodVersionV1),
-		CandidateJailFactorSnapshotPpm: 1_000_000,
-		BondVersionSnapshot:            1,
-		CapabilityVersionSnapshot:      1,
-		SupportVersionSnapshot:         1,
-		CandidateWeight:                1_000_000,
-		HandraiseSigningDigest:         repeatByte(0xdd),
-	}}
-	genesis.BuilderStageProposals = []tasktypes.BuilderStageProposalState{{
-		SchemaVersion:    1,
-		TaskId:           taskID,
-		Stage:            tasktypes.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_TASK,
-		ProposalDigest:   repeatByte(0xee),
-		ProposerOperator: genesisBuilder,
-		AcceptedHeight:   5,
-		NewMemberCount:   1,
-	}}
-	genesis.AssignmentCandidateSets = []tasktypes.AssignmentCandidateSetState{{
-		SchemaVersion:              1,
-		TaskId:                     taskID,
-		TaskHash:                   repeatByte(0x99),
-		CandidatePoolSnapshotId:    poolSnapshotID,
-		CandidatePoolHash:          poolHash,
-		UnionBitmapHash:            unionBitmapHash,
-		CandidateCount:             1,
-		AssignmentCandidateSetHash: legalSetHash,
-	}}
 
 	builders := []string{genesisBuilder}
 	genesis.TaskBuilderSelections = []tasktypes.TaskBuilderSelectionState{{
 		TaskId:                   taskID,
-		SessionAnchorBlockHash:   anchorHash,
 		BuilderSetId:             "1",
 		BuilderSetHash:           builderSetHash,
 		SelectedTaskBuilders:     builders,
@@ -242,6 +190,7 @@ func verifierReadyGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisStat
 	t.Helper()
 	genesis := verifierSourceGenesisV1(t, chainID)
 	window := &genesis.VerifierCandidateWindows[0]
+	unionBitmapHash := repeatByte(0x55)
 	randomness := repeatByte(0x41)
 	window.XWindowRandomnessBeacon = &tasktypes.VerifierCandidateWindowState_WindowRandomnessBeacon{WindowRandomnessBeacon: randomness}
 	window.Status = tasktypes.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY
@@ -300,7 +249,6 @@ func verifierReadyGenesisV1(t *testing.T, chainID string) *tasktypes.GenesisStat
 			CandidateWeight: uint32(300_000 + i*200_000), HandraiseSigningDigest: repeatByte(byte(0x42 + i)),
 		})
 	}
-	unionBitmapHash := repeatByte(0x43)
 	legalFields := [][]byte{
 		[]byte(chainID), window.TaskId, shared.Uint32BE(window.VerifyRound), window.CandidatePoolSnapshotId, window.CandidatePoolHash,
 		windowHash, unionBitmapHash, shared.Uint32BE(3),

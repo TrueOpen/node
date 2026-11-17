@@ -42,8 +42,8 @@ type builderStageResponsibilityRecorder struct {
 	released []string
 }
 
-func (r *builderStageResponsibilityRecorder) GetHubParams(sdk.Context) hubtypes.HubParamsSnapshot {
-	return hubtypes.HubParamsSnapshot{BuildersPerTask: testBuildersPerStageResponsibility}
+func (r *builderStageResponsibilityRecorder) GetBuilderSetByID(sdk.Context, string) (hubtypes.BuilderSetState, error) {
+	return hubtypes.BuilderSetState{ActiveBuilderCount: testBuildersPerStageResponsibility}, nil
 }
 
 func (r *builderStageResponsibilityRecorder) ReserveServiceKeyResponsibility(_ context.Context, responsibility hubtypes.ServiceKeyResponsibilityState) error {

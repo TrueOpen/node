@@ -17,6 +17,7 @@ var msgRegistrations = []msgRegistration{
 	{&MsgUpdateHubParams{}, "trueopen/x/hub/MsgUpdateHubParams"},
 	{&MsgClaimEarnings{}, "trueopen/x/hub/MsgClaimEarnings"},
 	{&MsgRegisterBuilder{}, "trueopen/x/hub/MsgRegisterBuilder"},
+	{&MsgFundBuilderCompensation{}, "trueopen/x/hub/MsgFundBuilderCompensation"},
 	{&MsgRunBuilderTerm{}, "trueopen/x/hub/MsgRunBuilderTerm"},
 	{&MsgRegisterVrfKey{}, "trueopen/x/hub/MsgRegisterVrfKey"},
 	{&MsgRotateServiceKey{}, "trueopen/x/hub/MsgRotateServiceKey"},

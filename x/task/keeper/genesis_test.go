@@ -20,112 +20,46 @@ func TestGenesisRejectsTaskAssignmentWithoutMinimumStakeSnapshot(t *testing.T) {
 	require.ErrorContains(t, genesis.Validate(), "min_stake_snapshot must be positive")
 }
 
-func TestGenesisV03RoundTripRebuildsDerivedIndexes(t *testing.T) {
+func TestGenesisRoundTripRebuildsPhase1Indexes(t *testing.T) {
 	source := initFixture(t)
 	input := taskGenesisV1(t, genesisChainID(source))
-	report := types.DataUnavailableReportState{
-		TaskId:                            append([]byte(nil), input.TaskCores[0].TaskId...),
-		VerifyRound:                       types.VerifyRoundV1,
-		VerifierOperatorAddress:           genesisVerifier,
-		UnavailableTaskBuilderBitmap:      []byte{1},
-		ServiceAuthorizationNonceSnapshot: 1,
-		ReportHeight:                      7,
-		ReportDigest:                      bytes.Repeat([]byte{0x94}, types.Hash32Len),
-	}
-	input.DataUnavailableReports = []types.DataUnavailableReportState{report}
-	aggregate := types.BuilderDataUnavailableAggregateState{
-		TaskId:                 append([]byte(nil), input.TaskCores[0].TaskId...),
-		VerifyRound:            types.VerifyRoundV1,
-		BuilderOperatorAddress: genesisBuilder,
-		ValidReportCount:       1,
-		RequiredReportCount:    1,
-		ReportDigestsByVerifierSlot: []types.BuilderDataUnavailableSlotV1{
-			{XReportDigest: &types.BuilderDataUnavailableSlotV1_ReportDigest{ReportDigest: append([]byte(nil), report.ReportDigest...)}},
-			{},
-		},
-		AggregateHash:          bytes.Repeat([]byte{0x95}, types.Hash32Len),
-		ThresholdReachedHeight: 8,
-		Status:                 types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_CONFIRMED,
-	}
-	input.BuilderDataUnavailableAggregates = []types.BuilderDataUnavailableAggregateState{aggregate}
 	require.NoError(t, source.keeper.InitGenesis(source.ctx, *input))
-	selection := input.TaskBuilderSelections[0]
-	ownerBytes, err := sdk.AccAddressFromBech32(input.SessionNonces[0].UserAddress)
+	owner, err := sdk.AccAddressFromBech32(genesisUser)
 	require.NoError(t, err)
-	nonceStore, err := source.keeper.SessionNonce.Get(source.ctx, types.AddrKey(ownerBytes))
+	worker, err := sdk.AccAddressFromBech32(genesisWorker)
 	require.NoError(t, err)
-	require.Equal(t, []byte(ownerBytes), nonceStore.UserAddress)
-	streamStore, err := source.keeper.Stream.Get(source.ctx, types.NewSessionStoreKey(input.Streams[0].SessionId))
+	builder, err := sdk.AccAddressFromBech32(genesisBuilder)
 	require.NoError(t, err)
-	require.Equal(t, []byte(ownerBytes), streamStore.OwnerUserAddress)
-	assignmentStore, err := source.keeper.TaskAssignment.Get(source.ctx, types.NewTaskKey(input.TaskAssignments[0].TaskId))
+	stream, err := source.keeper.Stream.Get(source.ctx, input.Streams[0].SessionId)
 	require.NoError(t, err)
-	winnerAddress, err := sdk.AccAddressFromBech32(input.TaskAssignments[0].WinnerWorker)
+	require.Equal(t, []byte(owner), stream.OwnerUserAddress)
+	require.Equal(t, []byte(builder), stream.BoundBuilder)
+	taskID := input.TaskCores[0].TaskId
+	assignment, err := source.keeper.TaskAssignment.Get(source.ctx, taskID)
 	require.NoError(t, err)
-	require.Equal(t, []byte(winnerAddress), assignmentStore.WinnerWorker)
-	candidate := input.TaskCandidateFacts[0]
-	candidateKey := types.NewTaskCandidateFactKey(types.NewTaskKey(candidate.TaskId), candidate.Stage, candidate.Slot)
-	candidateStore, err := source.keeper.TaskCandidateFact.Get(source.ctx, candidateKey)
+	require.Equal(t, []byte(worker), assignment.WinnerWorker)
+	record, err := source.keeper.DispatchRecord.Get(source.ctx, taskID)
 	require.NoError(t, err)
-	candidateAddress, err := sdk.AccAddressFromBech32(candidate.OperatorAddress)
+	require.Equal(t, []byte(builder), record.BuilderAddress)
+	require.Equal(t, []byte(worker), record.Winner.OperatorAddress)
+	require.NoError(t, source.keeper.EnsureDispatchInvariant(source.ctx))
+	has, err := source.keeper.InferDeadlineIndex.Has(source.ctx, types.NewDeadlineIndexKey(input.TaskAssignments[0].InferDeadlineHeight, taskID))
 	require.NoError(t, err)
-	require.Equal(t, []byte(candidateAddress), candidateStore.OperatorAddress)
-	proposal := input.BuilderStageProposals[0]
-	proposalKey := types.NewBuilderStageProposalKey(types.NewTaskKey(proposal.TaskId), proposal.Stage, proposal.ProposalDigest)
-	proposalStore, err := source.keeper.BuilderStageProposal.Get(source.ctx, proposalKey)
+	require.True(t, has)
+	has, err = source.keeper.WorkerActiveTaskIndex.Has(source.ctx, types.NewWorkerActiveTaskKey(worker, taskID))
 	require.NoError(t, err)
-	proposalAddress, err := sdk.AccAddressFromBech32(proposal.ProposerOperator)
+	require.True(t, has)
+	has, err = source.keeper.SessionByOwnerIndex.Has(source.ctx, types.NewSessionByOwnerKey(owner, input.Streams[0].SessionId))
 	require.NoError(t, err)
-	require.Equal(t, []byte(proposalAddress), proposalStore.ProposerOperator)
-	reportKey := types.NewVerifyActorKey(types.NewTaskKey(report.TaskId), report.VerifyRound, report.VerifierOperatorAddress)
-	reportStore, err := source.keeper.DataUnavailableReport.Get(source.ctx, reportKey)
-	require.NoError(t, err)
-	reportAddress, err := sdk.AccAddressFromBech32(report.VerifierOperatorAddress)
-	require.NoError(t, err)
-	require.Equal(t, []byte(reportAddress), reportStore.VerifierOperatorAddress)
-	aggregateKey := types.NewVerifyActorKey(types.NewTaskKey(aggregate.TaskId), aggregate.VerifyRound, aggregate.BuilderOperatorAddress)
-	aggregateStore, err := source.keeper.BuilderDataUnavailableAggregate.Get(source.ctx, aggregateKey)
-	require.NoError(t, err)
-	aggregateAddress, err := sdk.AccAddressFromBech32(aggregate.BuilderOperatorAddress)
-	require.NoError(t, err)
-	require.Equal(t, []byte(aggregateAddress), aggregateStore.BuilderOperatorAddress)
-	require.Len(t, aggregateStore.ReportDigestsByVerifierSlot, 2)
-	require.True(t, aggregateStore.ReportDigestsByVerifierSlot[0].HasReportDigest)
-	require.False(t, aggregateStore.ReportDigestsByVerifierSlot[1].HasReportDigest)
-	stored, err := source.keeper.TaskBuilderSelection.Get(source.ctx, types.NewTaskKey(selection.TaskId))
-	require.NoError(t, err)
-	encoded, err := stored.Marshal()
-	require.NoError(t, err)
-	for _, address := range selection.SelectedTaskBuilders {
-		raw, err := sdk.AccAddressFromBech32(address)
-		require.NoError(t, err)
-		require.False(t, bytes.Contains(encoded, []byte(address)))
-		require.True(t, bytes.Contains(encoded, raw))
-	}
-
+	require.True(t, has)
 	exported, err := source.keeper.ExportGenesis(source.ctx)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(input, exported))
-
-	taskKey := types.NewTaskKey(input.TaskCores[0].TaskId)
-	inferKey := types.NewDeadlineIndexKey(input.TaskAssignments[0].InferDeadlineHeight, taskKey)
-	has, err := source.keeper.InferDeadlineIndex.Has(source.ctx, inferKey)
-	require.NoError(t, err)
-	require.True(t, has)
-	has, err = source.keeper.WorkerActiveTaskIndex.Has(source.ctx,
-		types.NewWorkerActiveTaskKey(winnerAddress, taskKey))
-	require.NoError(t, err)
-	require.True(t, has)
-	has, err = source.keeper.SessionByOwnerIndex.Has(source.ctx,
-		types.NewSessionByOwnerKey(ownerBytes, input.Streams[0].SessionId))
-	require.NoError(t, err)
-	require.True(t, has)
-
 	restarted := initFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
-	reexported, err := restarted.keeper.ExportGenesis(restarted.ctx)
+	again, err := restarted.keeper.ExportGenesis(restarted.ctx)
 	require.NoError(t, err)
-	require.True(t, proto.Equal(exported, reexported))
+	require.True(t, proto.Equal(exported, again))
 }
 
 func TestSettlementReceiptAddressesStoreRawBytesAndRoundTrip(t *testing.T) {

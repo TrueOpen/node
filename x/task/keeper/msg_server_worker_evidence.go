@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	hubtypes "github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
@@ -113,7 +114,7 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 	if err != nil || len(publicKey) != 33 || hex.EncodeToString(publicKey) != binding.ServicePubkey {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Worker evidence proof key is non-canonical")
 	}
-	chunkDigest, err := types.OutputChunkSigningDigest(sdkCtx.ChainID(), core.AcceptedTaskHash, evidence.Seq, evidence.StreamedMmrRoot)
+	chunkDigest, err := types.OutputChunkSigningDigest(sdkCtx.ChainID(), core.AcceptedTaskHash, assignment.DispatchTicketHash, evidence.Seq, evidence.StreamedMmrRoot)
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 	}
@@ -137,8 +138,8 @@ func (m msgServer) SubmitWorkerEvidence(ctx context.Context, req *types.MsgSubmi
 			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, err.Error())
 		}
 		if !bytes.Equal(fault.TaskId, core.TaskId) || fault.OperatorAddress != worker ||
-			fault.Duty != shared.Duty_DUTY_WORKER || fault.ClassificationSource != shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE ||
-			!bytes.Equal(fault.EvidenceDigest, evidenceDigest[:]) || len(fault.FaultId) != types.Hash32Len {
+			fault.Duty != shared.Duty_DUTY_WORKER || !hubtypes.IsMergedValueEvidenceFault(fault) ||
+			fault.RecordedHeight > currentHeight || len(fault.FaultId) != types.Hash32Len {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Hub returned a conflicting Worker objective fault")
 		}
 		faultID = append([]byte(nil), fault.FaultId...)

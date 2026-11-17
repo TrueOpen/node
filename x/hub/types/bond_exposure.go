@@ -62,16 +62,13 @@ func EffectiveActiveBond(bond ServiceBondState, currentEpoch uint64) uint64 {
 //
 // Reserved liability may legitimately exceed the effective bond immediately
 // after a slash lowered active_bond while reservations were still open, so the
-// subtraction is checked and reported rather than wrapped.
-func AvailableBond(bond ServiceBondState, currentEpoch uint64) (uint64, error) {
+// available capacity saturates at zero without releasing those reservations.
+func AvailableBond(bond ServiceBondState, currentEpoch uint64) uint64 {
 	effective := EffectiveActiveBond(bond, currentEpoch)
-	if bond.ReservedLiability > effective {
-		return 0, fmt.Errorf(
-			"reserved_liability %d exceeds effective active bond %d for operator %s",
-			bond.ReservedLiability, effective, bond.OperatorAddress,
-		)
+	if bond.ReservedLiability >= effective {
+		return 0
 	}
-	return effective - bond.ReservedLiability, nil
+	return effective - bond.ReservedLiability
 }
 
 // RequiredTaskLiability returns the complete Phase 0 exposure for one accepted

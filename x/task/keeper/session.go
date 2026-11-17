@@ -152,7 +152,7 @@ func (k Keeper) refreshSessionLifecycleIndex(ctx context.Context, stream types.S
 	if err := k.removeSessionLifecycleIndexes(ctx, sessionKey, stream.LastActiveHeight); err != nil {
 		return err
 	}
-	if stream.OpenPendingCount != 0 || stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED {
+	if stream.OpenPendingCount != 0 || stream.Status == types.SessionStatus_SESSION_STATUS_CLOSED || stream.PendingWithdrawKind == types.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_CLOSE {
 		return nil
 	}
 	params, err := k.ParamsForSession(ctx, sessionKey)

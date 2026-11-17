@@ -19,7 +19,7 @@ type taskRoleFaultRecord struct {
 	faultID              []byte
 	operatorAddress      string
 	duty                 shared.Duty
-	faultClass           hubtypes.FaultKind
+	faultClass           shared.FaultKind
 	classificationSource shared.FailureClassificationSource
 	evidenceDigest       []byte
 	jailDelta            uint32
@@ -134,6 +134,21 @@ func (k Keeper) prepareSettlementFaults(
 			})
 		}
 		rows = append(rows, row)
+	}
+	evidence, err := k.firstValueEvidenceReceipts(ctx, inputs.Core.TaskId)
+	if err != nil {
+		return inputs, err
+	}
+	for _, receipt := range evidence {
+		class := shared.FaultKind_FAULT_KIND_VERIFIER_VALUE_MISMATCH
+		if receipt.FaultedDuty == shared.DutyWorker {
+			class = shared.FaultKind_FAULT_KIND_WORKER_VALUES_INVALID
+		}
+		fault, err := k.hubKeeper.ApplyVerifierValueEvidenceFault(ctx, shared.VerifierValueEvidenceFactV1{SessionId: inputs.Core.SessionId, TaskId: inputs.Core.TaskId, VerifyRound: receipt.VerifyRound, TargetOperatorAddress: receipt.TargetOperatorAddress, FaultedDuty: receipt.FaultedDuty, FaultClass: class, EvidenceDigest: receipt.EvidenceDigest, FrozenSlashBps: inputs.Core.ObjectiveForgerySlashBpsSnapshot}, receipt.FaultId)
+		if err != nil {
+			return inputs, err
+		}
+		faults = append(faults, taskRoleFaultRecord{faultID: fault.FaultId, operatorAddress: fault.OperatorAddress, duty: fault.Duty, faultClass: fault.FaultClass, classificationSource: fault.ClassificationSource, evidenceDigest: fault.EvidenceDigest, jailDelta: fault.JailDelta, status: fault.Status})
 	}
 	faultSummary, err := taskFaultSummaryHash(sdkChainID(ctx), inputs.Core.TaskId, faults)
 	if err != nil {

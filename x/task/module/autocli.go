@@ -21,6 +21,13 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 		Query: &autocliv1.ServiceCommandDescriptor{
 			Service: types.Query_serviceDesc.ServiceName,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
+				{RpcMethod: "DispatchRecord", Use: "dispatch-record", Short: "Queries dispatch record", PositionalArgs: []*autocliv1.PositionalArgDescriptor{}},
+				{RpcMethod: "DispatchCompensationClaim", Use: "dispatch-compensation-claim [dispatch-ticket-hash]", Short: "Queries dispatch compensation claim", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "dispatch_ticket_hash"}}},
+				{RpcMethod: "DispatchWinnerIneligible", Use: "dispatch-winner-ineligible [dispatch-ticket-hash]", Short: "Queries dispatch winner ineligible", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "dispatch_ticket_hash"}}},
+				{RpcMethod: "DispatchChallenge", Use: "dispatch-challenge [challenge-id]", Short: "Queries dispatch challenge", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "challenge_id"}}},
+				{RpcMethod: "DispatchChallengesByBuilder", Use: "dispatch-challenges-by-builder [builder-address]", Short: "Queries dispatch challenges by builder", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "builder_address"}}},
+				{RpcMethod: "DispatchCompensationClaimsByBuilder", Use: "dispatch-compensation-claims-by-builder [builder-address]", Short: "Queries dispatch compensation claims by builder", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "builder_address"}}},
+
 				{
 					RpcMethod: "Params",
 					Use:       "params",
@@ -45,12 +52,6 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
-					RpcMethod:      "AssignmentRandomness",
-					Use:            "assignment-randomness [task-id]",
-					Short:          "Shows the frozen assignment randomness and winner draw digest",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
-				},
-				{
 					RpcMethod:      "TaskBudget",
 					Use:            "task-budget [task-id]",
 					Short:          "Shows the authoritative per-task accounting row",
@@ -60,6 +61,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod:      "TaskBuilders",
 					Use:            "task-builders [task-id]",
 					Short:          "Shows the frozen Task Builder selection of one task",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
+				},
+				{
+					RpcMethod:      "TaskFrozenParams",
+					Use:            "task-frozen-params [task-id]",
+					Short:          "Shows the parameters frozen when one task was accepted, with their version",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}},
 				},
 				{
@@ -112,9 +119,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod:      "VerifierValueEvidence",
-					Use:            "verifier-value-evidence [task-id] [verify-round] [target-operator-address] [position]",
-					Short:          "Reserved verifier value-evidence query; not activated",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}, {ProtoField: "verify_round"}, {ProtoField: "target_operator_address"}, {ProtoField: "position"}},
+					Use:            "verifier-value-evidence [task-id] [verify-round] [target-operator-address]",
+					Short:          "Pages accepted value-evidence receipts for one target and round",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "task_id"}, {ProtoField: "verify_round"}, {ProtoField: "target_operator_address"}},
 				},
 				{
 					RpcMethod:      "SettlementFacts",
@@ -200,6 +207,17 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			Service:              types.Msg_serviceDesc.ServiceName,
 			EnhanceCustomCommand: true,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
+				{RpcMethod: "ClaimDispatchCompensation", Use: "claim-dispatch-compensation", Short: "Submits ClaimDispatchCompensation"},
+				{RpcMethod: "RebutDispatchCompensation", Use: "rebut-dispatch-compensation", Short: "Submits RebutDispatchCompensation"},
+				{RpcMethod: "ChallengeDispatchOmission", Use: "challenge-dispatch-omission", Short: "Submits ChallengeDispatchOmission"},
+				{RpcMethod: "ChallengeDispatchDraw", Use: "challenge-dispatch-draw", Short: "Submits ChallengeDispatchDraw"},
+				{RpcMethod: "ChallengeDispatchSkip", Use: "challenge-dispatch-skip", Short: "Submits ChallengeDispatchSkip"},
+				{RpcMethod: "ReportDispatchRosterUnavailable", Use: "report-dispatch-roster-unavailable", Short: "Submits ReportDispatchRosterUnavailable"},
+				{RpcMethod: "ChallengeDispatchDoubleDispatch", Use: "challenge-dispatch-double-dispatch", Short: "Submits ChallengeDispatchDoubleDispatch"},
+				{RpcMethod: "RespondDispatchChallenge", Use: "respond-dispatch-challenge", Short: "Submits RespondDispatchChallenge"},
+				{RpcMethod: "DepositSession", Use: "deposit-session", Short: "Submits DepositSession"},
+				{RpcMethod: "WithdrawSession", Use: "withdraw-session", Short: "Submits WithdrawSession"},
+
 				{
 					RpcMethod: "UpdateTaskParams",
 					Skip:      true, // authority gated
@@ -221,11 +239,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "session_id"}, {ProtoField: "order_sequence"}},
 				},
 				{
-					// The signed order / handraise payloads are structured, so the
-					// command takes them as flags rather than positionals.
-					RpcMethod: "SubmitWorkerHandraises",
-					Use:       "submit-worker-handraises",
-					Short:     "Submit a Task Builder Worker handraise proposal (the single Task admission entry)",
+					RpcMethod: "RecordDispatch",
+					Use:       "record-dispatch",
+					Short:     "Record signed dispatch or register a delayed Session takeover",
 				},
 				{
 					RpcMethod: "SubmitInferReceipt",
@@ -257,7 +273,7 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				{
 					RpcMethod:      "SubmitVerifierValueEvidence",
 					Use:            "submit-verifier-value-evidence [submitter-address]",
-					Short:          "Reserved verifier value-evidence submission; not activated",
+					Short:          "Submits a bounded committed value contradiction",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "submitter_address"}},
 				},
 				{

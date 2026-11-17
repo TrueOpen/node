@@ -183,3 +183,7 @@ func (s verifierAdmissionHubStub) ResolveCandidatePoolMember(_ context.Context, 
 func (verifierAdmissionHubStub) GetCandidatePoolLayout(context.Context, []byte) (uint32, uint32, uint32, bool) {
 	return 8, 1, 1, true
 }
+
+func (verifierAdmissionHubStub) GetBuilderSetByID(sdk.Context, string) (hubtypes.BuilderSetState, error) {
+	return hubtypes.BuilderSetState{ActiveBuilderCount: testBuildersPerStageResponsibility}, nil
+}

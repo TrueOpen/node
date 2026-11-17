@@ -261,3 +261,63 @@ func TestTaskSupportCompletionSkipsUnmetConditionsInsteadOfFailingSettlement(t *
 	corrupt.TaskID = []byte(hubHash("support-skip-no-such-task"))
 	require.Error(t, f.keeper.RecordTaskSupportCompletion(f.ctx, corrupt))
 }
+
+// TestJailRecoveryResetsJailMarkerOnNeverActivatedSupport covers a row that was
+// declared but never activated: the jail suspends it with a JAIL marker and no
+// activation proof, so the recovery has to reset the marker or record admission
+// keeps refusing a candidate the snapshot still draws.
+func TestJailRecoveryResetsJailMarkerOnNeverActivatedSupport(t *testing.T) {
+	f, identity, req := seedJailAdmissionLiabilityFixture(t, 9)
+	params, err := f.keeper.Params.Get(f.ctx)
+	require.NoError(t, err)
+	params.Service.JailClearNormalActionCount = 1
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+
+	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	require.True(t, support.DeclaredSupport)
+	require.Equal(t, types.ModelSupportActivationNone, support.ActivationKind)
+
+	_, _, err = f.keeper.IncJail(f.ctx, identity.Address, types.ServiceBondRoleVerifier, 5)
+	require.NoError(t, err)
+	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	require.Equal(t, types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL, support.SuspendReason)
+
+	capability, err := f.keeper.GetModelCapabilityState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	recoveryTaskID := hubHash("never-activated-recovery-task")
+	seedOwnedTaskLiabilityForTest(
+		t, f, recoveryTaskID, identity.Address, shared.DutyWorker, capability.CapabilityVersion, 6,
+	)
+	require.NoError(t, f.keeper.ReleaseTaskLiabilities(f.ctx, "never-activated-recovery-session", recoveryTaskID, 6))
+
+	bond, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.Zero(t, bond.JailCount)
+	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	require.False(t, support.SupportActive)
+	require.Equal(t, types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE, support.SuspendReason,
+		"a never-activated row must not keep JAIL once the jail has cleared")
+}
+
+// TestDeclareModelSupportResetsStaleJailMarkerOnNeverActivatedSupport covers a
+// row left with JAIL by an earlier ineligible declaration: declaring again while
+// eligible (here through a capability change, which bypasses the live-support
+// no-op) must clear it, since the row has no activation proof to protect.
+func TestDeclareModelSupportResetsStaleJailMarkerOnNeverActivatedSupport(t *testing.T) {
+	f, identity, req := seedJailAdmissionLiabilityFixture(t, 10)
+	support, err := f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	require.Equal(t, types.ModelSupportActivationNone, support.ActivationKind)
+	support.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
+	require.NoError(t, f.keeper.ModelSupport.Set(f.ctx, types.NewModelSupportKey(identity.Address, req.ModelID), support))
+
+	_, err = f.keeper.DeclareModelSupport(f.ctx, identity.Address, req.ModelID, true, false, 7)
+	require.NoError(t, err)
+
+	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)
+	require.NoError(t, err)
+	require.Equal(t, types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE, support.SuspendReason)
+}

@@ -13,7 +13,7 @@ package main
 //     is caught even if the golden is regenerated carelessly.
 //
 // A green run here does NOT by itself prove the chain agrees; that is what the
-// live check in docs/runbooks/builder_registration_testing.md §3.3 is for.
+// live check in docs/runbooks/settlement_builder_contract.md is for.
 
 import (
 	"encoding/hex"

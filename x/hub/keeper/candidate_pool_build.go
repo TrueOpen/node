@@ -39,6 +39,18 @@ func (k Keeper) processCandidatePoolBuild(ctx context.Context, height, limit uin
 		if cursor.Status == types.CandidatePoolBuildCursorStatus_CANDIDATE_POOL_BUILD_CURSOR_STATUS_CLEANING_FAILED_DRAFT {
 			return k.cleanFailedCandidateDraft(ctx, cursor, status, height, limit)
 		}
+		reference, err := checkedMulForCandidatePool(cursor.TargetEpoch, normalizedEpochLengthBlocks(params))
+		if err != nil {
+			return 0, err
+		}
+		if cursor.TargetEpoch != 0 && height > reference {
+			cursor.Status = types.CandidatePoolBuildCursorStatus_CANDIDATE_POOL_BUILD_CURSOR_STATUS_CLEANING_FAILED_DRAFT
+			cursor.FailureReason = types.CandidatePoolBuildFailureReason_CANDIDATE_POOL_BUILD_FAILURE_REASON_NO_EFFECTIVE_WINDOW
+			if err := k.CandidatePoolBuildCursor.Set(ctx, cursor.TargetEpoch, cursor); err != nil {
+				return 0, err
+			}
+			return k.cleanFailedCandidateDraft(ctx, cursor, status, height, limit)
+		}
 		return k.advanceCandidateBuild(ctx, cursor, status, params, height, limit)
 	}
 
@@ -69,6 +81,12 @@ func (k Keeper) nextCandidateBuildTarget(ctx context.Context, params types.HubPa
 		}
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return 0, false, err
+	}
+	if target == currentEpoch && currentEpoch != 0 && height > currentEpoch*epochLength {
+		if currentEpoch == ^uint64(0) {
+			return 0, false, fmt.Errorf("candidate epoch overflow")
+		}
+		target++
 	}
 	startHeight, err := checkedMulForCandidatePool(target, epochLength)
 	if err != nil {
@@ -172,9 +190,14 @@ func (k Keeper) advanceCandidateBuild(ctx context.Context, cursor types.Candidat
 				return visited, fmt.Errorf("allocated slot has invalid immutable binding")
 			}
 			segmentState.Bitmap[bit/8] |= byte(1) << uint(bit%8)
+			weights, err := k.captureCandidateWeightInputs(ctx, current.OperatorAddress, cursor.TargetEpoch, params)
+			if err != nil {
+				return visited, err
+			}
 			if err := k.WriteCandidatePoolMember(ctx, memberKey, types.CandidatePoolMemberState{
 				Epoch: cursor.TargetEpoch, Slot: slot, SlotVersion: current.SlotVersion,
 				OperatorAddress: current.OperatorAddress, BindingHash: append([]byte(nil), binding.BindingHash...),
+				WeightInputs: weights,
 			}); err != nil {
 				return visited, err
 			}
@@ -351,7 +374,7 @@ func (k Keeper) candidateMembersForSegment(ctx context.Context, epoch uint64, se
 		if err != nil {
 			return nil, err
 		}
-		state, err := k.ProjectCandidatePoolMemberStore(stored)
+		state, err := k.ProjectCandidatePoolMemberStore(ctx, stored)
 		if err != nil {
 			return nil, err
 		}
@@ -379,7 +402,7 @@ func (k Keeper) candidateMembersForEpoch(ctx context.Context, epoch uint64) ([]t
 		if err != nil {
 			return nil, err
 		}
-		state, err := k.ProjectCandidatePoolMemberStore(stored)
+		state, err := k.ProjectCandidatePoolMemberStore(ctx, stored)
 		if err != nil {
 			return nil, err
 		}

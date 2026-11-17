@@ -19,6 +19,14 @@ const (
 	endBlockPriorityVerifierWindowBuild endBlockQueuePriority = iota
 	endBlockPriorityVerifierHandraiseClose
 	endBlockPriorityVerifierSelectionRandomness
+	endBlockPriorityDispatchClaim       endBlockQueuePriority = 1100
+	endBlockPriorityDispatchChallenge   endBlockQueuePriority = 1101
+	endBlockPriorityDispatchPrune       endBlockQueuePriority = 2100
+	endBlockPrioritySessionWithdraw     endBlockQueuePriority = 101
+	endBlockPrioritySessionKeyChange    endBlockQueuePriority = 102
+	endBlockPriorityOrderCancel         endBlockQueuePriority = 103
+	endBlockPriorityTakeoverActivation  endBlockQueuePriority = 104
+	endBlockPriorityParamsHistoryPrune  endBlockQueuePriority = 203
 	endBlockPriorityEpochTaskSummary    endBlockQueuePriority = 190
 	endBlockPriorityTaskFailurePrune    endBlockQueuePriority = 199
 	endBlockPriorityTaskSummaryPrune    endBlockQueuePriority = 200
@@ -27,11 +35,6 @@ const (
 )
 
 const (
-	// Assignment selection can read a bounded candidate set whose serialized
-	// body is not reflected in finalizeAssignmentRandomness' row-byte result.
-	// Charging the full Task byte budget makes it the last visited row of this
-	// block even when the exact candidate payload is larger than the budget.
-	assignmentSweepConservativeBytesV1 = maxDeadlineSweepBytesPerBlockV1
 	// Regular task deadlines touch TaskCore plus a bounded set of fixed-shape
 	// assignment, budget, challenge and index rows. TaskCore's actual Size is
 	// already reported by the handler; this floor covers the auxiliary rows.
@@ -51,7 +54,6 @@ type EndBlockSweepResult struct {
 	VerifierWindowBuild         uint64
 	VerifierHandraiseClose      uint64
 	VerifierSelectionRandomness uint64
-	AssignmentRandomness        uint64
 	InferDeadline               uint64
 	VerifyOpenDeadline          uint64
 	CommitDeadline              uint64
@@ -60,11 +62,20 @@ type EndBlockSweepResult struct {
 	ChallengeWindowClose        uint64
 	RoundEconomicEffect         uint64
 	Settlement                  uint64
+	ParamsHistoryPrune          uint64
 	EvidenceCleanup             uint64
 	// SessionLifecycle is the session MARK_IDLE/CLOSE processor. It shares its
 	// executor with MsgSweepDeadline(SessionLifecycleLocator); V1 does not
 	// register a second MsgSessionSweep.
 	SessionLifecycle    uint64
+	SessionWithdraw     uint64
+	SessionKeyChange    uint64
+	OrderCancel         uint64
+	ValueEvidenceClose  uint64
+	DispatchClaim       uint64
+	DispatchChallenge   uint64
+	DispatchPrune       uint64
+	TakeoverActivation  uint64
 	EpochTaskSummary    uint64
 	TaskFailurePrune    uint64
 	TaskSummaryPrune    uint64
@@ -261,11 +272,6 @@ func validateOpenVerifyCursorIndexScope(cursor types.TaskCandidateFinalizeCursor
 	return nil
 }
 
-func (k Keeper) processVerifierWindowBuildIndex(ctx context.Context, currentHeight, maxItems uint64) (uint64, error) {
-	usage, err := k.processVerifierWindowBuildIndexWithBudget(ctx, currentHeight, maxItems, maxDeadlineSweepBytesPerBlockV1)
-	return usage.visited, err
-}
-
 func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, currentHeight, maxItems, maxBytes uint64) (deadlineSweepUsage, error) {
 	return k.sweepExpiredVerifyRoundIndexWithBudget(ctx, k.VerifierWindowBuildIndex, currentHeight, maxItems, maxBytes,
 		func(ctx context.Context, taskID types.TaskKey, round uint32, height uint64) (deadlineSweepOutcome, uint64, error) {
@@ -297,7 +303,18 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 				if materialized {
 					return deadlineSweepAdvanced, rowBytes, nil
 				}
-				return deadlineSweepPending, rowBytes, nil
+				// materializeVerifierWindowAtHeight reports (false, nil) only for a
+				// window that can never open: no eligible candidate, no usable
+				// randomness beacon, or an elapsed assignment deadline. Keeping such
+				// a row would pin it as the permanent head of this queue, because
+				// the sweep revisits the head first, and every later task would
+				// then miss its window too. The verify-open deadline fails the task.
+				if window.AssignmentDeadlineHeight <= currentHeight {
+					// That deadline has already fired or is due in this block, so
+					// there is no later terminal key left to check.
+					return deadlineSweepStale, rowBytes, nil
+				}
+				return k.retireVerifierRowToFallbackDeadline(ctx, taskID, window, height, rowBytes)
 			default:
 				return deadlineSweepPending, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "invalid verifier window status")
 			}
@@ -307,7 +324,9 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 // retireVerifierRowToFallbackDeadline drops a verifier queue key for a frozen
 // window that can no longer be finalized — it closed with fewer entrants than
 // selected_verifier_count, or a selected verifier can no longer back its duty
-// (ErrVerifierLiabilityUnavailable). It is the same disposal the empty-union
+// (ErrVerifierLiabilityUnavailable), or the assignment deadline has elapsed, or
+// the window can never open.
+// It is the same disposal the empty-union
 // case below already performs, for the same reason: the legal set cannot change
 // after the close height, so the frozen verify-open assignment deadline is the
 // sole remaining terminal key and fails the task as
@@ -317,9 +336,9 @@ func (k Keeper) processVerifierWindowBuildIndexWithBudget(ctx context.Context, c
 // every block and hold the head of the close sweep — the rows are drained in
 // height order — until that deadline fires.
 //
-// The guard is not cosmetic: if the later deadline is already past or was never
-// indexed, nothing else would ever retire this task, so that genuinely is a
-// store inconsistency and keeps ErrInvariantBroken.
+// Compare the source queue height with the frozen terminal deadline, which may
+// itself already be due during catch-up. A missing or non-later terminal key
+// would lose the final transition and remains a store inconsistency.
 func (k Keeper) retireVerifierRowToFallbackDeadline(
 	ctx context.Context,
 	taskID types.TaskKey,
@@ -336,11 +355,6 @@ func (k Keeper) retireVerifierRowToFallbackDeadline(
 			"verifier window has no later verify-open deadline")
 	}
 	return deadlineSweepStale, rowBytes, nil
-}
-
-func (k Keeper) processVerifierHandraiseCloseIndex(ctx context.Context, currentHeight, maxItems uint64) (uint64, error) {
-	usage, err := k.processVerifierHandraiseCloseIndexWithBudget(ctx, currentHeight, maxItems, maxDeadlineSweepBytesPerBlockV1)
-	return usage.visited, err
 }
 
 func (k Keeper) processVerifierHandraiseCloseIndexWithBudget(ctx context.Context, currentHeight, maxItems, maxBytes uint64) (deadlineSweepUsage, error) {
@@ -473,11 +487,6 @@ func (k Keeper) processVerifierHandraiseCloseIndexWithBudget(ctx context.Context
 		})
 }
 
-func (k Keeper) processVerifierSelectionRandomnessIndex(ctx context.Context, currentHeight, maxItems uint64) (uint64, error) {
-	usage, err := k.processVerifierSelectionRandomnessIndexWithBudget(ctx, currentHeight, maxItems, maxDeadlineSweepBytesPerBlockV1)
-	return usage.visited, err
-}
-
 func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Context, currentHeight, maxItems, maxBytes uint64) (deadlineSweepUsage, error) {
 	return k.sweepExpiredVerifyRoundIndexWithBudget(ctx, k.VerifierSelectionRandomnessIndex, currentHeight, maxItems, maxBytes,
 		func(ctx context.Context, taskID types.TaskKey, round uint32, height uint64) (deadlineSweepOutcome, uint64, error) {
@@ -523,7 +532,7 @@ func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Co
 			}
 			advanced, applyBytes, err := k.finalizeVerifierAssignmentAtHeight(ctx, taskID, window, union, cursor, currentHeight)
 			rowBytes += applyBytes
-			if errors.Is(err, ErrVerifierLiabilityUnavailable) {
+			if errors.Is(err, ErrVerifierLiabilityUnavailable) || errors.Is(err, types.ErrDeadlineExpired) {
 				// A selected verifier lost its live backing after the legal set
 				// froze. There is no redraw, so retire this row like a short
 				// window and let the verify-open deadline fail the task.
@@ -581,14 +590,6 @@ func (k Keeper) RunEndBlockDeadlineSweeps(ctx context.Context, currentHeight uin
 	globalBudget := uint64(k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).MaxEndblockVisitedItemsTotal)
 	result, _, err := k.runEndBlockDeadlineSweepsWithBudget(ctx, currentHeight, maxPerBlock, maxDeadlineSweepBytesPerBlockV1, globalBudget)
 	return result, err
-}
-
-func (k Keeper) runEndBlockDeadlineSweeps(
-	ctx context.Context,
-	currentHeight, maxPerBlock, maxSerializedBytes uint64,
-) (EndBlockSweepResult, uint64, error) {
-	globalBudget := uint64(k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).MaxEndblockVisitedItemsTotal)
-	return k.runEndBlockDeadlineSweepsWithBudget(ctx, currentHeight, maxPerBlock, maxSerializedBytes, globalBudget)
 }
 
 func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
@@ -672,26 +673,53 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 			return deadlineQueueHead{deadline: key.K1(), primaryID: key.K2()}, true, nil
 		}
 	}
+	withdraw := k.newSessionPendingQueue(sessionPendingWithdraw)
+	keyChange := k.newSessionPendingQueue(sessionPendingKeyChange)
+	cancel := k.newSessionPendingQueue(sessionPendingCancel)
+	takeover := k.newSessionPendingQueue(sessionPendingTakeover)
+	paramsPrune := &paramsHistoryPruneQueue{k: k}
 	queues := []sweepQueue{
+		{endBlockPrioritySessionWithdraw, withdraw.head, withdraw.run, func(n uint64) { result.SessionWithdraw += n }},
+		{endBlockPrioritySessionKeyChange, keyChange.head, keyChange.run, func(n uint64) { result.SessionKeyChange += n }},
+		{endBlockPriorityOrderCancel, cancel.head, cancel.run, func(n uint64) { result.OrderCancel += n }},
+		{endBlockPriorityTakeoverActivation, takeover.head, takeover.run, func(n uint64) { result.TakeoverActivation += n }},
 		{endBlockPriorityVerifierWindowBuild, verifyRoundHead(k.VerifierWindowBuildIndex), k.processVerifierWindowBuildIndexWithBudget, func(n uint64) { result.VerifierWindowBuild += n }},
 		{endBlockPriorityVerifierHandraiseClose, verifyRoundHead(k.VerifierHandraiseCloseIndex), k.processVerifierHandraiseCloseIndexWithBudget, func(n uint64) { result.VerifierHandraiseClose += n }},
 		{endBlockPriorityVerifierSelectionRandomness, verifyRoundHead(k.VerifierSelectionRandomnessIndex), k.processVerifierSelectionRandomnessIndexWithBudget, func(n uint64) { result.VerifierSelectionRandomness += n }},
-		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT), taskHead(k.AssignmentRandomnessIndex), recordedRun(k.processExpiredAssignmentRandomness, assignmentSweepConservativeBytesV1), func(n uint64) { result.AssignmentRandomness += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER), taskHead(k.InferDeadlineIndex), recordedRun(k.processExpiredInferDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.InferDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN), taskHead(k.VerifyOpenDeadlineIndex), recordedRun(k.processExpiredVerifyOpenDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.VerifyOpenDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT), taskHead(k.CommitDeadlineIndex), recordedRun(k.processExpiredCommitDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.CommitDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL), taskHead(k.RevealDeadlineIndex), recordedRun(k.processExpiredRevealDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.RevealDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL), taskHead(k.VerifyDeadlineIndex), recordedRun(k.processExpiredVerifyDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.VerifyDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE), taskHead(k.ChallengeWindowCloseIndex), recordedRun(k.processExpiredChallengeWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ChallengeWindowClose += n }},
+		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE), taskHead(k.ValueEvidenceWindowCloseIndex), recordedRun(k.processValueEvidenceWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ValueEvidenceClose += n }},
 		{endBlockQueuePriority(21), verifyRoundHead(k.RoundEconomicEffectApplyIndex), k.processRoundEconomicEffectApplyIndexWithBudget, func(n uint64) { result.RoundEconomicEffect += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT), taskHead(k.SettlementDeadlineIndex), recordedRun(k.processExpiredSettlementDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.Settlement += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP), taskHead(k.EvidenceCleanupIndex), conservativeRun(k.processEvidenceCleanupEndBlock, evidenceCleanupConservativeBytesV1), func(n uint64) { result.EvidenceCleanup += n }},
+		{endBlockPriorityParamsHistoryPrune, paramsPrune.head, paramsPrune.run, func(n uint64) { result.ParamsHistoryPrune += n }},
 		{endBlockPriorityEpochTaskSummary, k.firstDueEpochTaskSummary, k.processEpochTaskSummariesWithBudget, func(n uint64) { result.EpochTaskSummary += n }},
 		{endBlockPriorityTaskFailurePrune, k.firstDueTaskFailurePrune, conservativeRun(k.SweepTaskFailureClassPrune, evidenceCleanupConservativeBytesV1), func(n uint64) { result.TaskFailurePrune += n }},
 		{endBlockPriorityTaskSummaryPrune, taskHead(k.TaskTerminalSummaryPruneIndex), conservativeRun(k.SweepTaskTerminalSummaryPrune, evidenceCleanupConservativeBytesV1), func(n uint64) { result.TaskSummaryPrune += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE), k.firstDueSessionLifecycle, conservativeRun(k.processExpiredSessionLifecycle, sessionLifecycleConservativeBytesV1), func(n uint64) { result.SessionLifecycle += n }},
 		{endBlockPrioritySessionHistoryPrune, sessionHead(k.SessionHistoryPruneIndex), conservativeRun(k.processSessionHistoryPruneEndBlock, sessionLifecycleConservativeBytesV1), func(n uint64) { result.SessionHistoryPrune += n }},
 		{endBlockPrioritySessionSummaryPrune, sessionHead(k.SessionTerminalSummaryPruneIndex), conservativeRun(k.processSessionSummaryPruneEndBlock, sessionLifecycleConservativeBytesV1), func(n uint64) { result.SessionSummaryPrune += n }},
+	}
+	for _, item := range []struct {
+		action   dispatchDeadlineAction
+		priority endBlockQueuePriority
+		count    func(uint64)
+	}{
+		{dispatchClaimMaturity, endBlockPriorityDispatchClaim, func(n uint64) { result.DispatchClaim += n }},
+		{dispatchChallengeMaturity, endBlockPriorityDispatchChallenge, func(n uint64) { result.DispatchChallenge += n }},
+		{dispatchRecordPruning, endBlockPriorityDispatchPrune, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchClaimPruning, endBlockPriorityDispatchPrune + 1, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchChallengePruning, endBlockPriorityDispatchPrune + 2, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchWinnerPruning, endBlockPriorityDispatchPrune + 3, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchTakeoverPruning, endBlockPriorityDispatchPrune + 4, func(n uint64) { result.DispatchPrune += n }},
+		{dispatchRoundAcceptorPruning, endBlockPriorityDispatchPrune + 5, func(n uint64) { result.DispatchPrune += n }},
+	} {
+		queue := k.newDispatchDeadlineQueue(item.action)
+		queues = append(queues, sweepQueue{item.priority, queue.head, queue.run, item.count})
 	}
 	// No ACTIVE entry may create Challenge or EvidenceRequest
 	// objects, so CHALLENGE_RESOLVE / CHALLENGE_CLOSE / EVIDENCE_REQUEST queues
@@ -727,6 +755,10 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 			break
 		}
 		sort.Slice(items, func(i, j int) bool {
+			phaseI, phaseJ := endBlockQueuePhase(items[i].priority), endBlockQueuePhase(items[j].priority)
+			if phaseI != phaseJ {
+				return phaseI < phaseJ
+			}
 			if items[i].height != items[j].height {
 				return items[i].height < items[j].height
 			}
@@ -840,4 +872,25 @@ func checkedCleanupProgress(left, right uint64) (uint64, error) {
 		return 0, errorsmod.Wrap(types.ErrInvariantBroken, "evidence cleanup visited count overflows")
 	}
 	return value, nil
+}
+
+// endBlockQueuePhase preserves the required settlement, withdrawal, user-change,
+// takeover and compensation order while retaining fair deadline order per phase.
+func endBlockQueuePhase(priority endBlockQueuePriority) uint8 {
+	switch priority {
+	case endBlockPrioritySessionWithdraw:
+		return 1
+	case endBlockPrioritySessionKeyChange, endBlockPriorityOrderCancel:
+		return 2
+	case endBlockPriorityTakeoverActivation:
+		return 3
+	case endBlockPriorityDispatchClaim, endBlockPriorityDispatchChallenge:
+		return 4
+	case endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP):
+		return 5
+	}
+	if priority >= endBlockPriorityEpochTaskSummary {
+		return 5
+	}
+	return 0
 }

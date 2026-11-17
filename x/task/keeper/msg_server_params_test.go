@@ -94,10 +94,37 @@ func TestUpdateTaskParamsRejectsGenesisOnlyWeightGeometry(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestGetTaskSafetyWindowsDoesNotInventChallengeParams(t *testing.T) {
+func TestGetTaskSafetyWindowsUsesActivePhaseOneClocks(t *testing.T) {
 	f := initInternalFixture(t)
 	windows, err := f.keeper.GetTaskSafetyWindows(f.ctx)
 	require.NoError(t, err)
-	require.Zero(t, windows.ChallengeResolveWindowBlocks)
-	require.Zero(t, windows.EvidenceResponseWindowBlocks)
+	params, err := f.keeper.Params.Get(f.ctx)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, windows.ChallengeResolveWindowBlocks, params.Dispatch.RecordDeadlineBlocks+params.Dispatch.DispatchCompensationClaimWindowBlocks+params.Dispatch.DispatchCompensationRebuttalBlocks)
+	require.Equal(t, params.Evidence.VerifierValueEvidenceWindowBlocks, windows.EvidenceResponseWindowBlocks)
+	require.Equal(t, params.Deadlines.VerifyOpenDeadlineBlocks, windows.VerifyOpenDeadlineBlocks)
+}
+
+func TestTaskSafetyClockRetainsReferencedParameterVersions(t *testing.T) {
+	f := initInternalFixture(t)
+	params, err := f.keeper.Params.Get(f.ctx)
+	require.NoError(t, err)
+	params.Deadlines.VerifyOpenDeadlineBlocks = 400
+	params.Dispatch.MaxOrderLifetimeBlocks = 160
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+	taskID := taskKeyFromByte(0x93)
+	require.NoError(t, f.keeper.PinTaskParams(f.ctx, taskID))
+	params.Deadlines.VerifyOpenDeadlineBlocks = 500
+	params.Dispatch.MaxOrderLifetimeBlocks = 120
+	_, err = NewMsgServerImpl(f.keeper).UpdateTaskParams(f.ctx, &types.MsgUpdateTaskParams{Authority: sdk.AccAddress(f.keeper.authority).String(), Params: params})
+	require.NoError(t, err)
+	windows, err := f.keeper.GetTaskSafetyWindows(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(400), windows.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(161), windows.MinimumBuilderSetLeadBlocks)
+	require.NoError(t, f.keeper.UnpinTaskParams(f.ctx, taskID))
+	windows, err = f.keeper.GetTaskSafetyWindows(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(500), windows.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(121), windows.MinimumBuilderSetLeadBlocks)
 }

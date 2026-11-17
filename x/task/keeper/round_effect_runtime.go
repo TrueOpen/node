@@ -18,6 +18,7 @@ type roundEffectSubject struct {
 	operator string
 	duty     shared.Duty
 	reserved uint64
+	slashBps uint32
 }
 
 func (k Keeper) freezeRoundEconomicEffects(
@@ -50,12 +51,22 @@ func (k Keeper) freezeRoundEconomicEffects(
 		effects = append(effects, effect)
 	}
 
-	// Every timely, valid result earns the frozen slot fee. Consensus-cluster
-	// membership affects the verdict, not whether an otherwise valid duty was
-	// performed.
+	evidence, err := k.firstValueEvidenceReceipts(ctx, taskKey)
+	if err != nil {
+		return err
+	}
+	disqualified := make(map[string]bool)
+	for _, receipt := range evidence {
+		disqualified[receipt.TargetOperatorAddress] = true
+	}
 	samples := append([]types.VerifierSampleV1(nil), round2Result.Samples...)
 	sort.Slice(samples, func(i, j int) bool { return samples[i].SelectedVerifierIndex < samples[j].SelectedVerifierIndex })
+	var paidSamples uint64
 	for _, sample := range samples {
+		if disqualified[sample.VerifierOperatorAddress] {
+			continue
+		}
+		paidSamples++
 		appendEffect(shared.RoundEconomicEffectV1{
 			EffectKind:          shared.RoundEconomicEffectKindV1_ROUND_ECONOMIC_EFFECT_KIND_V1_VERIFIER_FEE,
 			XSourceAddress:      &shared.RoundEconomicEffectV1_SourceAddress{SourceAddress: funding.OpenerAddress},
@@ -70,6 +81,24 @@ func (k Keeper) freezeRoundEconomicEffects(
 		if err != nil {
 			return err
 		}
+		for i := range subjects {
+			subjects[i].slashBps = funding.ChallengeFaultSlashBpsSnapshot
+		}
+	}
+	core, err := k.TaskCore.Get(ctx, taskKey)
+	if err != nil {
+		return err
+	}
+	for _, receipt := range evidence {
+		for i := range subjects {
+			if subjects[i].operator == receipt.TargetOperatorAddress {
+				subjects[i].slashBps = max(subjects[i].slashBps, core.ObjectiveForgerySlashBpsSnapshot)
+				break
+			}
+		}
+	}
+
+	if len(subjects) != 0 {
 		// The protocol orders these by operator address bytes, and the resulting
 		// effect_index sequence is committed by TRUEOPEN_ROUND_EFFECT_PLAN_V1. A
 		// comparator that swallowed a decode error would compare two empty slices,
@@ -109,7 +138,10 @@ func (k Keeper) freezeRoundEconomicEffects(
 			})
 		}
 		for _, subject := range subjects {
-			requested, ok := mulDivFloorRound(subject.reserved, uint64(funding.ChallengeFaultSlashBpsSnapshot), uint64(types.BasisPointsMaximum))
+			if subject.reserved == 0 {
+				continue
+			}
+			requested, ok := mulDivFloorRound(subject.reserved, uint64(subject.slashBps), uint64(types.BasisPointsMaximum))
 			if !ok {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "challenge slash amount overflows")
 			}
@@ -121,7 +153,7 @@ func (k Keeper) freezeRoundEconomicEffects(
 		}
 	}
 
-	verifierPaid, overflow := checkedMulUint64(mustAmountValue(funding.ChallengeSlotFee), uint64(len(samples)))
+	verifierPaid, overflow := checkedMulUint64(mustAmountValue(funding.ChallengeSlotFee), paidSamples)
 	if overflow {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "challenge verifier payment overflows")
 	}
@@ -182,10 +214,23 @@ func (k Keeper) freezeRoundEconomicEffects(
 			RequestedAmount: shared.NewAmount(maxResidual),
 		})
 	}
+	// A round that paid no Verifier and holds no bond (challenge_open_bond 0, or
+	// every Verifier missing) would leave the plan empty, but a closed round must
+	// carry at least one effect: settlement and cleanup replay the plan and reject
+	// RoundEffectCount 0. Record the opener's bond refund at zero, as the DIVERGED
+	// plan already does for a zero bond; applying it is a no-op, and finishing the
+	// plan then returns the unspent Verifier budget to the opener.
+	if len(effects) == 0 {
+		appendEffect(shared.RoundEconomicEffectV1{
+			EffectKind:          shared.RoundEconomicEffectKindV1_ROUND_ECONOMIC_EFFECT_KIND_V1_BOND_REFUND,
+			XDestinationAddress: &shared.RoundEconomicEffectV1_DestinationAddress{DestinationAddress: funding.OpenerAddress},
+			RequestedAmount:     zero,
+		})
+	}
 	// V1 can pay at most challenge_count slots, disqualify/slash the one
 	// Worker plus three round-1 Verifiers, then append recovery, up to two bond
 	// actions and residual.
-	if len(effects) == 0 || uint64(len(effects)) > uint64(params.Challenge.ChallengeVerifierCount)+12 {
+	if len(effects) == 0 || uint64(len(effects)) > uint64(params.Challenge.ChallengeVerifierCount)*3+14 {
 		return errorsmod.Wrap(types.ErrInvariantBroken, "round effect plan exceeds its derived bound")
 	}
 	planRoot, err := types.RoundEffectPlanRoot(sdk.UnwrapSDKContext(ctx).ChainID(), taskKey, types.ChallengeVerifyRoundV1, effects)
@@ -254,10 +299,16 @@ func (k Keeper) disprovedRoundOneSubjects(
 		}
 		seen[item.operator] = struct{}{}
 		snapshot, err := k.hubKeeper.GetTaskLiabilityReservation(ctx, taskKey, item.duty, item.operator)
-		if err != nil || !snapshot.Reserved || snapshot.ReservedAmount == 0 {
+		if err != nil || snapshot.Status != hubtypes.TaskLiabilityStatusReserved && snapshot.Status != hubtypes.TaskLiabilityStatusSlashed || snapshot.ReservedAmount == 0 {
 			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "disproved operator liability is unavailable")
 		}
-		subjects = append(subjects, roundEffectSubject{operator: item.operator, duty: item.duty, reserved: snapshot.ReservedAmount})
+		basis := snapshot.ReservedAmount
+		if snapshot.Status == hubtypes.TaskLiabilityStatusSlashed {
+			// Objective evidence may already have closed this duty. Earnings are
+			// still disqualified, but a second slash cannot spend the same basis.
+			basis = 0
+		}
+		subjects = append(subjects, roundEffectSubject{operator: item.operator, duty: item.duty, reserved: basis})
 	}
 	return subjects, nil
 }
@@ -423,17 +474,28 @@ func (k Keeper) applyOneRoundEconomicEffect(
 			return err
 		}
 		var evidenceDigest []byte
+		var valueFaultID []byte
 		if effect.EffectKind == shared.RoundEconomicEffectKindV1_ROUND_ECONOMIC_EFFECT_KIND_V1_SERVICE_SLASH {
-			classification, err := k.TaskFailureClass.Get(ctx, types.NewVerifyRoundKey(taskKey, round.VerifyRound))
-			if err != nil || len(classification.EvidenceDigest) != types.Hash32Len {
-				return errorsmod.Wrap(types.ErrInvariantBroken, "round divergence classification is unavailable")
+			valueReceipt, found, err := k.valueEvidenceForOperator(ctx, taskKey, effect.GetSourceAddress())
+			if err != nil {
+				return err
 			}
-			evidenceDigest = classification.EvidenceDigest
+			if found {
+				evidenceDigest = valueReceipt.EvidenceDigest
+				valueFaultID = valueReceipt.FaultId
+			} else {
+				classification, err := k.TaskFailureClass.Get(ctx, types.NewVerifyRoundKey(taskKey, round.VerifyRound))
+				if err != nil || len(classification.EvidenceDigest) != types.Hash32Len {
+					return errorsmod.Wrap(types.ErrInvariantBroken, "round divergence classification is unavailable")
+				}
+				evidenceDigest = classification.EvidenceDigest
+			}
+
 		}
 		receipt, err := k.hubKeeper.ApplyRoundEconomicEffect(ctx, hubtypes.RoundEconomicEffectApplyRequest{
 			SessionID: core.SessionId, TaskID: taskKey, RoundID: round.RoundId, VerifyRound: round.VerifyRound, Duty: duty,
 			Effect: *effect, EffectPoolBalance: cursor.EffectPoolBalance,
-			EvidenceDigest: evidenceDigest, Height: height,
+			EvidenceDigest: evidenceDigest, ValueEvidenceFaultID: valueFaultID, Height: height,
 		})
 		if err != nil {
 			return err

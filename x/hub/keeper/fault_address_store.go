@@ -135,7 +135,7 @@ func (k Keeper) ProjectRoleFaultStore(stored internaltypes.RoleFaultStoreState) 
 		TaskId:               append([]byte(nil), stored.TaskId...),
 		OperatorAddress:      address,
 		Duty:                 shared.Duty(stored.Duty),
-		FaultClass:           types.FaultKind(stored.FaultClass),
+		FaultClass:           shared.FaultKind(stored.FaultClass),
 		ClassificationSource: shared.FailureClassificationSource(stored.ClassificationSource),
 		EvidenceDigest:       append([]byte(nil), stored.EvidenceDigest...),
 		JailDelta:            stored.JailDelta,

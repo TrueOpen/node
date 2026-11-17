@@ -21,6 +21,7 @@ type verificationHubStub struct {
 	signatureErr                 error
 	profile                      hubtypes.ProfileStateSnapshot
 	pool                         hubtypes.CandidatePoolSnapshotState
+	builderSet                   hubtypes.BuilderSetState
 	poolBitmap                   []byte
 	poolRetained                 bool
 	responsibilities             []hubtypes.ServiceKeyResponsibilityState
@@ -29,9 +30,16 @@ type verificationHubStub struct {
 	builderProofKey              []byte
 }
 
-func (s *verificationHubStub) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64) (hubtypes.CurrentServiceKeySnapshot, error) {
+func (s *verificationHubStub) GetBuilderSetByID(_ sdk.Context, id string) (hubtypes.BuilderSetState, error) {
+	if id != s.builderSet.BuilderSetId {
+		return hubtypes.BuilderSetState{}, errors.New("unknown BuilderSet")
+	}
+	return s.builderSet, nil
+}
+
+func (s *verificationHubStub) GetBuilderEvidenceProofKey(_ context.Context, operatorAddress string, authorizationNonce uint64, sessionID, taskID []byte) (hubtypes.CurrentServiceKeySnapshot, error) {
 	if s.builderProofOperator == "" {
-		return s.internalStubHubKeeper.GetBuilderEvidenceProofKey(context.Background(), operatorAddress, authorizationNonce)
+		return s.internalStubHubKeeper.GetBuilderEvidenceProofKey(context.Background(), operatorAddress, authorizationNonce, sessionID, taskID)
 	}
 	if operatorAddress != s.builderProofOperator || authorizationNonce != 1 {
 		return hubtypes.CurrentServiceKeySnapshot{}, errors.New("Builder evidence proof key mismatch")
@@ -190,6 +198,7 @@ func newVerificationFixture(t *testing.T) *verificationFixture {
 func (f *verificationFixture) setTaskBuilders(t *testing.T, builders ...string) {
 	t.Helper()
 	builderSetHash := bytes.Repeat([]byte{0xe1}, types.Hash32Len)
+	f.hub.builderSet = hubtypes.BuilderSetState{BuilderSetId: "builder-set-v1", BuilderSetHash: builderSetHash, ActiveBuilderCount: uint32(len(builders))}
 	membersHash, err := types.SelectedTaskBuildersHash(
 		sdk.UnwrapSDKContext(f.ctx).ChainID(), f.taskID, "builder-set-v1", builderSetHash, builders,
 	)

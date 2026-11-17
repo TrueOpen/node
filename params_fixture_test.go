@@ -111,7 +111,7 @@ func (f paramsField) encode(t *testing.T, where string) []byte {
 	case "string":
 		require.NotNil(t, f.UTF8, "%s requires utf8", where)
 		return []byte(*f.UTF8)
-	case "uint32":
+	case "uint32", "enum":
 		require.NotNil(t, f.Value, "%s requires value", where)
 		require.LessOrEqual(t, *f.Value, uint64(^uint32(0)), "%s overflows uint32", where)
 		return shared.Uint32BE(uint32(*f.Value))
@@ -218,7 +218,7 @@ func TestParamsFixtureNestedOrderMatchesProtoFieldNumbers(t *testing.T) {
 			descriptor := paramsMessageDescriptor(t, vector.ProtoMessage)
 			message := paramsDynamicFromFields(t, descriptor, vector.Fields[2], vector.Name+".params")
 			want := paramsFieldsFromMessage(t, descriptor, message)
-			require.Equal(t, want, vector.Fields[2].Fields,
+			require.Equal(t, want, paramsNormalizeElementLabels(t, descriptor, vector.Fields[2].Fields),
 				"%s: the published tree is not the proto field-number ordering of %s", vector.Name, vector.ProtoMessage)
 
 			accounts := paramsCountLeaves(vector.Fields[2])
@@ -370,8 +370,16 @@ func paramsProducerDigest(t *testing.T, vector paramsVector, chainID string, ver
 	case shared.DomainTaskParamsV1:
 		var params tasktypes.TaskParamsV1
 		require.NoError(t, gogoproto.Unmarshal(encoded, &params))
-		digest, err := tasktypes.TaskParamsHashV1(chainID, version, params)
+		// Wire parameter examples pin encoding and may violate deployment limits.
+		// Exercise the production field projection independently of admission.
+		body := shared.NewCanonicalFrameBuilderV1().Field(tasktypes.CanonicalTaskParamsTypedFields(params)...).Build()
+		digest, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainTaskParamsV1)).Raw([]byte(chainID), shared.Uint64BE(version)).Nested(body).Sum()
 		require.NoError(t, err)
+		if params.Validate() == nil {
+			validated, err := tasktypes.TaskParamsHashV1(chainID, version, params)
+			require.NoError(t, err)
+			require.Equal(t, validated, digest)
+		}
 		return hex.EncodeToString(digest)
 	default:
 		t.Fatalf("%s carries unexpected domain %s", vector.Name, vector.Domain)
@@ -412,8 +420,8 @@ func paramsFieldsFromMessage(t *testing.T, descriptor protoreflect.MessageDescri
 			count := uint64(list.Len())
 			elements = append(elements, paramsField{Name: "element_count", Type: "uint32", Value: &count})
 			for index := 0; index < list.Len(); index++ {
-				element := paramsScalarOrMessageField(t, field, list.Get(index),
-					fmt.Sprintf("%s_%d", name, index))
+				label := fmt.Sprintf("%s_%d", name, index)
+				element := paramsScalarOrMessageField(t, field, list.Get(index), label)
 				elements = append(elements, element)
 			}
 			rendered = append(rendered, paramsField{Name: name, Type: "frame", Fields: elements})
@@ -433,6 +441,9 @@ func paramsScalarOrMessageField(t *testing.T, field protoreflect.FieldDescriptor
 			Name: name, Type: "frame",
 			Fields: paramsFieldsFromMessage(t, field.Message(), nested),
 		}
+	case protoreflect.EnumKind:
+		number := uint64(uint32(value.Enum()))
+		return paramsField{Name: name, Type: "enum", Value: &number}
 	case protoreflect.Uint32Kind:
 		number := uint64(value.Uint())
 		return paramsField{Name: name, Type: "uint32", Value: &number}
@@ -505,6 +516,11 @@ func paramsValueFromField(t *testing.T, field protoreflect.FieldDescriptor, publ
 		rebuilt := paramsDynamicFromFields(t, field.Message(), published, where)
 		protov2.Merge(nested.Interface(), rebuilt.Interface())
 		return protoreflect.ValueOfMessage(nested)
+	case protoreflect.EnumKind:
+		require.Equal(t, "enum", published.Type, "%s", where)
+		require.NotNil(t, published.Value)
+		require.LessOrEqual(t, *published.Value, uint64(^uint32(0)))
+		return protoreflect.ValueOfEnum(protoreflect.EnumNumber(uint32(*published.Value)))
 	case protoreflect.Uint32Kind:
 		require.Equal(t, "uint32", published.Type, "%s", where)
 		require.NotNil(t, published.Value)
@@ -717,6 +733,8 @@ func paramsSyntheticScalar(t *testing.T, field protoreflect.FieldDescriptor, cou
 	*counter++
 	seq := *counter
 	switch field.Kind() {
+	case protoreflect.EnumKind:
+		return protoreflect.ValueOfEnum(protoreflect.EnumNumber(seq))
 	case protoreflect.Uint32Kind:
 		return protoreflect.ValueOfUint32(uint32(seq))
 	case protoreflect.Uint64Kind:
@@ -736,4 +754,27 @@ func paramsSyntheticScalar(t *testing.T, field protoreflect.FieldDescriptor, cou
 		t.Fatalf("%s has proto kind %s, which the canonical encoding does not support in a params tree", field.FullName(), field.Kind())
 		return protoreflect.Value{}
 	}
+}
+
+// Repeated element labels are descriptive; child names still come from the
+// message descriptor and remain part of the strict field-order comparison.
+func paramsNormalizeElementLabels(t *testing.T, descriptor protoreflect.MessageDescriptor, fields []paramsField) []paramsField {
+	t.Helper()
+	out := append([]paramsField(nil), fields...)
+	for i := range out {
+		field := descriptor.Fields().ByName(protoreflect.Name(out[i].Name))
+		require.NotNil(t, field)
+		if field.IsList() {
+			out[i].Fields = append([]paramsField(nil), out[i].Fields...)
+			for j := 1; j < len(out[i].Fields); j++ {
+				out[i].Fields[j].Name = fmt.Sprintf("%s_%d", out[i].Name, j-1)
+				if field.Kind() == protoreflect.MessageKind {
+					out[i].Fields[j].Fields = paramsNormalizeElementLabels(t, field.Message(), out[i].Fields[j].Fields)
+				}
+			}
+		} else if field.Kind() == protoreflect.MessageKind {
+			out[i].Fields = paramsNormalizeElementLabels(t, field.Message(), out[i].Fields)
+		}
+	}
+	return out
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -40,7 +41,7 @@ func TestCrossModuleReferencesRequireExactRoleFaultEvidenceScope(t *testing.T) {
 	}))
 	fault := hubtypes.RoleFaultState{
 		FaultId: faultID, TaskId: taskID, OperatorAddress: operator,
-		Duty: shared.DutyWorker, FaultClass: hubtypes.FaultKind_FAULT_KIND_INVALID_RESULT,
+		Duty: shared.DutyWorker, FaultClass: shared.FaultKind_FAULT_KIND_INVALID_RESULT,
 		ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT,
 		EvidenceDigest:       evidenceDigest, RecordedHeight: 1,
 		Status: hubtypes.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED,
@@ -177,7 +178,7 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 	require.NoError(t, err)
 	require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, taskKey, tasktypes.TaskCoreState{
 		TaskId: taskID, SessionId: sessionID,
-		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING,
+		TaskPhase: tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING,
 	}))
 	selection := tasktypes.TaskBuilderSelectionState{
 		TaskId: taskID, BuilderSetId: "1", BuilderSetHash: builderSetHash,
@@ -191,7 +192,7 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 		CurrentServiceKeyStatus: hubtypes.ServiceKeyStatusActive,
 	}
 	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, builderState))
-	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "missing 1 BUS")
+	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "has no frozen evidence responsibility")
 
 	locator := shared.BusObjectiveEvidenceResponsibilityV1{
 		SchemaVersion: 1, BuilderOperator: builder, SessionId: sessionID, TaskId: taskID,
@@ -224,6 +225,16 @@ func TestBusObjectiveEvidenceResponsibilitiesFollowRetainedTaskSelection(t *test
 	require.ErrorContains(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "no exact Task-owned authority")
 	state.ServiceAuthorizationNonce--
 	require.NoError(t, application.HubKeeper.WriteServiceKeyResponsibilityValue(ctx, primaryKey, state))
+	ctx = ctx.WithBlockHeight(10)
+	previous := secp256k1.GenPrivKeyFromSecret([]byte("retained-builder-evidence"))
+	current := secp256k1.GenPrivKeyFromSecret([]byte("current-builder-evidence"))
+	builderState.ServiceAuthorizationNonce = state.ServiceAuthorizationNonce + 1
+	builderState.CurrentServicePubkey = current.PubKey().Bytes()
+	builderState.XPreviousServicePubkey = &hubtypes.BuilderState_PreviousServicePubkey{PreviousServicePubkey: previous.PubKey().Bytes()}
+	builderState.XPreviousServiceAuthorizationNonce = &hubtypes.BuilderState_PreviousServiceAuthorizationNonce{PreviousServiceAuthorizationNonce: state.ServiceAuthorizationNonce}
+	builderState.XPreviousRetiredHeight = &hubtypes.BuilderState_PreviousRetiredHeight{PreviousRetiredHeight: 8}
+	require.NoError(t, application.HubKeeper.StoreBuilder(ctx, builder, builderState))
+	require.NoError(t, application.ensureBusObjectiveEvidenceResponsibilities(ctx), "current key rotation preserves the Task's frozen responsibility nonce")
 
 	selection.SelectedTaskBuilders = nil
 	selection.BodyStatus = shared.StoredBodyStatus_STORED_BODY_STATUS_PRUNED
@@ -308,7 +319,7 @@ func TestCrossModuleReferencesRejectOrphanTaskRetentionReferences(t *testing.T) 
 		taskID := bytes.Repeat([]byte{0x65}, 32)
 		taskKey := tasktypes.NewTaskKey(taskID)
 		require.NoError(t, application.TaskKeeper.TaskCore.Set(ctx, taskKey, tasktypes.TaskCoreState{
-			TaskId: taskID, TaskPhase: tasktypes.TaskPhase_TASK_PHASE_WORKER_ASSIGNED,
+			TaskId: taskID, TaskPhase: tasktypes.TaskPhase_TASK_PHASE_INFER_PENDING,
 		}))
 		require.NoError(t, application.TaskKeeper.StoreTaskBuilderSelection(ctx, taskKey, tasktypes.TaskBuilderSelectionState{
 			TaskId: taskID, BuilderSetId: "1", BuilderSetHash: bytes.Repeat([]byte{0x66}, 32),
