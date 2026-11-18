@@ -158,10 +158,27 @@ func TestAnchorContentFaultAfterReleaseSlashesBondAndJails(t *testing.T) {
 		EvidenceDigest:       hubHashBytes("anchor-content-evidence"), SlashBps: 2500, Height: 4,
 		RequestedAmount: requested,
 	}
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithEventManager(sdk.NewEventManager()))
 	fault, err := f.keeper.ApplyTaskRoleFault(f.ctx, fact)
 	require.NoError(t, err)
 	require.Equal(t, shared.FaultKind_FAULT_KIND_INVALID_RESULT, fault.FaultClass)
 	require.NotEmpty(t, fault.GetSlashSummaryId())
+	reasons := map[string][]types.EventLifecycleReason{}
+	for _, raw := range sdk.UnwrapSDKContext(f.ctx).EventManager().ABCIEvents() {
+		msg, err := sdk.ParseTypedEvent(raw)
+		if err != nil {
+			continue
+		}
+		switch event := msg.(type) {
+		case *types.EventRoleSlashed:
+			reasons["slashed"] = append(reasons["slashed"], event.Reason)
+		case *types.EventRoleJailed:
+			reasons["jailed"] = append(reasons["jailed"], event.Reason)
+		}
+	}
+	objective := []types.EventLifecycleReason{types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_OBJECTIVE_FAULT}
+	require.Equal(t, objective, reasons["slashed"], "a content REJECT is an objective fault, not a timeout")
+	require.Equal(t, objective, reasons["jailed"], "a content REJECT is an objective fault, not a timeout")
 	after, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, before.ActiveBond-requested, after.ActiveBond, "the content slash is the absolute amount of D")

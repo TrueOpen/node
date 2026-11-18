@@ -721,8 +721,9 @@ func eventLifecycleReasonForFault(faultType string) types.EventLifecycleReason {
 	switch strings.TrimSpace(faultType) {
 	case types.FaultTypeObjectiveForgery, types.FaultTypeCommitRevealMismatch, types.FaultTypeValueOutlier, types.FaultTypeRoundDivergence,
 		// ADR-0040: an anchor REJECT is a verdict on the Worker's material, not a
-		// missed deadline. anchor_timeout stays a timeout.
-		types.FaultTypeAnchorReject:
+		// missed deadline, and neither is a content REJECT. anchor_timeout stays
+		// a timeout.
+		types.FaultTypeAnchorReject, types.FaultTypeAnchorContentReject:
 		return types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_OBJECTIVE_FAULT
 	default:
 		return types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_TIMEOUT
