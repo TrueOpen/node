@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"github.com/TrueOpen/node/internal/testutil/wirefixture"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -46,8 +43,7 @@ func CoreOrder(t *testing.T) tasktypes.TaskOrderV3 {
 		EarliestSubmitHeight: 1_000, OrderExpireHeight: 2_000,
 		DeadlinePolicy:       tasktypes.DeadlinePolicyV1{LatencyClass: tasktypes.DeadlineLatencyClass(2)},
 		TimeoutBucketVersion: 9, SessionAnchorHeight: 990,
-		SessionAnchorBlockHash: bytes.Repeat([]byte{0x33}, 32),
-		BuilderSetId:           "12", BuilderSetHash: bytes.Repeat([]byte{0x44}, 32),
+		BuilderSetId: "12", BuilderSetHash: bytes.Repeat([]byte{0x44}, 32),
 		PayloadMode:        tasktypes.PayloadModeV1_PAYLOAD_MODE_V1_PLAINTEXT,
 		InputKeyCommitment: make([]byte, 32),
 	}
@@ -55,15 +51,21 @@ func CoreOrder(t *testing.T) tasktypes.TaskOrderV3 {
 }
 
 // State is the authorization view published by the pinned wire fixture.
+type Pending struct {
+	Kind            string `json:"kind"`
+	EffectiveHeight uint64 `json:"effective_height"`
+}
+
 type State struct {
-	Status       string `json:"status"`
-	Owner        string `json:"owner"`
-	Key          string `json:"key"`
-	Expiry       uint64 `json:"expiry"`
-	SetHeight    uint64 `json:"set_height"`
-	Cap          string `json:"cap"`
-	Spent        string `json:"spent"`
-	NextSequence uint64 `json:"next_sequence"`
+	Pending      *Pending `json:"pending"`
+	Status       string   `json:"status"`
+	Owner        string   `json:"owner"`
+	Key          string   `json:"key"`
+	Expiry       uint64   `json:"expiry"`
+	SetHeight    uint64   `json:"set_height"`
+	Cap          string   `json:"cap"`
+	Spent        string   `json:"spent"`
+	NextSequence uint64   `json:"next_sequence"`
 }
 
 type Admission struct {
@@ -84,15 +86,18 @@ type Grant struct {
 	Cap    string `json:"cap"`
 }
 type Update struct {
-	Name          string `json:"name"`
-	Height        uint64 `json:"current_height"`
-	MaxBlocks     uint64 `json:"current_max_blocks"`
-	Signer        string `json:"signer"`
-	Action        string `json:"action"`
-	State         State  `json:"state"`
-	Grant         Grant  `json:"grant"`
-	Expected      string `json:"expected"`
-	ExpectedState State  `json:"expected_state"`
+	Delay           uint64 `json:"session_change_delay_blocks"`
+	EffectiveHeight uint64 `json:"expected_effective_height"`
+	EffectiveState  *State `json:"expected_effective_state"`
+	Name            string `json:"name"`
+	Height          uint64 `json:"current_height"`
+	MaxBlocks       uint64 `json:"current_max_blocks"`
+	Signer          string `json:"signer"`
+	Action          string `json:"action"`
+	State           State  `json:"state"`
+	Grant           Grant  `json:"grant"`
+	Expected        string `json:"expected"`
+	ExpectedState   State  `json:"expected_state"`
 }
 
 type Section struct {
@@ -120,11 +125,7 @@ func Hex(t *testing.T, text string) []byte {
 
 func fixtureBytes(t *testing.T, name string) []byte {
 	t.Helper()
-	moduleDir, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/TrueOpen/wire").Output()
-	require.NoError(t, err)
-	raw, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(moduleDir)), "testdata", "v1", "task", name))
-	require.NoError(t, err)
-	return raw
+	return wirefixture.Read(t, "task", name)
 }
 
 // Load reads authorization cases from the exact wire module pin.

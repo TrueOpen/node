@@ -151,8 +151,14 @@ func canonicalGasReimbursementFrame(item TaskGasReimbursementV1) (shared.Canonic
 	if err != nil {
 		return shared.CanonicalFrameV1{}, err
 	}
-	if item.ReimbursementKind < TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_WORKER_HANDRAISE ||
-		item.ReimbursementKind > TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT {
+	switch item.ReimbursementKind {
+	case TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_DISPATCH_RECORD,
+		TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_INFER_RECEIPT,
+		TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFIER_HANDRAISE,
+		TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_DATA_UNAVAILABLE_REPORT,
+		TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFY_COMMIT,
+		TaskReimbursementKindV1_TASK_REIMBURSEMENT_KIND_V1_VERIFY_RESULT:
+	default:
 		return shared.CanonicalFrameV1{}, fmt.Errorf("reimbursement_kind is invalid")
 	}
 	feePayer, err := CanonicalOperatorAddressBytes("fee_payer", item.FeePayer)

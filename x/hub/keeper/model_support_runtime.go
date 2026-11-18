@@ -164,6 +164,9 @@ func (k Keeper) DeclareModelSupport(
 			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		} else {
 			newSupport.SupportActive = false
+			// An unactivated row has no proof to protect, so a JAIL left by an
+			// earlier ineligible declaration must not outlive the jail itself.
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		}
 	} else {
 		newSupport.SupportActive = false
@@ -492,9 +495,8 @@ func (k Keeper) deactivateModelSupport(ctx context.Context, operatorAddress stri
 // pool, and requireSupportScope refuses to re-declare while the bond is JAILED.
 // The protocol then only decrements jail_count after
 // jail_clear_normal_action_count normal actions the operator can no longer
-// perform. Keeping the declaration leaves the Worker path open — task_candidate_fact
-// tests declared_support alone — at the reduced candidate_jail_factor, which is
-// the graduated penalty the parameter tableregisters as the [hard boundary].
+// perform. Retaining the declaration keeps frozen candidate profile facts
+// eligible at the reduced candidate_jail_factor while the operator recovers.
 //
 // Recovery stays gated rather than free: refreshModelSupport restores
 // support_active only through requireSupportScope (which rejects a JAILED bond)
@@ -792,6 +794,9 @@ func (k Keeper) applyModelSupportMutation(
 	if err := k.WriteModelSupportIndexes(ctx, newSupport, currentEpoch, uint64(params.Support.ModelSupportRowRetentionEpochs)); err != nil {
 		return err
 	}
+	if err := k.refreshCandidateWeightInputs(ctx, newSupport.OperatorAddress); err != nil {
+		return err
+	}
 	newStatus := modelSupportStatus(&newSupport, currentEpoch)
 	mustEmitHubEvent(ctx, &types.EventModelSupportUpdated{
 		Operator: newSupport.OperatorAddress, ModelId: newSupport.ModelId, SuspendReason: newSupport.SuspendReason,
@@ -826,6 +831,11 @@ func (k Keeper) reweightModelSupport(
 		if newSupport.ActivationKind != types.ModelSupportActivationNone {
 			newSupport.SupportActive = true
 			newSupport.ActiveSupportStakeSnapshot = weight
+			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
+		} else if newSupport.SuspendReason == types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL {
+			// Jail cleared on a row that was declared but never activated: nothing
+			// else resets it, and a stale JAIL keeps record admission refusing a
+			// candidate the snapshot still draws.
 			newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
 		}
 	} else if oldSupport.DeclaredSupport && oldSupport.ActivationKind != types.ModelSupportActivationNone {

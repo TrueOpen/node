@@ -18,28 +18,32 @@ import (
 )
 
 const (
-	InvariantRewardsEarnings          = "rewards_earnings"
-	InvariantServiceBond              = "service_bond"
-	InvariantSupportAggregates        = "support_aggregates"
-	InvariantSupportLifecycle         = "support_lifecycle"
-	InvariantTaskLiabilityIndexes     = "task_liability_indexes"
-	InvariantCurrentServiceAddressIdx = "current_service_address_index"
-	InvariantServiceIdentityLifecycle = "service_identity_lifecycle"
-	InvariantServiceBondEpoch         = "service_bond_epoch"
-	InvariantServiceBondEffectiveIdx  = "service_bond_effective_index"
-	InvariantCandidateSlotReverseIdx  = "candidate_slot_reverse_index"
-	InvariantCandidatePoolBody        = "candidate_pool_body"
-	InvariantCandidateBindingRefCount = "candidate_binding_snapshot_ref_count"
-	InvariantCandidatePoolPointer     = "candidate_pool_current_pointer"
-	InvariantSlashSummaries           = "slash_summaries"
-	InvariantRoleFaultByTaskIndex     = "role_fault_by_task_index"
-	InvariantModelProfileAggregates   = "model_profile_aggregates"
-	InvariantFreezeRiskSchedule       = "freeze_risk_schedule"
-	InvariantBuilderFaultPrune        = "builder_fault_prune"
-	InvariantBridgeSupply             = "bridge_supply"
-	InvariantParameterBucket          = "parameter_bucket"
-	InvariantTreasurySpendReceipt     = "treasury_spend_receipt"
-	InvariantRewardEpoch              = "reward_epoch"
+	InvariantRewardsEarnings           = "rewards_earnings"
+	InvariantServiceBond               = "service_bond"
+	InvariantSupportAggregates         = "support_aggregates"
+	InvariantSupportLifecycle          = "support_lifecycle"
+	InvariantTaskLiabilityIndexes      = "task_liability_indexes"
+	InvariantCurrentServiceAddressIdx  = "current_service_address_index"
+	InvariantServiceIdentityLifecycle  = "service_identity_lifecycle"
+	InvariantServiceBondEpoch          = "service_bond_epoch"
+	InvariantServiceBondEffectiveIdx   = "service_bond_effective_index"
+	InvariantCandidateSlotReverseIdx   = "candidate_slot_reverse_index"
+	InvariantCandidatePoolBody         = "candidate_pool_body"
+	InvariantCandidateBindingRefCount  = "candidate_binding_snapshot_ref_count"
+	InvariantCandidatePoolPointer      = "candidate_pool_current_pointer"
+	InvariantSlashSummaries            = "slash_summaries"
+	InvariantRoleFaultByTaskIndex      = "role_fault_by_task_index"
+	InvariantModelProfileAggregates    = "model_profile_aggregates"
+	InvariantFreezeRiskSchedule        = "freeze_risk_schedule"
+	InvariantBuilderFaultPrune         = "builder_fault_prune"
+	InvariantBridgeSupply              = "bridge_supply"
+	InvariantParameterBucket           = "parameter_bucket"
+	InvariantTreasurySpendReceipt      = "treasury_spend_receipt"
+	InvariantRewardEpoch               = "reward_epoch"
+	InvariantServiceKeyRotations       = "service_key_rotations"
+	InvariantBuilderCompensation       = "builder_compensation"
+	InvariantBuilderCompensationLedger = "builder_compensation_ledger"
+	InvariantDispatchFaultPrune        = "dispatch_fault_prune"
 )
 
 type InvariantCheck struct {
@@ -67,6 +71,10 @@ type candidateSlotBindingKey struct {
 
 func (k Keeper) InvariantChecks() []InvariantCheck {
 	return []InvariantCheck{
+		{InvariantServiceKeyRotations, "pending service key indexes match their primaries", k.EnsureServiceKeyRotationInvariant},
+		{InvariantBuilderCompensationLedger, "compensation aggregate matches all account balances", k.EnsureBuilderCompensationLedgerInvariant},
+		{InvariantDispatchFaultPrune, "dispatch faults and prune schedules agree in both directions", k.EnsureDispatchFaultPruneInvariant},
+		{InvariantBuilderCompensation, "Builder compensation custody equals all account balances", k.EnsureBuilderCompensationInvariant},
 		{InvariantRewardsEarnings, "rewards balance equals claimable plus pending earnings", k.EnsureRewardsEarningsInvariant},
 		{InvariantServiceBond, "service bond balance equals active bonds plus unwithdrawn unbondings", k.EnsureServiceBondInvariant},
 		{InvariantSupportAggregates, "profile support aggregates equal the sum of their support rows", k.EnsureSupportAggregateInvariant},
@@ -526,7 +534,7 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "slash summary does not match its store key")
 		}
-		id := hex.EncodeToString(state.SlashSummaryId)
+		id := fmt.Sprintf("%d/%s/%d", state.SourceKind, hex.EncodeToString(state.SlashSummaryId), state.EffectIndex)
 		if _, duplicate := ids[id]; duplicate {
 			rows.Close()
 			return errorsmod.Wrap(types.ErrInvariantBroken, "duplicate slash summary id")
@@ -579,6 +587,9 @@ func (k Keeper) EnsureSlashSummaryInvariant(ctx context.Context) error {
 
 	for key := range summaries {
 		switch key.kind {
+		case types.SlashSourceKind_SLASH_SOURCE_KIND_CHALLENGE_EFFECT:
+			// Task owns the bounded effect vector and its cleanup clock.
+			continue
 		case types.SlashSourceKind_SLASH_SOURCE_KIND_ROLE_FAULT:
 			if _, exists := roleFaultSources[key.source]; !exists {
 				return errorsmod.Wrap(types.ErrInvariantBroken, "orphan role-fault slash summary")
@@ -715,6 +726,53 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 	}
 	defer iter.Close()
 	epochsWithHeader := map[uint64]struct{}{}
+	bodyPrunes := map[string]uint64{}
+	prunes, err := k.CandidatePoolPruneIndex.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ; prunes.Valid(); prunes.Next() {
+		key, err := prunes.Key()
+		if err != nil {
+			prunes.Close()
+			return err
+		}
+		if types.CandidatePoolPrunePhase(key.K3()) == types.CandidatePoolPrunePhase_CANDIDATE_POOL_PRUNE_PHASE_BODY {
+			id := string(key.K2())
+			if _, duplicate := bodyPrunes[id]; duplicate {
+				prunes.Close()
+				return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body has duplicate prune work")
+			}
+			bodyPrunes[id] = key.K1()
+		}
+	}
+	if err := prunes.Close(); err != nil {
+		return err
+	}
+	for id := range bodyPrunes {
+		snapshot, err := k.CandidatePoolSnapshot.Get(ctx, []byte(id))
+		if err != nil || snapshot.Status != candidateSnapshotExpired || snapshot.TaskRefCount != 0 {
+			return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune work has no unreferenced expired snapshot")
+		}
+	}
+	clocks, err := k.CandidatePoolBodyPruneHeight.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for ; clocks.Valid(); clocks.Next() {
+		entry, err := clocks.KeyValue()
+		if err != nil {
+			clocks.Close()
+			return err
+		}
+		if entry.Value == 0 || bodyPrunes[string(entry.Key)] != entry.Value {
+			clocks.Close()
+			return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune clock has no matching work")
+		}
+	}
+	if err := clocks.Close(); err != nil {
+		return err
+	}
 	for ; iter.Valid(); iter.Next() {
 		entry, err := iter.KeyValue()
 		if err != nil {
@@ -728,6 +786,23 @@ func (k Keeper) EnsureCandidatePoolBodyInvariant(ctx context.Context) error {
 		if snapshot.Status == candidateSnapshotPruned {
 			// A PRUNED header keeps only the digest; its body is gone by design.
 			continue
+		}
+		if snapshot.Status == candidateSnapshotExpired && snapshot.TaskRefCount == 0 {
+			due, exists := bodyPrunes[string(snapshot.SnapshotId)]
+			if !exists {
+				return errorsmod.Wrap(types.ErrInvariantBroken, "unreferenced expired candidate body has no prune work")
+			}
+			clock, err := k.CandidatePoolBodyPruneHeight.Get(ctx, snapshot.SnapshotId)
+			if errors.Is(err, collections.ErrNotFound) {
+				// Physical pruning may leave an incomplete body between blocks.
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if clock != due {
+				return errorsmod.Wrap(types.ErrInvariantBroken, "candidate body prune clock disagrees with its queue")
+			}
 		}
 		if err := k.verifyCandidatePoolBody(ctx, snapshot); err != nil {
 			return errorsmod.Wrapf(types.ErrInvariantBroken, "candidate snapshot %s body: %s", entry.Key, err)

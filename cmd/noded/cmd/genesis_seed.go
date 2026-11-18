@@ -58,6 +58,21 @@ type genesisSeed struct {
 	CortexNodes       []genesisSeedCortex        `json:"cortex_nodes"`
 	Models            []genesisSeedModel         `json:"models"`
 	FaucetAccounts    []genesisSeedFaucetAccount `json:"faucet_accounts"`
+	// VrfKeys seeds VRF public keys as already active from epoch 0. A key
+	// registered by transaction only takes effect in the next epoch, so on a
+	// chain with a long epoch no validator beacon or Builder dispatch could run
+	// for hours after launch; seeding the keys removes that wait.
+	VrfKeys []genesisSeedVrfKey `json:"vrf_keys,omitempty"`
+}
+
+// genesisSeedVrfKey is one participant's VRF public key. Only the public point
+// is carried: the private key stays with the operator (a validator's
+// config/vrf_key.json, a Builder's nexus keystore).
+type genesisSeedVrfKey struct {
+	// ParticipantType is PARTICIPANT_TYPE_VALIDATOR or PARTICIPANT_TYPE_BUILDER.
+	ParticipantType string `json:"participant_type"`
+	OperatorAddress string `json:"operator_address"`
+	VrfPubkey       string `json:"vrf_pubkey"`
 }
 
 // genesisSeedFaucetAccount funds a devnet/localnet-only address with its own
@@ -87,6 +102,12 @@ type genesisSeedBuilder struct {
 	ServiceAddress string                        `json:"service_address"`
 	ServicePubKey  string                        `json:"service_pubkey"`
 	Descriptor     *genesisSeedServiceDescriptor `json:"descriptor"`
+	// CompensationFunding, when positive, moves that many business-denom atomic
+	// units from the Builder's genesis balance into its dispatch compensation
+	// account. Dispatch refuses a Builder whose compensation balance is below
+	// dispatch.builder_compensation_account_min_balance, so a seed without this
+	// leaves a fresh chain unable to dispatch until someone funds the account.
+	CompensationFunding uint64 `json:"compensation_funding,omitempty"`
 }
 
 type genesisSeedCortex struct {
@@ -346,6 +367,9 @@ func validateGenesisSeed(seed genesisSeed) error {
 			return err
 		}
 	}
+	if err := validateGenesisSeedVrfKeys(seed); err != nil {
+		return err
+	}
 	supports := map[string]struct{}{}
 	referencedProfiles := []string{}
 	for i, node := range seed.CortexNodes {
@@ -521,6 +545,50 @@ func applyTaskParamsOverride(cdc codec.Codec, params *tasktypes.TaskParamsV1, ov
 	return nil
 }
 
+// parseGenesisSeedVrfKey checks one seeded VRF key and returns its role and
+// 32-byte public key.
+func parseGenesisSeedVrfKey(kind string, key genesisSeedVrfKey) (shared.ParticipantType, []byte, error) {
+	value, ok := shared.ParticipantType_value[key.ParticipantType]
+	role := shared.ParticipantType(value)
+	if !ok || !hubtypes.IsVrfParticipantType(role) {
+		return 0, nil, fmt.Errorf("%s participant_type must be PARTICIPANT_TYPE_VALIDATOR or PARTICIPANT_TYPE_BUILDER", kind)
+	}
+	if err := requireGenesisAddress(kind+" operator_address", key.OperatorAddress); err != nil {
+		return 0, nil, err
+	}
+	pubkey, err := hex.DecodeString(key.VrfPubkey)
+	if err != nil || len(pubkey) != hubtypes.VrfPubkeyLen {
+		return 0, nil, fmt.Errorf("%s vrf_pubkey must be %d bytes of hex", kind, hubtypes.VrfPubkeyLen)
+	}
+	return role, pubkey, nil
+}
+
+func validateGenesisSeedVrfKeys(seed genesisSeed) error {
+	builders := make(map[string]struct{}, len(seed.Builders))
+	for _, builder := range seed.Builders {
+		builders[builder.Address] = struct{}{}
+	}
+	seen := map[string]struct{}{}
+	for i, key := range seed.VrfKeys {
+		kind := fmt.Sprintf("vrf_keys[%d]", i)
+		role, _, err := parseGenesisSeedVrfKey(kind, key)
+		if err != nil {
+			return err
+		}
+		id := key.ParticipantType + "\x00" + key.OperatorAddress
+		if _, exists := seen[id]; exists {
+			return fmt.Errorf("%s repeats %s key of %s", kind, key.ParticipantType, key.OperatorAddress)
+		}
+		seen[id] = struct{}{}
+		if role == shared.ParticipantType_PARTICIPANT_TYPE_BUILDER {
+			if _, ok := builders[key.OperatorAddress]; !ok {
+				return fmt.Errorf("%s operator %s is not a seeded Builder", kind, key.OperatorAddress)
+			}
+		}
+	}
+	return nil
+}
+
 func requireGenesisAddress(field, value string) error {
 	if value == "" || value != strings.TrimSpace(value) {
 		return fmt.Errorf("%s must be a non-empty canonical address", field)
@@ -652,6 +720,20 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 		if err := appendGenesisBuilder(&hub, builder, seedHeight); err != nil {
 			return nil, err
 		}
+		if builder.CompensationFunding == 0 {
+			continue
+		}
+		if err := moveGenesisFunds(&bank, builder.Address, hubtypes.BuilderCompensationModuleName, businessDenom, builder.CompensationFunding); err != nil {
+			return nil, fmt.Errorf("fund compensation account of Builder %s: %w", builder.Address, err)
+		}
+		funded := shared.NewAmount(builder.CompensationFunding)
+		hub.BuilderCompensationAccounts = append(hub.BuilderCompensationAccounts, hubtypes.BuilderCompensationAccountState{
+			BuilderAddress: builder.Address,
+			Balance:        funded,
+			TotalFunded:    funded,
+			TotalPaid:      shared.NewAmount(0),
+			TotalPenalized: shared.NewAmount(0),
+		})
 	}
 	if len(hub.BuilderSets) == 0 && len(hub.Builders) > 0 {
 		addresses := make([]string, 0, len(hub.Builders))
@@ -722,6 +804,27 @@ func applyGenesisSeed(cdc codec.Codec, rawGenesis []byte, seed genesisSeed) ([]b
 	}
 	if err := reconcileGenesisModelStatuses(&hub, affectedModels, seedHeight); err != nil {
 		return nil, err
+	}
+	seededVrf := make(map[string]struct{}, len(hub.VrfKeys))
+	for _, state := range hub.VrfKeys {
+		seededVrf[state.ParticipantType.String()+"\x00"+state.OperatorAddress] = struct{}{}
+	}
+	for i, key := range seed.VrfKeys {
+		if _, exists := seededVrf[key.ParticipantType+"\x00"+key.OperatorAddress]; exists {
+			continue
+		}
+		role, pubkey, err := parseGenesisSeedVrfKey(fmt.Sprintf("vrf_keys[%d]", i), key)
+		if err != nil {
+			return nil, err
+		}
+		hub.VrfKeys = append(hub.VrfKeys, hubtypes.VrfKeyState{
+			ParticipantType:       role,
+			OperatorAddress:       key.OperatorAddress,
+			ActiveVrfPubkey:       pubkey,
+			ActiveFromEpoch:       0,
+			VrfAuthorizationNonce: 1,
+			RegisteredHeight:      seedHeight,
+		})
 	}
 	hub, err = hubtypes.PrepareCandidateSlotGenesis(hub)
 	if err != nil {

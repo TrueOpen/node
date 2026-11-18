@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/TrueOpen/node/internal/testutil/domainfixture"
 	"github.com/stretchr/testify/require"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
@@ -44,7 +45,18 @@ func TestInferReceiptSigningDigestMatchesWireRC2(t *testing.T) {
 		WorkerValueKeyCommitment: make([]byte, 32),
 		CiphertextOutputRoot:     make([]byte, 32),
 	}
-	digest, err := tasktypes.InferReceiptSigningDigest(receipt)
-	require.NoError(t, err)
-	require.Equal(t, "2725ba89876869aa75af3b5c292a5e40ab61cf8f497b2f142e54c54dbd7d8874", hex.EncodeToString(digest[:]))
+	for _, vector := range domainfixture.Load(t, "testdata/infer_receipt_v3.json").Vectors {
+		t.Run(vector.Name, func(t *testing.T) {
+			receipt.GeneratedTokenCount = vector.Uint(t, 11, "generated_token_count")
+			receipt.OutputLeafCount = vector.Uint(t, 12, "output_leaf_count")
+			receipt.DispatchTicketHash = vector.Bytes(t, 17, "dispatch_ticket_hash")
+			digest, err := tasktypes.InferReceiptSigningDigest(receipt)
+			require.NoError(t, err)
+			domainfixture.RequireDigest(t, vector, digest[:])
+			receipt.DispatchTicketHash = bytes.Repeat([]byte{0x99}, 32)
+			changed, err := tasktypes.InferReceiptSigningDigest(receipt)
+			require.NoError(t, err)
+			require.NotEqual(t, digest, changed)
+		})
+	}
 }

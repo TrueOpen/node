@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -82,7 +83,14 @@ func TestSessionGenesisRoundTripAllowsCancelledSequenceWithoutTaskID(t *testing.
 	genesis.Streams = []tasktypes.StreamState{{
 		SessionId: sessionID, OwnerUserAddress: genesisUser, NextExpectedSequence: 1,
 		LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_ACTIVE,
-	}}
+
+		BoundBuilder:          genesisBuilder,
+		BoundChangeHeight:     1,
+		PendingWithdrawKind:   tasktypes.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+		Balance:               shared.NewAmount(0),
+		FrozenTotal:           shared.NewAmount(0),
+		PendingWithdrawAmount: shared.NewAmount(0)},
+	}
 	genesis.OrderSequences = []tasktypes.OrderSequenceState{{
 		SessionId: sessionID, OrderSequence: 0,
 		Status: tasktypes.OrderSequenceStatus_ORDER_SEQUENCE_STATUS_CANCELLED, CancelledHeight: 5,
@@ -110,14 +118,14 @@ func TestSessionGenesisRoundTripAllowsZeroBasedTaskSequence(t *testing.T) {
 	require.Equal(t, uint64(0), exported.OrderSequences[0].OrderSequence)
 }
 
-func TestSessionGenesisRejectsDoneOrEmptyRootPruneCursor(t *testing.T) {
+func TestSessionGenesisRejectsOutOfRangeOrEmptyRootPruneCursor(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		next  uint64
 		root  []byte
 		match string
 	}{
-		{name: "done", next: 1, root: make([]byte, tasktypes.Hash32Len), match: "must remain before"},
+		{name: "beyond tail", next: 6, root: make([]byte, tasktypes.Hash32Len), match: "range/counts"},
 		{name: "empty root", next: 0, root: nil, match: "must be 32 bytes"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -126,8 +134,15 @@ func TestSessionGenesisRejectsDoneOrEmptyRootPruneCursor(t *testing.T) {
 			sessionID := bytes.Repeat([]byte{0x4d}, tasktypes.Hash32Len)
 			genesis.Streams = []tasktypes.StreamState{{
 				SessionId: sessionID, OwnerUserAddress: genesisUser, NextExpectedSequence: 1,
-				LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_CLOSED,
-			}}
+				LastActiveHeight: 5, Status: tasktypes.SessionStatus_SESSION_STATUS_CLOSED, ClosedHeight: 5,
+
+				BoundBuilder:          genesisBuilder,
+				BoundChangeHeight:     1,
+				PendingWithdrawKind:   tasktypes.SessionWithdrawKindV1_SESSION_WITHDRAW_KIND_V1_NONE,
+				Balance:               shared.NewAmount(0),
+				FrozenTotal:           shared.NewAmount(0),
+				PendingWithdrawAmount: shared.NewAmount(0)},
+			}
 			genesis.SessionHistoryPruneCursors = []tasktypes.SessionHistoryPruneCursorState{{
 				SessionId: sessionID, NextOrderSequence: tc.next, RollingSequenceRoot: tc.root,
 			}}

@@ -410,225 +410,6 @@ func (*EventTaskFailureClassUpdated) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// EventWorkerHandraisesAccepted is event code 10, emitted once per proposal that
-// added at least one candidate and committed.
-// EventWorkerHandraisesAccepted defines the EventWorkerHandraisesAccepted wire type.
-type EventWorkerHandraisesAccepted struct {
-	SessionId       []byte `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	TaskId          []byte `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	OrderSequence   uint64 `protobuf:"varint,3,opt,name=order_sequence,json=orderSequence,proto3" json:"order_sequence,omitempty"`
-	ProposalDigest  []byte `protobuf:"bytes,4,opt,name=proposal_digest,json=proposalDigest,proto3" json:"proposal_digest,omitempty"`
-	AddedBitmapHash []byte `protobuf:"bytes,5,opt,name=added_bitmap_hash,json=addedBitmapHash,proto3" json:"added_bitmap_hash,omitempty"`
-	// Types that are valid to be assigned to XBuilderOrEmpty:
-	//	*EventWorkerHandraisesAccepted_BuilderOrEmpty
-	XBuilderOrEmpty isEventWorkerHandraisesAccepted_XBuilderOrEmpty `protobuf_oneof:"_builder_or_empty"`
-	UnionCount      uint32                                          `protobuf:"varint,7,opt,name=union_count,json=unionCount,proto3" json:"union_count,omitempty"`
-}
-
-func (m *EventWorkerHandraisesAccepted) Reset()         { *m = EventWorkerHandraisesAccepted{} }
-func (m *EventWorkerHandraisesAccepted) String() string { return proto.CompactTextString(m) }
-func (*EventWorkerHandraisesAccepted) ProtoMessage()    {}
-func (*EventWorkerHandraisesAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{4}
-}
-func (m *EventWorkerHandraisesAccepted) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EventWorkerHandraisesAccepted) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EventWorkerHandraisesAccepted.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EventWorkerHandraisesAccepted) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventWorkerHandraisesAccepted.Merge(m, src)
-}
-func (m *EventWorkerHandraisesAccepted) XXX_Size() int {
-	return m.Size()
-}
-func (m *EventWorkerHandraisesAccepted) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventWorkerHandraisesAccepted.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EventWorkerHandraisesAccepted proto.InternalMessageInfo
-
-type isEventWorkerHandraisesAccepted_XBuilderOrEmpty interface {
-	isEventWorkerHandraisesAccepted_XBuilderOrEmpty()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-
-type EventWorkerHandraisesAccepted_BuilderOrEmpty struct {
-	BuilderOrEmpty string `protobuf:"bytes,6,opt,name=builder_or_empty,json=builderOrEmpty,proto3,oneof" json:"builder_or_empty,omitempty"`
-}
-
-func (*EventWorkerHandraisesAccepted_BuilderOrEmpty) isEventWorkerHandraisesAccepted_XBuilderOrEmpty() {
-}
-
-func (m *EventWorkerHandraisesAccepted) GetXBuilderOrEmpty() isEventWorkerHandraisesAccepted_XBuilderOrEmpty {
-	if m != nil {
-		return m.XBuilderOrEmpty
-	}
-	return nil
-}
-
-func (m *EventWorkerHandraisesAccepted) GetSessionId() []byte {
-	if m != nil {
-		return m.SessionId
-	}
-	return nil
-}
-
-func (m *EventWorkerHandraisesAccepted) GetTaskId() []byte {
-	if m != nil {
-		return m.TaskId
-	}
-	return nil
-}
-
-func (m *EventWorkerHandraisesAccepted) GetOrderSequence() uint64 {
-	if m != nil {
-		return m.OrderSequence
-	}
-	return 0
-}
-
-func (m *EventWorkerHandraisesAccepted) GetProposalDigest() []byte {
-	if m != nil {
-		return m.ProposalDigest
-	}
-	return nil
-}
-
-func (m *EventWorkerHandraisesAccepted) GetAddedBitmapHash() []byte {
-	if m != nil {
-		return m.AddedBitmapHash
-	}
-	return nil
-}
-
-func (m *EventWorkerHandraisesAccepted) GetBuilderOrEmpty() string {
-	if x, ok := m.GetXBuilderOrEmpty().(*EventWorkerHandraisesAccepted_BuilderOrEmpty); ok {
-		return x.BuilderOrEmpty
-	}
-	return ""
-}
-
-func (m *EventWorkerHandraisesAccepted) GetUnionCount() uint32 {
-	if m != nil {
-		return m.UnionCount
-	}
-	return 0
-}
-
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*EventWorkerHandraisesAccepted) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*EventWorkerHandraisesAccepted_BuilderOrEmpty)(nil),
-	}
-}
-
-// EventWorkerAssignmentFinalized is event code 11, emitted once when the winner
-// and its task liability commit in the same transaction.
-// EventWorkerAssignmentFinalized defines the EventWorkerAssignmentFinalized wire type.
-type EventWorkerAssignmentFinalized struct {
-	SessionId                  []byte       `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	TaskId                     []byte       `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	WinnerWorker               string       `protobuf:"bytes,3,opt,name=winner_worker,json=winnerWorker,proto3" json:"winner_worker,omitempty"`
-	AssignmentCandidateSetHash []byte       `protobuf:"bytes,4,opt,name=assignment_candidate_set_hash,json=assignmentCandidateSetHash,proto3" json:"assignment_candidate_set_hash,omitempty"`
-	RandomnessHeight           uint64       `protobuf:"varint,5,opt,name=randomness_height,json=randomnessHeight,proto3" json:"randomness_height,omitempty"`
-	ReservedAmount             types.Amount `protobuf:"bytes,6,opt,name=reserved_amount,json=reservedAmount,proto3" json:"reserved_amount"`
-	InferDeadline              uint64       `protobuf:"varint,7,opt,name=infer_deadline,json=inferDeadline,proto3" json:"infer_deadline,omitempty"`
-}
-
-func (m *EventWorkerAssignmentFinalized) Reset()         { *m = EventWorkerAssignmentFinalized{} }
-func (m *EventWorkerAssignmentFinalized) String() string { return proto.CompactTextString(m) }
-func (*EventWorkerAssignmentFinalized) ProtoMessage()    {}
-func (*EventWorkerAssignmentFinalized) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{5}
-}
-func (m *EventWorkerAssignmentFinalized) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EventWorkerAssignmentFinalized) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EventWorkerAssignmentFinalized.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EventWorkerAssignmentFinalized) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventWorkerAssignmentFinalized.Merge(m, src)
-}
-func (m *EventWorkerAssignmentFinalized) XXX_Size() int {
-	return m.Size()
-}
-func (m *EventWorkerAssignmentFinalized) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventWorkerAssignmentFinalized.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EventWorkerAssignmentFinalized proto.InternalMessageInfo
-
-func (m *EventWorkerAssignmentFinalized) GetSessionId() []byte {
-	if m != nil {
-		return m.SessionId
-	}
-	return nil
-}
-
-func (m *EventWorkerAssignmentFinalized) GetTaskId() []byte {
-	if m != nil {
-		return m.TaskId
-	}
-	return nil
-}
-
-func (m *EventWorkerAssignmentFinalized) GetWinnerWorker() string {
-	if m != nil {
-		return m.WinnerWorker
-	}
-	return ""
-}
-
-func (m *EventWorkerAssignmentFinalized) GetAssignmentCandidateSetHash() []byte {
-	if m != nil {
-		return m.AssignmentCandidateSetHash
-	}
-	return nil
-}
-
-func (m *EventWorkerAssignmentFinalized) GetRandomnessHeight() uint64 {
-	if m != nil {
-		return m.RandomnessHeight
-	}
-	return 0
-}
-
-func (m *EventWorkerAssignmentFinalized) GetReservedAmount() types.Amount {
-	if m != nil {
-		return m.ReservedAmount
-	}
-	return types.Amount{}
-}
-
-func (m *EventWorkerAssignmentFinalized) GetInferDeadline() uint64 {
-	if m != nil {
-		return m.InferDeadline
-	}
-	return 0
-}
-
 // EventInferReceiptAccepted is event code 12, emitted once when the receipt is
 // first accepted and the verifier window build index is written.
 // EventInferReceiptAccepted defines the EventInferReceiptAccepted wire type.
@@ -647,7 +428,7 @@ func (m *EventInferReceiptAccepted) Reset()         { *m = EventInferReceiptAcce
 func (m *EventInferReceiptAccepted) String() string { return proto.CompactTextString(m) }
 func (*EventInferReceiptAccepted) ProtoMessage()    {}
 func (*EventInferReceiptAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{6}
+	return fileDescriptor_59b05169ba7e7c9c, []int{4}
 }
 func (m *EventInferReceiptAccepted) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -750,7 +531,7 @@ func (m *EventVerifierAssignmentFinalized) Reset()         { *m = EventVerifierA
 func (m *EventVerifierAssignmentFinalized) String() string { return proto.CompactTextString(m) }
 func (*EventVerifierAssignmentFinalized) ProtoMessage()    {}
 func (*EventVerifierAssignmentFinalized) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{7}
+	return fileDescriptor_59b05169ba7e7c9c, []int{5}
 }
 func (m *EventVerifierAssignmentFinalized) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -851,7 +632,7 @@ func (m *EventDataUnavailableReported) Reset()         { *m = EventDataUnavailab
 func (m *EventDataUnavailableReported) String() string { return proto.CompactTextString(m) }
 func (*EventDataUnavailableReported) ProtoMessage()    {}
 func (*EventDataUnavailableReported) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{8}
+	return fileDescriptor_59b05169ba7e7c9c, []int{6}
 }
 func (m *EventDataUnavailableReported) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -939,7 +720,7 @@ func (m *EventBuilderDataUnavailable) Reset()         { *m = EventBuilderDataUna
 func (m *EventBuilderDataUnavailable) String() string { return proto.CompactTextString(m) }
 func (*EventBuilderDataUnavailable) ProtoMessage()    {}
 func (*EventBuilderDataUnavailable) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{9}
+	return fileDescriptor_59b05169ba7e7c9c, []int{7}
 }
 func (m *EventBuilderDataUnavailable) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1033,7 +814,7 @@ func (m *EventCommitAccepted) Reset()         { *m = EventCommitAccepted{} }
 func (m *EventCommitAccepted) String() string { return proto.CompactTextString(m) }
 func (*EventCommitAccepted) ProtoMessage()    {}
 func (*EventCommitAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{10}
+	return fileDescriptor_59b05169ba7e7c9c, []int{8}
 }
 func (m *EventCommitAccepted) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1119,7 +900,7 @@ func (m *EventResultAccepted) Reset()         { *m = EventResultAccepted{} }
 func (m *EventResultAccepted) String() string { return proto.CompactTextString(m) }
 func (*EventResultAccepted) ProtoMessage()    {}
 func (*EventResultAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{11}
+	return fileDescriptor_59b05169ba7e7c9c, []int{9}
 }
 func (m *EventResultAccepted) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1210,7 +991,7 @@ func (m *EventTaskSettled) Reset()         { *m = EventTaskSettled{} }
 func (m *EventTaskSettled) String() string { return proto.CompactTextString(m) }
 func (*EventTaskSettled) ProtoMessage()    {}
 func (*EventTaskSettled) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{12}
+	return fileDescriptor_59b05169ba7e7c9c, []int{10}
 }
 func (m *EventTaskSettled) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1330,9 +1111,11 @@ func (m *EventTaskSettled) GetTaskFinalityHeight() uint64 {
 // EventDeadlineSwept defines the EventDeadlineSwept wire type.
 type EventDeadlineSwept struct {
 	// Types that are valid to be assigned to XSessionId:
+	//
 	//	*EventDeadlineSwept_SessionId
 	XSessionId isEventDeadlineSwept_XSessionId `protobuf_oneof:"_session_id"`
 	// Types that are valid to be assigned to XTaskId:
+	//
 	//	*EventDeadlineSwept_TaskId
 	XTaskId        isEventDeadlineSwept_XTaskId `protobuf_oneof:"_task_id"`
 	DeadlineKind   DeadlineKindV1               `protobuf:"varint,3,opt,name=deadline_kind,json=deadlineKind,proto3,enum=task.v1.DeadlineKindV1" json:"deadline_kind,omitempty"`
@@ -1344,7 +1127,7 @@ func (m *EventDeadlineSwept) Reset()         { *m = EventDeadlineSwept{} }
 func (m *EventDeadlineSwept) String() string { return proto.CompactTextString(m) }
 func (*EventDeadlineSwept) ProtoMessage()    {}
 func (*EventDeadlineSwept) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{13}
+	return fileDescriptor_59b05169ba7e7c9c, []int{11}
 }
 func (m *EventDeadlineSwept) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1450,77 +1233,6 @@ func (*EventDeadlineSwept) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// EventAssignmentFailed is event code 22, emitted once when the assignment
-// failure and its refund commit together.
-// EventAssignmentFailed defines the EventAssignmentFailed wire type.
-type EventAssignmentFailed struct {
-	SessionId    []byte                  `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	TaskId       []byte                  `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Reason       AssignmentFailureReason `protobuf:"varint,3,opt,name=reason,proto3,enum=task.v1.AssignmentFailureReason" json:"reason,omitempty"`
-	RefundAmount types.Amount            `protobuf:"bytes,4,opt,name=refund_amount,json=refundAmount,proto3" json:"refund_amount"`
-}
-
-func (m *EventAssignmentFailed) Reset()         { *m = EventAssignmentFailed{} }
-func (m *EventAssignmentFailed) String() string { return proto.CompactTextString(m) }
-func (*EventAssignmentFailed) ProtoMessage()    {}
-func (*EventAssignmentFailed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{14}
-}
-func (m *EventAssignmentFailed) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EventAssignmentFailed) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EventAssignmentFailed.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EventAssignmentFailed) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventAssignmentFailed.Merge(m, src)
-}
-func (m *EventAssignmentFailed) XXX_Size() int {
-	return m.Size()
-}
-func (m *EventAssignmentFailed) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventAssignmentFailed.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EventAssignmentFailed proto.InternalMessageInfo
-
-func (m *EventAssignmentFailed) GetSessionId() []byte {
-	if m != nil {
-		return m.SessionId
-	}
-	return nil
-}
-
-func (m *EventAssignmentFailed) GetTaskId() []byte {
-	if m != nil {
-		return m.TaskId
-	}
-	return nil
-}
-
-func (m *EventAssignmentFailed) GetReason() AssignmentFailureReason {
-	if m != nil {
-		return m.Reason
-	}
-	return AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_UNSPECIFIED
-}
-
-func (m *EventAssignmentFailed) GetRefundAmount() types.Amount {
-	if m != nil {
-		return m.RefundAmount
-	}
-	return types.Amount{}
-}
-
 // EventWorkerTimeout is event code 23, emitted once when the inference deadline
 // first closes the Task.
 // EventWorkerTimeout defines the EventWorkerTimeout wire type.
@@ -1536,7 +1248,7 @@ func (m *EventWorkerTimeout) Reset()         { *m = EventWorkerTimeout{} }
 func (m *EventWorkerTimeout) String() string { return proto.CompactTextString(m) }
 func (*EventWorkerTimeout) ProtoMessage()    {}
 func (*EventWorkerTimeout) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{15}
+	return fileDescriptor_59b05169ba7e7c9c, []int{12}
 }
 func (m *EventWorkerTimeout) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1615,7 +1327,7 @@ func (m *EventVerifyOpenTimeout) Reset()         { *m = EventVerifyOpenTimeout{}
 func (m *EventVerifyOpenTimeout) String() string { return proto.CompactTextString(m) }
 func (*EventVerifyOpenTimeout) ProtoMessage()    {}
 func (*EventVerifyOpenTimeout) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{16}
+	return fileDescriptor_59b05169ba7e7c9c, []int{13}
 }
 func (m *EventVerifyOpenTimeout) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1694,7 +1406,7 @@ func (m *EventCommitDeadlineClosed) Reset()         { *m = EventCommitDeadlineCl
 func (m *EventCommitDeadlineClosed) String() string { return proto.CompactTextString(m) }
 func (*EventCommitDeadlineClosed) ProtoMessage()    {}
 func (*EventCommitDeadlineClosed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{17}
+	return fileDescriptor_59b05169ba7e7c9c, []int{14}
 }
 func (m *EventCommitDeadlineClosed) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1773,7 +1485,7 @@ func (m *EventChallengeRoundOpened) Reset()         { *m = EventChallengeRoundOp
 func (m *EventChallengeRoundOpened) String() string { return proto.CompactTextString(m) }
 func (*EventChallengeRoundOpened) ProtoMessage()    {}
 func (*EventChallengeRoundOpened) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{18}
+	return fileDescriptor_59b05169ba7e7c9c, []int{15}
 }
 func (m *EventChallengeRoundOpened) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1869,7 +1581,7 @@ func (m *EventVerificationRoundClosed) Reset()         { *m = EventVerificationR
 func (m *EventVerificationRoundClosed) String() string { return proto.CompactTextString(m) }
 func (*EventVerificationRoundClosed) ProtoMessage()    {}
 func (*EventVerificationRoundClosed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{19}
+	return fileDescriptor_59b05169ba7e7c9c, []int{16}
 }
 func (m *EventVerificationRoundClosed) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1988,7 +1700,7 @@ func (m *EventTaskGasReimbursementRecorded) Reset()         { *m = EventTaskGasR
 func (m *EventTaskGasReimbursementRecorded) String() string { return proto.CompactTextString(m) }
 func (*EventTaskGasReimbursementRecorded) ProtoMessage()    {}
 func (*EventTaskGasReimbursementRecorded) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{20}
+	return fileDescriptor_59b05169ba7e7c9c, []int{17}
 }
 func (m *EventTaskGasReimbursementRecorded) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2082,7 +1794,7 @@ func (m *EventWorkerEvidenceAccepted) Reset()         { *m = EventWorkerEvidence
 func (m *EventWorkerEvidenceAccepted) String() string { return proto.CompactTextString(m) }
 func (*EventWorkerEvidenceAccepted) ProtoMessage()    {}
 func (*EventWorkerEvidenceAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{21}
+	return fileDescriptor_59b05169ba7e7c9c, []int{18}
 }
 func (m *EventWorkerEvidenceAccepted) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2170,7 +1882,7 @@ func (m *EventVerifierHandraisesAccepted) Reset()         { *m = EventVerifierHa
 func (m *EventVerifierHandraisesAccepted) String() string { return proto.CompactTextString(m) }
 func (*EventVerifierHandraisesAccepted) ProtoMessage()    {}
 func (*EventVerifierHandraisesAccepted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{22}
+	return fileDescriptor_59b05169ba7e7c9c, []int{19}
 }
 func (m *EventVerifierHandraisesAccepted) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2254,7 +1966,7 @@ func (m *EventTaskParamsUpdated) Reset()         { *m = EventTaskParamsUpdated{}
 func (m *EventTaskParamsUpdated) String() string { return proto.CompactTextString(m) }
 func (*EventTaskParamsUpdated) ProtoMessage()    {}
 func (*EventTaskParamsUpdated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{23}
+	return fileDescriptor_59b05169ba7e7c9c, []int{20}
 }
 func (m *EventTaskParamsUpdated) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2318,8 +2030,6 @@ type TaskProtocolEventPayloadV1 struct {
 	//	*TaskProtocolEventPayloadV1_OrderCancelled
 	//	*TaskProtocolEventPayloadV1_RevealPhaseStarted
 	//	*TaskProtocolEventPayloadV1_TaskFailureClassUpdated
-	//	*TaskProtocolEventPayloadV1_WorkerHandraisesAccepted
-	//	*TaskProtocolEventPayloadV1_WorkerAssignmentFinalized
 	//	*TaskProtocolEventPayloadV1_InferReceiptAccepted
 	//	*TaskProtocolEventPayloadV1_VerifierAssignmentFinalized
 	//	*TaskProtocolEventPayloadV1_DataUnavailableReported
@@ -2328,7 +2038,6 @@ type TaskProtocolEventPayloadV1 struct {
 	//	*TaskProtocolEventPayloadV1_ResultAccepted
 	//	*TaskProtocolEventPayloadV1_TaskSettled
 	//	*TaskProtocolEventPayloadV1_DeadlineSwept
-	//	*TaskProtocolEventPayloadV1_AssignmentFailed
 	//	*TaskProtocolEventPayloadV1_WorkerTimeout
 	//	*TaskProtocolEventPayloadV1_VerifyOpenTimeout
 	//	*TaskProtocolEventPayloadV1_CommitDeadlineClosed
@@ -2336,9 +2045,25 @@ type TaskProtocolEventPayloadV1 struct {
 	//	*TaskProtocolEventPayloadV1_VerificationRoundClosed
 	//	*TaskProtocolEventPayloadV1_TaskGasReimbursementRecorded
 	//	*TaskProtocolEventPayloadV1_WorkerEvidenceAccepted
+	//	*TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted
 	//	*TaskProtocolEventPayloadV1_VerifierHandraisesAccepted
 	//	*TaskProtocolEventPayloadV1_SessionKeyUpdated
 	//	*TaskProtocolEventPayloadV1_TaskParamsUpdated
+	//	*TaskProtocolEventPayloadV1_DispatchRecorded
+	//	*TaskProtocolEventPayloadV1_SessionBuilderBound
+	//	*TaskProtocolEventPayloadV1_SessionTakeoverRegistered
+	//	*TaskProtocolEventPayloadV1_SessionTakeoverVoided
+	//	*TaskProtocolEventPayloadV1_DispatchCompensationClaimed
+	//	*TaskProtocolEventPayloadV1_DispatchCompensationPaid
+	//	*TaskProtocolEventPayloadV1_DispatchCompensationRebutted
+	//	*TaskProtocolEventPayloadV1_DispatchChallengeOpened
+	//	*TaskProtocolEventPayloadV1_DispatchChallengeResolved
+	//	*TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded
+	//	*TaskProtocolEventPayloadV1_SessionDeposited
+	//	*TaskProtocolEventPayloadV1_SessionWithdrawRequested
+	//	*TaskProtocolEventPayloadV1_SessionWithdrawEffective
+	//	*TaskProtocolEventPayloadV1_SessionKeyChangeRequested
+	//	*TaskProtocolEventPayloadV1_OrderCancelRequested
 	TypedEvent isTaskProtocolEventPayloadV1_TypedEvent `protobuf_oneof:"typed_event"`
 }
 
@@ -2346,7 +2071,7 @@ func (m *TaskProtocolEventPayloadV1) Reset()         { *m = TaskProtocolEventPay
 func (m *TaskProtocolEventPayloadV1) String() string { return proto.CompactTextString(m) }
 func (*TaskProtocolEventPayloadV1) ProtoMessage()    {}
 func (*TaskProtocolEventPayloadV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{24}
+	return fileDescriptor_59b05169ba7e7c9c, []int{21}
 }
 func (m *TaskProtocolEventPayloadV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2393,12 +2118,6 @@ type TaskProtocolEventPayloadV1_RevealPhaseStarted struct {
 type TaskProtocolEventPayloadV1_TaskFailureClassUpdated struct {
 	TaskFailureClassUpdated *EventTaskFailureClassUpdated `protobuf:"bytes,9,opt,name=task_failure_class_updated,json=taskFailureClassUpdated,proto3,oneof" json:"task_failure_class_updated,omitempty"`
 }
-type TaskProtocolEventPayloadV1_WorkerHandraisesAccepted struct {
-	WorkerHandraisesAccepted *EventWorkerHandraisesAccepted `protobuf:"bytes,10,opt,name=worker_handraises_accepted,json=workerHandraisesAccepted,proto3,oneof" json:"worker_handraises_accepted,omitempty"`
-}
-type TaskProtocolEventPayloadV1_WorkerAssignmentFinalized struct {
-	WorkerAssignmentFinalized *EventWorkerAssignmentFinalized `protobuf:"bytes,11,opt,name=worker_assignment_finalized,json=workerAssignmentFinalized,proto3,oneof" json:"worker_assignment_finalized,omitempty"`
-}
 type TaskProtocolEventPayloadV1_InferReceiptAccepted struct {
 	InferReceiptAccepted *EventInferReceiptAccepted `protobuf:"bytes,12,opt,name=infer_receipt_accepted,json=inferReceiptAccepted,proto3,oneof" json:"infer_receipt_accepted,omitempty"`
 }
@@ -2423,9 +2142,6 @@ type TaskProtocolEventPayloadV1_TaskSettled struct {
 type TaskProtocolEventPayloadV1_DeadlineSwept struct {
 	DeadlineSwept *EventDeadlineSwept `protobuf:"bytes,20,opt,name=deadline_swept,json=deadlineSwept,proto3,oneof" json:"deadline_swept,omitempty"`
 }
-type TaskProtocolEventPayloadV1_AssignmentFailed struct {
-	AssignmentFailed *EventAssignmentFailed `protobuf:"bytes,22,opt,name=assignment_failed,json=assignmentFailed,proto3,oneof" json:"assignment_failed,omitempty"`
-}
 type TaskProtocolEventPayloadV1_WorkerTimeout struct {
 	WorkerTimeout *EventWorkerTimeout `protobuf:"bytes,23,opt,name=worker_timeout,json=workerTimeout,proto3,oneof" json:"worker_timeout,omitempty"`
 }
@@ -2447,6 +2163,9 @@ type TaskProtocolEventPayloadV1_TaskGasReimbursementRecorded struct {
 type TaskProtocolEventPayloadV1_WorkerEvidenceAccepted struct {
 	WorkerEvidenceAccepted *EventWorkerEvidenceAccepted `protobuf:"bytes,29,opt,name=worker_evidence_accepted,json=workerEvidenceAccepted,proto3,oneof" json:"worker_evidence_accepted,omitempty"`
 }
+type TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted struct {
+	VerifierValueEvidenceAccepted *EventVerifierValueEvidenceAccepted `protobuf:"bytes,30,opt,name=verifier_value_evidence_accepted,json=verifierValueEvidenceAccepted,proto3,oneof" json:"verifier_value_evidence_accepted,omitempty"`
+}
 type TaskProtocolEventPayloadV1_VerifierHandraisesAccepted struct {
 	VerifierHandraisesAccepted *EventVerifierHandraisesAccepted `protobuf:"bytes,34,opt,name=verifier_handraises_accepted,json=verifierHandraisesAccepted,proto3,oneof" json:"verifier_handraises_accepted,omitempty"`
 }
@@ -2456,15 +2175,56 @@ type TaskProtocolEventPayloadV1_SessionKeyUpdated struct {
 type TaskProtocolEventPayloadV1_TaskParamsUpdated struct {
 	TaskParamsUpdated *EventTaskParamsUpdated `protobuf:"bytes,111,opt,name=task_params_updated,json=taskParamsUpdated,proto3,oneof" json:"task_params_updated,omitempty"`
 }
+type TaskProtocolEventPayloadV1_DispatchRecorded struct {
+	DispatchRecorded *EventDispatchRecorded `protobuf:"bytes,128,opt,name=dispatch_recorded,json=dispatchRecorded,proto3,oneof" json:"dispatch_recorded,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionBuilderBound struct {
+	SessionBuilderBound *EventSessionBuilderBound `protobuf:"bytes,129,opt,name=session_builder_bound,json=sessionBuilderBound,proto3,oneof" json:"session_builder_bound,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionTakeoverRegistered struct {
+	SessionTakeoverRegistered *EventSessionTakeoverRegistered `protobuf:"bytes,130,opt,name=session_takeover_registered,json=sessionTakeoverRegistered,proto3,oneof" json:"session_takeover_registered,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionTakeoverVoided struct {
+	SessionTakeoverVoided *EventSessionTakeoverVoided `protobuf:"bytes,131,opt,name=session_takeover_voided,json=sessionTakeoverVoided,proto3,oneof" json:"session_takeover_voided,omitempty"`
+}
+type TaskProtocolEventPayloadV1_DispatchCompensationClaimed struct {
+	DispatchCompensationClaimed *EventDispatchCompensationClaimed `protobuf:"bytes,132,opt,name=dispatch_compensation_claimed,json=dispatchCompensationClaimed,proto3,oneof" json:"dispatch_compensation_claimed,omitempty"`
+}
+type TaskProtocolEventPayloadV1_DispatchCompensationPaid struct {
+	DispatchCompensationPaid *EventDispatchCompensationPaid `protobuf:"bytes,133,opt,name=dispatch_compensation_paid,json=dispatchCompensationPaid,proto3,oneof" json:"dispatch_compensation_paid,omitempty"`
+}
+type TaskProtocolEventPayloadV1_DispatchCompensationRebutted struct {
+	DispatchCompensationRebutted *EventDispatchCompensationRebutted `protobuf:"bytes,134,opt,name=dispatch_compensation_rebutted,json=dispatchCompensationRebutted,proto3,oneof" json:"dispatch_compensation_rebutted,omitempty"`
+}
+type TaskProtocolEventPayloadV1_DispatchChallengeOpened struct {
+	DispatchChallengeOpened *EventDispatchChallengeOpened `protobuf:"bytes,135,opt,name=dispatch_challenge_opened,json=dispatchChallengeOpened,proto3,oneof" json:"dispatch_challenge_opened,omitempty"`
+}
+type TaskProtocolEventPayloadV1_DispatchChallengeResolved struct {
+	DispatchChallengeResolved *EventDispatchChallengeResolved `protobuf:"bytes,136,opt,name=dispatch_challenge_resolved,json=dispatchChallengeResolved,proto3,oneof" json:"dispatch_challenge_resolved,omitempty"`
+}
+type TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded struct {
+	BuilderDispatchFaultRecorded *EventBuilderDispatchFaultRecorded `protobuf:"bytes,137,opt,name=builder_dispatch_fault_recorded,json=builderDispatchFaultRecorded,proto3,oneof" json:"builder_dispatch_fault_recorded,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionDeposited struct {
+	SessionDeposited *EventSessionDeposited `protobuf:"bytes,138,opt,name=session_deposited,json=sessionDeposited,proto3,oneof" json:"session_deposited,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionWithdrawRequested struct {
+	SessionWithdrawRequested *EventSessionWithdrawRequested `protobuf:"bytes,139,opt,name=session_withdraw_requested,json=sessionWithdrawRequested,proto3,oneof" json:"session_withdraw_requested,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionWithdrawEffective struct {
+	SessionWithdrawEffective *EventSessionWithdrawEffective `protobuf:"bytes,140,opt,name=session_withdraw_effective,json=sessionWithdrawEffective,proto3,oneof" json:"session_withdraw_effective,omitempty"`
+}
+type TaskProtocolEventPayloadV1_SessionKeyChangeRequested struct {
+	SessionKeyChangeRequested *EventSessionKeyChangeRequested `protobuf:"bytes,141,opt,name=session_key_change_requested,json=sessionKeyChangeRequested,proto3,oneof" json:"session_key_change_requested,omitempty"`
+}
+type TaskProtocolEventPayloadV1_OrderCancelRequested struct {
+	OrderCancelRequested *EventOrderCancelRequested `protobuf:"bytes,142,opt,name=order_cancel_requested,json=orderCancelRequested,proto3,oneof" json:"order_cancel_requested,omitempty"`
+}
 
 func (*TaskProtocolEventPayloadV1_SessionCreated) isTaskProtocolEventPayloadV1_TypedEvent()     {}
 func (*TaskProtocolEventPayloadV1_OrderCancelled) isTaskProtocolEventPayloadV1_TypedEvent()     {}
 func (*TaskProtocolEventPayloadV1_RevealPhaseStarted) isTaskProtocolEventPayloadV1_TypedEvent() {}
 func (*TaskProtocolEventPayloadV1_TaskFailureClassUpdated) isTaskProtocolEventPayloadV1_TypedEvent() {
-}
-func (*TaskProtocolEventPayloadV1_WorkerHandraisesAccepted) isTaskProtocolEventPayloadV1_TypedEvent() {
-}
-func (*TaskProtocolEventPayloadV1_WorkerAssignmentFinalized) isTaskProtocolEventPayloadV1_TypedEvent() {
 }
 func (*TaskProtocolEventPayloadV1_InferReceiptAccepted) isTaskProtocolEventPayloadV1_TypedEvent() {}
 func (*TaskProtocolEventPayloadV1_VerifierAssignmentFinalized) isTaskProtocolEventPayloadV1_TypedEvent() {
@@ -2476,7 +2236,6 @@ func (*TaskProtocolEventPayloadV1_CommitAccepted) isTaskProtocolEventPayloadV1_T
 func (*TaskProtocolEventPayloadV1_ResultAccepted) isTaskProtocolEventPayloadV1_TypedEvent()         {}
 func (*TaskProtocolEventPayloadV1_TaskSettled) isTaskProtocolEventPayloadV1_TypedEvent()            {}
 func (*TaskProtocolEventPayloadV1_DeadlineSwept) isTaskProtocolEventPayloadV1_TypedEvent()          {}
-func (*TaskProtocolEventPayloadV1_AssignmentFailed) isTaskProtocolEventPayloadV1_TypedEvent()       {}
 func (*TaskProtocolEventPayloadV1_WorkerTimeout) isTaskProtocolEventPayloadV1_TypedEvent()          {}
 func (*TaskProtocolEventPayloadV1_VerifyOpenTimeout) isTaskProtocolEventPayloadV1_TypedEvent()      {}
 func (*TaskProtocolEventPayloadV1_CommitDeadlineClosed) isTaskProtocolEventPayloadV1_TypedEvent()   {}
@@ -2486,10 +2245,37 @@ func (*TaskProtocolEventPayloadV1_VerificationRoundClosed) isTaskProtocolEventPa
 func (*TaskProtocolEventPayloadV1_TaskGasReimbursementRecorded) isTaskProtocolEventPayloadV1_TypedEvent() {
 }
 func (*TaskProtocolEventPayloadV1_WorkerEvidenceAccepted) isTaskProtocolEventPayloadV1_TypedEvent() {}
+func (*TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
 func (*TaskProtocolEventPayloadV1_VerifierHandraisesAccepted) isTaskProtocolEventPayloadV1_TypedEvent() {
 }
-func (*TaskProtocolEventPayloadV1_SessionKeyUpdated) isTaskProtocolEventPayloadV1_TypedEvent() {}
-func (*TaskProtocolEventPayloadV1_TaskParamsUpdated) isTaskProtocolEventPayloadV1_TypedEvent() {}
+func (*TaskProtocolEventPayloadV1_SessionKeyUpdated) isTaskProtocolEventPayloadV1_TypedEvent()   {}
+func (*TaskProtocolEventPayloadV1_TaskParamsUpdated) isTaskProtocolEventPayloadV1_TypedEvent()   {}
+func (*TaskProtocolEventPayloadV1_DispatchRecorded) isTaskProtocolEventPayloadV1_TypedEvent()    {}
+func (*TaskProtocolEventPayloadV1_SessionBuilderBound) isTaskProtocolEventPayloadV1_TypedEvent() {}
+func (*TaskProtocolEventPayloadV1_SessionTakeoverRegistered) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_SessionTakeoverVoided) isTaskProtocolEventPayloadV1_TypedEvent() {}
+func (*TaskProtocolEventPayloadV1_DispatchCompensationClaimed) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_DispatchCompensationPaid) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_DispatchCompensationRebutted) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_DispatchChallengeOpened) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_DispatchChallengeResolved) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_SessionDeposited) isTaskProtocolEventPayloadV1_TypedEvent() {}
+func (*TaskProtocolEventPayloadV1_SessionWithdrawRequested) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_SessionWithdrawEffective) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_SessionKeyChangeRequested) isTaskProtocolEventPayloadV1_TypedEvent() {
+}
+func (*TaskProtocolEventPayloadV1_OrderCancelRequested) isTaskProtocolEventPayloadV1_TypedEvent() {}
 
 func (m *TaskProtocolEventPayloadV1) GetTypedEvent() isTaskProtocolEventPayloadV1_TypedEvent {
 	if m != nil {
@@ -2522,20 +2308,6 @@ func (m *TaskProtocolEventPayloadV1) GetRevealPhaseStarted() *EventRevealPhaseSt
 func (m *TaskProtocolEventPayloadV1) GetTaskFailureClassUpdated() *EventTaskFailureClassUpdated {
 	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_TaskFailureClassUpdated); ok {
 		return x.TaskFailureClassUpdated
-	}
-	return nil
-}
-
-func (m *TaskProtocolEventPayloadV1) GetWorkerHandraisesAccepted() *EventWorkerHandraisesAccepted {
-	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_WorkerHandraisesAccepted); ok {
-		return x.WorkerHandraisesAccepted
-	}
-	return nil
-}
-
-func (m *TaskProtocolEventPayloadV1) GetWorkerAssignmentFinalized() *EventWorkerAssignmentFinalized {
-	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_WorkerAssignmentFinalized); ok {
-		return x.WorkerAssignmentFinalized
 	}
 	return nil
 }
@@ -2596,13 +2368,6 @@ func (m *TaskProtocolEventPayloadV1) GetDeadlineSwept() *EventDeadlineSwept {
 	return nil
 }
 
-func (m *TaskProtocolEventPayloadV1) GetAssignmentFailed() *EventAssignmentFailed {
-	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_AssignmentFailed); ok {
-		return x.AssignmentFailed
-	}
-	return nil
-}
-
 func (m *TaskProtocolEventPayloadV1) GetWorkerTimeout() *EventWorkerTimeout {
 	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_WorkerTimeout); ok {
 		return x.WorkerTimeout
@@ -2652,6 +2417,13 @@ func (m *TaskProtocolEventPayloadV1) GetWorkerEvidenceAccepted() *EventWorkerEvi
 	return nil
 }
 
+func (m *TaskProtocolEventPayloadV1) GetVerifierValueEvidenceAccepted() *EventVerifierValueEvidenceAccepted {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted); ok {
+		return x.VerifierValueEvidenceAccepted
+	}
+	return nil
+}
+
 func (m *TaskProtocolEventPayloadV1) GetVerifierHandraisesAccepted() *EventVerifierHandraisesAccepted {
 	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_VerifierHandraisesAccepted); ok {
 		return x.VerifierHandraisesAccepted
@@ -2673,6 +2445,111 @@ func (m *TaskProtocolEventPayloadV1) GetTaskParamsUpdated() *EventTaskParamsUpda
 	return nil
 }
 
+func (m *TaskProtocolEventPayloadV1) GetDispatchRecorded() *EventDispatchRecorded {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchRecorded); ok {
+		return x.DispatchRecorded
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionBuilderBound() *EventSessionBuilderBound {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionBuilderBound); ok {
+		return x.SessionBuilderBound
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionTakeoverRegistered() *EventSessionTakeoverRegistered {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionTakeoverRegistered); ok {
+		return x.SessionTakeoverRegistered
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionTakeoverVoided() *EventSessionTakeoverVoided {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionTakeoverVoided); ok {
+		return x.SessionTakeoverVoided
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetDispatchCompensationClaimed() *EventDispatchCompensationClaimed {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchCompensationClaimed); ok {
+		return x.DispatchCompensationClaimed
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetDispatchCompensationPaid() *EventDispatchCompensationPaid {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchCompensationPaid); ok {
+		return x.DispatchCompensationPaid
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetDispatchCompensationRebutted() *EventDispatchCompensationRebutted {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchCompensationRebutted); ok {
+		return x.DispatchCompensationRebutted
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetDispatchChallengeOpened() *EventDispatchChallengeOpened {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchChallengeOpened); ok {
+		return x.DispatchChallengeOpened
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetDispatchChallengeResolved() *EventDispatchChallengeResolved {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_DispatchChallengeResolved); ok {
+		return x.DispatchChallengeResolved
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetBuilderDispatchFaultRecorded() *EventBuilderDispatchFaultRecorded {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded); ok {
+		return x.BuilderDispatchFaultRecorded
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionDeposited() *EventSessionDeposited {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionDeposited); ok {
+		return x.SessionDeposited
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionWithdrawRequested() *EventSessionWithdrawRequested {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionWithdrawRequested); ok {
+		return x.SessionWithdrawRequested
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionWithdrawEffective() *EventSessionWithdrawEffective {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionWithdrawEffective); ok {
+		return x.SessionWithdrawEffective
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetSessionKeyChangeRequested() *EventSessionKeyChangeRequested {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_SessionKeyChangeRequested); ok {
+		return x.SessionKeyChangeRequested
+	}
+	return nil
+}
+
+func (m *TaskProtocolEventPayloadV1) GetOrderCancelRequested() *EventOrderCancelRequested {
+	if x, ok := m.GetTypedEvent().(*TaskProtocolEventPayloadV1_OrderCancelRequested); ok {
+		return x.OrderCancelRequested
+	}
+	return nil
+}
+
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*TaskProtocolEventPayloadV1) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
@@ -2680,8 +2557,6 @@ func (*TaskProtocolEventPayloadV1) XXX_OneofWrappers() []interface{} {
 		(*TaskProtocolEventPayloadV1_OrderCancelled)(nil),
 		(*TaskProtocolEventPayloadV1_RevealPhaseStarted)(nil),
 		(*TaskProtocolEventPayloadV1_TaskFailureClassUpdated)(nil),
-		(*TaskProtocolEventPayloadV1_WorkerHandraisesAccepted)(nil),
-		(*TaskProtocolEventPayloadV1_WorkerAssignmentFinalized)(nil),
 		(*TaskProtocolEventPayloadV1_InferReceiptAccepted)(nil),
 		(*TaskProtocolEventPayloadV1_VerifierAssignmentFinalized)(nil),
 		(*TaskProtocolEventPayloadV1_DataUnavailableReported)(nil),
@@ -2690,7 +2565,6 @@ func (*TaskProtocolEventPayloadV1) XXX_OneofWrappers() []interface{} {
 		(*TaskProtocolEventPayloadV1_ResultAccepted)(nil),
 		(*TaskProtocolEventPayloadV1_TaskSettled)(nil),
 		(*TaskProtocolEventPayloadV1_DeadlineSwept)(nil),
-		(*TaskProtocolEventPayloadV1_AssignmentFailed)(nil),
 		(*TaskProtocolEventPayloadV1_WorkerTimeout)(nil),
 		(*TaskProtocolEventPayloadV1_VerifyOpenTimeout)(nil),
 		(*TaskProtocolEventPayloadV1_CommitDeadlineClosed)(nil),
@@ -2698,9 +2572,25 @@ func (*TaskProtocolEventPayloadV1) XXX_OneofWrappers() []interface{} {
 		(*TaskProtocolEventPayloadV1_VerificationRoundClosed)(nil),
 		(*TaskProtocolEventPayloadV1_TaskGasReimbursementRecorded)(nil),
 		(*TaskProtocolEventPayloadV1_WorkerEvidenceAccepted)(nil),
+		(*TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted)(nil),
 		(*TaskProtocolEventPayloadV1_VerifierHandraisesAccepted)(nil),
 		(*TaskProtocolEventPayloadV1_SessionKeyUpdated)(nil),
 		(*TaskProtocolEventPayloadV1_TaskParamsUpdated)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchRecorded)(nil),
+		(*TaskProtocolEventPayloadV1_SessionBuilderBound)(nil),
+		(*TaskProtocolEventPayloadV1_SessionTakeoverRegistered)(nil),
+		(*TaskProtocolEventPayloadV1_SessionTakeoverVoided)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchCompensationClaimed)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchCompensationPaid)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchCompensationRebutted)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchChallengeOpened)(nil),
+		(*TaskProtocolEventPayloadV1_DispatchChallengeResolved)(nil),
+		(*TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded)(nil),
+		(*TaskProtocolEventPayloadV1_SessionDeposited)(nil),
+		(*TaskProtocolEventPayloadV1_SessionWithdrawRequested)(nil),
+		(*TaskProtocolEventPayloadV1_SessionWithdrawEffective)(nil),
+		(*TaskProtocolEventPayloadV1_SessionKeyChangeRequested)(nil),
+		(*TaskProtocolEventPayloadV1_OrderCancelRequested)(nil),
 	}
 }
 
@@ -2724,7 +2614,7 @@ func (m *EventSessionKeyUpdated) Reset()         { *m = EventSessionKeyUpdated{}
 func (m *EventSessionKeyUpdated) String() string { return proto.CompactTextString(m) }
 func (*EventSessionKeyUpdated) ProtoMessage()    {}
 func (*EventSessionKeyUpdated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{25}
+	return fileDescriptor_59b05169ba7e7c9c, []int{22}
 }
 func (m *EventSessionKeyUpdated) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2844,7 +2734,7 @@ func (m *EventAnchorVerdictFinalized) Reset()         { *m = EventAnchorVerdictF
 func (m *EventAnchorVerdictFinalized) String() string { return proto.CompactTextString(m) }
 func (*EventAnchorVerdictFinalized) ProtoMessage()    {}
 func (*EventAnchorVerdictFinalized) Descriptor() ([]byte, []int) {
-	return fileDescriptor_59b05169ba7e7c9c, []int{26}
+	return fileDescriptor_59b05169ba7e7c9c, []int{23}
 }
 func (m *EventAnchorVerdictFinalized) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2928,8 +2818,6 @@ func init() {
 	proto.RegisterType((*EventOrderCancelled)(nil), "task.v1.EventOrderCancelled")
 	proto.RegisterType((*EventRevealPhaseStarted)(nil), "task.v1.EventRevealPhaseStarted")
 	proto.RegisterType((*EventTaskFailureClassUpdated)(nil), "task.v1.EventTaskFailureClassUpdated")
-	proto.RegisterType((*EventWorkerHandraisesAccepted)(nil), "task.v1.EventWorkerHandraisesAccepted")
-	proto.RegisterType((*EventWorkerAssignmentFinalized)(nil), "task.v1.EventWorkerAssignmentFinalized")
 	proto.RegisterType((*EventInferReceiptAccepted)(nil), "task.v1.EventInferReceiptAccepted")
 	proto.RegisterType((*EventVerifierAssignmentFinalized)(nil), "task.v1.EventVerifierAssignmentFinalized")
 	proto.RegisterType((*EventDataUnavailableReported)(nil), "task.v1.EventDataUnavailableReported")
@@ -2938,7 +2826,6 @@ func init() {
 	proto.RegisterType((*EventResultAccepted)(nil), "task.v1.EventResultAccepted")
 	proto.RegisterType((*EventTaskSettled)(nil), "task.v1.EventTaskSettled")
 	proto.RegisterType((*EventDeadlineSwept)(nil), "task.v1.EventDeadlineSwept")
-	proto.RegisterType((*EventAssignmentFailed)(nil), "task.v1.EventAssignmentFailed")
 	proto.RegisterType((*EventWorkerTimeout)(nil), "task.v1.EventWorkerTimeout")
 	proto.RegisterType((*EventVerifyOpenTimeout)(nil), "task.v1.EventVerifyOpenTimeout")
 	proto.RegisterType((*EventCommitDeadlineClosed)(nil), "task.v1.EventCommitDeadlineClosed")
@@ -2956,214 +2843,228 @@ func init() {
 func init() { proto.RegisterFile("task/v1/event.proto", fileDescriptor_59b05169ba7e7c9c) }
 
 var fileDescriptor_59b05169ba7e7c9c = []byte{
-	// 3299 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x1a, 0x4d, 0x73, 0x23, 0x47,
-	0x55, 0x92, 0xe5, 0xaf, 0x27, 0x4b, 0x96, 0xc7, 0x5f, 0xb2, 0xbd, 0xfe, 0x88, 0x92, 0x4d, 0x9c,
-	0x2c, 0xeb, 0xdd, 0x35, 0x09, 0xa4, 0x20, 0x59, 0x62, 0xc9, 0x5e, 0xcb, 0x64, 0x93, 0x75, 0xc6,
-	0x8e, 0x53, 0x15, 0x0e, 0x93, 0xf6, 0x4c, 0x4b, 0x9e, 0xec, 0x68, 0x5a, 0xe9, 0x19, 0xc9, 0xeb,
-	0x9c, 0x80, 0x53, 0x8a, 0x13, 0x27, 0x28, 0xae, 0x5c, 0x39, 0x51, 0xf0, 0x17, 0xa8, 0xca, 0x81,
-	0x43, 0x0a, 0x2e, 0x70, 0xa1, 0xa8, 0xcd, 0x85, 0x82, 0x22, 0x17, 0xaa, 0x38, 0x50, 0x45, 0x15,
-	0xd5, 0xaf, 0x7b, 0x46, 0x33, 0xd2, 0xc8, 0xf6, 0x56, 0x9c, 0x4d, 0x71, 0x93, 0xde, 0x7b, 0xfd,
-	0xba, 0xdf, 0x57, 0xbf, 0x8f, 0x1e, 0x98, 0xf6, 0x89, 0xf7, 0xf0, 0x56, 0xe7, 0xce, 0x2d, 0xda,
-	0xa1, 0xae, 0xbf, 0xd1, 0xe2, 0xcc, 0x67, 0xda, 0xa8, 0x00, 0x6e, 0x74, 0xee, 0x2c, 0x2e, 0x98,
-	0xcc, 0x6b, 0x32, 0xcf, 0x40, 0xf0, 0x2d, 0xf9, 0x47, 0xd2, 0x2c, 0xce, 0x34, 0x58, 0x83, 0x49,
-	0xb8, 0xf8, 0xa5, 0xa0, 0x73, 0xde, 0x09, 0xe1, 0xd4, 0x12, 0x0c, 0x49, 0x93, 0xb5, 0x03, 0x8e,
-	0x51, 0xb8, 0xc9, 0x9a, 0x4d, 0xe6, 0x2a, 0xf8, 0x6a, 0x17, 0xce, 0x59, 0xdb, 0xb5, 0x0c, 0x6a,
-	0x32, 0x97, 0x35, 0x6d, 0x33, 0xd8, 0xa6, 0x14, 0x9c, 0x8f, 0x78, 0x9e, 0xdd, 0x70, 0x9b, 0xb4,
-	0xcb, 0x32, 0xc0, 0x58, 0x94, 0x58, 0x8e, 0xed, 0xd2, 0xde, 0x15, 0x1e, 0xf5, 0x7d, 0x87, 0x46,
-	0x56, 0x2c, 0x47, 0x36, 0xa3, 0x9e, 0x6f, 0x50, 0xd7, 0x64, 0x96, 0xed, 0x36, 0x02, 0x89, 0xc2,
-	0xad, 0x5c, 0xf3, 0x84, 0x71, 0x09, 0x2d, 0xff, 0x30, 0x0d, 0xd3, 0x3b, 0x42, 0x37, 0x07, 0xd4,
-	0xf3, 0x6c, 0xe6, 0x56, 0x39, 0x25, 0x3e, 0xb5, 0xb4, 0x67, 0x01, 0x3c, 0x09, 0x31, 0x6c, 0xab,
-	0x94, 0x5e, 0x4b, 0xaf, 0x4f, 0x54, 0xb2, 0x9f, 0xfe, 0xab, 0x94, 0xd1, 0xc7, 0x15, 0x7c, 0xcf,
-	0xd2, 0x36, 0x60, 0x98, 0x9d, 0xba, 0x94, 0x97, 0x32, 0x6b, 0xe9, 0xf5, 0xf1, 0x4a, 0xe9, 0x0f,
-	0xbf, 0xbd, 0x39, 0xa3, 0xb4, 0xb8, 0x65, 0x59, 0x9c, 0x7a, 0xde, 0x81, 0xcf, 0x6d, 0xb7, 0xa1,
-	0x4b, 0x32, 0x6d, 0x06, 0x86, 0x5d, 0xe6, 0x9a, 0xb4, 0x34, 0xb4, 0x96, 0x5e, 0xcf, 0xea, 0xf2,
-	0x4f, 0xf7, 0x08, 0x0f, 0xb8, 0x45, 0x79, 0x95, 0xb8, 0x26, 0x75, 0x9c, 0xcb, 0x1e, 0xe1, 0x3a,
-	0x14, 0x98, 0x58, 0x66, 0x78, 0xf4, 0xa3, 0x36, 0x15, 0xbc, 0x33, 0xc8, 0x3b, 0x8f, 0xd0, 0x03,
-	0x05, 0xd4, 0x96, 0x01, 0x8d, 0x2e, 0x18, 0x0d, 0x45, 0x18, 0x8d, 0x08, 0xe0, 0x9e, 0x55, 0xfe,
-	0x67, 0x1a, 0xe6, 0xf1, 0x08, 0x3a, 0xed, 0x50, 0xe2, 0xec, 0x9f, 0x10, 0x8f, 0x1e, 0xf8, 0x84,
-	0x5f, 0x5a, 0x13, 0x11, 0xfe, 0x99, 0x7e, 0xfe, 0xda, 0x33, 0x30, 0xd1, 0xa1, 0xdc, 0xae, 0x9f,
-	0x19, 0xe8, 0x06, 0x78, 0x86, 0xbc, 0x9e, 0x93, 0x30, 0x5d, 0x80, 0xb4, 0x97, 0x61, 0x8e, 0xe3,
-	0xe6, 0x46, 0x60, 0x70, 0xe3, 0x84, 0xda, 0x8d, 0x13, 0xbf, 0x94, 0x45, 0x81, 0x66, 0x24, 0x76,
-	0x5b, 0x21, 0x6b, 0x88, 0xd3, 0x5e, 0x81, 0x51, 0x9f, 0xdb, 0x8d, 0x06, 0xe5, 0xa5, 0xe1, 0xb5,
-	0xf4, 0x7a, 0x61, 0x73, 0x69, 0x43, 0x39, 0xf7, 0x46, 0x44, 0x94, 0x43, 0x49, 0xa2, 0x07, 0xb4,
-	0xe5, 0xc7, 0x43, 0x70, 0x0d, 0xe5, 0x3d, 0x24, 0xde, 0xc3, 0x7b, 0xc4, 0x76, 0xda, 0x9c, 0x56,
-	0x1d, 0xe2, 0x79, 0xef, 0xb6, 0x2c, 0xf2, 0x14, 0x85, 0xbe, 0x0b, 0x73, 0x5d, 0x37, 0x36, 0x6c,
-	0xcb, 0x60, 0xdc, 0xa0, 0xcd, 0x96, 0x7f, 0x86, 0x42, 0x2b, 0x86, 0xb5, 0x94, 0x3e, 0xdd, 0xa5,
-	0xda, 0xb3, 0x1e, 0xf0, 0x1d, 0x41, 0xf2, 0x49, 0x3a, 0xad, 0xdd, 0x85, 0x7c, 0x5d, 0x9e, 0xde,
-	0x30, 0xc5, 0xf1, 0x95, 0x12, 0x16, 0x42, 0x25, 0xf4, 0xca, 0xa7, 0x4f, 0xd4, 0x23, 0xff, 0xb4,
-	0x1f, 0xc0, 0x2c, 0xae, 0xb3, 0xeb, 0xb6, 0x49, 0x7c, 0x21, 0xad, 0xc7, 0xda, 0xdc, 0xa4, 0xa5,
-	0x11, 0xe4, 0xf3, 0xfc, 0x86, 0x0c, 0x29, 0xc1, 0x29, 0xca, 0x25, 0x24, 0x3f, 0x40, 0x6a, 0x7d,
-	0xc6, 0x4c, 0x80, 0x6a, 0x37, 0x61, 0x92, 0x76, 0x6c, 0x4b, 0xf8, 0x9f, 0x61, 0xd9, 0x0d, 0xea,
-	0xf9, 0xa5, 0xd1, 0x88, 0x9a, 0x0a, 0x01, 0x72, 0x1b, 0x71, 0xc2, 0x01, 0xea, 0x9c, 0xd2, 0x8f,
-	0xa9, 0x21, 0x6e, 0x02, 0xe2, 0x18, 0xd4, 0xb1, 0x1b, 0xf6, 0xb1, 0x43, 0x4b, 0x63, 0x6b, 0xe9,
-	0xf5, 0x31, 0x7d, 0x46, 0x62, 0x0f, 0x10, 0xb9, 0xa3, 0x70, 0x95, 0x05, 0x98, 0x37, 0x92, 0x55,
-	0x58, 0xfe, 0x7b, 0x06, 0x96, 0xd1, 0xc8, 0xef, 0x31, 0xfe, 0x90, 0xf2, 0x1a, 0x71, 0x2d, 0x4e,
-	0x6c, 0x8f, 0x7a, 0x5b, 0xa6, 0x49, 0x5b, 0x57, 0x65, 0xe5, 0xfe, 0x00, 0x1c, 0x4a, 0x0a, 0xc0,
-	0x9b, 0x30, 0xd9, 0xe2, 0xac, 0xc5, 0x3c, 0xe1, 0xe0, 0x52, 0x19, 0xd9, 0xa8, 0x32, 0x02, 0xa4,
-	0x52, 0xc6, 0x6d, 0x98, 0x22, 0x96, 0x45, 0x2d, 0xe3, 0xd8, 0xf6, 0x9b, 0xa4, 0x65, 0x9c, 0x10,
-	0xef, 0x04, 0x8d, 0x1b, 0x2c, 0x98, 0x44, 0x74, 0x05, 0xb1, 0x35, 0xe2, 0x9d, 0x68, 0xbb, 0x50,
-	0x3c, 0x6e, 0xdb, 0x8e, 0x38, 0x49, 0xe8, 0x44, 0x23, 0xe7, 0x5f, 0x4b, 0xb5, 0x94, 0x5e, 0x50,
-	0x6b, 0x22, 0x3e, 0xb5, 0x0a, 0xb9, 0xb6, 0x2b, 0x54, 0x62, 0x8a, 0x0b, 0x1e, 0x4d, 0x96, 0xd7,
-	0x01, 0x41, 0x55, 0x01, 0xa9, 0x4c, 0xc3, 0x94, 0xd1, 0xbb, 0x55, 0xf9, 0xc7, 0x43, 0xb0, 0x12,
-	0x51, 0xf6, 0x56, 0x78, 0x9d, 0xdf, 0xb3, 0x5d, 0xe2, 0xd8, 0x1f, 0x5f, 0x91, 0xb6, 0x5f, 0x87,
-	0xfc, 0xa9, 0xed, 0xba, 0x94, 0x1b, 0xa7, 0xb8, 0x0f, 0x2a, 0xfb, 0xbc, 0x9b, 0x77, 0x42, 0x92,
-	0xcb, 0x53, 0x69, 0xbb, 0xb0, 0xdc, 0x4d, 0x34, 0x86, 0x49, 0x5c, 0xcb, 0x16, 0xf1, 0x2e, 0x3c,
-	0x48, 0xaa, 0x38, 0x6a, 0x93, 0xc5, 0x2e, 0x69, 0x35, 0xa0, 0x3c, 0xa0, 0x3e, 0x6a, 0xfb, 0x06,
-	0x4c, 0x71, 0xe2, 0x5a, 0xac, 0xe9, 0x52, 0xcf, 0x0b, 0x2e, 0xaa, 0x61, 0x34, 0x7c, 0xb1, 0x8b,
-	0x50, 0x97, 0xd4, 0x1b, 0x30, 0xc9, 0xa9, 0x47, 0x79, 0x87, 0x5a, 0x86, 0x4c, 0x9b, 0x68, 0x99,
-	0xdc, 0xe6, 0x54, 0x24, 0xbe, 0xb6, 0x10, 0x51, 0xc9, 0x7e, 0xfa, 0x97, 0xd5, 0x94, 0x5e, 0x08,
-	0xe8, 0x25, 0x54, 0x38, 0x99, 0xed, 0xd6, 0x29, 0x0f, 0xef, 0x46, 0x34, 0x4b, 0x56, 0xcf, 0x23,
-	0x34, 0xb8, 0x13, 0xcb, 0x3f, 0x1f, 0x82, 0x05, 0x34, 0xc2, 0x9e, 0x00, 0xeb, 0xd4, 0xa4, 0x76,
-	0xcb, 0xbf, 0x52, 0x6f, 0xbf, 0x0d, 0x23, 0x97, 0x54, 0xbc, 0xa2, 0xd3, 0x36, 0x41, 0x93, 0x47,
-	0xe7, 0xf2, 0x38, 0xfd, 0x7a, 0x2e, 0xda, 0x91, 0xd3, 0xa2, 0x76, 0xaf, 0x43, 0x8e, 0xb5, 0xfd,
-	0x56, 0xdb, 0xef, 0xf7, 0x7b, 0x90, 0x08, 0x24, 0xdb, 0x84, 0xd9, 0x06, 0x75, 0x29, 0x17, 0x37,
-	0xb6, 0xe1, 0xb3, 0x87, 0x34, 0xf0, 0xd9, 0x11, 0x54, 0xce, 0x74, 0x88, 0x3c, 0x14, 0x38, 0x74,
-	0x5e, 0x6d, 0x0f, 0x9e, 0xc1, 0x0b, 0xd8, 0x16, 0x2e, 0x64, 0xbb, 0x16, 0x3b, 0x35, 0xfa, 0x0d,
-	0x29, 0x95, 0xbb, 0x12, 0x10, 0xbe, 0x87, 0x74, 0x7a, 0xaf, 0x59, 0x5f, 0x82, 0x29, 0x75, 0x4a,
-	0x87, 0x92, 0xba, 0xda, 0x7a, 0x0c, 0x97, 0x4e, 0x4a, 0xc4, 0x7d, 0x4a, 0xea, 0xb8, 0x6d, 0xf9,
-	0x67, 0x43, 0xb0, 0x86, 0x96, 0x39, 0x52, 0x3c, 0xbf, 0xaa, 0x00, 0xb9, 0x44, 0xd2, 0x79, 0x0d,
-	0xe6, 0x3d, 0xea, 0x50, 0x53, 0x68, 0x2d, 0x10, 0xd1, 0xeb, 0x37, 0xcb, 0x6c, 0x40, 0x14, 0x1c,
-	0xd9, 0x43, 0xa5, 0x7f, 0x17, 0xe6, 0x43, 0x05, 0x3a, 0xb4, 0x41, 0x9c, 0x6e, 0xf0, 0x44, 0xed,
-	0x34, 0x13, 0x10, 0xdd, 0x17, 0x34, 0x41, 0xd8, 0xdc, 0x85, 0x25, 0xc9, 0x55, 0xc8, 0xd8, 0xaf,
-	0x77, 0x69, 0xb7, 0x85, 0x90, 0xa4, 0x4f, 0xe5, 0x2f, 0xc0, 0xa4, 0xa8, 0x2f, 0x6d, 0xbf, 0x37,
-	0x10, 0x0a, 0x12, 0x1c, 0x44, 0x82, 0x20, 0x54, 0x6a, 0x08, 0x09, 0xa5, 0x65, 0x0a, 0x12, 0x1c,
-	0x86, 0xcc, 0x6f, 0x32, 0xaa, 0x12, 0xd8, 0x26, 0x3e, 0x79, 0xd7, 0x25, 0x1d, 0x62, 0x3b, 0xe4,
-	0xd8, 0xa1, 0x3a, 0x6d, 0xb1, 0xa7, 0x5b, 0xfe, 0x8c, 0x05, 0x1a, 0x43, 0x2b, 0x9c, 0x17, 0x5a,
-	0x21, 0xa5, 0xf6, 0x26, 0xac, 0xb6, 0xbb, 0x67, 0x0e, 0x6f, 0xe5, 0x41, 0x49, 0xe3, 0x5a, 0x84,
-	0xb8, 0x22, 0x69, 0x23, 0x19, 0xe4, 0x45, 0xc8, 0x73, 0x94, 0x3a, 0x48, 0x50, 0x23, 0x91, 0xa5,
-	0x13, 0x12, 0x25, 0xd3, 0x53, 0xf9, 0xd7, 0x19, 0x58, 0x42, 0xad, 0x29, 0x2e, 0x3d, 0xca, 0x7b,
-	0x5a, 0x4a, 0xdb, 0x84, 0x51, 0x25, 0xf2, 0x85, 0x3a, 0x0b, 0x08, 0xb5, 0x6f, 0x80, 0xd6, 0x21,
-	0x8e, 0x6d, 0x19, 0x4a, 0x56, 0x19, 0xb6, 0xc3, 0xc8, 0xbc, 0x88, 0x18, 0x69, 0x7a, 0x79, 0x5d,
-	0x5c, 0x83, 0x71, 0xff, 0x84, 0x53, 0xef, 0x84, 0x39, 0x16, 0xea, 0x23, 0xaf, 0x77, 0x01, 0xda,
-	0x0d, 0x28, 0x90, 0x46, 0x83, 0xd3, 0x86, 0xc8, 0x21, 0xa8, 0xed, 0x68, 0x81, 0x93, 0x0f, 0x71,
-	0x42, 0xbd, 0xe5, 0x3f, 0x07, 0x65, 0x7e, 0x15, 0x5d, 0xf5, 0x4a, 0xaf, 0xe5, 0xaf, 0xcc, 0xc1,
-	0xae, 0x43, 0x4e, 0x05, 0x5c, 0xff, 0x4d, 0x2c, 0x11, 0x28, 0xdb, 0xef, 0x33, 0x4a, 0x36, 0x9d,
-	0x7a, 0x6d, 0xe7, 0xff, 0x44, 0xb6, 0x5d, 0x58, 0xe6, 0x78, 0xdc, 0x30, 0x35, 0x89, 0x2b, 0xd9,
-	0x76, 0x1b, 0x81, 0xff, 0x47, 0xa5, 0x5d, 0x94, 0xa4, 0x2a, 0x4b, 0x1d, 0x48, 0xc2, 0xb0, 0x72,
-	0x9d, 0x0e, 0xaf, 0xc4, 0x0e, 0x71, 0xda, 0xd4, 0xe0, 0x8c, 0xc5, 0x8b, 0xdd, 0xa9, 0x80, 0xe0,
-	0x48, 0xe0, 0x75, 0xc6, 0xfc, 0xef, 0x67, 0xc7, 0x46, 0x8a, 0xa3, 0xfa, 0xb4, 0x3a, 0x42, 0x8b,
-	0x9c, 0x39, 0x8c, 0x58, 0xa8, 0xe6, 0xf2, 0x7f, 0xb2, 0x50, 0x0c, 0xdb, 0x93, 0x03, 0xac, 0x6e,
-	0xaf, 0x46, 0x97, 0x2f, 0x42, 0x3e, 0x56, 0x2c, 0xc7, 0x9a, 0xc1, 0x89, 0x68, 0x93, 0xa1, 0x6d,
-	0xc0, 0x68, 0x87, 0x72, 0xcb, 0x36, 0x65, 0xa1, 0x5a, 0xd8, 0x9c, 0x89, 0x35, 0x15, 0x47, 0x12,
-	0xa7, 0x07, 0x44, 0x5f, 0xba, 0x15, 0x79, 0x19, 0xe6, 0x68, 0xbd, 0x2e, 0xee, 0xfd, 0x0e, 0x35,
-	0x62, 0x06, 0x97, 0x61, 0x37, 0x13, 0x62, 0x8f, 0x22, 0x96, 0x7f, 0x15, 0x66, 0x23, 0x02, 0xd5,
-	0x89, 0xe9, 0x7b, 0xfd, 0x81, 0x18, 0xe9, 0x9e, 0xee, 0x09, 0x0a, 0xbc, 0xed, 0xbe, 0x05, 0x33,
-	0x91, 0x95, 0x2d, 0x87, 0xb8, 0x72, 0xe1, 0x58, 0x64, 0xa1, 0xd6, 0xa5, 0xd8, 0x77, 0x88, 0x1b,
-	0xe4, 0x3f, 0xd4, 0xb0, 0x9c, 0x67, 0x78, 0xed, 0x66, 0x93, 0xf0, 0x33, 0xb9, 0x74, 0x3c, 0x9a,
-	0xff, 0x04, 0x11, 0x9e, 0xf1, 0x40, 0x92, 0xe0, 0xe2, 0x2a, 0xac, 0xf4, 0x1d, 0xd7, 0x6c, 0xfb,
-	0xac, 0x5e, 0x0f, 0x52, 0x20, 0x60, 0x96, 0x5a, 0xea, 0x39, 0x71, 0x15, 0x69, 0x54, 0x12, 0xbc,
-	0x01, 0x53, 0x11, 0x26, 0x6a, 0x5d, 0x4e, 0xd6, 0x9e, 0x5d, 0x84, 0x22, 0xbe, 0x0d, 0x78, 0x12,
-	0xa3, 0x8e, 0x55, 0x86, 0x7f, 0x16, 0xd0, 0x4f, 0x20, 0xbd, 0x26, 0x70, 0xf7, 0x14, 0x4a, 0xae,
-	0x28, 0xff, 0x2e, 0x03, 0x9a, 0xcc, 0x88, 0x2a, 0x47, 0x1e, 0x9c, 0xd2, 0x96, 0xaf, 0xad, 0x0f,
-	0x72, 0xbf, 0x5a, 0x2a, 0xe2, 0x80, 0xa2, 0x81, 0x28, 0x27, 0xfa, 0x60, 0x2d, 0x1d, 0x78, 0xa1,
-	0xa0, 0x79, 0x0d, 0xf2, 0x61, 0x9b, 0xff, 0xd0, 0x56, 0x51, 0x5d, 0xd8, 0x9c, 0x0f, 0xbd, 0x25,
-	0xd8, 0xfc, 0x4d, 0xdb, 0xb5, 0x8e, 0xee, 0xe8, 0x13, 0x56, 0xe4, 0xbf, 0x56, 0x83, 0x49, 0x9f,
-	0x13, 0xd7, 0xb3, 0x7d, 0xd9, 0xa7, 0x58, 0x54, 0xf9, 0xe8, 0x6a, 0xdf, 0xfa, 0xc3, 0x90, 0xae,
-	0xca, 0x2c, 0xaa, 0x17, 0xfc, 0xd8, 0xff, 0x2f, 0xeb, 0xb5, 0x95, 0x3c, 0xe4, 0x8c, 0xae, 0x5a,
-	0x2a, 0x00, 0x63, 0x86, 0x92, 0xbd, 0xfc, 0xc7, 0x34, 0xcc, 0xa2, 0x1e, 0x23, 0xa5, 0x1e, 0xb1,
-	0xaf, 0x2a, 0x92, 0x5f, 0x85, 0x11, 0x4e, 0x89, 0xc7, 0x5c, 0xa5, 0xb9, 0xb5, 0xf0, 0xc4, 0xf1,
-	0xed, 0xda, 0x9c, 0xea, 0x48, 0xa7, 0x2b, 0x7a, 0xa1, 0x7a, 0x4e, 0xeb, 0xc2, 0x79, 0x55, 0x2f,
-	0x92, 0x3d, 0xbf, 0x17, 0x99, 0x90, 0xd4, 0x12, 0x56, 0xfe, 0x24, 0xf0, 0x0e, 0xd9, 0x51, 0x1d,
-	0xda, 0x4d, 0xca, 0xda, 0xfe, 0xd7, 0xd4, 0x5b, 0xf4, 0x59, 0x2f, 0xfb, 0x64, 0x77, 0x4e, 0x9f,
-	0x2a, 0x86, 0x9f, 0x44, 0x15, 0xff, 0x4d, 0xc3, 0x5c, 0xb7, 0xa6, 0x3f, 0x7b, 0xd0, 0xa2, 0xee,
-	0x55, 0xaa, 0xe3, 0x52, 0xe3, 0xa3, 0xaf, 0x53, 0xfe, 0x2f, 0xd2, 0xaa, 0xdb, 0xac, 0xc6, 0x6a,
-	0xef, 0xaa, 0xc3, 0xbc, 0xa7, 0x3a, 0x36, 0x6c, 0xda, 0x9e, 0x27, 0xb2, 0x76, 0x98, 0x83, 0xcd,
-	0xd0, 0xad, 0xf3, 0xfa, 0x8c, 0xc2, 0x06, 0x4d, 0x8c, 0x2c, 0xeb, 0x06, 0x0f, 0x1b, 0x87, 0x07,
-	0x0f, 0x1b, 0xcb, 0xff, 0xce, 0x04, 0x02, 0x9f, 0x10, 0xc7, 0xa1, 0x6e, 0x83, 0xe2, 0x19, 0x84,
-	0xe1, 0x69, 0x4c, 0x96, 0xf4, 0x25, 0x64, 0xc9, 0xf4, 0xcb, 0x72, 0x1b, 0x46, 0x98, 0xe0, 0x75,
-	0x89, 0x00, 0x90, 0x74, 0xda, 0xb7, 0x61, 0xb6, 0xc5, 0x69, 0x47, 0x25, 0xa3, 0x48, 0xfa, 0x8b,
-	0x36, 0x72, 0x9a, 0x20, 0xc1, 0x1d, 0xba, 0xd9, 0xef, 0x06, 0x64, 0x8f, 0x99, 0x6b, 0x5d, 0x64,
-	0x70, 0x24, 0xd2, 0xde, 0x50, 0xcd, 0x94, 0xd0, 0xed, 0x71, 0xdb, 0x6a, 0xd0, 0x8b, 0xe7, 0x17,
-	0x01, 0x7d, 0x05, 0xc9, 0xb5, 0xd7, 0x61, 0x49, 0x1e, 0xd1, 0x14, 0xce, 0xd1, 0xa7, 0x74, 0xd9,
-	0xc3, 0x95, 0x90, 0x04, 0xdd, 0xa7, 0x47, 0xf1, 0x5f, 0x04, 0x4d, 0x9a, 0xb4, 0xa2, 0x9c, 0x32,
-	0xea, 0x21, 0xf5, 0x55, 0xe8, 0xbe, 0x0a, 0x79, 0x79, 0x42, 0xd6, 0xf6, 0x4d, 0xd6, 0xa4, 0xea,
-	0x5a, 0x5d, 0x88, 0x48, 0x28, 0x8d, 0x2d, 0xd1, 0x47, 0x77, 0x6a, 0x22, 0x1c, 0x22, 0x10, 0x91,
-	0xd5, 0x9e, 0xb4, 0x66, 0xda, 0x80, 0x62, 0x9f, 0xe5, 0xa2, 0x45, 0x67, 0x81, 0xc7, 0xad, 0x76,
-	0x1b, 0xa6, 0xd4, 0x33, 0x0a, 0xd6, 0x42, 0xb2, 0xcc, 0x8c, 0x76, 0x69, 0x93, 0x88, 0xde, 0x41,
-	0xac, 0x28, 0x32, 0xb5, 0x67, 0x21, 0x8f, 0x2a, 0xb7, 0xe2, 0xaa, 0x9e, 0x90, 0x40, 0xa9, 0xde,
-	0x4a, 0x11, 0x0a, 0x46, 0x4c, 0xf8, 0xf2, 0x3f, 0x32, 0xf0, 0x4c, 0x58, 0x80, 0xee, 0x12, 0x4f,
-	0xa7, 0x76, 0xf3, 0xb8, 0xcd, 0x3d, 0xac, 0x2c, 0x74, 0x6a, 0x32, 0x6e, 0x5d, 0xac, 0x75, 0x81,
-	0x7e, 0x24, 0x85, 0x8a, 0x07, 0xf7, 0x23, 0x14, 0x66, 0x19, 0xc0, 0xf6, 0x69, 0xd3, 0xb0, 0x5d,
-	0x8b, 0x3e, 0x52, 0xa1, 0x3d, 0x2e, 0x20, 0x7b, 0x02, 0xa0, 0x3d, 0x00, 0x8d, 0x47, 0x77, 0x95,
-	0x65, 0x42, 0xb6, 0x27, 0xd9, 0x89, 0xf3, 0xc5, 0x0e, 0xa7, 0xea, 0x85, 0x29, 0xde, 0x0b, 0xd4,
-	0x5e, 0x81, 0xf1, 0x3a, 0xa5, 0xa2, 0xd0, 0x56, 0x8f, 0x05, 0xe7, 0x76, 0x09, 0x75, 0x4a, 0xf7,
-	0x05, 0xa5, 0xb6, 0x04, 0xe3, 0x0d, 0xe2, 0x19, 0xc7, 0xc4, 0xb3, 0x3d, 0x35, 0xa0, 0x18, 0x6b,
-	0x10, 0xaf, 0x22, 0xfe, 0x6b, 0xdb, 0xd0, 0xdd, 0x28, 0xbc, 0x44, 0x47, 0xcf, 0x8f, 0x8d, 0x62,
-	0x77, 0x85, 0xba, 0x48, 0x7f, 0x11, 0x74, 0xd3, 0x32, 0xa7, 0xee, 0xa8, 0xb9, 0x78, 0xd8, 0x45,
-	0x5d, 0xa0, 0xe7, 0x7d, 0x98, 0x97, 0xf9, 0xd0, 0x60, 0x2d, 0xca, 0x89, 0xcf, 0xb8, 0x41, 0xa4,
-	0x30, 0x17, 0xbe, 0x4b, 0xcd, 0xca, 0x85, 0x0f, 0xd4, 0x3a, 0x85, 0x4c, 0x9a, 0xdc, 0x0f, 0x9d,
-	0x33, 0xb9, 0x5f, 0x85, 0xb1, 0x3a, 0x11, 0x4d, 0x8c, 0x6d, 0xc5, 0x2e, 0x9e, 0x51, 0x84, 0xee,
-	0x59, 0x5a, 0x11, 0x86, 0x3c, 0xfa, 0x91, 0xba, 0x5b, 0xc5, 0x4f, 0xed, 0x05, 0x98, 0x24, 0x4a,
-	0xbc, 0xf8, 0xf0, 0xa7, 0x10, 0x80, 0x55, 0xe8, 0xff, 0x2a, 0x03, 0xab, 0xb1, 0xc1, 0x59, 0xc2,
-	0x18, 0xff, 0xcb, 0x47, 0x7f, 0xc2, 0x74, 0x7e, 0xe8, 0x49, 0xa7, 0xf3, 0xd9, 0xf3, 0xa6, 0xf3,
-	0xdb, 0x30, 0x15, 0x19, 0x99, 0xab, 0x32, 0xe7, 0x22, 0x27, 0x9c, 0x0c, 0x87, 0xf3, 0x6a, 0x7c,
-	0xdd, 0x33, 0x9a, 0x1f, 0xe9, 0x1d, 0xcd, 0x97, 0x7f, 0x14, 0x94, 0x24, 0x22, 0x2e, 0xf6, 0x09,
-	0x27, 0xcd, 0xf0, 0x45, 0x6b, 0x15, 0x72, 0xcc, 0xc1, 0x81, 0x9f, 0xc8, 0xbd, 0xa8, 0xa8, 0xac,
-	0x0e, 0xcc, 0xb1, 0x8e, 0x24, 0x44, 0x10, 0xb8, 0xf4, 0x34, 0x24, 0x90, 0xcf, 0x88, 0xe0, 0xd2,
-	0xd3, 0x80, 0xe0, 0x3a, 0xe4, 0x5a, 0xc8, 0x52, 0xca, 0x1b, 0x55, 0x10, 0x48, 0x04, 0xce, 0x02,
-	0xfe, 0x36, 0x05, 0x8b, 0xb8, 0x3d, 0x67, 0x3e, 0x33, 0x99, 0x83, 0xe7, 0xd9, 0x97, 0xed, 0xed,
-	0xd1, 0x1d, 0x6d, 0x17, 0x26, 0x83, 0xba, 0xc0, 0x94, 0x6f, 0xad, 0x78, 0x96, 0xdc, 0xe6, 0xb5,
-	0x30, 0xa8, 0x13, 0xde, 0x63, 0x6b, 0x29, 0xbd, 0xe0, 0xc5, 0x5f, 0x68, 0x77, 0x61, 0x52, 0x3e,
-	0xbc, 0x98, 0xc1, 0x8b, 0x29, 0x9e, 0xb9, 0x8f, 0x51, 0xfc, 0x55, 0x55, 0x30, 0x62, 0xf1, 0x77,
-	0xd6, 0x43, 0x50, 0xe9, 0xde, 0x68, 0x9d, 0x10, 0x8f, 0x1a, 0x9e, 0x7c, 0xf8, 0xc4, 0x4e, 0x30,
-	0x17, 0xb9, 0x6b, 0x06, 0x3c, 0x90, 0xd6, 0x52, 0xba, 0xc6, 0xfb, 0x9f, 0x4d, 0x2d, 0x58, 0x94,
-	0x8d, 0x57, 0xb4, 0x40, 0x33, 0xda, 0xd2, 0x1a, 0xd8, 0x2a, 0xe6, 0x36, 0xaf, 0xc7, 0x79, 0x0f,
-	0x78, 0x8c, 0xac, 0xa5, 0x74, 0x6c, 0x39, 0x93, 0xde, 0x29, 0xeb, 0xb0, 0xa8, 0x62, 0xff, 0x24,
-	0x8c, 0x0b, 0x23, 0x08, 0x21, 0x6c, 0x26, 0x73, 0x9b, 0xcf, 0xc7, 0x77, 0x19, 0xf4, 0x1a, 0x56,
-	0x4b, 0xe9, 0xa5, 0xd3, 0x41, 0x2f, 0x65, 0x36, 0x2c, 0xa9, 0x7d, 0x22, 0xef, 0x27, 0xf5, 0x60,
-	0x72, 0x8d, 0xdd, 0x67, 0x6e, 0xf3, 0x85, 0xa4, 0x8d, 0x12, 0x06, 0xdd, 0xb5, 0x94, 0xbe, 0x70,
-	0x3a, 0xf0, 0x99, 0xe8, 0x7d, 0x98, 0x8b, 0x3f, 0x18, 0x84, 0xe2, 0x4c, 0xe0, 0x2e, 0xe5, 0xf8,
-	0x2e, 0x49, 0x4f, 0x1d, 0xb5, 0x94, 0x3e, 0x63, 0x27, 0x3d, 0x81, 0x30, 0x58, 0x0e, 0x2b, 0x99,
-	0x44, 0x41, 0xf2, 0xb8, 0xc5, 0x8b, 0xf1, 0x2d, 0xce, 0x99, 0xd9, 0xd7, 0x52, 0xfa, 0x52, 0xe7,
-	0x9c, 0x91, 0xbe, 0x09, 0x0b, 0x16, 0xf1, 0x89, 0x11, 0x9d, 0xd2, 0x72, 0x35, 0x5a, 0x2e, 0x15,
-	0x92, 0x9c, 0x60, 0xc0, 0x1c, 0x5a, 0x38, 0x81, 0x35, 0x60, 0x44, 0xfd, 0x01, 0x94, 0x82, 0xcb,
-	0xa5, 0x77, 0xb3, 0xd2, 0x24, 0xee, 0xf1, 0x5c, 0x7c, 0x8f, 0xe4, 0xa9, 0x6d, 0x2d, 0xa5, 0xcf,
-	0x1d, 0x27, 0xcf, 0x73, 0x77, 0xc3, 0xb9, 0x7b, 0x68, 0x8c, 0x62, 0x52, 0xac, 0xc5, 0x47, 0x9b,
-	0x22, 0xd6, 0xcc, 0xf8, 0xb0, 0x73, 0x17, 0x9f, 0xc2, 0x44, 0xae, 0x08, 0x19, 0x4d, 0x25, 0x31,
-	0x8a, 0xcf, 0x11, 0x6b, 0xf2, 0x45, 0x2c, 0x3a, 0x59, 0xbc, 0x0b, 0x13, 0x18, 0x5e, 0x72, 0xe0,
-	0x61, 0x95, 0xa6, 0x91, 0xcb, 0x42, 0x7f, 0x40, 0xa9, 0xf1, 0x59, 0x2d, 0xa5, 0xe7, 0xfc, 0xc8,
-	0x34, 0x6d, 0x1b, 0x0a, 0x61, 0x15, 0xea, 0x9d, 0xd2, 0x96, 0x5f, 0x9a, 0x41, 0x0e, 0x4b, 0x3d,
-	0xd6, 0x88, 0xce, 0x40, 0x6a, 0x29, 0x3d, 0x9c, 0x5a, 0xc8, 0xa1, 0xc8, 0x5b, 0x30, 0x15, 0x75,
-	0x23, 0x6c, 0xef, 0x4b, 0x73, 0xc8, 0x68, 0x25, 0xce, 0xa8, 0x77, 0x08, 0x50, 0x4b, 0xe9, 0x45,
-	0xd2, 0x3b, 0x18, 0xd8, 0x86, 0x82, 0x8a, 0x32, 0x5f, 0x36, 0x92, 0xa5, 0xf9, 0xa4, 0x43, 0xc5,
-	0x5a, 0x6f, 0x71, 0xa8, 0xd3, 0x58, 0x2f, 0xfe, 0x8e, 0x1a, 0x47, 0x9e, 0x89, 0x7a, 0xc0, 0x0d,
-	0x59, 0x95, 0x90, 0xd5, 0x6a, 0x82, 0x6b, 0x47, 0x5b, 0xd7, 0x5a, 0x4a, 0xcd, 0x2a, 0x63, 0xfd,
-	0xec, 0xfb, 0x30, 0xd7, 0xf3, 0xee, 0x22, 0x2b, 0x79, 0xab, 0xb4, 0x90, 0x14, 0x93, 0x49, 0x0d,
-	0xa1, 0x88, 0x49, 0x33, 0xa9, 0x51, 0x14, 0xbc, 0x83, 0x7e, 0x2a, 0x28, 0x43, 0xb1, 0xa3, 0x2a,
-	0x2d, 0x26, 0xf2, 0x4e, 0xe8, 0xbd, 0x90, 0x77, 0x52, 0x4f, 0x66, 0xc2, 0x42, 0x27, 0xd2, 0x32,
-	0x18, 0x91, 0x26, 0xc4, 0x2a, 0x2d, 0x25, 0x85, 0xdf, 0x80, 0x0e, 0x43, 0x84, 0x5f, 0x67, 0x40,
-	0xf3, 0xe1, 0xc1, 0x2a, 0xba, 0xa2, 0x28, 0x13, 0xe3, 0x25, 0x2b, 0x57, 0x95, 0x72, 0xe9, 0x1a,
-	0x6e, 0xf5, 0x52, 0xbf, 0x77, 0x0e, 0xaa, 0xad, 0x6b, 0x29, 0xfd, 0x9a, 0x7f, 0x5e, 0xed, 0xfd,
-	0x01, 0xa8, 0xcb, 0xda, 0x08, 0x2b, 0xb5, 0x30, 0xa2, 0x96, 0x93, 0x62, 0x3e, 0xb9, 0xb6, 0x14,
-	0x31, 0x7f, 0x9a, 0x5c, 0x75, 0x3a, 0x70, 0x2d, 0xbc, 0x2b, 0x93, 0x92, 0x4b, 0x19, 0x77, 0x59,
-	0x4f, 0xbe, 0x2a, 0x13, 0xd3, 0xcb, 0x62, 0x67, 0x70, 0x0d, 0xf7, 0x0e, 0x4c, 0x07, 0x65, 0xc1,
-	0x43, 0x7a, 0x16, 0xe6, 0xc9, 0x0f, 0x93, 0x9c, 0x56, 0x95, 0x06, 0x6f, 0xd2, 0xb3, 0x6e, 0x86,
-	0x9c, 0xf2, 0x7a, 0x81, 0x82, 0x25, 0xda, 0x45, 0x15, 0x2d, 0x01, 0x4b, 0x96, 0xc4, 0xb2, 0xaf,
-	0x5e, 0x12, 0x2c, 0xfd, 0x5e, 0x60, 0x25, 0x0f, 0x39, 0xff, 0xac, 0x45, 0x2d, 0x03, 0x3f, 0xa7,
-	0x13, 0x6d, 0xd2, 0x5c, 0xf2, 0x89, 0xbe, 0x9a, 0xef, 0xc7, 0xbe, 0x03, 0x33, 0x51, 0x25, 0x85,
-	0xdf, 0x79, 0x74, 0x4b, 0xb1, 0x74, 0x5c, 0x15, 0x91, 0xcf, 0x3a, 0x9e, 0x85, 0x3c, 0x7d, 0xd4,
-	0xb2, 0xf9, 0x59, 0xfc, 0xb3, 0xaa, 0x09, 0x09, 0x54, 0xd3, 0xe2, 0x97, 0x61, 0xdc, 0x6b, 0x51,
-	0x11, 0x22, 0xa4, 0x75, 0xd1, 0x6c, 0x60, 0x0c, 0x29, 0xab, 0xa4, 0xa5, 0xdd, 0x84, 0x61, 0xf1,
-	0xfb, 0xc2, 0xa9, 0x80, 0xa4, 0x12, 0x8d, 0x1f, 0x3e, 0x19, 0x47, 0x1b, 0xd2, 0x71, 0x8f, 0xaa,
-	0x89, 0x75, 0x65, 0x1e, 0x66, 0x8d, 0x24, 0x29, 0xcb, 0xbf, 0x0c, 0xda, 0xa4, 0x2d, 0xfc, 0x80,
-	0x4f, 0x75, 0xd3, 0xdd, 0x5c, 0x7b, 0x41, 0x1b, 0xb0, 0xd9, 0x6d, 0xce, 0x33, 0xd8, 0x45, 0x96,
-	0xba, 0x23, 0xd3, 0x28, 0xc3, 0xa3, 0x3b, 0xdd, 0x06, 0xfd, 0x15, 0x18, 0x51, 0x1f, 0x44, 0xc9,
-	0x71, 0xc0, 0x72, 0xcf, 0x12, 0x99, 0xa6, 0xe4, 0xf7, 0x4e, 0x47, 0x77, 0x74, 0x45, 0x2c, 0x24,
-	0x6c, 0x89, 0x6a, 0xaf, 0xc5, 0x4e, 0xd5, 0x8b, 0x54, 0x56, 0x1f, 0x17, 0x90, 0x7d, 0x01, 0x10,
-	0x0d, 0x09, 0xa7, 0x1f, 0x8a, 0x06, 0x5e, 0x12, 0xc8, 0xbe, 0x28, 0x27, 0x61, 0x92, 0x64, 0x15,
-	0x72, 0x3e, 0xf3, 0x45, 0x49, 0x8a, 0x14, 0xb2, 0x37, 0x02, 0x04, 0x49, 0x82, 0xb9, 0x70, 0xfe,
-	0x2b, 0x14, 0x38, 0x1e, 0x4c, 0x77, 0x5f, 0xfa, 0x49, 0x1a, 0xb4, 0xfe, 0x2f, 0xdf, 0xb4, 0xe7,
-	0x60, 0x4d, 0xdf, 0x39, 0xda, 0xd9, 0xba, 0x6f, 0xec, 0xd7, 0xb6, 0x0e, 0x76, 0x8c, 0x43, 0x7d,
-	0x6f, 0x77, 0x77, 0x47, 0x37, 0xde, 0x7d, 0xfb, 0x60, 0x7f, 0xa7, 0xba, 0x77, 0x6f, 0x6f, 0x67,
-	0xbb, 0x98, 0x1a, 0x48, 0xb5, 0x75, 0xff, 0xbe, 0x51, 0x7d, 0xf0, 0xd6, 0x5b, 0x7b, 0x87, 0x07,
-	0xc5, 0xb4, 0xb6, 0x0e, 0xcf, 0x25, 0x52, 0x49, 0x0a, 0x63, 0x7b, 0x67, 0x6b, 0xfb, 0xfe, 0xde,
-	0xdb, 0x3b, 0xc5, 0x4c, 0xe5, 0x7b, 0x9f, 0x3e, 0x5e, 0x49, 0x7f, 0xf6, 0x78, 0x25, 0xfd, 0xd7,
-	0xc7, 0x2b, 0xe9, 0x9f, 0x7e, 0xbe, 0x92, 0xfa, 0xec, 0xf3, 0x95, 0xd4, 0x9f, 0x3e, 0x5f, 0x49,
-	0xbd, 0x7f, 0xbd, 0x61, 0xfb, 0x27, 0xed, 0xe3, 0x0d, 0x93, 0x35, 0x6f, 0x1d, 0xf2, 0x36, 0x15,
-	0xf7, 0xf5, 0x2d, 0x97, 0x59, 0xf4, 0xd6, 0xa3, 0x5b, 0xf8, 0x9d, 0xa6, 0x08, 0x33, 0xef, 0x78,
-	0x04, 0x3f, 0xd2, 0xfc, 0xe6, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x8c, 0x0c, 0x19, 0xcb, 0xc7,
-	0x2a, 0x00, 0x00,
+	// 3525 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x3a, 0x4d, 0x6f, 0x23, 0xc7,
+	0x95, 0xa4, 0x86, 0xa3, 0x8f, 0x47, 0x89, 0xa2, 0x5a, 0x5f, 0xad, 0x6f, 0x0d, 0xc7, 0x63, 0xcb,
+	0x9e, 0x1d, 0xcd, 0x8c, 0xd6, 0xde, 0x5d, 0xec, 0x7a, 0x67, 0x57, 0xa2, 0x34, 0xa2, 0x66, 0xc6,
+	0x1e, 0xb9, 0x25, 0xcb, 0x0b, 0x1b, 0xd8, 0x76, 0xa9, 0xbb, 0x48, 0xb6, 0xd5, 0xec, 0xa2, 0xab,
+	0x9a, 0xd4, 0xc8, 0x27, 0x7b, 0x37, 0x1f, 0x8e, 0xf3, 0x81, 0x9c, 0x1c, 0xe4, 0x9a, 0x6b, 0x4e,
+	0x41, 0xf2, 0x17, 0x02, 0xf8, 0x90, 0x83, 0x91, 0x53, 0x72, 0x09, 0x82, 0xf1, 0xd1, 0x88, 0x2f,
+	0x01, 0x72, 0x08, 0x10, 0x20, 0xa8, 0xaf, 0x66, 0xb7, 0xd8, 0x94, 0x64, 0x78, 0x3c, 0x46, 0x6e,
+	0xe4, 0x7b, 0xaf, 0xde, 0xab, 0xf7, 0xea, 0xd5, 0xfb, 0xaa, 0x86, 0xf1, 0x10, 0xb1, 0xa3, 0x9b,
+	0xed, 0xdb, 0x37, 0x71, 0x1b, 0x07, 0xe1, 0x6a, 0x93, 0x92, 0x90, 0x18, 0x03, 0x1c, 0xb8, 0xda,
+	0xbe, 0x3d, 0x3b, 0xe3, 0x10, 0xd6, 0x20, 0xcc, 0x16, 0xe0, 0x9b, 0xf2, 0x8f, 0xa4, 0x99, 0x9d,
+	0xa8, 0x91, 0x1a, 0x91, 0x70, 0xfe, 0x4b, 0x41, 0xa7, 0x58, 0x1d, 0x51, 0xec, 0x72, 0x86, 0xa8,
+	0x41, 0x5a, 0x9a, 0x63, 0x1c, 0xee, 0x90, 0x46, 0x83, 0x04, 0x0a, 0xbe, 0xd0, 0x81, 0x53, 0xcc,
+	0x42, 0x1b, 0x07, 0x0e, 0x71, 0xbd, 0xa0, 0xa6, 0xd0, 0x4b, 0x31, 0x34, 0x69, 0x05, 0xae, 0x8d,
+	0x1d, 0x12, 0x90, 0x86, 0xe7, 0x44, 0xbb, 0xd0, 0xdb, 0x47, 0x81, 0x53, 0x27, 0x54, 0x41, 0xcd,
+	0x08, 0xca, 0x98, 0x57, 0x0b, 0x1a, 0xb8, 0xb3, 0x0f, 0x8d, 0x71, 0x31, 0x72, 0x7d, 0x2f, 0xc0,
+	0x0a, 0x3e, 0x1f, 0xc1, 0x3d, 0xd6, 0x44, 0xa1, 0x53, 0xb7, 0x63, 0xf6, 0xe8, 0xf0, 0x63, 0x38,
+	0x0c, 0x7d, 0x1c, 0xe3, 0x17, 0xad, 0x6b, 0x23, 0xbf, 0x85, 0x6d, 0xdc, 0xf6, 0x5c, 0x1c, 0x38,
+	0x8a, 0x6b, 0xe9, 0xfd, 0x2c, 0x8c, 0x6f, 0x71, 0x3e, 0x7b, 0x98, 0x31, 0x8f, 0x04, 0x65, 0x8a,
+	0x51, 0x88, 0x5d, 0xe3, 0x2a, 0x00, 0x93, 0x10, 0xdb, 0x73, 0xcd, 0xec, 0x72, 0x76, 0x65, 0x78,
+	0x23, 0xf7, 0xc9, 0x9f, 0xcd, 0x3e, 0x6b, 0x48, 0xc1, 0x77, 0x5c, 0x63, 0x15, 0x2e, 0x93, 0xe3,
+	0x00, 0x53, 0xb3, 0x6f, 0x39, 0xbb, 0x32, 0xb4, 0x61, 0xfe, 0xf6, 0x57, 0x37, 0x26, 0xd4, 0x09,
+	0xac, 0xbb, 0x2e, 0xc5, 0x8c, 0xed, 0x85, 0xd4, 0x0b, 0x6a, 0x96, 0x24, 0x33, 0x26, 0xe0, 0x72,
+	0x40, 0x02, 0x07, 0x9b, 0x97, 0x96, 0xb3, 0x2b, 0x39, 0x4b, 0xfe, 0xe9, 0x6c, 0xe1, 0x21, 0x75,
+	0x31, 0x2d, 0xa3, 0xc0, 0xc1, 0xbe, 0x7f, 0xd1, 0x2d, 0x5c, 0x83, 0x02, 0xe1, 0xcb, 0x6c, 0x86,
+	0xdf, 0x6d, 0x71, 0xbd, 0xc4, 0x5e, 0x72, 0xd6, 0x88, 0x80, 0xee, 0x29, 0xa0, 0xb1, 0x00, 0xc2,
+	0x61, 0x38, 0xa3, 0x4b, 0x31, 0x46, 0xfd, 0x1c, 0xb8, 0xe3, 0x96, 0xfe, 0x94, 0x85, 0x69, 0xb1,
+	0x05, 0x0b, 0xb7, 0x31, 0xf2, 0x77, 0xeb, 0x88, 0xe1, 0xbd, 0x10, 0xd1, 0x0b, 0x5b, 0x22, 0xc6,
+	0xbf, 0xaf, 0x9b, 0xbf, 0x71, 0x05, 0x86, 0xdb, 0x98, 0x7a, 0xd5, 0x13, 0x5b, 0xf8, 0x88, 0xd8,
+	0xc3, 0x88, 0x95, 0x97, 0x30, 0x8b, 0x83, 0x8c, 0x17, 0x61, 0x8a, 0x0a, 0xe1, 0xb6, 0x3e, 0x77,
+	0xbb, 0x8e, 0xbd, 0x5a, 0x3d, 0x34, 0x73, 0x42, 0xa1, 0x09, 0x89, 0xdd, 0x54, 0xc8, 0x8a, 0xc0,
+	0x19, 0x2f, 0xc1, 0x40, 0x48, 0xbd, 0x5a, 0x0d, 0x53, 0xf3, 0xf2, 0x72, 0x76, 0xa5, 0xb0, 0x36,
+	0xb7, 0xaa, 0x2e, 0xc6, 0x6a, 0x4c, 0x95, 0x7d, 0x49, 0x62, 0x69, 0xda, 0xd2, 0xe3, 0x4b, 0x30,
+	0x2f, 0xf4, 0xdd, 0x47, 0xec, 0xe8, 0x2e, 0xf2, 0xfc, 0x16, 0xc5, 0x65, 0x1f, 0x31, 0xf6, 0x7a,
+	0xd3, 0x45, 0x4f, 0x51, 0xe9, 0x3b, 0x30, 0xd5, 0xf1, 0x57, 0xdb, 0x73, 0x6d, 0x42, 0x6d, 0xdc,
+	0x68, 0x86, 0x27, 0x42, 0x69, 0xc5, 0xb0, 0x92, 0xb1, 0xc6, 0x3b, 0x54, 0x3b, 0xee, 0x43, 0xba,
+	0xc5, 0x49, 0x3e, 0xcc, 0x66, 0x8d, 0x3b, 0x30, 0x52, 0x95, 0xbb, 0xb7, 0x1d, 0xbe, 0x7d, 0x65,
+	0x84, 0x99, 0xc8, 0x08, 0xa7, 0xf5, 0xb3, 0x86, 0xab, 0xb1, 0x7f, 0xc6, 0x5b, 0x30, 0x29, 0xd6,
+	0x79, 0x55, 0xcf, 0x41, 0x21, 0xd7, 0x96, 0x91, 0x16, 0x75, 0xb0, 0xd9, 0x2f, 0xf8, 0x3c, 0xbb,
+	0x2a, 0x2f, 0x37, 0xe7, 0x14, 0xe7, 0x12, 0x91, 0xef, 0x09, 0x6a, 0x6b, 0xc2, 0x49, 0x81, 0x1a,
+	0x37, 0x60, 0x54, 0x5f, 0x36, 0xdb, 0xf5, 0x6a, 0x98, 0x85, 0xe6, 0x40, 0xcc, 0x4c, 0x05, 0x8d,
+	0xdc, 0x14, 0x38, 0xee, 0x00, 0x55, 0x8a, 0xf1, 0x7b, 0xd8, 0xe6, 0x01, 0x01, 0xf9, 0x36, 0xf6,
+	0xbd, 0x9a, 0x77, 0xe8, 0x63, 0x73, 0x70, 0x39, 0xbb, 0x32, 0x68, 0x4d, 0x48, 0xec, 0x9e, 0x40,
+	0x6e, 0x29, 0xdc, 0xc6, 0x0c, 0x4c, 0xdb, 0xe9, 0x26, 0x2c, 0xfd, 0xe4, 0x12, 0xcc, 0x88, 0x43,
+	0xde, 0x09, 0xaa, 0x98, 0x5a, 0xd8, 0xc1, 0x5e, 0x33, 0x5c, 0x77, 0x1c, 0xdc, 0x7c, 0x52, 0x27,
+	0x7c, 0x0b, 0xfa, 0x8f, 0x09, 0x3d, 0xc2, 0x54, 0x9c, 0xed, 0x59, 0x01, 0x40, 0xd1, 0x19, 0x6b,
+	0x60, 0x78, 0x7c, 0x37, 0x36, 0x95, 0xdb, 0xb1, 0xeb, 0x88, 0xd5, 0xe3, 0x87, 0x6d, 0x15, 0xbd,
+	0xd8, 0x6e, 0x2b, 0x88, 0xd5, 0x8d, 0x6b, 0x90, 0x27, 0xad, 0xb0, 0xd9, 0x52, 0xc4, 0x97, 0x63,
+	0xc4, 0x20, 0x11, 0x82, 0x6c, 0x0d, 0x26, 0x6b, 0x38, 0xc0, 0x94, 0xfb, 0xaf, 0x1d, 0x92, 0x23,
+	0x1c, 0xd8, 0x0e, 0x0f, 0xef, 0xe2, 0x2c, 0x73, 0xd6, 0x78, 0x84, 0xdc, 0xe7, 0xb8, 0x32, 0x47,
+	0x19, 0x3b, 0x70, 0x45, 0xb8, 0xa3, 0x87, 0xa9, 0x7d, 0xec, 0x05, 0x2e, 0x39, 0xb6, 0x29, 0x0a,
+	0x5c, 0xd2, 0x08, 0x30, 0x63, 0xfa, 0xfe, 0x0d, 0x88, 0xf5, 0x8b, 0x9a, 0xf0, 0x0d, 0x41, 0x67,
+	0x45, 0x64, 0xea, 0x26, 0xbe, 0x00, 0x63, 0x6a, 0x97, 0x3e, 0x46, 0x55, 0x25, 0x7a, 0x50, 0x2c,
+	0x1d, 0x95, 0x88, 0x07, 0x18, 0x55, 0x85, 0xd8, 0xd2, 0xc7, 0x97, 0x60, 0x59, 0x9c, 0xcc, 0x81,
+	0xe2, 0xb9, 0x1e, 0x25, 0x81, 0xbb, 0x5e, 0x80, 0x7c, 0xef, 0xbd, 0xa7, 0x77, 0x05, 0x5f, 0x86,
+	0x69, 0x86, 0x7d, 0xec, 0x70, 0xab, 0x69, 0x15, 0x59, 0xf7, 0xb1, 0x4c, 0x6a, 0x22, 0xbd, 0x65,
+	0x26, 0x8c, 0xfe, 0x1f, 0x30, 0x1d, 0x19, 0xd0, 0xc7, 0x35, 0xe4, 0x73, 0x67, 0xec, 0x3e, 0xa7,
+	0x09, 0x4d, 0xf4, 0x80, 0xd3, 0xec, 0x61, 0x79, 0x62, 0x77, 0x60, 0x4e, 0x72, 0xe5, 0x3a, 0x76,
+	0xdb, 0x5d, 0x9e, 0xdb, 0x4c, 0x44, 0xd2, 0x65, 0xf2, 0xe7, 0x60, 0x94, 0x67, 0x6a, 0x2f, 0x8c,
+	0x42, 0xa6, 0x3a, 0xab, 0x82, 0x04, 0xeb, 0x58, 0xc9, 0x09, 0x95, 0x19, 0x22, 0x42, 0x79, 0x32,
+	0x05, 0x09, 0xd6, 0x84, 0xa5, 0x5f, 0xf6, 0xa9, 0xb8, 0xb8, 0x89, 0x42, 0xf4, 0x7a, 0x80, 0xda,
+	0xc8, 0xf3, 0xd1, 0xa1, 0x8f, 0x2d, 0xdc, 0x24, 0x4f, 0x37, 0x19, 0x0c, 0x6a, 0x8b, 0x89, 0x53,
+	0x38, 0xeb, 0x6a, 0x45, 0x94, 0xc6, 0x7d, 0x58, 0x6a, 0x75, 0xf6, 0x6c, 0x1f, 0xb6, 0x3c, 0x9f,
+	0x67, 0xc6, 0x43, 0x2f, 0x6c, 0xa0, 0x66, 0xf7, 0xa1, 0xcc, 0xc7, 0x88, 0x37, 0x24, 0xed, 0x86,
+	0x20, 0x15, 0x87, 0xf3, 0x3c, 0x8c, 0x50, 0xa1, 0xb5, 0x8e, 0x5d, 0xfd, 0xb1, 0xa5, 0xc3, 0x12,
+	0x25, 0x23, 0x57, 0xe9, 0x17, 0x7d, 0x30, 0x27, 0xac, 0xa6, 0xb8, 0x9c, 0x32, 0xde, 0xd3, 0x32,
+	0xda, 0x1a, 0x0c, 0x28, 0x95, 0xcf, 0xb5, 0x99, 0x26, 0x34, 0xfe, 0x09, 0x8c, 0x36, 0xf2, 0x3d,
+	0xd7, 0x56, 0xba, 0xca, 0x6b, 0x7b, 0x59, 0x30, 0x2f, 0x0a, 0x8c, 0x3c, 0x7a, 0x19, 0x2e, 0xe6,
+	0x61, 0x28, 0xac, 0x53, 0xcc, 0xea, 0xc4, 0x77, 0x85, 0x3d, 0x46, 0xac, 0x0e, 0xc0, 0xb8, 0x0e,
+	0x05, 0x54, 0xab, 0x51, 0x5c, 0x43, 0x21, 0x96, 0xd6, 0x8e, 0x87, 0xfb, 0x91, 0x08, 0xc7, 0xcd,
+	0x5b, 0xfa, 0xbd, 0x2e, 0x7a, 0xca, 0xc2, 0x55, 0x9f, 0x68, 0x58, 0xfe, 0xda, 0x1c, 0xec, 0x1a,
+	0xe4, 0xd5, 0x85, 0xeb, 0x8e, 0xc4, 0x12, 0x21, 0x74, 0xfb, 0x4d, 0x9f, 0xd2, 0xcd, 0xc2, 0xac,
+	0xe5, 0xff, 0x83, 0xe8, 0xb6, 0x0d, 0x0b, 0x54, 0x6c, 0x37, 0x4a, 0x4d, 0x3c, 0x24, 0x7b, 0x41,
+	0x4d, 0xfb, 0x7f, 0x5c, 0xdb, 0x59, 0x49, 0xaa, 0xb2, 0xd4, 0x9e, 0x24, 0x8c, 0xf2, 0xf8, 0x78,
+	0x14, 0x12, 0x65, 0xc9, 0x4d, 0x09, 0x49, 0xa6, 0xfe, 0x31, 0x4d, 0x70, 0xc0, 0xf1, 0x16, 0x21,
+	0xe1, 0xbd, 0xdc, 0x60, 0x7f, 0x71, 0xc0, 0x1a, 0x57, 0x5b, 0x68, 0xa2, 0x13, 0x9f, 0x20, 0x57,
+	0x98, 0xb9, 0xf4, 0xd7, 0x1c, 0x14, 0xa3, 0x62, 0x6d, 0x4f, 0xe4, 0xfa, 0x27, 0x63, 0xcb, 0xe7,
+	0x61, 0x24, 0x51, 0x3a, 0x24, 0x4a, 0xe3, 0xe1, 0x78, 0xc9, 0x65, 0xac, 0xc2, 0x40, 0x1b, 0x53,
+	0xd7, 0x73, 0x64, 0x39, 0x5a, 0x58, 0x9b, 0x48, 0x94, 0x58, 0x07, 0x12, 0x67, 0x69, 0xa2, 0xaf,
+	0x5c, 0x98, 0xbd, 0x08, 0x53, 0xb8, 0x5a, 0xe5, 0x71, 0xbf, 0x8d, 0xed, 0xc4, 0x81, 0xcb, 0x6b,
+	0x37, 0x11, 0x61, 0x0f, 0x62, 0x27, 0xff, 0x6f, 0x30, 0x19, 0x53, 0xa8, 0x8a, 0x9c, 0x90, 0x75,
+	0x5f, 0xc4, 0x58, 0x2d, 0x79, 0x97, 0x53, 0x88, 0x68, 0xf7, 0x2f, 0x30, 0x11, 0x5b, 0xd9, 0xf4,
+	0x51, 0x20, 0x17, 0x0e, 0xc6, 0x16, 0x1a, 0x1d, 0x8a, 0x5d, 0x1f, 0x05, 0x3a, 0xff, 0x09, 0x0b,
+	0xcb, 0xd6, 0x8f, 0xb5, 0x1a, 0x0d, 0x44, 0x4f, 0xe4, 0xd2, 0xa1, 0x78, 0xfe, 0xe3, 0x44, 0x62,
+	0x8f, 0x7b, 0x92, 0x44, 0x2c, 0x2e, 0xc3, 0x62, 0xd7, 0x76, 0x9d, 0x56, 0x48, 0xaa, 0x55, 0x9d,
+	0x02, 0x41, 0x64, 0xa9, 0xb9, 0x53, 0x3b, 0x2e, 0x0b, 0x1a, 0x95, 0x04, 0xaf, 0xc3, 0x58, 0x8c,
+	0x89, 0x5a, 0x97, 0x17, 0xeb, 0x8a, 0x1d, 0x84, 0x22, 0xbe, 0x05, 0x62, 0x27, 0x76, 0x55, 0x54,
+	0x19, 0xe1, 0x89, 0xa6, 0x1f, 0x16, 0xf4, 0x06, 0xc7, 0xdd, 0x55, 0x28, 0xb9, 0xa2, 0xf4, 0xeb,
+	0x3e, 0x30, 0x64, 0x46, 0x54, 0x39, 0x72, 0xef, 0x18, 0x37, 0x43, 0x63, 0xa5, 0x97, 0xfb, 0x55,
+	0x32, 0x31, 0x07, 0xe4, 0x25, 0x7a, 0x29, 0xd5, 0x07, 0x2b, 0x59, 0xed, 0x85, 0x9c, 0xe6, 0x65,
+	0x18, 0x89, 0x9a, 0x9e, 0x23, 0x4f, 0xdd, 0xea, 0xc2, 0xda, 0x74, 0xe4, 0x2d, 0x5a, 0xf8, 0x7d,
+	0x2f, 0x70, 0x0f, 0x6e, 0x5b, 0xc3, 0x6e, 0xec, 0xbf, 0x51, 0x81, 0xd1, 0x90, 0xa2, 0x80, 0x79,
+	0xa2, 0x8e, 0x70, 0x88, 0x8b, 0x95, 0x8f, 0x2e, 0x75, 0xad, 0xdf, 0x8f, 0xe8, 0xca, 0xc4, 0xc5,
+	0x56, 0x21, 0x4c, 0xfc, 0xff, 0xaa, 0x5e, 0xbb, 0x31, 0x02, 0x79, 0xbb, 0x63, 0x96, 0x0d, 0x80,
+	0x41, 0x5b, 0xe9, 0x5e, 0xfa, 0x50, 0xdb, 0xf1, 0x0d, 0x51, 0x08, 0xef, 0x7b, 0x0d, 0x4c, 0x5a,
+	0xe1, 0x37, 0x54, 0x85, 0x77, 0xe9, 0x99, 0xfb, 0x72, 0xb7, 0xf3, 0x65, 0x5e, 0x1b, 0x54, 0xb9,
+	0xc7, 0xcb, 0x09, 0x8a, 0xb0, 0x53, 0x7e, 0x6d, 0x2c, 0xd6, 0x2e, 0xad, 0x0b, 0xc4, 0x46, 0xee,
+	0x93, 0x3f, 0x2c, 0x65, 0x78, 0xb9, 0xc0, 0xa9, 0x25, 0xac, 0xf4, 0xb7, 0x2c, 0x4c, 0x75, 0xaa,
+	0xdf, 0x93, 0x87, 0x4d, 0x1c, 0x3c, 0x49, 0x73, 0x5c, 0xa8, 0xed, 0xfc, 0x26, 0xf5, 0xff, 0x22,
+	0xab, 0xfa, 0xb2, 0x72, 0xa2, 0x4a, 0x2d, 0xfb, 0x84, 0x3d, 0xd5, 0x71, 0x43, 0xc3, 0x63, 0x8c,
+	0xe7, 0xb7, 0x28, 0x5b, 0xc9, 0xe2, 0x27, 0x27, 0x03, 0xac, 0xc2, 0xea, 0x72, 0x5f, 0x16, 0x40,
+	0xbd, 0x87, 0x14, 0x97, 0x7b, 0x0f, 0x29, 0x4a, 0x7f, 0xe9, 0xd3, 0x0a, 0xd7, 0x91, 0xef, 0xe3,
+	0xa0, 0x86, 0xc5, 0x1e, 0xf8, 0xc1, 0xe3, 0x84, 0x2e, 0xd9, 0x0b, 0xe8, 0xd2, 0xd7, 0xad, 0xcb,
+	0x2d, 0xe8, 0x27, 0x9c, 0xd7, 0x05, 0x2e, 0x80, 0xa4, 0x33, 0xfe, 0x15, 0x26, 0x9b, 0x14, 0xb7,
+	0x55, 0xd8, 0x8e, 0x25, 0x8a, 0x78, 0xcb, 0x63, 0x70, 0x12, 0x21, 0xa1, 0x93, 0x27, 0xae, 0x43,
+	0xee, 0x90, 0x04, 0xee, 0x79, 0x07, 0x2e, 0x88, 0x8c, 0xff, 0x56, 0x6d, 0x07, 0xb7, 0xed, 0x61,
+	0xcb, 0xad, 0x61, 0x59, 0x44, 0x9f, 0xb1, 0xae, 0xa0, 0xe9, 0x37, 0x04, 0xb9, 0xf1, 0x9f, 0x30,
+	0x27, 0xb7, 0xe8, 0x70, 0xe7, 0xe8, 0x32, 0xba, 0xec, 0x76, 0x4c, 0x41, 0x22, 0xdc, 0xe7, 0x94,
+	0xe1, 0xbf, 0xd0, 0xed, 0x8c, 0x3c, 0x45, 0x39, 0x9d, 0xb0, 0x22, 0xea, 0x27, 0x61, 0xfb, 0x32,
+	0x8c, 0xc8, 0x1d, 0x92, 0x56, 0xe8, 0x90, 0x06, 0x56, 0xa1, 0x7b, 0x26, 0xa6, 0xa1, 0x3c, 0x6c,
+	0x89, 0x3e, 0xb8, 0x5d, 0xe1, 0xd7, 0x21, 0x06, 0xe1, 0xf1, 0xff, 0xcb, 0x56, 0x17, 0xab, 0x50,
+	0xec, 0x3a, 0xb9, 0x78, 0x79, 0x56, 0xa0, 0xc9, 0x53, 0xbb, 0x05, 0x63, 0x6a, 0x36, 0x2b, 0xaa,
+	0x06, 0x59, 0x90, 0xc5, 0xfb, 0x99, 0x51, 0x81, 0xde, 0x12, 0x58, 0x5e, 0x8e, 0x19, 0x57, 0x61,
+	0x44, 0x98, 0xdc, 0x4d, 0x9a, 0x7a, 0x58, 0x02, 0xa5, 0x79, 0x37, 0x8a, 0x50, 0xb0, 0x13, 0xca,
+	0x97, 0x3e, 0xef, 0x83, 0x2b, 0x51, 0xa9, 0xb6, 0x8d, 0x98, 0x85, 0xbd, 0xc6, 0x61, 0x8b, 0x32,
+	0x91, 0x83, 0x2d, 0xec, 0x10, 0xea, 0x9e, 0x6f, 0x75, 0x8e, 0x7e, 0x24, 0x95, 0x4a, 0x5e, 0xee,
+	0x47, 0x42, 0x99, 0x05, 0x00, 0x2f, 0xc4, 0x0d, 0xdb, 0x0b, 0x5c, 0xfc, 0x48, 0x5d, 0xed, 0x21,
+	0x0e, 0xd9, 0xe1, 0x00, 0xe3, 0x21, 0x18, 0x34, 0x2e, 0x55, 0x26, 0x54, 0x69, 0xd6, 0xe5, 0x84,
+	0x59, 0x13, 0x9b, 0x53, 0x99, 0x75, 0x8c, 0x9e, 0x06, 0x1a, 0x2f, 0xc1, 0x50, 0x15, 0x63, 0x5e,
+	0x92, 0xaa, 0x21, 0xe3, 0x99, 0xf5, 0x74, 0x15, 0xe3, 0x5d, 0x4e, 0x69, 0xcc, 0xc1, 0x50, 0x0d,
+	0x31, 0xfb, 0x10, 0x31, 0x8f, 0xa9, 0x56, 0x7e, 0xb0, 0x86, 0xd8, 0x06, 0xff, 0x6f, 0x6c, 0x42,
+	0x47, 0x50, 0x14, 0x44, 0x07, 0xce, 0xbe, 0x1b, 0xc5, 0xce, 0x0a, 0x15, 0x48, 0x7f, 0xaa, 0xfb,
+	0x4e, 0x99, 0x53, 0xb7, 0xd4, 0x3c, 0x2d, 0xea, 0x37, 0xce, 0xb1, 0xf3, 0x2e, 0x4c, 0xcb, 0x7c,
+	0x68, 0x93, 0x26, 0xa6, 0x28, 0x24, 0xd4, 0x46, 0x52, 0x99, 0x73, 0xe7, 0xd9, 0x93, 0x72, 0xe1,
+	0x43, 0xb5, 0x4e, 0x21, 0xd3, 0x26, 0x7e, 0x97, 0xce, 0x98, 0xf8, 0x2d, 0xc1, 0x60, 0x15, 0xf1,
+	0x72, 0xdf, 0x73, 0x13, 0x81, 0x67, 0x40, 0x40, 0x77, 0x5c, 0xa3, 0x08, 0x97, 0x18, 0x7e, 0x57,
+	0xc5, 0x56, 0xfe, 0xd3, 0x78, 0x0e, 0x46, 0x91, 0x52, 0x2f, 0x39, 0x26, 0x29, 0x68, 0xb0, 0xba,
+	0xfa, 0x3f, 0xef, 0x83, 0xa5, 0xc4, 0x88, 0xa9, 0x82, 0x02, 0x97, 0x22, 0x8f, 0x61, 0x76, 0x51,
+	0xfb, 0x5c, 0xe0, 0xf6, 0xdf, 0x80, 0xd1, 0x26, 0x25, 0x4d, 0xc2, 0x78, 0x46, 0x48, 0x51, 0x58,
+	0x23, 0x95, 0xc2, 0xb7, 0x60, 0x0c, 0xb9, 0x2e, 0x76, 0x13, 0x23, 0x89, 0xb8, 0xe6, 0xa3, 0x02,
+	0x1d, 0x9b, 0x42, 0x6c, 0xc2, 0x98, 0x1e, 0x63, 0x10, 0x6a, 0xab, 0x32, 0xe7, 0x3c, 0x27, 0x1c,
+	0x55, 0x4b, 0x1e, 0x52, 0xe9, 0x18, 0xc6, 0x12, 0xe4, 0x5b, 0x81, 0x2c, 0x0e, 0xf5, 0x40, 0x70,
+	0xc4, 0x02, 0x01, 0x92, 0x03, 0xb9, 0x0f, 0x74, 0x49, 0xc2, 0xef, 0xc5, 0x2e, 0xa2, 0xa8, 0x11,
+	0x4d, 0xc2, 0x97, 0x20, 0x4f, 0x7c, 0x31, 0x1a, 0xe3, 0xb9, 0x57, 0x18, 0x2a, 0x67, 0x01, 0xf1,
+	0xdd, 0x03, 0x09, 0xe1, 0x04, 0x01, 0x3e, 0x8e, 0x08, 0xe4, 0xf3, 0x03, 0x04, 0xf8, 0x58, 0x13,
+	0x5c, 0x83, 0x7c, 0x53, 0xb0, 0x94, 0xfa, 0xc6, 0x0d, 0x04, 0x12, 0x21, 0xba, 0xe6, 0x8f, 0x17,
+	0x60, 0x56, 0x88, 0xa7, 0x24, 0x24, 0x0e, 0xf1, 0xc5, 0x7e, 0x76, 0x65, 0x23, 0x78, 0x70, 0xdb,
+	0xd8, 0x86, 0x51, 0x5d, 0x17, 0x38, 0xf2, 0x8d, 0x46, 0xec, 0x25, 0xbf, 0x36, 0x1f, 0x5d, 0xea,
+	0x94, 0x77, 0x9c, 0x4a, 0xc6, 0x2a, 0xb0, 0xe4, 0xcb, 0xce, 0x36, 0x8c, 0xca, 0x17, 0x13, 0x47,
+	0xbf, 0xb4, 0x88, 0x3d, 0x77, 0x31, 0x4a, 0xbe, 0xc6, 0x70, 0x46, 0x24, 0xf9, 0x3e, 0xb3, 0x0f,
+	0x2a, 0xdd, 0xdb, 0xcd, 0x3a, 0x62, 0xd8, 0x66, 0xf2, 0xc1, 0x44, 0xf4, 0x4c, 0xf9, 0x58, 0xac,
+	0xe9, 0xf1, 0xb0, 0x52, 0xc9, 0x58, 0x06, 0xed, 0x7e, 0x6e, 0x71, 0x61, 0x56, 0xb6, 0x28, 0xf1,
+	0x02, 0xcd, 0x6e, 0xc9, 0xd3, 0x10, 0x4d, 0x55, 0x7e, 0xed, 0x5a, 0x92, 0x77, 0x8f, 0x47, 0x8c,
+	0x4a, 0xc6, 0x12, 0xcd, 0x59, 0xda, 0xfb, 0xc6, 0x9b, 0x30, 0x95, 0x9c, 0x43, 0xeb, 0xeb, 0x23,
+	0x5a, 0xa1, 0xfc, 0x5a, 0x29, 0x29, 0x21, 0x6d, 0x82, 0x5e, 0xc9, 0x58, 0x13, 0x5e, 0xda, 0x64,
+	0x9d, 0xc0, 0x42, 0x94, 0xf6, 0x3b, 0xaf, 0x7b, 0xaa, 0xe7, 0x7a, 0x0f, 0xbb, 0xe6, 0x88, 0x10,
+	0xf1, 0x7c, 0x52, 0xc4, 0x19, 0xa3, 0xe0, 0x4a, 0xc6, 0x9a, 0x6b, 0x9f, 0x31, 0x29, 0x76, 0x60,
+	0xc6, 0x45, 0x21, 0xb2, 0xe3, 0xc3, 0x3f, 0xaa, 0x26, 0x96, 0x66, 0x21, 0xcd, 0x62, 0x3d, 0xc6,
+	0x9b, 0xdc, 0x62, 0x6e, 0x8f, 0xc9, 0xe7, 0xdb, 0x60, 0xea, 0x9b, 0x78, 0x5a, 0x98, 0x39, 0x2a,
+	0x64, 0x3c, 0x93, 0x94, 0x91, 0x3e, 0x0c, 0xac, 0x64, 0xac, 0xa9, 0xc3, 0xf4, 0x31, 0xe1, 0x76,
+	0x34, 0xce, 0x8d, 0x0e, 0xa3, 0x98, 0xe6, 0x98, 0xc9, 0x89, 0x19, 0x77, 0x4c, 0x27, 0x39, 0x43,
+	0xdb, 0x86, 0x51, 0x35, 0x47, 0x89, 0x18, 0x8d, 0xa5, 0x31, 0x4a, 0x8e, 0xa7, 0x38, 0x23, 0x9a,
+	0x1c, 0x58, 0xdd, 0x81, 0x61, 0xe1, 0x8b, 0xb2, 0x8f, 0x76, 0xcd, 0x71, 0xc1, 0x65, 0xa6, 0xdb,
+	0xfb, 0xd4, 0x54, 0xa6, 0x92, 0xb1, 0xf2, 0x61, 0x6c, 0x48, 0xb3, 0x09, 0x85, 0xa8, 0x64, 0x63,
+	0xbc, 0x6f, 0x36, 0x27, 0x04, 0x87, 0xb9, 0x53, 0xa7, 0x11, 0x6f, 0xad, 0x2b, 0x19, 0x2b, 0x6a,
+	0x86, 0x65, 0xaf, 0xbd, 0x09, 0x05, 0x95, 0xa7, 0x42, 0xd9, 0x26, 0x99, 0xd3, 0x69, 0x5c, 0x12,
+	0x8d, 0x25, 0xe7, 0x72, 0x9c, 0xe8, 0x34, 0x5f, 0x53, 0x63, 0xa9, 0x13, 0x9e, 0xed, 0x82, 0x88,
+	0x95, 0x29, 0x58, 0x2d, 0xa5, 0xf8, 0x62, 0xbc, 0x31, 0xab, 0x64, 0xd4, 0xcc, 0x2a, 0xd1, 0xad,
+	0xbd, 0x09, 0x53, 0xa7, 0xe6, 0xef, 0xb2, 0x4e, 0x75, 0xcd, 0x99, 0xb4, 0x4b, 0x94, 0xd6, 0xee,
+	0xf0, 0x4b, 0xe4, 0xa4, 0xb5, 0x41, 0x9c, 0xb7, 0xee, 0x16, 0x74, 0x91, 0x25, 0xfa, 0x05, 0x73,
+	0x36, 0x95, 0x77, 0x4a, 0x67, 0x21, 0x78, 0xa7, 0x75, 0x1c, 0x0e, 0xcc, 0xb4, 0x63, 0x05, 0xb1,
+	0x1d, 0x2b, 0xb1, 0x5d, 0x73, 0x2e, 0xed, 0xbe, 0xf4, 0xa8, 0x9f, 0xf9, 0x7d, 0x69, 0xf7, 0x28,
+	0xad, 0x19, 0x2c, 0x09, 0xdf, 0xe1, 0x45, 0x50, 0xb2, 0x20, 0xa3, 0xaa, 0x0e, 0x34, 0xe7, 0x85,
+	0xa8, 0x17, 0xba, 0xdd, 0xa9, 0x57, 0xe5, 0x58, 0xc9, 0x58, 0xe2, 0x35, 0xbf, 0x67, 0x65, 0xf9,
+	0x36, 0x98, 0xca, 0x55, 0xa2, 0x3a, 0x24, 0xba, 0x02, 0x0b, 0x69, 0x97, 0x34, 0xbd, 0x72, 0xe2,
+	0x97, 0xf4, 0x38, 0xbd, 0xa6, 0x6a, 0xc3, 0xf2, 0xa9, 0xe9, 0x66, 0xb7, 0xa4, 0x45, 0x21, 0xe9,
+	0x7a, 0x7a, 0x7c, 0x13, 0x23, 0xcf, 0x14, 0x81, 0x0b, 0xed, 0xb3, 0x08, 0x0c, 0x1f, 0xe6, 0x23,
+	0xb9, 0xf5, 0xa8, 0x94, 0xe9, 0xc8, 0x2c, 0x09, 0x99, 0x2b, 0xe9, 0x32, 0xbb, 0x6b, 0x9f, 0x4a,
+	0xc6, 0x9a, 0x6d, 0xf7, 0xae, 0x8c, 0x5e, 0x83, 0x71, 0x9d, 0x6c, 0x8f, 0xf0, 0x49, 0x94, 0x7d,
+	0xde, 0x49, 0xbb, 0x2c, 0x2a, 0xe1, 0xde, 0xc7, 0x27, 0x9d, 0xbc, 0x33, 0xc6, 0x4e, 0x03, 0x39,
+	0x4b, 0xe1, 0x0f, 0xaa, 0x14, 0xd0, 0x2c, 0x49, 0x1a, 0xcb, 0xae, 0x2a, 0x84, 0xb3, 0x0c, 0xbb,
+	0x4a, 0x93, 0x57, 0x61, 0x2c, 0xfa, 0x16, 0x24, 0x72, 0xaa, 0xf7, 0x65, 0x55, 0xb0, 0x78, 0x2a,
+	0xc4, 0x28, 0xba, 0x98, 0x27, 0x15, 0xdd, 0x53, 0x30, 0xe3, 0x7f, 0x60, 0x52, 0x6b, 0x1d, 0xbd,
+	0x1d, 0x89, 0xca, 0xef, 0x03, 0xc9, 0xf3, 0x4a, 0xaa, 0xe2, 0xfa, 0xe9, 0x88, 0x53, 0xca, 0xa7,
+	0xfa, 0x2e, 0xb0, 0xf1, 0x0e, 0xcc, 0x69, 0xce, 0x21, 0x3a, 0xc2, 0xa4, 0x2d, 0x32, 0x6f, 0xcd,
+	0x63, 0x21, 0xa6, 0xd8, 0x35, 0xff, 0x4f, 0xf2, 0x7f, 0x2e, 0x95, 0xff, 0xbe, 0x5a, 0x60, 0x45,
+	0xf4, 0x95, 0x8c, 0x35, 0xc3, 0x7a, 0x21, 0x8d, 0xff, 0x85, 0xe9, 0x2e, 0x59, 0x6d, 0xe2, 0x71,
+	0xdb, 0xfc, 0xbf, 0x94, 0x73, 0xf5, 0x4c, 0x39, 0x07, 0x82, 0xb6, 0x92, 0xb1, 0x26, 0x59, 0x1a,
+	0xc2, 0x68, 0xc2, 0x42, 0x64, 0x75, 0x87, 0x34, 0x9a, 0x38, 0x60, 0x32, 0x8c, 0x38, 0x3e, 0xf2,
+	0x1a, 0xd8, 0x35, 0xbf, 0x95, 0x4d, 0xcb, 0xef, 0xfa, 0x04, 0xca, 0xb1, 0x25, 0x65, 0xb9, 0x82,
+	0xe7, 0x77, 0xb7, 0x37, 0xda, 0xa8, 0xc1, 0x6c, 0xba, 0xc4, 0x26, 0xf2, 0x5c, 0xf3, 0xdb, 0x52,
+	0xdc, 0xb3, 0xe7, 0x8b, 0xdb, 0x45, 0x1e, 0x97, 0x65, 0xba, 0x3d, 0x70, 0x06, 0x83, 0xc5, 0x74,
+	0x41, 0x14, 0x1f, 0xb6, 0x42, 0xee, 0xae, 0xdf, 0xc9, 0xa6, 0xc5, 0xac, 0x34, 0x61, 0x96, 0x5a,
+	0xc2, 0x63, 0x96, 0x7b, 0x06, 0xde, 0x70, 0x61, 0xa6, 0x23, 0x34, 0x0a, 0xf9, 0x2a, 0xd8, 0x7f,
+	0x37, 0x9b, 0x5a, 0xbe, 0x68, 0x7e, 0x9a, 0x3c, 0x0a, 0xf8, 0xd3, 0x6e, 0x3a, 0x8a, 0x7b, 0x60,
+	0x8a, 0x14, 0x8a, 0x19, 0xf1, 0xdb, 0xd8, 0x35, 0x3f, 0x4c, 0xf5, 0xc0, 0x2e, 0x39, 0x96, 0xa2,
+	0xe7, 0x1e, 0xe8, 0xf6, 0x42, 0x1a, 0x21, 0x2c, 0x45, 0xa5, 0x92, 0x96, 0x29, 0x1b, 0xbd, 0xe8,
+	0x96, 0x7e, 0x2f, 0xd5, 0x8e, 0xba, 0x64, 0x52, 0x8b, 0xee, 0x22, 0xf9, 0xc6, 0x14, 0xc5, 0xfe,
+	0xc3, 0x33, 0xf0, 0x3c, 0x1a, 0x68, 0xbf, 0x77, 0x71, 0x93, 0x30, 0x8f, 0x9f, 0xd7, 0x47, 0xa9,
+	0xd1, 0x40, 0x79, 0xfc, 0xa6, 0x26, 0xe3, 0xd1, 0x80, 0x9d, 0x82, 0x71, 0xaf, 0xd3, 0xfc, 0x8e,
+	0xbd, 0xb0, 0xee, 0x52, 0x74, 0x6c, 0x53, 0xfc, 0x6e, 0x0b, 0x33, 0xce, 0xf8, 0xfb, 0xa9, 0x5e,
+	0xa7, 0x18, 0xbf, 0xa1, 0xe8, 0x2d, 0x4d, 0xce, 0xbd, 0x8e, 0xf5, 0xc0, 0xa5, 0x0a, 0x8a, 0x9e,
+	0x77, 0xcc, 0x1f, 0x5c, 0x44, 0xd0, 0x96, 0x26, 0x4f, 0x11, 0x14, 0xe1, 0x8c, 0x23, 0x98, 0x8f,
+	0x47, 0x75, 0xa7, 0x8e, 0xa4, 0x0f, 0x68, 0x9d, 0x7e, 0x78, 0x56, 0x18, 0xba, 0x8f, 0x4f, 0xca,
+	0x62, 0x41, 0x5c, 0xa9, 0x19, 0xd6, 0x0b, 0x69, 0xbc, 0x05, 0x53, 0xf1, 0x36, 0x2b, 0x26, 0xe6,
+	0x47, 0xd9, 0xb4, 0x0a, 0x26, 0xd6, 0x6e, 0xc5, 0x25, 0x4c, 0x90, 0x14, 0xf8, 0xc6, 0x08, 0xe4,
+	0xc3, 0x93, 0x26, 0x76, 0xe5, 0x27, 0x80, 0xf7, 0x72, 0x83, 0x50, 0xcc, 0xdf, 0xcb, 0x0d, 0xe6,
+	0x8b, 0xc3, 0xf7, 0x72, 0x83, 0x53, 0xc5, 0x69, 0x6b, 0x56, 0x95, 0x01, 0x29, 0xa9, 0xd2, 0x9a,
+	0x53, 0xb8, 0xb4, 0xde, 0xc4, 0x1a, 0x8b, 0x43, 0x91, 0xe7, 0x63, 0xb7, 0xf4, 0x79, 0x9f, 0x6a,
+	0x8e, 0xbb, 0x32, 0xdd, 0xd7, 0xf3, 0x95, 0xe0, 0xbf, 0xc3, 0x44, 0xfc, 0x98, 0xa2, 0x4f, 0xc2,
+	0x3a, 0x8d, 0x73, 0x36, 0x99, 0x62, 0x63, 0x1f, 0x84, 0x5d, 0x85, 0x11, 0xfc, 0xa8, 0xe9, 0xd1,
+	0x93, 0xe4, 0xc7, 0x73, 0xc3, 0x12, 0xa8, 0x5e, 0xc1, 0x5e, 0x84, 0x21, 0xd6, 0xc4, 0xbc, 0xe4,
+	0x43, 0xcd, 0xf3, 0x26, 0xb9, 0x83, 0x82, 0xb2, 0x8c, 0x9a, 0xc6, 0x0d, 0xb8, 0xcc, 0x7f, 0x9f,
+	0x3b, 0xc3, 0x95, 0x54, 0xc6, 0x02, 0x37, 0x4d, 0x98, 0x1c, 0x1f, 0x0e, 0x31, 0xac, 0x5e, 0xe2,
+	0x36, 0xa6, 0x61, 0xd2, 0x4e, 0xd3, 0xb2, 0xf4, 0x33, 0x3d, 0xd4, 0x5a, 0x17, 0x9f, 0x8b, 0xaa,
+	0xd9, 0x67, 0xa7, 0xd9, 0x3b, 0x67, 0x68, 0xb3, 0xd6, 0x19, 0xa5, 0xf6, 0x89, 0x99, 0x9f, 0x19,
+	0xb9, 0x59, 0x82, 0xe1, 0xc1, 0xed, 0xce, 0x38, 0xf5, 0x25, 0xe8, 0x57, 0x9f, 0xbd, 0xc9, 0xe1,
+	0xed, 0xc2, 0xa9, 0x25, 0xb2, 0x4f, 0x92, 0x5f, 0xb5, 0x1d, 0xdc, 0xb6, 0x14, 0x31, 0xd7, 0xb0,
+	0xc9, 0x7b, 0xf3, 0x26, 0x39, 0x56, 0x2f, 0xed, 0x39, 0x6b, 0x88, 0x43, 0x76, 0x39, 0xc0, 0xb8,
+	0x02, 0xc3, 0x14, 0xbf, 0x83, 0x9d, 0x50, 0x11, 0xc8, 0x29, 0x56, 0x5e, 0xc2, 0x24, 0xc9, 0x12,
+	0xe4, 0x43, 0x12, 0x22, 0x5f, 0x51, 0xc8, 0x49, 0x16, 0x08, 0x90, 0x24, 0x98, 0x82, 0x7e, 0x8a,
+	0x11, 0x23, 0x81, 0x30, 0xe0, 0x90, 0xa5, 0xfe, 0xbd, 0xf0, 0x51, 0x16, 0x8c, 0xee, 0xef, 0x1b,
+	0x8d, 0x67, 0x60, 0xd9, 0xda, 0x3a, 0xd8, 0x5a, 0x7f, 0x60, 0xef, 0x56, 0xd6, 0xf7, 0xb6, 0xec,
+	0x7d, 0x6b, 0x67, 0x7b, 0x7b, 0xcb, 0xb2, 0x5f, 0x7f, 0x75, 0x6f, 0x77, 0xab, 0xbc, 0x73, 0x77,
+	0x67, 0x6b, 0xb3, 0x98, 0xe9, 0x49, 0xb5, 0xfe, 0xe0, 0x81, 0x5d, 0x7e, 0xf8, 0xca, 0x2b, 0x3b,
+	0xfb, 0x7b, 0xc5, 0xac, 0xb1, 0x02, 0xcf, 0xa4, 0x52, 0x49, 0x0a, 0x7b, 0x73, 0x6b, 0x7d, 0xf3,
+	0xc1, 0xce, 0xab, 0x5b, 0xc5, 0xbe, 0x8d, 0xff, 0xfa, 0xe4, 0xf1, 0x62, 0xf6, 0xd3, 0xc7, 0x8b,
+	0xd9, 0x3f, 0x3e, 0x5e, 0xcc, 0xfe, 0xf8, 0xb3, 0xc5, 0xcc, 0xa7, 0x9f, 0x2d, 0x66, 0x7e, 0xf7,
+	0xd9, 0x62, 0xe6, 0xcd, 0x6b, 0x35, 0x2f, 0xac, 0xb7, 0x0e, 0x57, 0x1d, 0xd2, 0xb8, 0xb9, 0x4f,
+	0x5b, 0x22, 0x17, 0xdd, 0x0c, 0x88, 0x8b, 0x6f, 0x3e, 0xba, 0x29, 0xbe, 0xca, 0xe5, 0x97, 0x98,
+	0x1d, 0xf6, 0x8b, 0x4f, 0x71, 0xff, 0xf9, 0xef, 0x01, 0x00, 0x00, 0xff, 0xff, 0x83, 0x36, 0x32,
+	0x2a, 0xe9, 0x2c, 0x00, 0x00,
 }
 
 func (m *EventSessionCreated) Marshal() (dAtA []byte, err error) {
@@ -3396,161 +3297,6 @@ func (m *EventTaskFailureClassUpdated_SettlementIdOrEmpty) MarshalToSizedBuffer(
 	}
 	return len(dAtA) - i, nil
 }
-func (m *EventWorkerHandraisesAccepted) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *EventWorkerHandraisesAccepted) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventWorkerHandraisesAccepted) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.UnionCount != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.UnionCount))
-		i--
-		dAtA[i] = 0x38
-	}
-	if m.XBuilderOrEmpty != nil {
-		{
-			size := m.XBuilderOrEmpty.Size()
-			i -= size
-			if _, err := m.XBuilderOrEmpty.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if len(m.AddedBitmapHash) > 0 {
-		i -= len(m.AddedBitmapHash)
-		copy(dAtA[i:], m.AddedBitmapHash)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.AddedBitmapHash)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if len(m.ProposalDigest) > 0 {
-		i -= len(m.ProposalDigest)
-		copy(dAtA[i:], m.ProposalDigest)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.ProposalDigest)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if m.OrderSequence != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.OrderSequence))
-		i--
-		dAtA[i] = 0x18
-	}
-	if len(m.TaskId) > 0 {
-		i -= len(m.TaskId)
-		copy(dAtA[i:], m.TaskId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.TaskId)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.SessionId) > 0 {
-		i -= len(m.SessionId)
-		copy(dAtA[i:], m.SessionId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.SessionId)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *EventWorkerHandraisesAccepted_BuilderOrEmpty) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventWorkerHandraisesAccepted_BuilderOrEmpty) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	i -= len(m.BuilderOrEmpty)
-	copy(dAtA[i:], m.BuilderOrEmpty)
-	i = encodeVarintEvent(dAtA, i, uint64(len(m.BuilderOrEmpty)))
-	i--
-	dAtA[i] = 0x32
-	return len(dAtA) - i, nil
-}
-func (m *EventWorkerAssignmentFinalized) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *EventWorkerAssignmentFinalized) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventWorkerAssignmentFinalized) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.InferDeadline != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.InferDeadline))
-		i--
-		dAtA[i] = 0x38
-	}
-	{
-		size, err := m.ReservedAmount.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintEvent(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x32
-	if m.RandomnessHeight != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.RandomnessHeight))
-		i--
-		dAtA[i] = 0x28
-	}
-	if len(m.AssignmentCandidateSetHash) > 0 {
-		i -= len(m.AssignmentCandidateSetHash)
-		copy(dAtA[i:], m.AssignmentCandidateSetHash)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.AssignmentCandidateSetHash)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if len(m.WinnerWorker) > 0 {
-		i -= len(m.WinnerWorker)
-		copy(dAtA[i:], m.WinnerWorker)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.WinnerWorker)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.TaskId) > 0 {
-		i -= len(m.TaskId)
-		copy(dAtA[i:], m.TaskId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.TaskId)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.SessionId) > 0 {
-		i -= len(m.SessionId)
-		copy(dAtA[i:], m.SessionId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.SessionId)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *EventInferReceiptAccepted) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -4126,58 +3872,6 @@ func (m *EventDeadlineSwept_TaskId) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	}
 	return len(dAtA) - i, nil
 }
-func (m *EventAssignmentFailed) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *EventAssignmentFailed) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventAssignmentFailed) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	{
-		size, err := m.RefundAmount.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintEvent(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x22
-	if m.Reason != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.Reason))
-		i--
-		dAtA[i] = 0x18
-	}
-	if len(m.TaskId) > 0 {
-		i -= len(m.TaskId)
-		copy(dAtA[i:], m.TaskId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.TaskId)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.SessionId) > 0 {
-		i -= len(m.SessionId)
-		copy(dAtA[i:], m.SessionId)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.SessionId)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *EventWorkerTimeout) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -4847,48 +4541,6 @@ func (m *TaskProtocolEventPayloadV1_TaskFailureClassUpdated) MarshalToSizedBuffe
 	}
 	return len(dAtA) - i, nil
 }
-func (m *TaskProtocolEventPayloadV1_WorkerHandraisesAccepted) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *TaskProtocolEventPayloadV1_WorkerHandraisesAccepted) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.WorkerHandraisesAccepted != nil {
-		{
-			size, err := m.WorkerHandraisesAccepted.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintEvent(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x52
-	}
-	return len(dAtA) - i, nil
-}
-func (m *TaskProtocolEventPayloadV1_WorkerAssignmentFinalized) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *TaskProtocolEventPayloadV1_WorkerAssignmentFinalized) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.WorkerAssignmentFinalized != nil {
-		{
-			size, err := m.WorkerAssignmentFinalized.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintEvent(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x5a
-	}
-	return len(dAtA) - i, nil
-}
 func (m *TaskProtocolEventPayloadV1_InferReceiptAccepted) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
@@ -5065,29 +4717,6 @@ func (m *TaskProtocolEventPayloadV1_DeadlineSwept) MarshalToSizedBuffer(dAtA []b
 	}
 	return len(dAtA) - i, nil
 }
-func (m *TaskProtocolEventPayloadV1_AssignmentFailed) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *TaskProtocolEventPayloadV1_AssignmentFailed) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.AssignmentFailed != nil {
-		{
-			size, err := m.AssignmentFailed.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintEvent(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0xb2
-	}
-	return len(dAtA) - i, nil
-}
 func (m *TaskProtocolEventPayloadV1_WorkerTimeout) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
@@ -5249,6 +4878,29 @@ func (m *TaskProtocolEventPayloadV1_WorkerEvidenceAccepted) MarshalToSizedBuffer
 	}
 	return len(dAtA) - i, nil
 }
+func (m *TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.VerifierValueEvidenceAccepted != nil {
+		{
+			size, err := m.VerifierValueEvidenceAccepted.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xf2
+	}
+	return len(dAtA) - i, nil
+}
 func (m *TaskProtocolEventPayloadV1_VerifierHandraisesAccepted) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
@@ -5315,6 +4967,351 @@ func (m *TaskProtocolEventPayloadV1_TaskParamsUpdated) MarshalToSizedBuffer(dAtA
 		dAtA[i] = 0x6
 		i--
 		dAtA[i] = 0xfa
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchRecorded) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchRecorded) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchRecorded != nil {
+		{
+			size, err := m.DispatchRecorded.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0x82
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionBuilderBound) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionBuilderBound) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionBuilderBound != nil {
+		{
+			size, err := m.SessionBuilderBound.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0x8a
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverRegistered) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverRegistered) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionTakeoverRegistered != nil {
+		{
+			size, err := m.SessionTakeoverRegistered.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0x92
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverVoided) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverVoided) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionTakeoverVoided != nil {
+		{
+			size, err := m.SessionTakeoverVoided.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0x9a
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationClaimed) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationClaimed) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchCompensationClaimed != nil {
+		{
+			size, err := m.DispatchCompensationClaimed.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xa2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationPaid) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationPaid) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchCompensationPaid != nil {
+		{
+			size, err := m.DispatchCompensationPaid.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xaa
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationRebutted) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationRebutted) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchCompensationRebutted != nil {
+		{
+			size, err := m.DispatchCompensationRebutted.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xb2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeOpened) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeOpened) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchChallengeOpened != nil {
+		{
+			size, err := m.DispatchChallengeOpened.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xba
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeResolved) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeResolved) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.DispatchChallengeResolved != nil {
+		{
+			size, err := m.DispatchChallengeResolved.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xc2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.BuilderDispatchFaultRecorded != nil {
+		{
+			size, err := m.BuilderDispatchFaultRecorded.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xca
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionDeposited) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionDeposited) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionDeposited != nil {
+		{
+			size, err := m.SessionDeposited.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xd2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawRequested) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawRequested) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionWithdrawRequested != nil {
+		{
+			size, err := m.SessionWithdrawRequested.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xda
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawEffective) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawEffective) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionWithdrawEffective != nil {
+		{
+			size, err := m.SessionWithdrawEffective.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xe2
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_SessionKeyChangeRequested) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_SessionKeyChangeRequested) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.SessionKeyChangeRequested != nil {
+		{
+			size, err := m.SessionKeyChangeRequested.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xea
+	}
+	return len(dAtA) - i, nil
+}
+func (m *TaskProtocolEventPayloadV1_OrderCancelRequested) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TaskProtocolEventPayloadV1_OrderCancelRequested) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.OrderCancelRequested != nil {
+		{
+			size, err := m.OrderCancelRequested.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintEvent(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x8
+		i--
+		dAtA[i] = 0xf2
 	}
 	return len(dAtA) - i, nil
 }
@@ -5597,83 +5594,6 @@ func (m *EventTaskFailureClassUpdated_SettlementIdOrEmpty) Size() (n int) {
 	}
 	return n
 }
-func (m *EventWorkerHandraisesAccepted) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.SessionId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.OrderSequence != 0 {
-		n += 1 + sovEvent(uint64(m.OrderSequence))
-	}
-	l = len(m.ProposalDigest)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.AddedBitmapHash)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.XBuilderOrEmpty != nil {
-		n += m.XBuilderOrEmpty.Size()
-	}
-	if m.UnionCount != 0 {
-		n += 1 + sovEvent(uint64(m.UnionCount))
-	}
-	return n
-}
-
-func (m *EventWorkerHandraisesAccepted_BuilderOrEmpty) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.BuilderOrEmpty)
-	n += 1 + l + sovEvent(uint64(l))
-	return n
-}
-func (m *EventWorkerAssignmentFinalized) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.SessionId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.WinnerWorker)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.AssignmentCandidateSetHash)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.RandomnessHeight != 0 {
-		n += 1 + sovEvent(uint64(m.RandomnessHeight))
-	}
-	l = m.ReservedAmount.Size()
-	n += 1 + l + sovEvent(uint64(l))
-	if m.InferDeadline != 0 {
-		n += 1 + sovEvent(uint64(m.InferDeadline))
-	}
-	return n
-}
-
 func (m *EventInferReceiptAccepted) Size() (n int) {
 	if m == nil {
 		return 0
@@ -5974,28 +5894,6 @@ func (m *EventDeadlineSwept_TaskId) Size() (n int) {
 	}
 	return n
 }
-func (m *EventAssignmentFailed) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.SessionId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.Reason != 0 {
-		n += 1 + sovEvent(uint64(m.Reason))
-	}
-	l = m.RefundAmount.Size()
-	n += 1 + l + sovEvent(uint64(l))
-	return n
-}
-
 func (m *EventWorkerTimeout) Size() (n int) {
 	if m == nil {
 		return 0
@@ -6319,30 +6217,6 @@ func (m *TaskProtocolEventPayloadV1_TaskFailureClassUpdated) Size() (n int) {
 	}
 	return n
 }
-func (m *TaskProtocolEventPayloadV1_WorkerHandraisesAccepted) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.WorkerHandraisesAccepted != nil {
-		l = m.WorkerHandraisesAccepted.Size()
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	return n
-}
-func (m *TaskProtocolEventPayloadV1_WorkerAssignmentFinalized) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.WorkerAssignmentFinalized != nil {
-		l = m.WorkerAssignmentFinalized.Size()
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	return n
-}
 func (m *TaskProtocolEventPayloadV1_InferReceiptAccepted) Size() (n int) {
 	if m == nil {
 		return 0
@@ -6439,18 +6313,6 @@ func (m *TaskProtocolEventPayloadV1_DeadlineSwept) Size() (n int) {
 	}
 	return n
 }
-func (m *TaskProtocolEventPayloadV1_AssignmentFailed) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.AssignmentFailed != nil {
-		l = m.AssignmentFailed.Size()
-		n += 2 + l + sovEvent(uint64(l))
-	}
-	return n
-}
 func (m *TaskProtocolEventPayloadV1_WorkerTimeout) Size() (n int) {
 	if m == nil {
 		return 0
@@ -6535,6 +6397,18 @@ func (m *TaskProtocolEventPayloadV1_WorkerEvidenceAccepted) Size() (n int) {
 	}
 	return n
 }
+func (m *TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.VerifierValueEvidenceAccepted != nil {
+		l = m.VerifierValueEvidenceAccepted.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
 func (m *TaskProtocolEventPayloadV1_VerifierHandraisesAccepted) Size() (n int) {
 	if m == nil {
 		return 0
@@ -6567,6 +6441,186 @@ func (m *TaskProtocolEventPayloadV1_TaskParamsUpdated) Size() (n int) {
 	_ = l
 	if m.TaskParamsUpdated != nil {
 		l = m.TaskParamsUpdated.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchRecorded) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchRecorded != nil {
+		l = m.DispatchRecorded.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionBuilderBound) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionBuilderBound != nil {
+		l = m.SessionBuilderBound.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverRegistered) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionTakeoverRegistered != nil {
+		l = m.SessionTakeoverRegistered.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionTakeoverVoided) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionTakeoverVoided != nil {
+		l = m.SessionTakeoverVoided.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationClaimed) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchCompensationClaimed != nil {
+		l = m.DispatchCompensationClaimed.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationPaid) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchCompensationPaid != nil {
+		l = m.DispatchCompensationPaid.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchCompensationRebutted) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchCompensationRebutted != nil {
+		l = m.DispatchCompensationRebutted.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeOpened) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchChallengeOpened != nil {
+		l = m.DispatchChallengeOpened.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_DispatchChallengeResolved) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.DispatchChallengeResolved != nil {
+		l = m.DispatchChallengeResolved.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BuilderDispatchFaultRecorded != nil {
+		l = m.BuilderDispatchFaultRecorded.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionDeposited) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionDeposited != nil {
+		l = m.SessionDeposited.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawRequested) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionWithdrawRequested != nil {
+		l = m.SessionWithdrawRequested.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionWithdrawEffective) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionWithdrawEffective != nil {
+		l = m.SessionWithdrawEffective.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_SessionKeyChangeRequested) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SessionKeyChangeRequested != nil {
+		l = m.SessionKeyChangeRequested.Size()
+		n += 2 + l + sovEvent(uint64(l))
+	}
+	return n
+}
+func (m *TaskProtocolEventPayloadV1_OrderCancelRequested) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.OrderCancelRequested != nil {
+		l = m.OrderCancelRequested.Size()
 		n += 2 + l + sovEvent(uint64(l))
 	}
 	return n
@@ -7339,517 +7393,6 @@ func (m *EventTaskFailureClassUpdated) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.FreezeSignalEligible = bool(v != 0)
-		default:
-			iNdEx = preIndex
-			skippy, err := skipEvent(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *EventWorkerHandraisesAccepted) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowEvent
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: EventWorkerHandraisesAccepted: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: EventWorkerHandraisesAccepted: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SessionId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SessionId = append(m.SessionId[:0], dAtA[iNdEx:postIndex]...)
-			if m.SessionId == nil {
-				m.SessionId = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
-			if m.TaskId == nil {
-				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OrderSequence", wireType)
-			}
-			m.OrderSequence = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.OrderSequence |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ProposalDigest", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ProposalDigest = append(m.ProposalDigest[:0], dAtA[iNdEx:postIndex]...)
-			if m.ProposalDigest == nil {
-				m.ProposalDigest = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AddedBitmapHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.AddedBitmapHash = append(m.AddedBitmapHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.AddedBitmapHash == nil {
-				m.AddedBitmapHash = []byte{}
-			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BuilderOrEmpty", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XBuilderOrEmpty = &EventWorkerHandraisesAccepted_BuilderOrEmpty{string(dAtA[iNdEx:postIndex])}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UnionCount", wireType)
-			}
-			m.UnionCount = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.UnionCount |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipEvent(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *EventWorkerAssignmentFinalized) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowEvent
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: EventWorkerAssignmentFinalized: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: EventWorkerAssignmentFinalized: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SessionId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SessionId = append(m.SessionId[:0], dAtA[iNdEx:postIndex]...)
-			if m.SessionId == nil {
-				m.SessionId = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
-			if m.TaskId == nil {
-				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WinnerWorker", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.WinnerWorker = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentCandidateSetHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.AssignmentCandidateSetHash = append(m.AssignmentCandidateSetHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.AssignmentCandidateSetHash == nil {
-				m.AssignmentCandidateSetHash = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RandomnessHeight", wireType)
-			}
-			m.RandomnessHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.RandomnessHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReservedAmount", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.ReservedAmount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field InferDeadline", wireType)
-			}
-			m.InferDeadline = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.InferDeadline |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEvent(dAtA[iNdEx:])
@@ -9846,176 +9389,6 @@ func (m *EventDeadlineSwept) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipEvent(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *EventAssignmentFailed) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowEvent
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: EventAssignmentFailed: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: EventAssignmentFailed: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SessionId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SessionId = append(m.SessionId[:0], dAtA[iNdEx:postIndex]...)
-			if m.SessionId == nil {
-				m.SessionId = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
-			if m.TaskId == nil {
-				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Reason", wireType)
-			}
-			m.Reason = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Reason |= AssignmentFailureReason(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RefundAmount", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.RefundAmount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEvent(dAtA[iNdEx:])
@@ -12061,76 +11434,6 @@ func (m *TaskProtocolEventPayloadV1) Unmarshal(dAtA []byte) error {
 			}
 			m.TypedEvent = &TaskProtocolEventPayloadV1_TaskFailureClassUpdated{v}
 			iNdEx = postIndex
-		case 10:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WorkerHandraisesAccepted", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &EventWorkerHandraisesAccepted{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.TypedEvent = &TaskProtocolEventPayloadV1_WorkerHandraisesAccepted{v}
-			iNdEx = postIndex
-		case 11:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WorkerAssignmentFinalized", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &EventWorkerAssignmentFinalized{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.TypedEvent = &TaskProtocolEventPayloadV1_WorkerAssignmentFinalized{v}
-			iNdEx = postIndex
 		case 12:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InferReceiptAccepted", wireType)
@@ -12411,41 +11714,6 @@ func (m *TaskProtocolEventPayloadV1) Unmarshal(dAtA []byte) error {
 			}
 			m.TypedEvent = &TaskProtocolEventPayloadV1_DeadlineSwept{v}
 			iNdEx = postIndex
-		case 22:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentFailed", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := &EventAssignmentFailed{}
-			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			m.TypedEvent = &TaskProtocolEventPayloadV1_AssignmentFailed{v}
-			iNdEx = postIndex
 		case 23:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field WorkerTimeout", wireType)
@@ -12691,6 +11959,41 @@ func (m *TaskProtocolEventPayloadV1) Unmarshal(dAtA []byte) error {
 			}
 			m.TypedEvent = &TaskProtocolEventPayloadV1_WorkerEvidenceAccepted{v}
 			iNdEx = postIndex
+		case 30:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierValueEvidenceAccepted", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventVerifierValueEvidenceAccepted{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_VerifierValueEvidenceAccepted{v}
+			iNdEx = postIndex
 		case 34:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field VerifierHandraisesAccepted", wireType)
@@ -12795,6 +12098,531 @@ func (m *TaskProtocolEventPayloadV1) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			m.TypedEvent = &TaskProtocolEventPayloadV1_TaskParamsUpdated{v}
+			iNdEx = postIndex
+		case 128:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchRecorded", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchRecorded{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchRecorded{v}
+			iNdEx = postIndex
+		case 129:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionBuilderBound", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionBuilderBound{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionBuilderBound{v}
+			iNdEx = postIndex
+		case 130:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionTakeoverRegistered", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionTakeoverRegistered{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionTakeoverRegistered{v}
+			iNdEx = postIndex
+		case 131:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionTakeoverVoided", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionTakeoverVoided{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionTakeoverVoided{v}
+			iNdEx = postIndex
+		case 132:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchCompensationClaimed", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchCompensationClaimed{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchCompensationClaimed{v}
+			iNdEx = postIndex
+		case 133:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchCompensationPaid", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchCompensationPaid{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchCompensationPaid{v}
+			iNdEx = postIndex
+		case 134:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchCompensationRebutted", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchCompensationRebutted{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchCompensationRebutted{v}
+			iNdEx = postIndex
+		case 135:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchChallengeOpened", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchChallengeOpened{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchChallengeOpened{v}
+			iNdEx = postIndex
+		case 136:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchChallengeResolved", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventDispatchChallengeResolved{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_DispatchChallengeResolved{v}
+			iNdEx = postIndex
+		case 137:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BuilderDispatchFaultRecorded", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventBuilderDispatchFaultRecorded{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_BuilderDispatchFaultRecorded{v}
+			iNdEx = postIndex
+		case 138:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionDeposited", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionDeposited{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionDeposited{v}
+			iNdEx = postIndex
+		case 139:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionWithdrawRequested", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionWithdrawRequested{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionWithdrawRequested{v}
+			iNdEx = postIndex
+		case 140:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionWithdrawEffective", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionWithdrawEffective{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionWithdrawEffective{v}
+			iNdEx = postIndex
+		case 141:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionKeyChangeRequested", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventSessionKeyChangeRequested{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_SessionKeyChangeRequested{v}
+			iNdEx = postIndex
+		case 142:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OrderCancelRequested", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EventOrderCancelRequested{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.TypedEvent = &TaskProtocolEventPayloadV1_OrderCancelRequested{v}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -6,8 +6,20 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
+	hubtypes "github.com/TrueOpen/node/x/hub/types"
 	tasktypes "github.com/TrueOpen/node/x/task/types"
 )
+
+// epochHubKeeper is the Hub stub with an epoch length: replacing a params
+// version archives the old body, and the archive's prune floor is an epoch
+// boundary.
+type epochHubKeeper struct{ stubHubKeeper }
+
+func (h epochHubKeeper) GetHubParams(ctx sdk.Context) hubtypes.HubParamsSnapshot {
+	params := h.stubHubKeeper.GetHubParams(ctx)
+	params.EpochLengthBlocks = hubtypes.DefaultHubParams().Epoch.EpochLengthBlocks
+	return params
+}
 
 // preAnchorParams is a params body as a chain recorded it before the anchor
 // audit existed: none of the anchor parameters is present.
@@ -39,7 +51,7 @@ func requireRecommendedAnchorParams(t *testing.T, p tasktypes.TaskParamsV1) {
 // recommended windows, and the replaced pre-anchor body is archived unchanged
 // with its recorded commitment.
 func TestAnchorUpgradeWritesRecommendedWindows(t *testing.T) {
-	f := initFixture(t)
+	f := initFixtureWithHub(t, epochHubKeeper{})
 	chainID := sdk.UnwrapSDKContext(f.ctx).ChainID()
 	old := preAnchorParams()
 	oldHash, err := tasktypes.TaskParamsHashV1(chainID, 1, old)
@@ -62,8 +74,8 @@ func TestAnchorUpgradeWritesRecommendedWindows(t *testing.T) {
 	require.Equal(t, newHash, meta.ParamsHash)
 	archived, err := f.keeper.ParamsHistory.Get(f.ctx, 1)
 	require.NoError(t, err)
-	require.Equal(t, old, archived, "the replaced version keeps its recorded body")
-	archivedHash, err := tasktypes.TaskParamsHashV1(chainID, 1, archived)
+	require.Equal(t, old, archived.Params, "the replaced version keeps its recorded body")
+	archivedHash, err := tasktypes.TaskParamsHashV1(chainID, 1, archived.Params)
 	require.NoError(t, err)
 	require.Equal(t, oldHash, archivedHash, "and its recorded commitment")
 
@@ -102,7 +114,7 @@ func TestAnchorUpgradeKeepsChosenWindows(t *testing.T) {
 // A new binary cold-starting from a genesis written before the anchor audit
 // fills the recommended windows; a genesis that carries windows keeps them.
 func TestAnchorColdStartWritesRecommendedWindows(t *testing.T) {
-	f := initFixture(t)
+	f := initFixtureWithHub(t, epochHubKeeper{})
 	genesis := tasktypes.DefaultGenesis()
 	genesis.Params = preAnchorParams()
 	require.NoError(t, genesis.Validate())
@@ -130,4 +142,31 @@ func TestAnchorColdStartWritesRecommendedWindows(t *testing.T) {
 	stock, err := h.keeper.Params.Get(h.ctx)
 	require.NoError(t, err)
 	requireRecommendedAnchorParams(t, stock)
+}
+
+// A pre-anchor genesis that carries live Sessions and Tasks cold-starts too:
+// its rows stay bound to the body they were created under, which becomes a
+// referenced history row, and the current version carries the recommended
+// windows.
+func TestAnchorColdStartKeepsLiveRowsOnTheirRecordedParams(t *testing.T) {
+	f := initFixtureWithHub(t, epochHubKeeper{})
+	chainID := sdk.UnwrapSDKContext(f.ctx).ChainID()
+	genesis := taskGenesisV1(t, chainID)
+	genesis.Params = preAnchorParams()
+	require.NotEmpty(t, genesis.TaskCores)
+	require.NoError(t, genesis.Validate())
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
+
+	got, err := f.keeper.Params.Get(f.ctx)
+	require.NoError(t, err)
+	requireRecommendedAnchorParams(t, got)
+	bound, err := f.keeper.ParamsForTask(f.ctx, tasktypes.NewTaskKey(genesis.TaskCores[0].TaskId))
+	require.NoError(t, err)
+	require.Equal(t, genesis.Params, bound, "a Task imported from a pre-anchor genesis keeps its recorded body")
+	require.NoError(t, f.keeper.EnsureParamsVersionInvariant(f.ctx))
+
+	exported, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.NoError(t, exported.Validate())
+	requireRecommendedAnchorParams(t, exported.Params)
 }

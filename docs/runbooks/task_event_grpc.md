@@ -27,6 +27,19 @@ The corresponding environment variables use the `NODED_` prefix, for example
 `SubscribeProtocolEvents`. The remaining settings bound subscriber memory,
 replay work, and local RPC pressure.
 
+Event routing can query module state at the original event height. Keep ABCI
+state history and CometBFT block results for at least `max-replay-blocks`, plus
+the maximum live reader lag. The SDK default state retention covers the default
+10,000 block replay range; `pruning = "everything"` does not. A state-synced
+server cannot replay below its first available state height. Clients must query
+current state and establish a new live baseline there, or use an archival event
+server. A routing query failure returns `UNAVAILABLE`; it is not silently skipped.
+If a live reader has fallen behind retained history, restart it after restoring
+the required history or establish a new baseline and reconcile client state.
+Startup rejects a configured state retention no greater than the replay range.
+Custom retention must additionally allow the expected live reader lag; that
+operational margin cannot be inferred from the replay setting alone.
+
 ## Public contract
 
 The public definitions are:
@@ -61,7 +74,7 @@ This stream routes events to one service operator. `target_role` must be
 `EVENT_ROLE_WORKER`, `EVENT_ROLE_VERIFIER`, or `EVENT_ROLE_BUILDER`. An empty
 `codes` filter selects every matching task event.
 
-Assignment and verification-open events carry structured repeated targets. A
+Dispatch-recorded and verification-open events carry structured repeated targets. A
 consumer should use this stream for discovery, then query the task and follow it
 through `SubscribeTaskEvents`.
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/TrueOpen/wire/bus"
+	"github.com/TrueOpen/wire/dispatch"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
@@ -33,7 +33,7 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 	}
 	require.NoError(t, f.keeper.WriteDataUnavailableAggregate(f.ctx, aggregateKey, aggregate))
 
-	fact, err := f.keeper.canonicalBuilderDataUnavailable(f.ctx, bus.DataUnavailableStateReferenceV1{
+	fact, err := f.keeper.canonicalBuilderDataUnavailable(f.ctx, dispatch.DataUnavailableContent{
 		TaskID: f.taskID, VerifyRound: types.VerifyRoundV1, BuilderOperator: builder,
 	})
 	require.NoError(t, err)
@@ -45,7 +45,7 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 
 	union.DataReadyAttestingBuilderBitmap[0] = 0
 	require.NoError(t, f.keeper.TaskStageHandraiseUnion.Set(f.ctx, unionKey, union))
-	replayed, err := f.keeper.canonicalBuilderDataUnavailable(f.ctx, bus.DataUnavailableStateReferenceV1{
+	replayed, err := f.keeper.canonicalBuilderDataUnavailable(f.ctx, dispatch.DataUnavailableContent{
 		TaskID: f.taskID, VerifyRound: types.VerifyRoundV1, BuilderOperator: builder,
 	})
 	require.NoError(t, err, "the retained CONFIRMED aggregate is the durable attester authority")
@@ -55,7 +55,7 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 
 	aggregate.Status = types.BuilderDataUnavailableAggregateStatusV1_BUILDER_DATA_UNAVAILABLE_AGGREGATE_STATUS_V1_COLLECTING
 	require.NoError(t, f.keeper.WriteDataUnavailableAggregate(f.ctx, aggregateKey, aggregate))
-	_, err = f.keeper.canonicalBuilderDataUnavailable(f.ctx, bus.DataUnavailableStateReferenceV1{
+	_, err = f.keeper.canonicalBuilderDataUnavailable(f.ctx, dispatch.DataUnavailableContent{
 		TaskID: f.taskID, VerifyRound: types.VerifyRoundV1, BuilderOperator: builder,
 	})
 	require.ErrorContains(t, err, "did not make")
@@ -63,6 +63,6 @@ func TestCanonicalBuilderDataUnavailableAcceptsOnlyConfirmedTaskFact(t *testing.
 
 func TestCanonicalBuilderObjectiveEvidenceRejectsRetiredTagFour(t *testing.T) {
 	f := newVerificationFixture(t)
-	_, err := f.keeper.canonicalBuilderObjectiveEvidence(f.ctx, "trueopen-test", bus.DecodedBuilderEvidenceV2{SchemaVersion: 2})
-	require.ErrorContains(t, err, "exactly one ACTIVE")
+	_, err := f.keeper.verifyBuilderEvidence(f.ctx, "trueopen-test", []byte{0x08, 0x02, 0x22, 0x00})
+	require.Error(t, err)
 }

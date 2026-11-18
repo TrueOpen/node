@@ -76,31 +76,22 @@ func (TaskCleanupStatus) EnumDescriptor() ([]byte, []int) {
 // pending assignment never reports a default winner.
 // TaskAssignmentViewV1 defines the TaskAssignmentViewV1 wire type.
 type TaskAssignmentViewV1 struct {
-	TaskId                     []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	AssignAcceptHeight         uint64 `protobuf:"varint,2,opt,name=assign_accept_height,json=assignAcceptHeight,proto3" json:"assign_accept_height,omitempty"`
-	AssignmentRandomnessHeight uint64 `protobuf:"varint,3,opt,name=assignment_randomness_height,json=assignmentRandomnessHeight,proto3" json:"assignment_randomness_height,omitempty"`
+	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	// Types that are valid to be assigned to XWinnerConfirmHeight:
 	//	*TaskAssignmentViewV1_WinnerConfirmHeight
 	XWinnerConfirmHeight isTaskAssignmentViewV1_XWinnerConfirmHeight `protobuf_oneof:"_winner_confirm_height"`
 	// Types that are valid to be assigned to XInferDeadlineHeight:
 	//	*TaskAssignmentViewV1_InferDeadlineHeight
-	XInferDeadlineHeight isTaskAssignmentViewV1_XInferDeadlineHeight `protobuf_oneof:"_infer_deadline_height"`
-	// Types that are valid to be assigned to XAssignmentFailReason:
-	//	*TaskAssignmentViewV1_AssignmentFailReason
-	XAssignmentFailReason      isTaskAssignmentViewV1_XAssignmentFailReason `protobuf_oneof:"_assignment_fail_reason"`
-	CandidatePoolSnapshotId    []byte                                       `protobuf:"bytes,7,opt,name=candidate_pool_snapshot_id,json=candidatePoolSnapshotId,proto3" json:"candidate_pool_snapshot_id,omitempty"`
-	CandidatePoolHash          []byte                                       `protobuf:"bytes,8,opt,name=candidate_pool_hash,json=candidatePoolHash,proto3" json:"candidate_pool_hash,omitempty"`
-	AssignmentCandidateSetHash []byte                                       `protobuf:"bytes,9,opt,name=assignment_candidate_set_hash,json=assignmentCandidateSetHash,proto3" json:"assignment_candidate_set_hash,omitempty"`
+	XInferDeadlineHeight    isTaskAssignmentViewV1_XInferDeadlineHeight `protobuf_oneof:"_infer_deadline_height"`
+	CandidatePoolSnapshotId []byte                                      `protobuf:"bytes,7,opt,name=candidate_pool_snapshot_id,json=candidatePoolSnapshotId,proto3" json:"candidate_pool_snapshot_id,omitempty"`
+	CandidatePoolHash       []byte                                      `protobuf:"bytes,8,opt,name=candidate_pool_hash,json=candidatePoolHash,proto3" json:"candidate_pool_hash,omitempty"`
 	// Types that are valid to be assigned to XWinnerWorker:
 	//	*TaskAssignmentViewV1_WinnerWorker
-	XWinnerWorker isTaskAssignmentViewV1_XWinnerWorker `protobuf_oneof:"_winner_worker"`
-	// Types that are valid to be assigned to XWinnerDrawDigest:
-	//	*TaskAssignmentViewV1_WinnerDrawDigest
-	XWinnerDrawDigest            isTaskAssignmentViewV1_XWinnerDrawDigest `protobuf_oneof:"_winner_draw_digest"`
-	ProfileExecutionSnapshotHash []byte                                   `protobuf:"bytes,12,opt,name=profile_execution_snapshot_hash,json=profileExecutionSnapshotHash,proto3" json:"profile_execution_snapshot_hash,omitempty"`
-	JudgmentFunctionVersion      string                                   `protobuf:"bytes,13,opt,name=judgment_function_version,json=judgmentFunctionVersion,proto3" json:"judgment_function_version,omitempty"`
-	EvidenceSchemaHash           []byte                                   `protobuf:"bytes,14,opt,name=evidence_schema_hash,json=evidenceSchemaHash,proto3" json:"evidence_schema_hash,omitempty"`
-	CanonicalEncodingVersion     string                                   `protobuf:"bytes,15,opt,name=canonical_encoding_version,json=canonicalEncodingVersion,proto3" json:"canonical_encoding_version,omitempty"`
+	XWinnerWorker                isTaskAssignmentViewV1_XWinnerWorker `protobuf_oneof:"_winner_worker"`
+	ProfileExecutionSnapshotHash []byte                               `protobuf:"bytes,12,opt,name=profile_execution_snapshot_hash,json=profileExecutionSnapshotHash,proto3" json:"profile_execution_snapshot_hash,omitempty"`
+	JudgmentFunctionVersion      string                               `protobuf:"bytes,13,opt,name=judgment_function_version,json=judgmentFunctionVersion,proto3" json:"judgment_function_version,omitempty"`
+	EvidenceSchemaHash           []byte                               `protobuf:"bytes,14,opt,name=evidence_schema_hash,json=evidenceSchemaHash,proto3" json:"evidence_schema_hash,omitempty"`
+	CanonicalEncodingVersion     string                               `protobuf:"bytes,15,opt,name=canonical_encoding_version,json=canonicalEncodingVersion,proto3" json:"canonical_encoding_version,omitempty"`
 	// Immutable assignment fact. Worker, Verifier and settlement consumers copy
 	// this value through unchanged and never recompute it from current defaults.
 	GenerationParamsDigest      []byte           `protobuf:"bytes,16,opt,name=generation_params_digest,json=generationParamsDigest,proto3" json:"generation_params_digest,omitempty"`
@@ -109,7 +100,10 @@ type TaskAssignmentViewV1 struct {
 	WorkerInferTimeoutSlashBps  uint32           `protobuf:"varint,19,opt,name=worker_infer_timeout_slash_bps,json=workerInferTimeoutSlashBps,proto3" json:"worker_infer_timeout_slash_bps,omitempty"`
 	ResultRevealMissingSlashBps uint32           `protobuf:"varint,20,opt,name=result_reveal_missing_slash_bps,json=resultRevealMissingSlashBps,proto3" json:"result_reveal_missing_slash_bps,omitempty"`
 	// Joined from the immutable TaskAssignmentState admission snapshot.
-	MinStakeSnapshot types.Amount `protobuf:"bytes,21,opt,name=min_stake_snapshot,json=minStakeSnapshot,proto3" json:"min_stake_snapshot"`
+	MinStakeSnapshot   types.Amount `protobuf:"bytes,21,opt,name=min_stake_snapshot,json=minStakeSnapshot,proto3" json:"min_stake_snapshot"`
+	RecordHeight       uint64       `protobuf:"varint,22,opt,name=record_height,json=recordHeight,proto3" json:"record_height,omitempty"`
+	DispatchRecordHash []byte       `protobuf:"bytes,23,opt,name=dispatch_record_hash,json=dispatchRecordHash,proto3" json:"dispatch_record_hash,omitempty"`
+	DispatchTicketHash []byte       `protobuf:"bytes,24,opt,name=dispatch_ticket_hash,json=dispatchTicketHash,proto3" json:"dispatch_ticket_hash,omitempty"`
 }
 
 func (m *TaskAssignmentViewV1) Reset()         { *m = TaskAssignmentViewV1{} }
@@ -155,18 +149,8 @@ type isTaskAssignmentViewV1_XInferDeadlineHeight interface {
 	MarshalTo([]byte) (int, error)
 	Size() int
 }
-type isTaskAssignmentViewV1_XAssignmentFailReason interface {
-	isTaskAssignmentViewV1_XAssignmentFailReason()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
 type isTaskAssignmentViewV1_XWinnerWorker interface {
 	isTaskAssignmentViewV1_XWinnerWorker()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isTaskAssignmentViewV1_XWinnerDrawDigest interface {
-	isTaskAssignmentViewV1_XWinnerDrawDigest()
 	MarshalTo([]byte) (int, error)
 	Size() int
 }
@@ -177,21 +161,13 @@ type TaskAssignmentViewV1_WinnerConfirmHeight struct {
 type TaskAssignmentViewV1_InferDeadlineHeight struct {
 	InferDeadlineHeight uint64 `protobuf:"varint,5,opt,name=infer_deadline_height,json=inferDeadlineHeight,proto3,oneof" json:"infer_deadline_height,omitempty"`
 }
-type TaskAssignmentViewV1_AssignmentFailReason struct {
-	AssignmentFailReason AssignmentFailureReason `protobuf:"varint,6,opt,name=assignment_fail_reason,json=assignmentFailReason,proto3,enum=task.v1.AssignmentFailureReason,oneof" json:"assignment_fail_reason,omitempty"`
-}
 type TaskAssignmentViewV1_WinnerWorker struct {
 	WinnerWorker string `protobuf:"bytes,10,opt,name=winner_worker,json=winnerWorker,proto3,oneof" json:"winner_worker,omitempty"`
 }
-type TaskAssignmentViewV1_WinnerDrawDigest struct {
-	WinnerDrawDigest []byte `protobuf:"bytes,11,opt,name=winner_draw_digest,json=winnerDrawDigest,proto3,oneof" json:"winner_draw_digest,omitempty"`
-}
 
-func (*TaskAssignmentViewV1_WinnerConfirmHeight) isTaskAssignmentViewV1_XWinnerConfirmHeight()   {}
-func (*TaskAssignmentViewV1_InferDeadlineHeight) isTaskAssignmentViewV1_XInferDeadlineHeight()   {}
-func (*TaskAssignmentViewV1_AssignmentFailReason) isTaskAssignmentViewV1_XAssignmentFailReason() {}
-func (*TaskAssignmentViewV1_WinnerWorker) isTaskAssignmentViewV1_XWinnerWorker()                 {}
-func (*TaskAssignmentViewV1_WinnerDrawDigest) isTaskAssignmentViewV1_XWinnerDrawDigest()         {}
+func (*TaskAssignmentViewV1_WinnerConfirmHeight) isTaskAssignmentViewV1_XWinnerConfirmHeight() {}
+func (*TaskAssignmentViewV1_InferDeadlineHeight) isTaskAssignmentViewV1_XInferDeadlineHeight() {}
+func (*TaskAssignmentViewV1_WinnerWorker) isTaskAssignmentViewV1_XWinnerWorker()               {}
 
 func (m *TaskAssignmentViewV1) GetXWinnerConfirmHeight() isTaskAssignmentViewV1_XWinnerConfirmHeight {
 	if m != nil {
@@ -205,21 +181,9 @@ func (m *TaskAssignmentViewV1) GetXInferDeadlineHeight() isTaskAssignmentViewV1_
 	}
 	return nil
 }
-func (m *TaskAssignmentViewV1) GetXAssignmentFailReason() isTaskAssignmentViewV1_XAssignmentFailReason {
-	if m != nil {
-		return m.XAssignmentFailReason
-	}
-	return nil
-}
 func (m *TaskAssignmentViewV1) GetXWinnerWorker() isTaskAssignmentViewV1_XWinnerWorker {
 	if m != nil {
 		return m.XWinnerWorker
-	}
-	return nil
-}
-func (m *TaskAssignmentViewV1) GetXWinnerDrawDigest() isTaskAssignmentViewV1_XWinnerDrawDigest {
-	if m != nil {
-		return m.XWinnerDrawDigest
 	}
 	return nil
 }
@@ -229,20 +193,6 @@ func (m *TaskAssignmentViewV1) GetTaskId() []byte {
 		return m.TaskId
 	}
 	return nil
-}
-
-func (m *TaskAssignmentViewV1) GetAssignAcceptHeight() uint64 {
-	if m != nil {
-		return m.AssignAcceptHeight
-	}
-	return 0
-}
-
-func (m *TaskAssignmentViewV1) GetAssignmentRandomnessHeight() uint64 {
-	if m != nil {
-		return m.AssignmentRandomnessHeight
-	}
-	return 0
 }
 
 func (m *TaskAssignmentViewV1) GetWinnerConfirmHeight() uint64 {
@@ -259,13 +209,6 @@ func (m *TaskAssignmentViewV1) GetInferDeadlineHeight() uint64 {
 	return 0
 }
 
-func (m *TaskAssignmentViewV1) GetAssignmentFailReason() AssignmentFailureReason {
-	if x, ok := m.GetXAssignmentFailReason().(*TaskAssignmentViewV1_AssignmentFailReason); ok {
-		return x.AssignmentFailReason
-	}
-	return AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_UNSPECIFIED
-}
-
 func (m *TaskAssignmentViewV1) GetCandidatePoolSnapshotId() []byte {
 	if m != nil {
 		return m.CandidatePoolSnapshotId
@@ -280,25 +223,11 @@ func (m *TaskAssignmentViewV1) GetCandidatePoolHash() []byte {
 	return nil
 }
 
-func (m *TaskAssignmentViewV1) GetAssignmentCandidateSetHash() []byte {
-	if m != nil {
-		return m.AssignmentCandidateSetHash
-	}
-	return nil
-}
-
 func (m *TaskAssignmentViewV1) GetWinnerWorker() string {
 	if x, ok := m.GetXWinnerWorker().(*TaskAssignmentViewV1_WinnerWorker); ok {
 		return x.WinnerWorker
 	}
 	return ""
-}
-
-func (m *TaskAssignmentViewV1) GetWinnerDrawDigest() []byte {
-	if x, ok := m.GetXWinnerDrawDigest().(*TaskAssignmentViewV1_WinnerDrawDigest); ok {
-		return x.WinnerDrawDigest
-	}
-	return nil
 }
 
 func (m *TaskAssignmentViewV1) GetProfileExecutionSnapshotHash() []byte {
@@ -371,14 +300,33 @@ func (m *TaskAssignmentViewV1) GetMinStakeSnapshot() types.Amount {
 	return types.Amount{}
 }
 
+func (m *TaskAssignmentViewV1) GetRecordHeight() uint64 {
+	if m != nil {
+		return m.RecordHeight
+	}
+	return 0
+}
+
+func (m *TaskAssignmentViewV1) GetDispatchRecordHash() []byte {
+	if m != nil {
+		return m.DispatchRecordHash
+	}
+	return nil
+}
+
+func (m *TaskAssignmentViewV1) GetDispatchTicketHash() []byte {
+	if m != nil {
+		return m.DispatchTicketHash
+	}
+	return nil
+}
+
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*TaskAssignmentViewV1) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
 		(*TaskAssignmentViewV1_WinnerConfirmHeight)(nil),
 		(*TaskAssignmentViewV1_InferDeadlineHeight)(nil),
-		(*TaskAssignmentViewV1_AssignmentFailReason)(nil),
 		(*TaskAssignmentViewV1_WinnerWorker)(nil),
-		(*TaskAssignmentViewV1_WinnerDrawDigest)(nil),
 	}
 }
 
@@ -411,11 +359,10 @@ func (*TaskAssignmentViewV1) XXX_OneofWrappers() []interface{} {
 // the same layout enters TRUEOPEN_DATA_UNAVAILABLE_BITMAP_V1.
 // TaskBuilderSelectionViewV1 defines the TaskBuilderSelectionViewV1 wire type.
 type TaskBuilderSelectionViewV1 struct {
-	TaskId                 []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	SessionAnchorBlockHash []byte `protobuf:"bytes,2,opt,name=session_anchor_block_hash,json=sessionAnchorBlockHash,proto3" json:"session_anchor_block_hash,omitempty"`
-	BuilderSetId           string `protobuf:"bytes,3,opt,name=builder_set_id,json=builderSetId,proto3" json:"builder_set_id,omitempty"`
-	BuilderSetHash         []byte `protobuf:"bytes,4,opt,name=builder_set_hash,json=builderSetHash,proto3" json:"builder_set_hash,omitempty"`
-	// Frozen order; length equals builders_per_task while body_status is ACTIVE and
+	TaskId         []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	BuilderSetId   string `protobuf:"bytes,3,opt,name=builder_set_id,json=builderSetId,proto3" json:"builder_set_id,omitempty"`
+	BuilderSetHash []byte `protobuf:"bytes,4,opt,name=builder_set_hash,json=builderSetHash,proto3" json:"builder_set_hash,omitempty"`
+	// Frozen order; length equals the locked BuilderSet snapshot size while body_status is ACTIVE and
 	// is empty once the body is pruned.
 	SelectedTaskBuilders []string `protobuf:"bytes,5,rep,name=selected_task_builders,json=selectedTaskBuilders,proto3" json:"selected_task_builders,omitempty"`
 	// Unchanged by pruning.
@@ -462,13 +409,6 @@ var xxx_messageInfo_TaskBuilderSelectionViewV1 proto.InternalMessageInfo
 func (m *TaskBuilderSelectionViewV1) GetTaskId() []byte {
 	if m != nil {
 		return m.TaskId
-	}
-	return nil
-}
-
-func (m *TaskBuilderSelectionViewV1) GetSessionAnchorBlockHash() []byte {
-	if m != nil {
-		return m.SessionAnchorBlockHash
 	}
 	return nil
 }
@@ -870,201 +810,6 @@ func (*TaskStageViewV1) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// AssignmentRandomnessViewV1 joins TaskAssignmentState with the BeaconState of
-// its exact randomness height. A scope or hash mismatch is Internal and
-// the Beacon must not be pruned while a consumer exists. Field 5 is present for
-// proposer-VRF and absent for a dev placeholder. Fields 6-8 are present together
-// or absent together.
-// AssignmentRandomnessViewV1 defines the AssignmentRandomnessViewV1 wire type.
-type AssignmentRandomnessViewV1 struct {
-	TaskId                     []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	AssignmentRandomnessHeight uint64 `protobuf:"varint,2,opt,name=assignment_randomness_height,json=assignmentRandomnessHeight,proto3" json:"assignment_randomness_height,omitempty"`
-	AssignmentCandidateSetHash []byte `protobuf:"bytes,3,opt,name=assignment_candidate_set_hash,json=assignmentCandidateSetHash,proto3" json:"assignment_candidate_set_hash,omitempty"`
-	BeaconRandomness           []byte `protobuf:"bytes,4,opt,name=beacon_randomness,json=beaconRandomness,proto3" json:"beacon_randomness,omitempty"`
-	// Types that are valid to be assigned to XBeaconProofDigest:
-	//
-	//	*AssignmentRandomnessViewV1_BeaconProofDigest
-	XBeaconProofDigest isAssignmentRandomnessViewV1_XBeaconProofDigest `protobuf_oneof:"_beacon_proof_digest"`
-	// Types that are valid to be assigned to XWinnerWorker:
-	//
-	//	*AssignmentRandomnessViewV1_WinnerWorker
-	XWinnerWorker isAssignmentRandomnessViewV1_XWinnerWorker `protobuf_oneof:"_winner_worker"`
-	// Types that are valid to be assigned to XWinnerDrawDigest:
-	//
-	//	*AssignmentRandomnessViewV1_WinnerDrawDigest
-	XWinnerDrawDigest isAssignmentRandomnessViewV1_XWinnerDrawDigest `protobuf_oneof:"_winner_draw_digest"`
-	// Types that are valid to be assigned to XWinnerConfirmHeight:
-	//
-	//	*AssignmentRandomnessViewV1_WinnerConfirmHeight
-	XWinnerConfirmHeight isAssignmentRandomnessViewV1_XWinnerConfirmHeight `protobuf_oneof:"_winner_confirm_height"`
-}
-
-func (m *AssignmentRandomnessViewV1) Reset()         { *m = AssignmentRandomnessViewV1{} }
-func (m *AssignmentRandomnessViewV1) String() string { return proto.CompactTextString(m) }
-func (*AssignmentRandomnessViewV1) ProtoMessage()    {}
-func (*AssignmentRandomnessViewV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{5}
-}
-func (m *AssignmentRandomnessViewV1) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AssignmentRandomnessViewV1) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_AssignmentRandomnessViewV1.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *AssignmentRandomnessViewV1) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AssignmentRandomnessViewV1.Merge(m, src)
-}
-func (m *AssignmentRandomnessViewV1) XXX_Size() int {
-	return m.Size()
-}
-func (m *AssignmentRandomnessViewV1) XXX_DiscardUnknown() {
-	xxx_messageInfo_AssignmentRandomnessViewV1.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_AssignmentRandomnessViewV1 proto.InternalMessageInfo
-
-type isAssignmentRandomnessViewV1_XBeaconProofDigest interface {
-	isAssignmentRandomnessViewV1_XBeaconProofDigest()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isAssignmentRandomnessViewV1_XWinnerWorker interface {
-	isAssignmentRandomnessViewV1_XWinnerWorker()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isAssignmentRandomnessViewV1_XWinnerDrawDigest interface {
-	isAssignmentRandomnessViewV1_XWinnerDrawDigest()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-type isAssignmentRandomnessViewV1_XWinnerConfirmHeight interface {
-	isAssignmentRandomnessViewV1_XWinnerConfirmHeight()
-	MarshalTo([]byte) (int, error)
-	Size() int
-}
-
-type AssignmentRandomnessViewV1_BeaconProofDigest struct {
-	BeaconProofDigest []byte `protobuf:"bytes,5,opt,name=beacon_proof_digest,json=beaconProofDigest,proto3,oneof" json:"beacon_proof_digest,omitempty"`
-}
-type AssignmentRandomnessViewV1_WinnerWorker struct {
-	WinnerWorker string `protobuf:"bytes,6,opt,name=winner_worker,json=winnerWorker,proto3,oneof" json:"winner_worker,omitempty"`
-}
-type AssignmentRandomnessViewV1_WinnerDrawDigest struct {
-	WinnerDrawDigest []byte `protobuf:"bytes,7,opt,name=winner_draw_digest,json=winnerDrawDigest,proto3,oneof" json:"winner_draw_digest,omitempty"`
-}
-type AssignmentRandomnessViewV1_WinnerConfirmHeight struct {
-	WinnerConfirmHeight uint64 `protobuf:"varint,8,opt,name=winner_confirm_height,json=winnerConfirmHeight,proto3,oneof" json:"winner_confirm_height,omitempty"`
-}
-
-func (*AssignmentRandomnessViewV1_BeaconProofDigest) isAssignmentRandomnessViewV1_XBeaconProofDigest() {
-}
-func (*AssignmentRandomnessViewV1_WinnerWorker) isAssignmentRandomnessViewV1_XWinnerWorker() {}
-func (*AssignmentRandomnessViewV1_WinnerDrawDigest) isAssignmentRandomnessViewV1_XWinnerDrawDigest() {
-}
-func (*AssignmentRandomnessViewV1_WinnerConfirmHeight) isAssignmentRandomnessViewV1_XWinnerConfirmHeight() {
-}
-
-func (m *AssignmentRandomnessViewV1) GetXBeaconProofDigest() isAssignmentRandomnessViewV1_XBeaconProofDigest {
-	if m != nil {
-		return m.XBeaconProofDigest
-	}
-	return nil
-}
-func (m *AssignmentRandomnessViewV1) GetXWinnerWorker() isAssignmentRandomnessViewV1_XWinnerWorker {
-	if m != nil {
-		return m.XWinnerWorker
-	}
-	return nil
-}
-func (m *AssignmentRandomnessViewV1) GetXWinnerDrawDigest() isAssignmentRandomnessViewV1_XWinnerDrawDigest {
-	if m != nil {
-		return m.XWinnerDrawDigest
-	}
-	return nil
-}
-func (m *AssignmentRandomnessViewV1) GetXWinnerConfirmHeight() isAssignmentRandomnessViewV1_XWinnerConfirmHeight {
-	if m != nil {
-		return m.XWinnerConfirmHeight
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetTaskId() []byte {
-	if m != nil {
-		return m.TaskId
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetAssignmentRandomnessHeight() uint64 {
-	if m != nil {
-		return m.AssignmentRandomnessHeight
-	}
-	return 0
-}
-
-func (m *AssignmentRandomnessViewV1) GetAssignmentCandidateSetHash() []byte {
-	if m != nil {
-		return m.AssignmentCandidateSetHash
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetBeaconRandomness() []byte {
-	if m != nil {
-		return m.BeaconRandomness
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetBeaconProofDigest() []byte {
-	if x, ok := m.GetXBeaconProofDigest().(*AssignmentRandomnessViewV1_BeaconProofDigest); ok {
-		return x.BeaconProofDigest
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetWinnerWorker() string {
-	if x, ok := m.GetXWinnerWorker().(*AssignmentRandomnessViewV1_WinnerWorker); ok {
-		return x.WinnerWorker
-	}
-	return ""
-}
-
-func (m *AssignmentRandomnessViewV1) GetWinnerDrawDigest() []byte {
-	if x, ok := m.GetXWinnerDrawDigest().(*AssignmentRandomnessViewV1_WinnerDrawDigest); ok {
-		return x.WinnerDrawDigest
-	}
-	return nil
-}
-
-func (m *AssignmentRandomnessViewV1) GetWinnerConfirmHeight() uint64 {
-	if x, ok := m.GetXWinnerConfirmHeight().(*AssignmentRandomnessViewV1_WinnerConfirmHeight); ok {
-		return x.WinnerConfirmHeight
-	}
-	return 0
-}
-
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*AssignmentRandomnessViewV1) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*AssignmentRandomnessViewV1_BeaconProofDigest)(nil),
-		(*AssignmentRandomnessViewV1_WinnerWorker)(nil),
-		(*AssignmentRandomnessViewV1_WinnerDrawDigest)(nil),
-		(*AssignmentRandomnessViewV1_WinnerConfirmHeight)(nil),
-	}
-}
-
 // ActiveTaskRefV1 is the compact active-duty Task reference of this contract.
 type ActiveTaskRefV1 struct {
 	TaskId         []byte    `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1079,7 +824,7 @@ func (m *ActiveTaskRefV1) Reset()         { *m = ActiveTaskRefV1{} }
 func (m *ActiveTaskRefV1) String() string { return proto.CompactTextString(m) }
 func (*ActiveTaskRefV1) ProtoMessage()    {}
 func (*ActiveTaskRefV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{6}
+	return fileDescriptor_b9cc2b308d69788e, []int{5}
 }
 func (m *ActiveTaskRefV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1169,7 +914,7 @@ func (m *TaskCleanupProgressViewV1) Reset()         { *m = TaskCleanupProgressVi
 func (m *TaskCleanupProgressViewV1) String() string { return proto.CompactTextString(m) }
 func (*TaskCleanupProgressViewV1) ProtoMessage()    {}
 func (*TaskCleanupProgressViewV1) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{7}
+	return fileDescriptor_b9cc2b308d69788e, []int{6}
 }
 func (m *TaskCleanupProgressViewV1) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1268,7 +1013,7 @@ func (m *QueryTaskRequest) Reset()         { *m = QueryTaskRequest{} }
 func (m *QueryTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskRequest) ProtoMessage()    {}
 func (*QueryTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{8}
+	return fileDescriptor_b9cc2b308d69788e, []int{7}
 }
 func (m *QueryTaskRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1313,7 +1058,7 @@ func (m *QueryTaskResponse) Reset()         { *m = QueryTaskResponse{} }
 func (m *QueryTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskResponse) ProtoMessage()    {}
 func (*QueryTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{9}
+	return fileDescriptor_b9cc2b308d69788e, []int{8}
 }
 func (m *QueryTaskResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1349,6 +1094,119 @@ func (m *QueryTaskResponse) GetTask() TaskViewV1 {
 	return TaskViewV1{}
 }
 
+// QueryTaskFrozenParamsRequest selects one Task whose frozen parameters are read.
+type QueryTaskFrozenParamsRequest struct {
+	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+}
+
+func (m *QueryTaskFrozenParamsRequest) Reset()         { *m = QueryTaskFrozenParamsRequest{} }
+func (m *QueryTaskFrozenParamsRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryTaskFrozenParamsRequest) ProtoMessage()    {}
+func (*QueryTaskFrozenParamsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b9cc2b308d69788e, []int{9}
+}
+func (m *QueryTaskFrozenParamsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryTaskFrozenParamsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryTaskFrozenParamsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryTaskFrozenParamsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryTaskFrozenParamsRequest.Merge(m, src)
+}
+func (m *QueryTaskFrozenParamsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryTaskFrozenParamsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryTaskFrozenParamsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryTaskFrozenParamsRequest proto.InternalMessageInfo
+
+func (m *QueryTaskFrozenParamsRequest) GetTaskId() []byte {
+	if m != nil {
+		return m.TaskId
+	}
+	return nil
+}
+
+// QueryTaskFrozenParamsResponse returns the parameter version the Task bound
+// when it was accepted and that version's complete body. It exists because
+// current parameters, and the version a Session froze at its own creation, can
+// both differ from the Task's: a client pricing a challenge round needs
+// selected_verifier_count, challenge_verifier_count and challenge_open_bond as
+// the chain will read them for this Task.
+//
+// An active Task and a terminal Task that has not been compacted return their
+// bound version; version 0 is valid. Existence follows the Task row: a missing
+// Task row, whether compacted or never accepted, is NotFound, and the terminal
+// summary carries no parameters. The binding is released with the Task at the
+// final compaction step. A live Task without a binding, or a bound version whose
+// body is missing, is Internal; neither is ever answered with current
+// parameters. A non-canonical task_id is InvalidArgument. The query only reads
+// the existing binding and adds no state.
+type QueryTaskFrozenParamsResponse struct {
+	Params TaskParamsV1 `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
+	// The Task's bound parameter version.
+	ParamsVersion uint64 `protobuf:"varint,2,opt,name=params_version,json=paramsVersion,proto3" json:"params_version,omitempty"`
+}
+
+func (m *QueryTaskFrozenParamsResponse) Reset()         { *m = QueryTaskFrozenParamsResponse{} }
+func (m *QueryTaskFrozenParamsResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryTaskFrozenParamsResponse) ProtoMessage()    {}
+func (*QueryTaskFrozenParamsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b9cc2b308d69788e, []int{10}
+}
+func (m *QueryTaskFrozenParamsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryTaskFrozenParamsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryTaskFrozenParamsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryTaskFrozenParamsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryTaskFrozenParamsResponse.Merge(m, src)
+}
+func (m *QueryTaskFrozenParamsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryTaskFrozenParamsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryTaskFrozenParamsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryTaskFrozenParamsResponse proto.InternalMessageInfo
+
+func (m *QueryTaskFrozenParamsResponse) GetParams() TaskParamsV1 {
+	if m != nil {
+		return m.Params
+	}
+	return TaskParamsV1{}
+}
+
+func (m *QueryTaskFrozenParamsResponse) GetParamsVersion() uint64 {
+	if m != nil {
+		return m.ParamsVersion
+	}
+	return 0
+}
+
 // QueryTaskStageRequest selects one Task's stage projection.
 type QueryTaskStageRequest struct {
 	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1358,7 +1216,7 @@ func (m *QueryTaskStageRequest) Reset()         { *m = QueryTaskStageRequest{} }
 func (m *QueryTaskStageRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskStageRequest) ProtoMessage()    {}
 func (*QueryTaskStageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{10}
+	return fileDescriptor_b9cc2b308d69788e, []int{11}
 }
 func (m *QueryTaskStageRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1403,7 +1261,7 @@ func (m *QueryTaskStageResponse) Reset()         { *m = QueryTaskStageResponse{}
 func (m *QueryTaskStageResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskStageResponse) ProtoMessage()    {}
 func (*QueryTaskStageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{11}
+	return fileDescriptor_b9cc2b308d69788e, []int{12}
 }
 func (m *QueryTaskStageResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1448,7 +1306,7 @@ func (m *QueryTaskAssignmentRequest) Reset()         { *m = QueryTaskAssignmentR
 func (m *QueryTaskAssignmentRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskAssignmentRequest) ProtoMessage()    {}
 func (*QueryTaskAssignmentRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{12}
+	return fileDescriptor_b9cc2b308d69788e, []int{13}
 }
 func (m *QueryTaskAssignmentRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1493,7 +1351,7 @@ func (m *QueryTaskAssignmentResponse) Reset()         { *m = QueryTaskAssignment
 func (m *QueryTaskAssignmentResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskAssignmentResponse) ProtoMessage()    {}
 func (*QueryTaskAssignmentResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{13}
+	return fileDescriptor_b9cc2b308d69788e, []int{14}
 }
 func (m *QueryTaskAssignmentResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1529,100 +1387,6 @@ func (m *QueryTaskAssignmentResponse) GetAssignment() TaskAssignmentViewV1 {
 	return TaskAssignmentViewV1{}
 }
 
-// QueryAssignmentRandomnessRequest selects one Task's frozen assignment
-// randomness.
-// QueryAssignmentRandomnessRequest defines the QueryAssignmentRandomnessRequest wire type.
-type QueryAssignmentRandomnessRequest struct {
-	TaskId []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-}
-
-func (m *QueryAssignmentRandomnessRequest) Reset()         { *m = QueryAssignmentRandomnessRequest{} }
-func (m *QueryAssignmentRandomnessRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryAssignmentRandomnessRequest) ProtoMessage()    {}
-func (*QueryAssignmentRandomnessRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{14}
-}
-func (m *QueryAssignmentRandomnessRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryAssignmentRandomnessRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryAssignmentRandomnessRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryAssignmentRandomnessRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryAssignmentRandomnessRequest.Merge(m, src)
-}
-func (m *QueryAssignmentRandomnessRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryAssignmentRandomnessRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryAssignmentRandomnessRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryAssignmentRandomnessRequest proto.InternalMessageInfo
-
-func (m *QueryAssignmentRandomnessRequest) GetTaskId() []byte {
-	if m != nil {
-		return m.TaskId
-	}
-	return nil
-}
-
-// QueryAssignmentRandomnessResponse returns only the frozen height, beacon and
-// draw digest facts.
-// QueryAssignmentRandomnessResponse defines the QueryAssignmentRandomnessResponse wire type.
-type QueryAssignmentRandomnessResponse struct {
-	Randomness AssignmentRandomnessViewV1 `protobuf:"bytes,1,opt,name=randomness,proto3" json:"randomness"`
-}
-
-func (m *QueryAssignmentRandomnessResponse) Reset()         { *m = QueryAssignmentRandomnessResponse{} }
-func (m *QueryAssignmentRandomnessResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryAssignmentRandomnessResponse) ProtoMessage()    {}
-func (*QueryAssignmentRandomnessResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{15}
-}
-func (m *QueryAssignmentRandomnessResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryAssignmentRandomnessResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryAssignmentRandomnessResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryAssignmentRandomnessResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryAssignmentRandomnessResponse.Merge(m, src)
-}
-func (m *QueryAssignmentRandomnessResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryAssignmentRandomnessResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryAssignmentRandomnessResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryAssignmentRandomnessResponse proto.InternalMessageInfo
-
-func (m *QueryAssignmentRandomnessResponse) GetRandomness() AssignmentRandomnessViewV1 {
-	if m != nil {
-		return m.Randomness
-	}
-	return AssignmentRandomnessViewV1{}
-}
-
 // QueryTaskBudgetRequest selects the single per-task fund ledger.
 //
 // task_id is the sole TaskBudgetState primary key; no session_id selector is
@@ -1636,7 +1400,7 @@ func (m *QueryTaskBudgetRequest) Reset()         { *m = QueryTaskBudgetRequest{}
 func (m *QueryTaskBudgetRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskBudgetRequest) ProtoMessage()    {}
 func (*QueryTaskBudgetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{16}
+	return fileDescriptor_b9cc2b308d69788e, []int{15}
 }
 func (m *QueryTaskBudgetRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1683,7 +1447,7 @@ func (m *QueryTaskBudgetResponse) Reset()         { *m = QueryTaskBudgetResponse
 func (m *QueryTaskBudgetResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskBudgetResponse) ProtoMessage()    {}
 func (*QueryTaskBudgetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{17}
+	return fileDescriptor_b9cc2b308d69788e, []int{16}
 }
 func (m *QueryTaskBudgetResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1730,7 +1494,7 @@ func (m *QueryTaskBuildersRequest) Reset()         { *m = QueryTaskBuildersReque
 func (m *QueryTaskBuildersRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskBuildersRequest) ProtoMessage()    {}
 func (*QueryTaskBuildersRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{18}
+	return fileDescriptor_b9cc2b308d69788e, []int{17}
 }
 func (m *QueryTaskBuildersRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1773,7 +1537,7 @@ func (m *QueryTaskBuildersRequest) GetTaskId() []byte {
 //
 // Pruning and compaction semantics, exactly as frozen by this contract:
 //   - body_status = ACTIVE: selected_task_builders has exactly
-//     selected_task_builder_count == builders_per_task members in frozen order.
+//     selected_task_builder_count == snapshot member count members in frozen order.
 //   - body_status = PRUNED: the cleanup runner's ACTIVE_INDEXES_AND_LIABILITIES
 //     phase, after finality and the evidence-retention window,
 //     released every BUS_OBJECTIVE_EVIDENCE responsibility and cleared the member
@@ -1799,7 +1563,7 @@ func (m *QueryTaskBuildersResponse) Reset()         { *m = QueryTaskBuildersResp
 func (m *QueryTaskBuildersResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskBuildersResponse) ProtoMessage()    {}
 func (*QueryTaskBuildersResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{19}
+	return fileDescriptor_b9cc2b308d69788e, []int{18}
 }
 func (m *QueryTaskBuildersResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1849,7 +1613,7 @@ func (m *QueryTaskFailureClassRequest) Reset()         { *m = QueryTaskFailureCl
 func (m *QueryTaskFailureClassRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskFailureClassRequest) ProtoMessage()    {}
 func (*QueryTaskFailureClassRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{20}
+	return fileDescriptor_b9cc2b308d69788e, []int{19}
 }
 func (m *QueryTaskFailureClassRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1904,7 +1668,7 @@ func (m *QueryTaskFailureClassResponse) Reset()         { *m = QueryTaskFailureC
 func (m *QueryTaskFailureClassResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryTaskFailureClassResponse) ProtoMessage()    {}
 func (*QueryTaskFailureClassResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{21}
+	return fileDescriptor_b9cc2b308d69788e, []int{20}
 }
 func (m *QueryTaskFailureClassResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1949,7 +1713,7 @@ func (m *QueryEvidenceCleanupRequest) Reset()         { *m = QueryEvidenceCleanu
 func (m *QueryEvidenceCleanupRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryEvidenceCleanupRequest) ProtoMessage()    {}
 func (*QueryEvidenceCleanupRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{22}
+	return fileDescriptor_b9cc2b308d69788e, []int{21}
 }
 func (m *QueryEvidenceCleanupRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1996,7 +1760,7 @@ func (m *QueryEvidenceCleanupResponse) Reset()         { *m = QueryEvidenceClean
 func (m *QueryEvidenceCleanupResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryEvidenceCleanupResponse) ProtoMessage()    {}
 func (*QueryEvidenceCleanupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{23}
+	return fileDescriptor_b9cc2b308d69788e, []int{22}
 }
 func (m *QueryEvidenceCleanupResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2041,7 +1805,7 @@ func (m *QueryEpochTaskSummaryRequest) Reset()         { *m = QueryEpochTaskSumm
 func (m *QueryEpochTaskSummaryRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryEpochTaskSummaryRequest) ProtoMessage()    {}
 func (*QueryEpochTaskSummaryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{24}
+	return fileDescriptor_b9cc2b308d69788e, []int{23}
 }
 func (m *QueryEpochTaskSummaryRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2087,7 +1851,7 @@ func (m *QueryEpochTaskSummaryResponse) Reset()         { *m = QueryEpochTaskSum
 func (m *QueryEpochTaskSummaryResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryEpochTaskSummaryResponse) ProtoMessage()    {}
 func (*QueryEpochTaskSummaryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{25}
+	return fileDescriptor_b9cc2b308d69788e, []int{24}
 }
 func (m *QueryEpochTaskSummaryResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2137,7 +1901,7 @@ func (m *QueryRoleActiveTasksRequest) Reset()         { *m = QueryRoleActiveTask
 func (m *QueryRoleActiveTasksRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryRoleActiveTasksRequest) ProtoMessage()    {}
 func (*QueryRoleActiveTasksRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{26}
+	return fileDescriptor_b9cc2b308d69788e, []int{25}
 }
 func (m *QueryRoleActiveTasksRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2199,7 +1963,7 @@ func (m *QueryRoleActiveTasksResponse) Reset()         { *m = QueryRoleActiveTas
 func (m *QueryRoleActiveTasksResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryRoleActiveTasksResponse) ProtoMessage()    {}
 func (*QueryRoleActiveTasksResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{27}
+	return fileDescriptor_b9cc2b308d69788e, []int{26}
 }
 func (m *QueryRoleActiveTasksResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2253,7 +2017,7 @@ func (m *QueryWorkerEvidenceRequest) Reset()         { *m = QueryWorkerEvidenceR
 func (m *QueryWorkerEvidenceRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryWorkerEvidenceRequest) ProtoMessage()    {}
 func (*QueryWorkerEvidenceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{28}
+	return fileDescriptor_b9cc2b308d69788e, []int{27}
 }
 func (m *QueryWorkerEvidenceRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2312,7 +2076,7 @@ func (m *QueryWorkerEvidenceResponse) Reset()         { *m = QueryWorkerEvidence
 func (m *QueryWorkerEvidenceResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryWorkerEvidenceResponse) ProtoMessage()    {}
 func (*QueryWorkerEvidenceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{29}
+	return fileDescriptor_b9cc2b308d69788e, []int{28}
 }
 func (m *QueryWorkerEvidenceResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2348,20 +2112,19 @@ func (m *QueryWorkerEvidenceResponse) GetReceipt() WorkerEvidenceReceiptState {
 	return WorkerEvidenceReceiptState{}
 }
 
-// QueryVerifierValueEvidenceRequest is registered but NOT_SUPPORTED before the
-// separately defined value-evidence activation.
+// QueryVerifierValueEvidenceRequest pages compact receipts in position order.
 type QueryVerifierValueEvidenceRequest struct {
-	TaskId                []byte `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	VerifyRound           uint32 `protobuf:"varint,2,opt,name=verify_round,json=verifyRound,proto3" json:"verify_round,omitempty"`
-	TargetOperatorAddress string `protobuf:"bytes,3,opt,name=target_operator_address,json=targetOperatorAddress,proto3" json:"target_operator_address,omitempty"`
-	Position              uint32 `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"`
+	TaskId                []byte                   `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	VerifyRound           uint32                   `protobuf:"varint,2,opt,name=verify_round,json=verifyRound,proto3" json:"verify_round,omitempty"`
+	TargetOperatorAddress string                   `protobuf:"bytes,3,opt,name=target_operator_address,json=targetOperatorAddress,proto3" json:"target_operator_address,omitempty"`
+	Page                  types.QueryPageRequestV1 `protobuf:"bytes,5,opt,name=page,proto3" json:"page"`
 }
 
 func (m *QueryVerifierValueEvidenceRequest) Reset()         { *m = QueryVerifierValueEvidenceRequest{} }
 func (m *QueryVerifierValueEvidenceRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryVerifierValueEvidenceRequest) ProtoMessage()    {}
 func (*QueryVerifierValueEvidenceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{30}
+	return fileDescriptor_b9cc2b308d69788e, []int{29}
 }
 func (m *QueryVerifierValueEvidenceRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2411,25 +2174,24 @@ func (m *QueryVerifierValueEvidenceRequest) GetTargetOperatorAddress() string {
 	return ""
 }
 
-func (m *QueryVerifierValueEvidenceRequest) GetPosition() uint32 {
+func (m *QueryVerifierValueEvidenceRequest) GetPage() types.QueryPageRequestV1 {
 	if m != nil {
-		return m.Position
+		return m.Page
 	}
-	return 0
+	return types.QueryPageRequestV1{}
 }
 
-// QueryVerifierValueEvidenceResponse is reserved for an activated receipt.
+// QueryVerifierValueEvidenceResponse never exposes raw leaves or paths.
 type QueryVerifierValueEvidenceResponse struct {
-	EvidenceDigest []byte `protobuf:"bytes,1,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
-	FaultId        []byte `protobuf:"bytes,2,opt,name=fault_id,json=faultId,proto3" json:"fault_id,omitempty"`
-	AcceptedHeight uint64 `protobuf:"varint,3,opt,name=accepted_height,json=acceptedHeight,proto3" json:"accepted_height,omitempty"`
+	Receipts []VerifierValueEvidenceReceiptState `protobuf:"bytes,4,rep,name=receipts,proto3" json:"receipts"`
+	Page     types.QueryPageResponseV1           `protobuf:"bytes,5,opt,name=page,proto3" json:"page"`
 }
 
 func (m *QueryVerifierValueEvidenceResponse) Reset()         { *m = QueryVerifierValueEvidenceResponse{} }
 func (m *QueryVerifierValueEvidenceResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryVerifierValueEvidenceResponse) ProtoMessage()    {}
 func (*QueryVerifierValueEvidenceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b9cc2b308d69788e, []int{31}
+	return fileDescriptor_b9cc2b308d69788e, []int{30}
 }
 func (m *QueryVerifierValueEvidenceResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2458,25 +2220,18 @@ func (m *QueryVerifierValueEvidenceResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryVerifierValueEvidenceResponse proto.InternalMessageInfo
 
-func (m *QueryVerifierValueEvidenceResponse) GetEvidenceDigest() []byte {
+func (m *QueryVerifierValueEvidenceResponse) GetReceipts() []VerifierValueEvidenceReceiptState {
 	if m != nil {
-		return m.EvidenceDigest
+		return m.Receipts
 	}
 	return nil
 }
 
-func (m *QueryVerifierValueEvidenceResponse) GetFaultId() []byte {
+func (m *QueryVerifierValueEvidenceResponse) GetPage() types.QueryPageResponseV1 {
 	if m != nil {
-		return m.FaultId
+		return m.Page
 	}
-	return nil
-}
-
-func (m *QueryVerifierValueEvidenceResponse) GetAcceptedHeight() uint64 {
-	if m != nil {
-		return m.AcceptedHeight
-	}
-	return 0
+	return types.QueryPageResponseV1{}
 }
 
 func init() {
@@ -2486,17 +2241,16 @@ func init() {
 	proto.RegisterType((*TaskActiveBundleV1)(nil), "task.v1.TaskActiveBundleV1")
 	proto.RegisterType((*TaskViewV1)(nil), "task.v1.TaskViewV1")
 	proto.RegisterType((*TaskStageViewV1)(nil), "task.v1.TaskStageViewV1")
-	proto.RegisterType((*AssignmentRandomnessViewV1)(nil), "task.v1.AssignmentRandomnessViewV1")
 	proto.RegisterType((*ActiveTaskRefV1)(nil), "task.v1.ActiveTaskRefV1")
 	proto.RegisterType((*TaskCleanupProgressViewV1)(nil), "task.v1.TaskCleanupProgressViewV1")
 	proto.RegisterType((*QueryTaskRequest)(nil), "task.v1.QueryTaskRequest")
 	proto.RegisterType((*QueryTaskResponse)(nil), "task.v1.QueryTaskResponse")
+	proto.RegisterType((*QueryTaskFrozenParamsRequest)(nil), "task.v1.QueryTaskFrozenParamsRequest")
+	proto.RegisterType((*QueryTaskFrozenParamsResponse)(nil), "task.v1.QueryTaskFrozenParamsResponse")
 	proto.RegisterType((*QueryTaskStageRequest)(nil), "task.v1.QueryTaskStageRequest")
 	proto.RegisterType((*QueryTaskStageResponse)(nil), "task.v1.QueryTaskStageResponse")
 	proto.RegisterType((*QueryTaskAssignmentRequest)(nil), "task.v1.QueryTaskAssignmentRequest")
 	proto.RegisterType((*QueryTaskAssignmentResponse)(nil), "task.v1.QueryTaskAssignmentResponse")
-	proto.RegisterType((*QueryAssignmentRandomnessRequest)(nil), "task.v1.QueryAssignmentRandomnessRequest")
-	proto.RegisterType((*QueryAssignmentRandomnessResponse)(nil), "task.v1.QueryAssignmentRandomnessResponse")
 	proto.RegisterType((*QueryTaskBudgetRequest)(nil), "task.v1.QueryTaskBudgetRequest")
 	proto.RegisterType((*QueryTaskBudgetResponse)(nil), "task.v1.QueryTaskBudgetResponse")
 	proto.RegisterType((*QueryTaskBuildersRequest)(nil), "task.v1.QueryTaskBuildersRequest")
@@ -2518,167 +2272,163 @@ func init() {
 func init() { proto.RegisterFile("task/v1/query_task.proto", fileDescriptor_b9cc2b308d69788e) }
 
 var fileDescriptor_b9cc2b308d69788e = []byte{
-	// 2551 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x59, 0xcd, 0x6e, 0x1b, 0xc9,
-	0xf1, 0xd7, 0x88, 0xd4, 0x57, 0x49, 0xa2, 0xa8, 0x11, 0x25, 0x51, 0x94, 0xf5, 0xe1, 0xf1, 0xdf,
-	0xf8, 0x0b, 0x01, 0x56, 0x5a, 0x29, 0xde, 0xdd, 0x6c, 0xb2, 0x5e, 0x87, 0xa4, 0x64, 0x53, 0xb1,
-	0x57, 0xd6, 0x0e, 0x65, 0x05, 0x48, 0x80, 0x4c, 0x46, 0x33, 0x4d, 0x72, 0xa2, 0xe1, 0x34, 0xdd,
-	0x3d, 0x23, 0x5b, 0x6f, 0x10, 0x24, 0x48, 0x90, 0x17, 0x08, 0x72, 0xc8, 0x2b, 0xe4, 0x01, 0x72,
-	0x09, 0xe0, 0x43, 0x0e, 0x8b, 0xe4, 0x12, 0xe4, 0x10, 0x04, 0xf6, 0x23, 0xe4, 0x12, 0x20, 0x97,
-	0xa0, 0xbf, 0x66, 0x86, 0xe4, 0xc8, 0xa2, 0x0f, 0xb9, 0x71, 0xaa, 0x7e, 0x55, 0x5d, 0x5d, 0x5d,
-	0x5d, 0xfd, 0xeb, 0x26, 0x94, 0x43, 0x9b, 0x5e, 0xee, 0x5d, 0xed, 0xef, 0xbd, 0x8c, 0x10, 0xb9,
-	0xb6, 0xd8, 0xd7, 0x6e, 0x8f, 0xe0, 0x10, 0xeb, 0x53, 0xfc, 0xf7, 0xd5, 0x7e, 0x65, 0xcd, 0xc1,
-	0xb4, 0x8b, 0xa9, 0xc5, 0xc5, 0x7b, 0xe2, 0x43, 0x60, 0x2a, 0xa5, 0x36, 0x6e, 0x63, 0x21, 0x67,
-	0xbf, 0xa4, 0x74, 0x85, 0x76, 0x6c, 0x82, 0x5c, 0xe6, 0xd5, 0xee, 0xe2, 0x28, 0x08, 0x87, 0xe5,
-	0x0e, 0xee, 0x76, 0x71, 0x20, 0xe5, 0x95, 0x44, 0x2e, 0xa2, 0xe8, 0xd9, 0x6d, 0x24, 0x75, 0x1b,
-	0x89, 0x8e, 0x20, 0x1a, 0x5a, 0x28, 0x70, 0xb0, 0xeb, 0x05, 0x6d, 0xa9, 0x8e, 0xc3, 0xb7, 0x29,
-	0xf5, 0xda, 0x41, 0x17, 0xc5, 0x83, 0xad, 0x2a, 0x8d, 0xd3, 0xb1, 0x7d, 0x1f, 0x05, 0xb1, 0xc7,
-	0xe5, 0x58, 0xe1, 0x23, 0x3b, 0x88, 0x7a, 0x2a, 0x38, 0x25, 0x76, 0x91, 0xed, 0xfa, 0x5e, 0xa0,
-	0xe0, 0xeb, 0x4a, 0x8e, 0x7a, 0xd8, 0xe9, 0x58, 0x34, 0xea, 0x76, 0x6d, 0x72, 0x3d, 0x68, 0x84,
-	0xae, 0x3c, 0x17, 0x05, 0x8e, 0x32, 0x5a, 0x53, 0x72, 0xdc, 0x43, 0x81, 0x75, 0x85, 0x88, 0xd7,
-	0xba, 0x1e, 0x1c, 0x9e, 0x22, 0x4a, 0xbd, 0x38, 0x07, 0xe5, 0x44, 0x1c, 0x86, 0x3e, 0x4a, 0x26,
-	0x62, 0xfc, 0x79, 0x16, 0x4a, 0x67, 0x36, 0xbd, 0xac, 0xc6, 0x33, 0x3c, 0xf7, 0xd0, 0xab, 0xf3,
-	0x7d, 0x7d, 0x03, 0xf8, 0x12, 0x59, 0x9e, 0x5b, 0xd6, 0xb6, 0xb5, 0x9d, 0xb9, 0x5a, 0xfe, 0xcd,
-	0xbf, 0xca, 0xe3, 0xe6, 0x24, 0x13, 0x1e, 0xbb, 0xfa, 0xc7, 0x50, 0x12, 0x49, 0xb1, 0x6c, 0xc7,
-	0x41, 0xbd, 0xd0, 0xea, 0x20, 0xaf, 0xdd, 0x09, 0xcb, 0xe3, 0xdb, 0xda, 0x4e, 0xde, 0xd4, 0x85,
-	0xae, 0xca, 0x55, 0x0d, 0xae, 0xd1, 0xbf, 0x0f, 0x77, 0x92, 0x34, 0x5a, 0xc4, 0x0e, 0x5c, 0xdc,
-	0x0d, 0x10, 0xa5, 0xca, 0x32, 0xc7, 0x2d, 0x2b, 0x09, 0xc6, 0x8c, 0x21, 0xd2, 0xc3, 0x67, 0xb0,
-	0xfc, 0xca, 0x0b, 0x02, 0x44, 0x2c, 0x07, 0x07, 0x2d, 0x8f, 0x74, 0x95, 0x69, 0x9e, 0x99, 0x36,
-	0xc6, 0xcc, 0x25, 0xa1, 0xae, 0x0b, 0xad, 0xb0, 0xfa, 0xb9, 0xa6, 0x31, 0x43, 0x2f, 0x68, 0x21,
-	0x62, 0xa9, 0xec, 0x2b, 0xc3, 0x09, 0x6e, 0xa8, 0x99, 0x4b, 0x5c, 0x7d, 0x28, 0xb5, 0x89, 0xe1,
-	0x8f, 0x61, 0x25, 0x15, 0x73, 0xcb, 0xf6, 0x7c, 0x8b, 0x20, 0x9b, 0xe2, 0xa0, 0x3c, 0xb9, 0xad,
-	0xed, 0x14, 0x0e, 0xb6, 0x77, 0x65, 0x19, 0xef, 0x26, 0xf9, 0x7b, 0x6c, 0x7b, 0x7e, 0x44, 0x90,
-	0xc9, 0x71, 0x8d, 0x71, 0xb3, 0x64, 0xf7, 0xa9, 0x84, 0x9c, 0x39, 0xaf, 0x42, 0xc5, 0xb1, 0x03,
-	0xd7, 0x73, 0xed, 0x10, 0x59, 0x3d, 0x8c, 0x7d, 0x8b, 0x06, 0x76, 0x8f, 0x76, 0x70, 0xc8, 0x92,
-	0x3e, 0x95, 0x4a, 0xfa, 0x6a, 0x8c, 0x3b, 0xc5, 0xd8, 0x6f, 0x4a, 0xd4, 0xb1, 0xab, 0x3f, 0x80,
-	0xa5, 0x01, 0x17, 0x1d, 0x9b, 0x76, 0xca, 0xd3, 0x29, 0xdb, 0xc5, 0x3e, 0xdb, 0x86, 0x4d, 0x3b,
-	0xfa, 0x13, 0xd8, 0x48, 0xcd, 0x2a, 0x71, 0x40, 0x51, 0x28, 0xec, 0x67, 0x52, 0xf6, 0xa9, 0x05,
-	0xa9, 0x2b, 0x64, 0x13, 0x85, 0xdc, 0x51, 0x0d, 0xe6, 0xe5, 0x82, 0xbc, 0xc2, 0xe4, 0x12, 0x91,
-	0x32, 0x6c, 0x6b, 0x3b, 0x33, 0xb5, 0xf2, 0x5f, 0xfe, 0xf0, 0x51, 0x49, 0xee, 0xe4, 0xaa, 0xeb,
-	0x12, 0x44, 0x69, 0x33, 0x24, 0x5e, 0xd0, 0x6e, 0xe4, 0xcc, 0x39, 0x61, 0xf0, 0x43, 0x8e, 0x17,
-	0x6b, 0xa3, 0x4b, 0x1f, 0x2e, 0xb1, 0x5f, 0x59, 0xae, 0xd7, 0x46, 0x34, 0x2c, 0xcf, 0x26, 0x11,
-	0x34, 0xf2, 0x66, 0x51, 0x20, 0x0e, 0x89, 0xfd, 0xea, 0x90, 0xeb, 0x99, 0xe1, 0x53, 0xd8, 0xea,
-	0x11, 0xdc, 0xf2, 0x7c, 0x64, 0xa1, 0xd7, 0xc8, 0x89, 0x42, 0x0f, 0x07, 0x49, 0x06, 0xf9, 0x3c,
-	0xe6, 0x52, 0xf3, 0xb8, 0x23, 0xc1, 0x47, 0x0a, 0xab, 0xd2, 0xc8, 0x67, 0xf2, 0x5d, 0x58, 0xfb,
-	0x59, 0xe4, 0xb6, 0xc5, 0x32, 0x47, 0x81, 0xc3, 0x9d, 0x5d, 0x21, 0xc2, 0xf6, 0x50, 0x79, 0x9e,
-	0xcd, 0xca, 0x5c, 0x55, 0x80, 0xc7, 0x52, 0x7f, 0x2e, 0xd4, 0xfa, 0xa7, 0x50, 0x52, 0x1b, 0xd4,
-	0xa2, 0x4e, 0x07, 0x75, 0x6d, 0x31, 0x7a, 0x21, 0x35, 0xba, 0xae, 0x10, 0x4d, 0x0e, 0xe0, 0x63,
-	0x7e, 0xc1, 0xd7, 0x1f, 0x07, 0x9e, 0x63, 0xfb, 0x71, 0xe7, 0x89, 0x07, 0x5d, 0xe0, 0x83, 0x96,
-	0x63, 0xc4, 0x91, 0x04, 0xa8, 0x51, 0xbf, 0x84, 0x72, 0x1b, 0x05, 0x88, 0xd8, 0x3c, 0xd4, 0x9e,
-	0x4d, 0xec, 0x2e, 0x55, 0xd9, 0x2b, 0xa6, 0x46, 0x5e, 0x49, 0x50, 0xa7, 0x1c, 0x24, 0x32, 0xa8,
-	0xd7, 0x61, 0xb3, 0x8b, 0x42, 0xe2, 0x39, 0x96, 0xdd, 0x6e, 0x13, 0xd4, 0xe6, 0x15, 0x44, 0x30,
-	0x6e, 0xc5, 0x11, 0x2c, 0xf2, 0x08, 0xd6, 0x05, 0xaa, 0xaa, 0x40, 0xa7, 0x0c, 0xa3, 0x82, 0x78,
-	0x0c, 0x8b, 0xa9, 0x4a, 0xa2, 0xa1, 0x1d, 0x46, 0xb4, 0xac, 0xf3, 0xad, 0xb1, 0x96, 0xb1, 0x35,
-	0x9a, 0x1c, 0x60, 0x16, 0xed, 0x01, 0x89, 0x5e, 0x83, 0x4d, 0x51, 0x41, 0x96, 0xd8, 0xa7, 0xa1,
-	0xd7, 0x45, 0x38, 0x0a, 0x2d, 0xea, 0xdb, 0xb4, 0x63, 0x5d, 0xf4, 0x68, 0x79, 0x69, 0x5b, 0xdb,
-	0x99, 0x37, 0x2b, 0x02, 0x75, 0xcc, 0x40, 0x67, 0x02, 0xd3, 0x64, 0x90, 0x5a, 0x8f, 0xea, 0x87,
-	0xb0, 0x45, 0x10, 0x8d, 0xfc, 0xd0, 0x22, 0xe8, 0x0a, 0xd9, 0xbe, 0xd5, 0xf5, 0x28, 0x65, 0x19,
-	0x4d, 0x9c, 0x94, 0xb8, 0x93, 0x75, 0x01, 0x33, 0x39, 0xea, 0x2b, 0x01, 0x8a, 0xbd, 0x1c, 0x81,
-	0xde, 0xf5, 0x02, 0x36, 0x95, 0x4b, 0x14, 0x57, 0x53, 0x79, 0x79, 0x5b, 0xdb, 0x99, 0x3d, 0x58,
-	0xdc, 0x15, 0xc7, 0x05, 0x9f, 0x14, 0x3f, 0x7a, 0x6a, 0xf9, 0x37, 0xff, 0xd8, 0x1a, 0x33, 0x8b,
-	0x5d, 0x2f, 0x68, 0x32, 0x0b, 0x55, 0x53, 0xb5, 0x32, 0xac, 0x58, 0x99, 0xbd, 0x8a, 0x6b, 0x32,
-	0x9b, 0x51, 0x6d, 0x0d, 0x56, 0xad, 0xec, 0x6e, 0x53, 0x2b, 0x42, 0xc1, 0xea, 0xdb, 0x69, 0xb5,
-	0x65, 0x58, 0xb2, 0x86, 0xf7, 0x8d, 0xf1, 0xcb, 0x3c, 0x54, 0x58, 0x3b, 0xaf, 0x45, 0x9e, 0xef,
-	0x22, 0xd2, 0x44, 0x3e, 0x12, 0xb5, 0x3a, 0x52, 0x53, 0x7f, 0x04, 0x6b, 0xf2, 0xdc, 0xb0, 0xec,
-	0xc0, 0xe9, 0x60, 0x62, 0x5d, 0xf8, 0xd8, 0xb9, 0x14, 0xe5, 0x3c, 0x9e, 0x2e, 0x2a, 0x09, 0xab,
-	0x72, 0x54, 0x8d, 0x81, 0x78, 0x49, 0xff, 0x1f, 0x14, 0x2e, 0xc4, 0xc8, 0xbc, 0x99, 0x78, 0x2e,
-	0xef, 0xea, 0x33, 0xe6, 0xdc, 0x85, 0x8a, 0x87, 0x75, 0xad, 0x5d, 0x28, 0xa6, 0x51, 0xdc, 0x7b,
-	0x3e, 0xe5, 0xbd, 0x90, 0xa0, 0xb9, 0xd7, 0x13, 0x58, 0xa1, 0x7c, 0x22, 0xc8, 0xe5, 0x14, 0xc2,
-	0x92, 0x7a, 0x5a, 0x9e, 0xd8, 0xce, 0xbd, 0xaf, 0xdf, 0x98, 0x25, 0x65, 0x97, 0xca, 0x09, 0xd5,
-	0x1f, 0xc2, 0x7a, 0xa6, 0x3f, 0xcb, 0x61, 0x6b, 0xca, 0x5b, 0xfb, 0xbc, 0x59, 0xce, 0x30, 0xad,
-	0x33, 0xbd, 0x5e, 0xbf, 0xc1, 0x9c, 0x8a, 0x99, 0xa4, 0x1b, 0x77, 0x96, 0x13, 0xca, 0xe7, 0x74,
-	0x1f, 0x0a, 0x0e, 0x41, 0x36, 0xf3, 0x21, 0xcf, 0xa2, 0x69, 0x7e, 0xfe, 0xcd, 0x4b, 0xa9, 0x3c,
-	0xf2, 0xbe, 0x80, 0xd9, 0x0b, 0xec, 0x5e, 0xab, 0xad, 0x35, 0xc3, 0xb7, 0xd6, 0x7a, 0xaa, 0x0e,
-	0x9b, 0x21, 0x26, 0xc8, 0xad, 0x61, 0xf7, 0x5a, 0x6e, 0x2e, 0xb8, 0x88, 0x7f, 0x1b, 0xbf, 0xc8,
-	0x81, 0xce, 0x0f, 0x77, 0x27, 0xf4, 0xae, 0x50, 0x2d, 0x0a, 0x5c, 0x1f, 0x9d, 0xef, 0xeb, 0x1f,
-	0x43, 0xde, 0xc1, 0x04, 0xf1, 0x12, 0x98, 0x3d, 0x58, 0x89, 0x37, 0x2a, 0x83, 0xd6, 0x31, 0x41,
-	0xcc, 0x1a, 0xc9, 0xd2, 0xe6, 0x48, 0xfd, 0x21, 0x40, 0x52, 0x99, 0xbc, 0x12, 0x66, 0x0f, 0x36,
-	0xfa, 0xec, 0x06, 0xf9, 0x83, 0x99, 0x32, 0xd0, 0xeb, 0x30, 0x4f, 0x70, 0x14, 0xb8, 0x8a, 0xdf,
-	0xf0, 0xaa, 0x98, 0x3d, 0xd8, 0xec, 0xf3, 0x60, 0x32, 0x44, 0x53, 0x00, 0x78, 0x04, 0xe6, 0x1c,
-	0x49, 0x89, 0xf4, 0x9f, 0x40, 0x85, 0x7f, 0xef, 0x0b, 0xc6, 0xe3, 0x21, 0x92, 0xda, 0x2d, 0xbc,
-	0x7e, 0x66, 0x53, 0xe7, 0xf1, 0xb9, 0xc4, 0xf4, 0x37, 0x1f, 0x64, 0x96, 0x85, 0x8f, 0x61, 0x75,
-	0xec, 0xff, 0x20, 0xd3, 0xff, 0xc4, 0x07, 0xf9, 0x3f, 0x18, 0x56, 0x1b, 0xbf, 0xd2, 0x00, 0xd8,
-	0x3c, 0xe5, 0x56, 0xfc, 0x04, 0x26, 0x6d, 0xbe, 0x2c, 0x72, 0x19, 0xd6, 0xfb, 0xd3, 0xd9, 0xb7,
-	0x62, 0x8d, 0x31, 0x53, 0x82, 0xf5, 0x47, 0x30, 0x1d, 0x22, 0xd2, 0xf5, 0x02, 0xdb, 0x97, 0xeb,
-	0x70, 0xb7, 0xcf, 0xf0, 0x4c, 0x2a, 0xd3, 0x89, 0x6c, 0x8c, 0x99, 0xb1, 0x51, 0x6d, 0x0a, 0x26,
-	0xae, 0x6c, 0x3f, 0x42, 0xc6, 0xdf, 0x27, 0x60, 0x81, 0x59, 0x34, 0x43, 0xbb, 0x8d, 0x46, 0xeb,
-	0x0f, 0xfb, 0x00, 0x5c, 0xdd, 0xeb, 0xd8, 0x14, 0xf1, 0xe1, 0x0b, 0x07, 0x7a, 0xdf, 0xf0, 0xa7,
-	0x4c, 0x63, 0xce, 0x84, 0xea, 0x67, 0xf6, 0x09, 0x91, 0xfb, 0xf0, 0x13, 0xe2, 0x21, 0x14, 0x08,
-	0x72, 0x90, 0xd7, 0x8b, 0x9d, 0xe4, 0xb9, 0x93, 0xa4, 0x7a, 0x4d, 0xa1, 0x96, 0x1e, 0xe6, 0x49,
-	0xfa, 0x53, 0x7f, 0x06, 0x4b, 0x62, 0x55, 0x1d, 0x71, 0x5e, 0x4a, 0x1f, 0x13, 0x72, 0x3f, 0xf5,
-	0xaf, 0xaa, 0xc0, 0x48, 0x47, 0xfa, 0xd5, 0x90, 0x8c, 0x4d, 0x2a, 0x21, 0xd2, 0xca, 0xd7, 0xe4,
-	0xc0, 0xa4, 0x9a, 0x31, 0x42, 0x4d, 0x8a, 0x0e, 0x48, 0xf4, 0x06, 0x2c, 0xb4, 0xd8, 0xa2, 0x78,
-	0x61, 0xbc, 0xc3, 0xa7, 0xb8, 0x97, 0xad, 0xd4, 0x0e, 0x67, 0x69, 0x7d, 0x2c, 0x51, 0xc2, 0xee,
-	0x7c, 0xdf, 0x2c, 0xb4, 0xfa, 0x24, 0xfa, 0x0f, 0x40, 0x0f, 0xd0, 0xeb, 0x30, 0x39, 0x53, 0x2e,
-	0xbd, 0xc0, 0xe5, 0x2d, 0xa5, 0x70, 0xb0, 0x1a, 0x87, 0xa4, 0x08, 0xee, 0x53, 0x2f, 0x70, 0x79,
-	0x55, 0x15, 0x99, 0x51, 0x5a, 0xca, 0x88, 0xd5, 0x27, 0x50, 0xea, 0xf7, 0x25, 0x1b, 0xd4, 0x8c,
-	0x24, 0xcb, 0x7a, 0xda, 0x28, 0xe1, 0xca, 0xf7, 0xa1, 0x10, 0xf5, 0xdc, 0x74, 0x47, 0x03, 0xd1,
-	0xd1, 0xa4, 0x54, 0x76, 0xb4, 0x07, 0xb0, 0x82, 0x5a, 0x2d, 0xc4, 0xab, 0x59, 0xde, 0x5d, 0x2c,
-	0xbe, 0x67, 0x38, 0xe7, 0x9b, 0x37, 0x4b, 0xb1, 0x96, 0x2f, 0xc6, 0x35, 0x6f, 0x0b, 0xfc, 0xb8,
-	0x1b, 0x9e, 0x60, 0x6d, 0x15, 0x96, 0xad, 0xac, 0x58, 0x8d, 0x3f, 0xe5, 0xa1, 0x52, 0xcd, 0xb8,
-	0x49, 0x8c, 0x56, 0xe7, 0xb7, 0x5d, 0x55, 0xc6, 0x6f, 0xbd, 0xaa, 0xdc, 0x4a, 0xb1, 0x73, 0x23,
-	0x52, 0xec, 0x7d, 0x58, 0xbc, 0x40, 0xb6, 0x83, 0x83, 0x54, 0x18, 0x7d, 0x87, 0x65, 0x51, 0xa8,
-	0x93, 0x08, 0xf4, 0xcf, 0x61, 0x49, 0x9a, 0x08, 0x3e, 0x27, 0x49, 0xe1, 0x44, 0x8a, 0x52, 0x8f,
-	0x99, 0xd2, 0x2b, 0x67, 0x73, 0x09, 0xa7, 0x1e, 0x22, 0xf4, 0x93, 0xb7, 0x10, 0x7a, 0x6d, 0x54,
-	0x42, 0x9f, 0x3a, 0x15, 0x1b, 0xe3, 0xd9, 0x84, 0xfe, 0xc6, 0xeb, 0x1d, 0x3f, 0x19, 0x1b, 0xb9,
-	0x9b, 0xae, 0x77, 0xb5, 0x15, 0x28, 0x59, 0x19, 0x33, 0x1e, 0x99, 0x35, 0xdd, 0xcc, 0xd6, 0x8c,
-	0xff, 0x68, 0xb0, 0x20, 0x7a, 0x31, 0x3f, 0xa2, 0x50, 0xeb, 0x7f, 0xd2, 0x24, 0xb7, 0x60, 0xba,
-	0x8b, 0x5d, 0xe4, 0x2b, 0xc2, 0xa4, 0x5c, 0x4e, 0x71, 0xe9, 0xb1, 0xab, 0xff, 0x3f, 0x2c, 0xa8,
-	0xbb, 0x8e, 0x62, 0xe7, 0x79, 0xbe, 0x5b, 0x0a, 0x52, 0xac, 0x08, 0xf9, 0x30, 0xad, 0x98, 0xc8,
-	0xa2, 0x15, 0xc3, 0x7b, 0x75, 0x32, 0x63, 0xaf, 0x1a, 0xff, 0xd6, 0x60, 0x8d, 0x93, 0x02, 0xf1,
-	0x96, 0x71, 0x4a, 0x70, 0x9b, 0x8c, 0xbc, 0x89, 0x0e, 0x60, 0x52, 0xf6, 0x34, 0x91, 0x83, 0x4a,
-	0x3f, 0xcf, 0x10, 0x2e, 0x65, 0x6b, 0x94, 0x48, 0xfd, 0x01, 0x4c, 0x88, 0xb4, 0x0d, 0x9e, 0x10,
-	0xe9, 0x28, 0x18, 0xa0, 0x31, 0x66, 0x0a, 0x24, 0x2b, 0x9c, 0x7b, 0x30, 0x7f, 0xe5, 0x51, 0x8f,
-	0xcd, 0x46, 0x30, 0x38, 0xfe, 0x1e, 0x60, 0xce, 0x49, 0xa1, 0x60, 0x6d, 0xf7, 0x60, 0xde, 0x45,
-	0x3e, 0x4a, 0x40, 0x22, 0x31, 0x73, 0x52, 0xc8, 0x41, 0xb5, 0x69, 0x98, 0x14, 0xeb, 0x66, 0xec,
-	0x43, 0xf1, 0xeb, 0x08, 0x91, 0x6b, 0xb1, 0xec, 0x2f, 0x23, 0x76, 0x65, 0x7a, 0xff, 0x84, 0x8d,
-	0x1a, 0x2c, 0xa6, 0x4c, 0x68, 0x0f, 0x07, 0x14, 0xe9, 0x1f, 0x41, 0x9e, 0xa9, 0xe5, 0x21, 0xbf,
-	0xd4, 0x37, 0x21, 0x91, 0x47, 0x45, 0xb4, 0x98, 0xc6, 0xf8, 0x14, 0x96, 0x63, 0x1f, 0xfc, 0x60,
-	0x1e, 0x71, 0xec, 0x13, 0x58, 0x19, 0xb4, 0x93, 0x01, 0x3c, 0x80, 0x09, 0xca, 0x04, 0x32, 0x82,
-	0x72, 0x5f, 0x04, 0xa9, 0xb3, 0x5f, 0x86, 0x21, 0xc0, 0xc6, 0xf7, 0xa0, 0x12, 0xfb, 0x4b, 0xf5,
-	0xd1, 0xd1, 0x82, 0xb9, 0x80, 0xf5, 0x4c, 0x63, 0x19, 0x51, 0xbd, 0x8f, 0x4c, 0x6a, 0x23, 0x90,
-	0x49, 0x19, 0x5b, 0xca, 0xcc, 0xa8, 0xc2, 0x36, 0x1f, 0x23, 0xab, 0xc9, 0x8f, 0x18, 0x66, 0x00,
-	0x77, 0xdf, 0xe3, 0x42, 0x06, 0x7b, 0x0c, 0x90, 0x6a, 0xbc, 0x22, 0xd8, 0x7b, 0x19, 0xc4, 0x65,
-	0xf0, 0x88, 0x51, 0x21, 0x27, 0xc6, 0xc6, 0x67, 0xa9, 0x35, 0xaa, 0x45, 0x6e, 0x1b, 0x8d, 0x9a,
-	0xcf, 0xaf, 0x61, 0x75, 0xc8, 0x50, 0x86, 0xf7, 0x29, 0x4c, 0x5e, 0x70, 0x49, 0xe6, 0xf2, 0x0a,
-	0x70, 0x9a, 0xce, 0x4b, 0xb4, 0xf1, 0x39, 0x94, 0x53, 0x2e, 0xc5, 0xbd, 0x64, 0xc4, 0x68, 0x5c,
-	0x58, 0xcb, 0x30, 0x95, 0xf1, 0x3c, 0x81, 0x19, 0xaa, 0xee, 0x9c, 0x43, 0xd9, 0xba, 0xf9, 0x62,
-	0x2a, 0xa3, 0x4b, 0x6c, 0x8d, 0x9f, 0xc2, 0x9d, 0x78, 0x14, 0xf9, 0xa2, 0x56, 0xf7, 0xed, 0x51,
-	0xd7, 0x56, 0xbf, 0x0b, 0x73, 0x7d, 0xdc, 0x62, 0x9c, 0x77, 0xcb, 0xd9, 0xab, 0x84, 0x52, 0x18,
-	0x16, 0x6c, 0xdc, 0x30, 0x82, 0x9c, 0xcb, 0x97, 0x30, 0xd5, 0x12, 0x72, 0x39, 0x93, 0xfe, 0xfb,
-	0x4a, 0xda, 0x26, 0x9d, 0x62, 0x65, 0x64, 0x7c, 0x21, 0xb7, 0xc1, 0x91, 0x7c, 0xfa, 0x91, 0xfd,
-	0x6b, 0xe4, 0x4d, 0x74, 0x27, 0xdb, 0x5a, 0x46, 0x57, 0x83, 0x29, 0xf9, 0xc4, 0x2c, 0xa3, 0x33,
-	0x32, 0x9b, 0x65, 0x5f, 0xcb, 0x56, 0x11, 0x4a, 0x43, 0xe3, 0x81, 0x1a, 0xa3, 0x87, 0x9d, 0x0e,
-	0xef, 0x07, 0xe2, 0xd6, 0xa0, 0x42, 0x2c, 0xc1, 0x04, 0x7f, 0x97, 0xe6, 0x23, 0xe4, 0x4d, 0xf1,
-	0x61, 0xb4, 0x64, 0xe2, 0x86, 0xad, 0x64, 0x68, 0x47, 0x30, 0x25, 0xd9, 0xb7, 0x0c, 0xed, 0x7e,
-	0x1c, 0xda, 0xb0, 0x4d, 0xcc, 0xd2, 0xe3, 0xfc, 0x49, 0x5b, 0xe3, 0x8f, 0x9a, 0x4c, 0xa0, 0x89,
-	0x7d, 0x94, 0x1c, 0xc2, 0x71, 0x09, 0xd4, 0xa1, 0x88, 0x7b, 0x88, 0xd8, 0x21, 0x26, 0x96, 0x2d,
-	0x58, 0x09, 0x1f, 0xef, 0x7d, 0x0f, 0x02, 0x0b, 0xca, 0x42, 0x8a, 0xf5, 0x7b, 0x90, 0x77, 0xa3,
-	0xf0, 0x5a, 0x9e, 0x51, 0x0b, 0x29, 0xde, 0x7d, 0x18, 0x85, 0xd7, 0x26, 0x57, 0xea, 0x9f, 0x41,
-	0xbe, 0xc7, 0x5a, 0x68, 0x4e, 0xf6, 0xaa, 0x04, 0xc4, 0xe3, 0x3b, 0x4d, 0xfa, 0x74, 0xd2, 0xce,
-	0x99, 0x81, 0xf1, 0x6b, 0x4d, 0x66, 0x78, 0x68, 0x0a, 0x49, 0x77, 0x66, 0xa9, 0x61, 0x81, 0xe7,
-	0xfa, 0xb6, 0xef, 0x00, 0xe9, 0x50, 0xdd, 0x99, 0x83, 0xf5, 0xef, 0xc8, 0x78, 0xc6, 0x65, 0x59,
-	0x66, 0xc6, 0x23, 0x46, 0x18, 0x08, 0xe8, 0x77, 0x9a, 0x6c, 0xec, 0x82, 0xaf, 0xa9, 0xe2, 0x1a,
-	0x71, 0x57, 0x9d, 0xc2, 0xaa, 0x7c, 0xa6, 0x1b, 0x4a, 0xfc, 0xf8, 0x2d, 0x89, 0x5f, 0x16, 0x86,
-	0xcf, 0x07, 0xd2, 0x5f, 0x84, 0x1c, 0x45, 0x2f, 0xe5, 0xdb, 0x3f, 0xfb, 0x19, 0x1f, 0x1e, 0x83,
-	0x01, 0xc6, 0x87, 0xc7, 0x40, 0x6d, 0x25, 0xed, 0x65, 0xd0, 0xe2, 0xe6, 0xca, 0xfa, 0xab, 0x26,
-	0x5b, 0xbf, 0xba, 0xa6, 0x9f, 0xb3, 0x1b, 0xf1, 0x07, 0x26, 0xe3, 0xf6, 0x16, 0xc3, 0xf2, 0x15,
-	0xda, 0xa4, 0x8d, 0xc2, 0xe1, 0x7c, 0xe5, 0x6e, 0xcb, 0x97, 0x30, 0x1c, 0xcc, 0x57, 0x05, 0xa6,
-	0x7b, 0x98, 0x7a, 0x61, 0xc2, 0x00, 0xe3, 0x6f, 0xe3, 0xb7, 0x1a, 0x18, 0xef, 0x9b, 0x55, 0xcc,
-	0x48, 0x16, 0xe2, 0xe7, 0x6a, 0x49, 0xce, 0xd3, 0xd3, 0x2b, 0x28, 0xa5, 0x7c, 0x27, 0xde, 0x82,
-	0xe9, 0x96, 0x1d, 0xf9, 0xfc, 0x31, 0x2f, 0xfd, 0x04, 0x38, 0xc5, 0xa5, 0x82, 0x9b, 0x8a, 0xbf,
-	0x80, 0x12, 0x32, 0x29, 0x96, 0xb3, 0xa0, 0xc4, 0x82, 0x4d, 0x7e, 0xeb, 0xf7, 0x1a, 0x2c, 0x0e,
-	0x51, 0x3f, 0xfd, 0x1e, 0x6c, 0x9d, 0x55, 0x9b, 0x4f, 0xad, 0xfa, 0xb3, 0xa3, 0xea, 0xc9, 0x8b,
-	0x53, 0xab, 0x79, 0x56, 0x3d, 0x7b, 0xd1, 0xb4, 0x5e, 0x9c, 0x34, 0x4f, 0x8f, 0xea, 0xc7, 0x8f,
-	0x8f, 0x8f, 0x0e, 0x8b, 0x63, 0xfa, 0x7d, 0xb8, 0x9b, 0x05, 0x3a, 0x79, 0x7e, 0x66, 0x35, 0xeb,
-	0x8d, 0xa3, 0xc3, 0x17, 0xcf, 0x8e, 0x0e, 0x8b, 0x9a, 0xbe, 0x05, 0xeb, 0x59, 0x30, 0xf3, 0xc5,
-	0xc9, 0xc9, 0xf1, 0xc9, 0x93, 0xe2, 0xb8, 0x7e, 0x17, 0x36, 0xb2, 0x00, 0xf5, 0xe7, 0x5f, 0x9d,
-	0x56, 0xeb, 0x67, 0x47, 0x87, 0xc5, 0x5c, 0xed, 0xd1, 0x9b, 0xb7, 0x9b, 0xda, 0x37, 0x6f, 0x37,
-	0xb5, 0x7f, 0xbe, 0xdd, 0xd4, 0x7e, 0xf3, 0x6e, 0x73, 0xec, 0x9b, 0x77, 0x9b, 0x63, 0x7f, 0x7b,
-	0xb7, 0x39, 0xf6, 0xa3, 0xfb, 0x6d, 0x2f, 0xec, 0x44, 0x17, 0xbb, 0x0e, 0xee, 0xee, 0x9d, 0x91,
-	0x08, 0x3d, 0xef, 0xa1, 0x60, 0x2f, 0xc0, 0x2e, 0xda, 0x7b, 0xbd, 0xc7, 0xff, 0x5f, 0x0b, 0xaf,
-	0x7b, 0x88, 0x5e, 0x4c, 0xf2, 0x3f, 0xd6, 0xbe, 0xfd, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x29,
-	0x2d, 0x67, 0x75, 0xfc, 0x1c, 0x00, 0x00,
+	// 2481 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x59, 0x4b, 0x53, 0x1c, 0xc9,
+	0xf1, 0xa7, 0x99, 0x1e, 0x18, 0x12, 0x18, 0x86, 0xe6, 0xd5, 0x80, 0x78, 0x68, 0xf8, 0x2b, 0xfe,
+	0xc4, 0x46, 0x2c, 0x18, 0x56, 0xbb, 0xeb, 0x87, 0xb4, 0x1b, 0xcc, 0x80, 0x16, 0x90, 0x16, 0xb1,
+	0x3d, 0x08, 0x47, 0xf8, 0xe0, 0x76, 0xd3, 0x5d, 0x33, 0xd3, 0xa6, 0xa7, 0x6b, 0x54, 0xd5, 0x8d,
+	0x84, 0x7d, 0xf1, 0xd1, 0xe1, 0x08, 0x3b, 0xfc, 0x0d, 0x7c, 0xf0, 0x57, 0xf0, 0x07, 0xf0, 0x51,
+	0xc7, 0x0d, 0x9f, 0x1c, 0x3e, 0x38, 0x1c, 0xd2, 0xcd, 0x3e, 0xfa, 0x62, 0x87, 0x2f, 0x8e, 0x7a,
+	0xf5, 0x63, 0x66, 0x24, 0x8d, 0x0e, 0xbe, 0x31, 0x99, 0xbf, 0xcc, 0xfa, 0x55, 0x56, 0x66, 0x56,
+	0x56, 0x03, 0x66, 0xe4, 0xd0, 0xeb, 0xdd, 0x9b, 0xbd, 0xdd, 0xe7, 0x31, 0x22, 0xb7, 0x36, 0xfb,
+	0xb5, 0xd3, 0x25, 0x38, 0xc2, 0xc6, 0x38, 0xff, 0xfb, 0x66, 0x6f, 0x65, 0xd9, 0xc5, 0xb4, 0x83,
+	0xa9, 0xcd, 0xc5, 0xbb, 0xe2, 0x87, 0xc0, 0xac, 0xcc, 0xb7, 0x70, 0x0b, 0x0b, 0x39, 0xfb, 0x4b,
+	0x4a, 0x17, 0x69, 0xdb, 0x21, 0xc8, 0x63, 0x5e, 0x9d, 0x0e, 0x8e, 0xc3, 0xa8, 0x5f, 0xee, 0xe2,
+	0x4e, 0x07, 0x87, 0x52, 0xbe, 0x92, 0xca, 0x05, 0x8b, 0xae, 0xd3, 0x42, 0x52, 0xb7, 0x96, 0xea,
+	0x08, 0xa2, 0x91, 0x8d, 0x42, 0x17, 0x7b, 0x7e, 0xd8, 0x92, 0xea, 0x84, 0xbe, 0x43, 0xa9, 0xdf,
+	0x0a, 0x3b, 0x28, 0x59, 0x6c, 0x49, 0x69, 0xdc, 0xb6, 0x13, 0x04, 0x28, 0x4c, 0x3c, 0x2e, 0x24,
+	0x8a, 0x00, 0x39, 0x61, 0xdc, 0x55, 0xe4, 0x94, 0xd8, 0x43, 0x8e, 0x17, 0xf8, 0xa1, 0x82, 0xaf,
+	0x2a, 0x39, 0xea, 0x62, 0xb7, 0x6d, 0xd3, 0xb8, 0xd3, 0x71, 0xc8, 0x6d, 0xaf, 0x11, 0xba, 0xf1,
+	0x3d, 0x14, 0xba, 0xca, 0x68, 0x59, 0xc9, 0x71, 0x17, 0x85, 0xf6, 0x0d, 0x22, 0x7e, 0x53, 0x99,
+	0xcc, 0x2b, 0x55, 0xd7, 0x21, 0x4e, 0x87, 0xf6, 0x92, 0xa2, 0x88, 0x52, 0x3f, 0x89, 0x8c, 0x99,
+	0x8a, 0xa3, 0x28, 0x40, 0x99, 0xed, 0xdd, 0x51, 0x9a, 0x1b, 0x27, 0x88, 0x91, 0x9d, 0x5f, 0xbf,
+	0xfa, 0x6f, 0x80, 0xf9, 0x0b, 0x87, 0x5e, 0x1f, 0x24, 0x51, 0xb9, 0xf4, 0xd1, 0x8b, 0xcb, 0x3d,
+	0x63, 0x0d, 0xf8, 0xb1, 0xda, 0xbe, 0x67, 0x6a, 0x9b, 0xda, 0xf6, 0x54, 0x4d, 0x7f, 0xf5, 0x4f,
+	0x73, 0xd4, 0x1a, 0x63, 0xc2, 0x13, 0xcf, 0xf8, 0x1c, 0x16, 0x5e, 0xf8, 0x61, 0x88, 0x88, 0xed,
+	0xe2, 0xb0, 0xe9, 0x93, 0x8e, 0xdd, 0x46, 0x7e, 0xab, 0x1d, 0x99, 0xfa, 0xa6, 0xb6, 0xad, 0x1f,
+	0x8f, 0x58, 0x73, 0x42, 0x5d, 0x17, 0xda, 0x63, 0xae, 0xfc, 0xa5, 0xa6, 0x31, 0x43, 0x3f, 0x6c,
+	0x22, 0x62, 0xab, 0xe8, 0x29, 0xc3, 0x22, 0x37, 0xd4, 0xac, 0x39, 0xae, 0x3e, 0x94, 0xda, 0xd4,
+	0xf0, 0x00, 0x56, 0x5c, 0x27, 0xf4, 0x7c, 0xcf, 0x89, 0x90, 0xdd, 0xc5, 0x38, 0xb0, 0x69, 0xe8,
+	0x74, 0x69, 0x1b, 0x47, 0x8c, 0xe3, 0x78, 0x86, 0xe3, 0x52, 0x82, 0x3b, 0xc7, 0x38, 0x68, 0x48,
+	0xd4, 0x89, 0x67, 0xdc, 0x87, 0xb9, 0x1e, 0x17, 0x6d, 0x87, 0xb6, 0xcd, 0x52, 0xc6, 0x76, 0x36,
+	0x67, 0x7b, 0xec, 0xd0, 0xb6, 0x51, 0x83, 0x69, 0xb9, 0xd5, 0x17, 0x98, 0x5c, 0x23, 0x62, 0xc2,
+	0xa6, 0xb6, 0x3d, 0x51, 0x33, 0xff, 0xf4, 0x87, 0x8f, 0xe7, 0x65, 0x8e, 0x1f, 0x78, 0x1e, 0x41,
+	0x94, 0x36, 0x22, 0xe2, 0x87, 0xad, 0xe3, 0x51, 0x6b, 0x4a, 0x18, 0xfc, 0x90, 0xe3, 0x19, 0xf9,
+	0xc7, 0xb0, 0xd1, 0x25, 0xb8, 0xe9, 0x07, 0xc8, 0x46, 0x2f, 0x91, 0x1b, 0x47, 0x3e, 0x0e, 0x53,
+	0xfe, 0x9c, 0xc5, 0x54, 0x86, 0xc5, 0x1d, 0x09, 0x3e, 0x52, 0x58, 0xb5, 0x09, 0x4e, 0xe8, 0xfb,
+	0xb0, 0xfc, 0xd3, 0xd8, 0x6b, 0xb1, 0xc3, 0xb2, 0x9b, 0x71, 0xe8, 0x72, 0x67, 0x37, 0x88, 0xb0,
+	0x74, 0x30, 0xa7, 0x19, 0x39, 0x6b, 0x49, 0x01, 0x1e, 0x49, 0xfd, 0xa5, 0x50, 0x1b, 0x9f, 0xc1,
+	0xbc, 0xca, 0x00, 0x9b, 0xba, 0x6d, 0xd4, 0x71, 0xc4, 0xea, 0xe5, 0xcc, 0xea, 0x86, 0x42, 0x34,
+	0x38, 0x80, 0xaf, 0xf9, 0x80, 0x47, 0x1f, 0x87, 0xbe, 0xeb, 0x04, 0x49, 0x69, 0x25, 0x8b, 0xce,
+	0xf0, 0x45, 0xcd, 0x04, 0x71, 0x24, 0x01, 0x6a, 0xd5, 0x2f, 0xc0, 0x6c, 0xa1, 0x10, 0x11, 0x87,
+	0x53, 0x15, 0xf9, 0x6c, 0x7b, 0x7e, 0x0b, 0xd1, 0xc8, 0xac, 0x64, 0x56, 0x5e, 0x4c, 0x51, 0xe7,
+	0x1c, 0x74, 0xc8, 0x31, 0x46, 0x1d, 0xd6, 0x3b, 0x28, 0x22, 0xbe, 0x6b, 0x3b, 0xad, 0x16, 0x41,
+	0x2d, 0x7e, 0x7e, 0x04, 0xe3, 0x66, 0xc2, 0x60, 0x96, 0x33, 0x58, 0x15, 0xa8, 0x03, 0x05, 0x3a,
+	0x67, 0x18, 0x45, 0xe2, 0x11, 0xcc, 0xa6, 0xb5, 0x6f, 0xd3, 0xc8, 0x89, 0x62, 0x6a, 0x1a, 0x9b,
+	0xda, 0x76, 0x79, 0x7f, 0x79, 0x47, 0xb6, 0xb0, 0x9d, 0xb4, 0x0e, 0x1a, 0x1c, 0x60, 0x55, 0x9c,
+	0x1e, 0x89, 0x51, 0x83, 0x75, 0x91, 0x08, 0xb6, 0x48, 0xe4, 0xc8, 0xef, 0x20, 0x1c, 0x47, 0x36,
+	0x0d, 0x1c, 0xda, 0xb6, 0xaf, 0xba, 0xd4, 0x9c, 0xdb, 0xd4, 0xb6, 0xa7, 0xad, 0x15, 0x81, 0x3a,
+	0x61, 0xa0, 0x0b, 0x81, 0x69, 0x30, 0x48, 0xad, 0x4b, 0x8d, 0x43, 0xd8, 0x20, 0x88, 0xc6, 0x41,
+	0x64, 0x13, 0x74, 0x83, 0x9c, 0xc0, 0xee, 0xf8, 0x94, 0xb2, 0x88, 0xa6, 0x4e, 0xe6, 0xb9, 0x93,
+	0x55, 0x01, 0xb3, 0x38, 0xea, 0x6b, 0x01, 0x4a, 0xbc, 0x1c, 0x81, 0xd1, 0xf1, 0x43, 0xb6, 0x95,
+	0x6b, 0x94, 0x64, 0x93, 0xb9, 0xb0, 0xa9, 0x6d, 0x4f, 0xee, 0xcf, 0xee, 0x88, 0x7e, 0xc8, 0x37,
+	0xc5, 0x7b, 0x6b, 0x4d, 0x7f, 0xf5, 0xd7, 0x8d, 0x11, 0xab, 0xd2, 0xf1, 0xc3, 0x06, 0xb3, 0x50,
+	0x39, 0x65, 0x6c, 0xc1, 0x34, 0x41, 0x2e, 0x26, 0x9e, 0x2a, 0xc5, 0x45, 0x56, 0x8a, 0xd6, 0x94,
+	0x10, 0x8a, 0x0a, 0x64, 0x89, 0xe3, 0xf9, 0xb4, 0xeb, 0x44, 0x6e, 0xdb, 0x56, 0x68, 0x96, 0x38,
+	0x4b, 0xd9, 0xc4, 0x51, 0x08, 0x4b, 0x58, 0xb2, 0xc4, 0xc9, 0xda, 0x45, 0xbe, 0x7b, 0x8d, 0x64,
+	0xba, 0x9b, 0x83, 0xec, 0x2e, 0x38, 0x80, 0xd9, 0xd5, 0x4c, 0x58, 0xb4, 0x07, 0x76, 0x18, 0xae,
+	0x19, 0xd8, 0x42, 0x6a, 0x15, 0x28, 0xdb, 0xb9, 0x52, 0x3d, 0xd5, 0x4b, 0xa3, 0x95, 0xc2, 0xa9,
+	0x5e, 0x2a, 0x54, 0xf4, 0x53, 0xbd, 0x34, 0x56, 0x19, 0x3f, 0xd5, 0x4b, 0x13, 0x15, 0x38, 0xd5,
+	0x4b, 0x93, 0x95, 0x29, 0x6b, 0x5e, 0x9c, 0xad, 0xed, 0xb8, 0x2e, 0xea, 0x46, 0xd2, 0x8b, 0x75,
+	0x27, 0x93, 0x25, 0xc4, 0x09, 0x3d, 0xdc, 0x09, 0x11, 0xa5, 0x4a, 0xbb, 0x98, 0xd1, 0x36, 0x1d,
+	0x3f, 0xb0, 0x09, 0x72, 0x28, 0x0e, 0xad, 0xb5, 0x8c, 0x3c, 0x6d, 0x32, 0x54, 0x6e, 0xd7, 0x32,
+	0x24, 0x2f, 0x8f, 0x38, 0x2f, 0x64, 0xe6, 0x57, 0xff, 0x51, 0x80, 0x15, 0xd6, 0x7b, 0x6b, 0xb1,
+	0x1f, 0x78, 0x88, 0x34, 0x50, 0x80, 0x44, 0xad, 0x0e, 0xd5, 0x81, 0xff, 0x0f, 0xca, 0x57, 0xc2,
+	0x90, 0xaf, 0xe2, 0x7b, 0x66, 0x81, 0xd7, 0xc0, 0xd4, 0x95, 0x72, 0xc7, 0x5a, 0xde, 0x0e, 0x54,
+	0xb2, 0x28, 0x1e, 0x7a, 0x3d, 0xe3, 0xad, 0x9c, 0xa2, 0xf9, 0x71, 0x9d, 0xc1, 0x22, 0xe5, 0x3c,
+	0x90, 0xc7, 0xaf, 0x78, 0x5b, 0xea, 0xa9, 0x59, 0xdc, 0x2c, 0xbc, 0xab, 0xeb, 0x59, 0xf3, 0xca,
+	0x2e, 0xb3, 0x25, 0x6a, 0x3c, 0x84, 0xd5, 0x81, 0xfe, 0x6c, 0x97, 0xa5, 0xa4, 0x39, 0xc6, 0x93,
+	0xdc, 0x1c, 0x60, 0x5a, 0x67, 0x7a, 0xa3, 0xfe, 0x16, 0x73, 0x2a, 0x76, 0x92, 0xed, 0xfa, 0x83,
+	0x9c, 0x50, 0xbe, 0xa7, 0x7b, 0x50, 0x76, 0x09, 0x72, 0x98, 0x0f, 0x99, 0xe0, 0x25, 0x9e, 0xe0,
+	0xd3, 0x52, 0x2a, 0x33, 0xfc, 0x01, 0x4c, 0x5e, 0x61, 0xef, 0x56, 0x75, 0x86, 0x09, 0xde, 0x19,
+	0x56, 0x33, 0x65, 0xd4, 0x88, 0x30, 0x41, 0x5e, 0x0d, 0x7b, 0xb7, 0xb2, 0x37, 0xc0, 0x55, 0xf2,
+	0xb7, 0xc8, 0x34, 0x6b, 0x59, 0xde, 0xca, 0xb6, 0x13, 0xba, 0x6d, 0x4c, 0xec, 0xab, 0x00, 0xbb,
+	0xd7, 0x9c, 0x6b, 0xf5, 0x57, 0x05, 0x30, 0xf8, 0x4d, 0xeb, 0x46, 0xfe, 0x0d, 0xaa, 0xc5, 0xa1,
+	0x17, 0xa0, 0xcb, 0x3d, 0xe3, 0x3b, 0xa0, 0xbb, 0x98, 0x20, 0x7e, 0xc4, 0x93, 0xfb, 0x8b, 0x49,
+	0x23, 0x62, 0xd0, 0x3a, 0x26, 0x88, 0xb9, 0x47, 0xb2, 0x74, 0x39, 0xd2, 0x78, 0x08, 0x90, 0xe6,
+	0x9a, 0x39, 0xca, 0xed, 0xd6, 0x72, 0x76, 0xbd, 0x97, 0xb9, 0x95, 0x31, 0x30, 0xea, 0x30, 0x4d,
+	0x70, 0x1c, 0x7a, 0x6a, 0x40, 0xe1, 0x69, 0x33, 0xb9, 0xbf, 0x9e, 0xf3, 0x60, 0x31, 0x44, 0x43,
+	0x00, 0x38, 0x03, 0x6b, 0x8a, 0x64, 0x44, 0xc6, 0x8f, 0x61, 0x85, 0xff, 0xde, 0x13, 0x23, 0x8b,
+	0x8f, 0x88, 0x9d, 0xe1, 0xa4, 0x73, 0x8f, 0x9b, 0x89, 0xc7, 0x4b, 0x89, 0xc9, 0x37, 0x57, 0x64,
+	0x99, 0xc2, 0x47, 0xbf, 0x3a, 0xf1, 0xbf, 0x3f, 0xd0, 0x7f, 0xf1, 0x83, 0xfc, 0xef, 0xf7, 0xab,
+	0xab, 0xbf, 0xd6, 0x00, 0xd8, 0x3e, 0x65, 0xa9, 0x7d, 0x0a, 0x63, 0x0e, 0x3f, 0x16, 0x79, 0x0c,
+	0xab, 0xf9, 0x70, 0xe6, 0x4e, 0xec, 0x78, 0xc4, 0x92, 0x60, 0xe3, 0x4b, 0x28, 0x45, 0x88, 0x74,
+	0xfc, 0xd0, 0x09, 0xe4, 0x39, 0xdc, 0xcd, 0x19, 0x5e, 0x48, 0x65, 0x36, 0x90, 0xc7, 0x23, 0x56,
+	0x62, 0x54, 0x1b, 0x87, 0x22, 0x9f, 0xca, 0xaa, 0x7f, 0x29, 0xc2, 0x0c, 0xb3, 0x68, 0x44, 0x4e,
+	0x0b, 0x0d, 0x57, 0xff, 0x7b, 0x00, 0x5c, 0xdd, 0x6d, 0x3b, 0x14, 0xf1, 0xe5, 0xcb, 0xfb, 0x46,
+	0x6e, 0xf9, 0x73, 0xa6, 0xb1, 0x26, 0x22, 0xf5, 0xe7, 0xe0, 0x1b, 0xb0, 0xf0, 0xe1, 0x37, 0xe0,
+	0x43, 0x28, 0x13, 0xe4, 0x22, 0xbf, 0x9b, 0x38, 0xd1, 0xb9, 0x93, 0x34, 0x7b, 0x2d, 0xa1, 0x96,
+	0x1e, 0xa6, 0x49, 0xf6, 0xa7, 0xf1, 0x04, 0xe6, 0xc4, 0xa9, 0xba, 0x62, 0x1e, 0x90, 0x3e, 0x8a,
+	0xb2, 0xe0, 0xf2, 0xa7, 0x2a, 0x30, 0xd2, 0x91, 0x71, 0xd3, 0x27, 0x63, 0x9b, 0x4a, 0x67, 0x5e,
+	0xe5, 0x6b, 0xac, 0x67, 0x53, 0x8d, 0x04, 0xa1, 0x36, 0x45, 0x7b, 0x24, 0xc6, 0x31, 0xcc, 0x34,
+	0xd9, 0xa1, 0xf8, 0x51, 0xd2, 0x02, 0xc6, 0xb9, 0x97, 0x8d, 0x4c, 0x0b, 0x60, 0x61, 0x7d, 0x24,
+	0x51, 0xc2, 0xee, 0x72, 0xcf, 0x2a, 0x37, 0x73, 0x12, 0xe3, 0x14, 0x8c, 0x10, 0xbd, 0x8c, 0xd2,
+	0xeb, 0xe9, 0xda, 0x0f, 0x3d, 0xde, 0x73, 0xca, 0xfb, 0x4b, 0x09, 0x25, 0x35, 0xe1, 0x3e, 0xf6,
+	0x43, 0x8f, 0x67, 0x55, 0x85, 0x19, 0x65, 0xa5, 0x6c, 0x70, 0xfc, 0x14, 0xe6, 0xf3, 0xbe, 0x64,
+	0x07, 0x9b, 0x90, 0xd3, 0xb2, 0x91, 0x35, 0x4a, 0x87, 0xe5, 0x7b, 0x50, 0x8e, 0xbb, 0x5e, 0xb6,
+	0xe5, 0x81, 0x68, 0x79, 0x52, 0x2a, 0x5b, 0xde, 0x7d, 0x58, 0x44, 0xcd, 0x26, 0xe2, 0xd9, 0x2c,
+	0x1f, 0x1f, 0x36, 0xaf, 0x19, 0x73, 0x92, 0x37, 0xe6, 0xf9, 0x44, 0xcb, 0x0f, 0xe3, 0x96, 0xb7,
+	0x85, 0xda, 0x02, 0xcc, 0xd9, 0xfd, 0x1b, 0xac, 0x2d, 0xc1, 0x82, 0x3d, 0x88, 0x6b, 0xf5, 0x3f,
+	0x1a, 0xcc, 0x88, 0x1a, 0xe2, 0xad, 0x05, 0x35, 0xff, 0x27, 0xc9, 0xbd, 0x01, 0xa5, 0x0e, 0xf6,
+	0x50, 0xa0, 0x6e, 0x42, 0xe5, 0x72, 0x9c, 0x4b, 0x4f, 0x3c, 0xe3, 0xff, 0x61, 0x46, 0xcd, 0xe0,
+	0x6a, 0x6a, 0xd4, 0xf9, 0x2e, 0xcb, 0x52, 0xac, 0x06, 0xc5, 0xfe, 0xfb, 0xa2, 0x38, 0xe8, 0xbe,
+	0xe8, 0x8f, 0xf1, 0xd8, 0x80, 0x18, 0x57, 0xff, 0xa5, 0xc1, 0x32, 0x6f, 0xe6, 0xe2, 0x11, 0x79,
+	0x4e, 0x70, 0x8b, 0xdd, 0x9a, 0xc3, 0x15, 0xf9, 0x3e, 0x8c, 0xc9, 0x5c, 0x14, 0x31, 0x58, 0xc9,
+	0xdf, 0x0f, 0xc2, 0xa5, 0x4c, 0x69, 0x89, 0x34, 0xee, 0x43, 0x51, 0x84, 0xad, 0xb7, 0xb2, 0xb3,
+	0x2c, 0x18, 0xe0, 0x78, 0xc4, 0x12, 0x48, 0x96, 0x31, 0x5b, 0x30, 0x7d, 0xe3, 0x53, 0x9f, 0xed,
+	0x46, 0x5c, 0xcd, 0xba, 0x18, 0x02, 0xa5, 0x50, 0x5c, 0xc7, 0x5b, 0x30, 0xed, 0xa1, 0x00, 0xa5,
+	0x20, 0x11, 0x98, 0x29, 0x29, 0xe4, 0xa0, 0x5a, 0x09, 0xc6, 0xc4, 0xb9, 0x55, 0xf7, 0xa0, 0xf2,
+	0x0d, 0x7b, 0xa6, 0x8b, 0x63, 0x7f, 0x1e, 0xb3, 0x51, 0xfe, 0xdd, 0x1b, 0xae, 0xd6, 0x60, 0x36,
+	0x63, 0x42, 0xbb, 0x38, 0xa4, 0xc8, 0xf8, 0x18, 0x74, 0xa6, 0x96, 0xcd, 0x79, 0x2e, 0xb7, 0x21,
+	0x11, 0x47, 0x75, 0x41, 0x32, 0x4d, 0xf5, 0x21, 0xdc, 0x49, 0x7c, 0x3c, 0x22, 0xf8, 0x67, 0x48,
+	0x3e, 0x26, 0x86, 0xa4, 0xf0, 0x73, 0x58, 0x7b, 0x8b, 0xb9, 0xa4, 0xf3, 0x09, 0x8c, 0x89, 0x27,
+	0x8c, 0x24, 0xb4, 0x90, 0x4f, 0x4c, 0xae, 0x4a, 0x28, 0x49, 0x28, 0xcb, 0x16, 0xf9, 0xee, 0x51,
+	0xc9, 0x37, 0x2a, 0xb2, 0x45, 0x48, 0x65, 0xee, 0x55, 0x3f, 0x83, 0x85, 0x64, 0x71, 0x7e, 0x19,
+	0x0c, 0x49, 0xfa, 0x0c, 0x16, 0x7b, 0xed, 0x24, 0xdb, 0xfb, 0x50, 0xa4, 0x4c, 0x20, 0xc9, 0x9a,
+	0x39, 0xb2, 0x99, 0xfb, 0x46, 0xf2, 0x15, 0xe0, 0xea, 0x0f, 0x60, 0x25, 0xf1, 0x97, 0xde, 0x08,
+	0x43, 0x92, 0xb9, 0x82, 0xd5, 0x81, 0xc6, 0x92, 0x51, 0x3d, 0x37, 0xc0, 0x68, 0x43, 0x0c, 0x30,
+	0x92, 0x5b, 0xc6, 0xac, 0xfa, 0x79, 0x66, 0xc3, 0xb5, 0xd8, 0x6b, 0xa1, 0x61, 0xc9, 0x7d, 0x03,
+	0x4b, 0x7d, 0x86, 0x92, 0xd8, 0x67, 0x30, 0x76, 0xc5, 0x25, 0x03, 0x63, 0x25, 0xc0, 0xd9, 0x79,
+	0x4c, 0xa2, 0xab, 0xdf, 0x03, 0x33, 0xe3, 0x52, 0x4c, 0x9e, 0x43, 0xb2, 0xf1, 0x60, 0x79, 0x80,
+	0xa9, 0xe4, 0xf3, 0x15, 0x4c, 0x50, 0xf5, 0x28, 0x90, 0x94, 0xb6, 0x7a, 0x28, 0x0d, 0x7a, 0x39,
+	0x48, 0x76, 0xa9, 0x6d, 0xf5, 0x27, 0xd9, 0x8a, 0x70, 0xfc, 0x20, 0x26, 0xa8, 0x1e, 0x38, 0x74,
+	0x48, 0x92, 0xc6, 0x5d, 0x98, 0xca, 0x5d, 0x0e, 0xa3, 0xbc, 0x6d, 0x4e, 0xde, 0xa4, 0x77, 0x42,
+	0xd5, 0xce, 0x16, 0x4d, 0x6e, 0x05, 0xb9, 0x97, 0x2f, 0x60, 0xbc, 0x29, 0xe4, 0x72, 0x27, 0xf9,
+	0x81, 0x33, 0x6b, 0x93, 0x0d, 0xb1, 0x32, 0xaa, 0x3e, 0x90, 0x39, 0x75, 0x24, 0xbf, 0x4d, 0xc8,
+	0x46, 0x36, 0x74, 0x46, 0xde, 0x19, 0x6c, 0x2d, 0xd9, 0xd5, 0x60, 0x5c, 0x7e, 0xe4, 0x93, 0xec,
+	0xaa, 0x03, 0xbb, 0x66, 0xae, 0x77, 0x2b, 0x86, 0xd2, 0xb0, 0x7a, 0x5f, 0xad, 0xd1, 0xc5, 0x6e,
+	0x9b, 0x17, 0x97, 0x18, 0xfb, 0x14, 0xc5, 0x79, 0x28, 0xf2, 0x2f, 0x83, 0x7c, 0x05, 0xdd, 0x12,
+	0x3f, 0xaa, 0x4d, 0x19, 0xb8, 0x7e, 0x2b, 0x49, 0xed, 0x08, 0xc6, 0xe5, 0xf8, 0x24, 0xa9, 0xdd,
+	0x4b, 0xa8, 0xf5, 0xdb, 0x24, 0x63, 0x56, 0x12, 0x3f, 0x69, 0x5b, 0xfd, 0xa3, 0x26, 0x03, 0x68,
+	0xe1, 0x00, 0xa5, 0xb7, 0x71, 0x92, 0x02, 0x75, 0xa8, 0xe0, 0x2e, 0x22, 0x4e, 0x84, 0x89, 0xed,
+	0x88, 0x87, 0x1d, 0x5f, 0xef, 0x5d, 0x4f, 0xbe, 0x19, 0x65, 0x21, 0xc5, 0xc6, 0x16, 0xe8, 0x5e,
+	0x1c, 0xdd, 0xca, 0xcb, 0x6a, 0x26, 0x33, 0x38, 0x1d, 0xc6, 0xd1, 0xad, 0xc5, 0x95, 0xc6, 0xe7,
+	0xa0, 0x77, 0x59, 0x3f, 0x2a, 0xc8, 0xc2, 0x4f, 0x41, 0x9c, 0xdf, 0x79, 0xda, 0xf4, 0xd2, 0xbe,
+	0xce, 0x0c, 0xaa, 0xbf, 0xd1, 0x64, 0x84, 0xfb, 0xb6, 0x90, 0xb6, 0x3a, 0x16, 0x1a, 0x46, 0xbc,
+	0x90, 0x2b, 0xdf, 0x9e, 0xe9, 0x43, 0xb5, 0x3a, 0x0e, 0x36, 0xbe, 0x2b, 0xf9, 0x8c, 0xca, 0xb4,
+	0x1c, 0xc8, 0x47, 0xac, 0xd0, 0x43, 0xe8, 0x77, 0x9a, 0xec, 0x92, 0xe2, 0x43, 0x9f, 0x4a, 0xae,
+	0x21, 0xab, 0xea, 0x1c, 0x96, 0xe4, 0x77, 0xa4, 0xbe, 0xc0, 0x8f, 0xbe, 0x27, 0xf0, 0x0b, 0xc2,
+	0xf0, 0x69, 0x4f, 0xf8, 0x2b, 0x50, 0xa0, 0xe8, 0x39, 0x0f, 0xac, 0x6e, 0xb1, 0x3f, 0x93, 0x4e,
+	0xdc, 0x4b, 0x30, 0xe9, 0xc4, 0x3d, 0xb9, 0x95, 0xb6, 0x97, 0x5e, 0x8b, 0xb7, 0x67, 0xd6, 0x2f,
+	0x46, 0xe1, 0x2e, 0x5f, 0x44, 0xbd, 0xb3, 0x2e, 0xd9, 0x93, 0xe6, 0x03, 0x83, 0xf1, 0xfe, 0x16,
+	0xc3, 0xe2, 0x15, 0x39, 0xa4, 0x85, 0xa2, 0xfe, 0x78, 0x15, 0xde, 0x17, 0x2f, 0x61, 0xd8, 0x1b,
+	0x2f, 0x95, 0x89, 0xc5, 0x0f, 0xcc, 0xc4, 0x53, 0xbd, 0xa4, 0x57, 0x8a, 0x56, 0xa9, 0x8b, 0xa9,
+	0xcf, 0xfb, 0xeb, 0xdf, 0x35, 0xa8, 0xbe, 0x2b, 0x04, 0x32, 0xdc, 0x4f, 0xa0, 0x24, 0x83, 0xc6,
+	0x5e, 0x4c, 0x2c, 0x45, 0x3f, 0xea, 0x7b, 0xc3, 0xf6, 0x58, 0xf6, 0x85, 0x3d, 0xf1, 0x90, 0xe4,
+	0x6d, 0xf1, 0x43, 0xf3, 0xf6, 0x54, 0x2f, 0x69, 0x95, 0xd1, 0xec, 0xb7, 0x31, 0x6b, 0x26, 0xf9,
+	0x28, 0x2c, 0xbe, 0x4d, 0x59, 0xa5, 0xa6, 0x13, 0x07, 0x91, 0xed, 0x7b, 0xd6, 0x8c, 0xf8, 0x3a,
+	0x96, 0x4c, 0xb9, 0x1f, 0xfd, 0x5e, 0x83, 0xd9, 0xbe, 0xe9, 0xd3, 0xd8, 0x82, 0x8d, 0x8b, 0x83,
+	0xc6, 0x63, 0xbb, 0xfe, 0xe4, 0xe8, 0xe0, 0xec, 0xd9, 0xb9, 0xdd, 0xb8, 0x38, 0xb8, 0x78, 0xd6,
+	0xb0, 0x9f, 0x9d, 0x35, 0xce, 0x8f, 0xea, 0x27, 0x8f, 0x4e, 0x8e, 0x0e, 0x2b, 0x23, 0xc6, 0x3d,
+	0xb8, 0x3b, 0x08, 0x74, 0xf6, 0xf4, 0xc2, 0x6e, 0xd4, 0x8f, 0x8f, 0x0e, 0x9f, 0x3d, 0x39, 0x3a,
+	0xac, 0x68, 0xc6, 0x06, 0xac, 0x0e, 0x82, 0x59, 0xcf, 0xce, 0xce, 0x4e, 0xce, 0xbe, 0xaa, 0x8c,
+	0x1a, 0x77, 0x61, 0x6d, 0x10, 0xa0, 0xfe, 0xf4, 0xeb, 0xf3, 0x83, 0xfa, 0xc5, 0xd1, 0x61, 0xa5,
+	0x50, 0xfb, 0xf2, 0xd5, 0xeb, 0x75, 0xed, 0xdb, 0xd7, 0xeb, 0xda, 0xdf, 0x5e, 0xaf, 0x6b, 0xbf,
+	0x7d, 0xb3, 0x3e, 0xf2, 0xed, 0x9b, 0xf5, 0x91, 0x3f, 0xbf, 0x59, 0x1f, 0xf9, 0xd1, 0xbd, 0x96,
+	0x1f, 0xb5, 0xe3, 0xab, 0x1d, 0x17, 0x77, 0x76, 0x2f, 0x48, 0x8c, 0x9e, 0x76, 0x51, 0xb8, 0x1b,
+	0x62, 0x0f, 0xed, 0xbe, 0xdc, 0xe5, 0xff, 0x2b, 0x89, 0x6e, 0xbb, 0x88, 0x5e, 0x8d, 0xf1, 0x7f,
+	0x90, 0x7c, 0xf2, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xe7, 0x4c, 0xa5, 0x33, 0xf8, 0x1a, 0x00,
+	0x00,
 }
 
 func (m *TaskAssignmentViewV1) Marshal() (dAtA []byte, err error) {
@@ -2701,6 +2451,31 @@ func (m *TaskAssignmentViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.DispatchTicketHash) > 0 {
+		i -= len(m.DispatchTicketHash)
+		copy(dAtA[i:], m.DispatchTicketHash)
+		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.DispatchTicketHash)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc2
+	}
+	if len(m.DispatchRecordHash) > 0 {
+		i -= len(m.DispatchRecordHash)
+		copy(dAtA[i:], m.DispatchRecordHash)
+		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.DispatchRecordHash)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xba
+	}
+	if m.RecordHeight != 0 {
+		i = encodeVarintQueryTask(dAtA, i, uint64(m.RecordHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
 	{
 		size, err := m.MinStakeSnapshot.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -2780,15 +2555,6 @@ func (m *TaskAssignmentViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x62
 	}
-	if m.XWinnerDrawDigest != nil {
-		{
-			size := m.XWinnerDrawDigest.Size()
-			i -= size
-			if _, err := m.XWinnerDrawDigest.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
 	if m.XWinnerWorker != nil {
 		{
 			size := m.XWinnerWorker.Size()
@@ -2797,13 +2563,6 @@ func (m *TaskAssignmentViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				return 0, err
 			}
 		}
-	}
-	if len(m.AssignmentCandidateSetHash) > 0 {
-		i -= len(m.AssignmentCandidateSetHash)
-		copy(dAtA[i:], m.AssignmentCandidateSetHash)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.AssignmentCandidateSetHash)))
-		i--
-		dAtA[i] = 0x4a
 	}
 	if len(m.CandidatePoolHash) > 0 {
 		i -= len(m.CandidatePoolHash)
@@ -2818,15 +2577,6 @@ func (m *TaskAssignmentViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.CandidatePoolSnapshotId)))
 		i--
 		dAtA[i] = 0x3a
-	}
-	if m.XAssignmentFailReason != nil {
-		{
-			size := m.XAssignmentFailReason.Size()
-			i -= size
-			if _, err := m.XAssignmentFailReason.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
 	}
 	if m.XInferDeadlineHeight != nil {
 		{
@@ -2845,16 +2595,6 @@ func (m *TaskAssignmentViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				return 0, err
 			}
 		}
-	}
-	if m.AssignmentRandomnessHeight != 0 {
-		i = encodeVarintQueryTask(dAtA, i, uint64(m.AssignmentRandomnessHeight))
-		i--
-		dAtA[i] = 0x18
-	}
-	if m.AssignAcceptHeight != 0 {
-		i = encodeVarintQueryTask(dAtA, i, uint64(m.AssignAcceptHeight))
-		i--
-		dAtA[i] = 0x10
 	}
 	if len(m.TaskId) > 0 {
 		i -= len(m.TaskId)
@@ -2890,18 +2630,6 @@ func (m *TaskAssignmentViewV1_InferDeadlineHeight) MarshalToSizedBuffer(dAtA []b
 	dAtA[i] = 0x28
 	return len(dAtA) - i, nil
 }
-func (m *TaskAssignmentViewV1_AssignmentFailReason) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *TaskAssignmentViewV1_AssignmentFailReason) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	i = encodeVarintQueryTask(dAtA, i, uint64(m.AssignmentFailReason))
-	i--
-	dAtA[i] = 0x30
-	return len(dAtA) - i, nil
-}
 func (m *TaskAssignmentViewV1_WinnerWorker) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
@@ -2914,22 +2642,6 @@ func (m *TaskAssignmentViewV1_WinnerWorker) MarshalToSizedBuffer(dAtA []byte) (i
 	i = encodeVarintQueryTask(dAtA, i, uint64(len(m.WinnerWorker)))
 	i--
 	dAtA[i] = 0x52
-	return len(dAtA) - i, nil
-}
-func (m *TaskAssignmentViewV1_WinnerDrawDigest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *TaskAssignmentViewV1_WinnerDrawDigest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.WinnerDrawDigest != nil {
-		i -= len(m.WinnerDrawDigest)
-		copy(dAtA[i:], m.WinnerDrawDigest)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.WinnerDrawDigest)))
-		i--
-		dAtA[i] = 0x5a
-	}
 	return len(dAtA) - i, nil
 }
 func (m *TaskBuilderSelectionViewV1) Marshal() (dAtA []byte, err error) {
@@ -2996,13 +2708,6 @@ func (m *TaskBuilderSelectionViewV1) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.BuilderSetId)))
 		i--
 		dAtA[i] = 0x1a
-	}
-	if len(m.SessionAnchorBlockHash) > 0 {
-		i -= len(m.SessionAnchorBlockHash)
-		copy(dAtA[i:], m.SessionAnchorBlockHash)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.SessionAnchorBlockHash)))
-		i--
-		dAtA[i] = 0x12
 	}
 	if len(m.TaskId) > 0 {
 		i -= len(m.TaskId)
@@ -3281,149 +2986,6 @@ func (m *TaskStageViewV1_NextDeadlineHeight) MarshalToSizedBuffer(dAtA []byte) (
 	dAtA[i] = 0x48
 	return len(dAtA) - i, nil
 }
-func (m *AssignmentRandomnessViewV1) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *AssignmentRandomnessViewV1) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *AssignmentRandomnessViewV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XWinnerConfirmHeight != nil {
-		{
-			size := m.XWinnerConfirmHeight.Size()
-			i -= size
-			if _, err := m.XWinnerConfirmHeight.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if m.XWinnerDrawDigest != nil {
-		{
-			size := m.XWinnerDrawDigest.Size()
-			i -= size
-			if _, err := m.XWinnerDrawDigest.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if m.XWinnerWorker != nil {
-		{
-			size := m.XWinnerWorker.Size()
-			i -= size
-			if _, err := m.XWinnerWorker.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if m.XBeaconProofDigest != nil {
-		{
-			size := m.XBeaconProofDigest.Size()
-			i -= size
-			if _, err := m.XBeaconProofDigest.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if len(m.BeaconRandomness) > 0 {
-		i -= len(m.BeaconRandomness)
-		copy(dAtA[i:], m.BeaconRandomness)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.BeaconRandomness)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if len(m.AssignmentCandidateSetHash) > 0 {
-		i -= len(m.AssignmentCandidateSetHash)
-		copy(dAtA[i:], m.AssignmentCandidateSetHash)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.AssignmentCandidateSetHash)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if m.AssignmentRandomnessHeight != 0 {
-		i = encodeVarintQueryTask(dAtA, i, uint64(m.AssignmentRandomnessHeight))
-		i--
-		dAtA[i] = 0x10
-	}
-	if len(m.TaskId) > 0 {
-		i -= len(m.TaskId)
-		copy(dAtA[i:], m.TaskId)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.TaskId)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *AssignmentRandomnessViewV1_BeaconProofDigest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *AssignmentRandomnessViewV1_BeaconProofDigest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.BeaconProofDigest != nil {
-		i -= len(m.BeaconProofDigest)
-		copy(dAtA[i:], m.BeaconProofDigest)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.BeaconProofDigest)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	return len(dAtA) - i, nil
-}
-func (m *AssignmentRandomnessViewV1_WinnerWorker) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *AssignmentRandomnessViewV1_WinnerWorker) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	i -= len(m.WinnerWorker)
-	copy(dAtA[i:], m.WinnerWorker)
-	i = encodeVarintQueryTask(dAtA, i, uint64(len(m.WinnerWorker)))
-	i--
-	dAtA[i] = 0x32
-	return len(dAtA) - i, nil
-}
-func (m *AssignmentRandomnessViewV1_WinnerDrawDigest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *AssignmentRandomnessViewV1_WinnerDrawDigest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.WinnerDrawDigest != nil {
-		i -= len(m.WinnerDrawDigest)
-		copy(dAtA[i:], m.WinnerDrawDigest)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.WinnerDrawDigest)))
-		i--
-		dAtA[i] = 0x3a
-	}
-	return len(dAtA) - i, nil
-}
-func (m *AssignmentRandomnessViewV1_WinnerConfirmHeight) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *AssignmentRandomnessViewV1_WinnerConfirmHeight) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	i = encodeVarintQueryTask(dAtA, i, uint64(m.WinnerConfirmHeight))
-	i--
-	dAtA[i] = 0x40
-	return len(dAtA) - i, nil
-}
 func (m *ActiveTaskRefV1) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -3610,6 +3172,74 @@ func (m *QueryTaskResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryTaskFrozenParamsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryTaskFrozenParamsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryTaskFrozenParamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.TaskId) > 0 {
+		i -= len(m.TaskId)
+		copy(dAtA[i:], m.TaskId)
+		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.TaskId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryTaskFrozenParamsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryTaskFrozenParamsResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryTaskFrozenParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ParamsVersion != 0 {
+		i = encodeVarintQueryTask(dAtA, i, uint64(m.ParamsVersion))
+		i--
+		dAtA[i] = 0x10
+	}
+	{
+		size, err := m.Params.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQueryTask(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *QueryTaskStageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -3725,69 +3355,6 @@ func (m *QueryTaskAssignmentResponse) MarshalToSizedBuffer(dAtA []byte) (int, er
 	_ = l
 	{
 		size, err := m.Assignment.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintQueryTask(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryAssignmentRandomnessRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryAssignmentRandomnessRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryAssignmentRandomnessRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.TaskId) > 0 {
-		i -= len(m.TaskId)
-		copy(dAtA[i:], m.TaskId)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.TaskId)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryAssignmentRandomnessResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryAssignmentRandomnessResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryAssignmentRandomnessResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	{
-		size, err := m.Randomness.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -4304,11 +3871,16 @@ func (m *QueryVerifierValueEvidenceRequest) MarshalToSizedBuffer(dAtA []byte) (i
 	_ = i
 	var l int
 	_ = l
-	if m.Position != 0 {
-		i = encodeVarintQueryTask(dAtA, i, uint64(m.Position))
-		i--
-		dAtA[i] = 0x20
+	{
+		size, err := m.Page.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQueryTask(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0x2a
 	if len(m.TargetOperatorAddress) > 0 {
 		i -= len(m.TargetOperatorAddress)
 		copy(dAtA[i:], m.TargetOperatorAddress)
@@ -4351,24 +3923,29 @@ func (m *QueryVerifierValueEvidenceResponse) MarshalToSizedBuffer(dAtA []byte) (
 	_ = i
 	var l int
 	_ = l
-	if m.AcceptedHeight != 0 {
-		i = encodeVarintQueryTask(dAtA, i, uint64(m.AcceptedHeight))
-		i--
-		dAtA[i] = 0x18
+	{
+		size, err := m.Page.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQueryTask(dAtA, i, uint64(size))
 	}
-	if len(m.FaultId) > 0 {
-		i -= len(m.FaultId)
-		copy(dAtA[i:], m.FaultId)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.FaultId)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.EvidenceDigest) > 0 {
-		i -= len(m.EvidenceDigest)
-		copy(dAtA[i:], m.EvidenceDigest)
-		i = encodeVarintQueryTask(dAtA, i, uint64(len(m.EvidenceDigest)))
-		i--
-		dAtA[i] = 0xa
+	i--
+	dAtA[i] = 0x2a
+	if len(m.Receipts) > 0 {
+		for iNdEx := len(m.Receipts) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Receipts[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQueryTask(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
 	}
 	return len(dAtA) - i, nil
 }
@@ -4394,20 +3971,11 @@ func (m *TaskAssignmentViewV1) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovQueryTask(uint64(l))
 	}
-	if m.AssignAcceptHeight != 0 {
-		n += 1 + sovQueryTask(uint64(m.AssignAcceptHeight))
-	}
-	if m.AssignmentRandomnessHeight != 0 {
-		n += 1 + sovQueryTask(uint64(m.AssignmentRandomnessHeight))
-	}
 	if m.XWinnerConfirmHeight != nil {
 		n += m.XWinnerConfirmHeight.Size()
 	}
 	if m.XInferDeadlineHeight != nil {
 		n += m.XInferDeadlineHeight.Size()
-	}
-	if m.XAssignmentFailReason != nil {
-		n += m.XAssignmentFailReason.Size()
 	}
 	l = len(m.CandidatePoolSnapshotId)
 	if l > 0 {
@@ -4417,15 +3985,8 @@ func (m *TaskAssignmentViewV1) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovQueryTask(uint64(l))
 	}
-	l = len(m.AssignmentCandidateSetHash)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
 	if m.XWinnerWorker != nil {
 		n += m.XWinnerWorker.Size()
-	}
-	if m.XWinnerDrawDigest != nil {
-		n += m.XWinnerDrawDigest.Size()
 	}
 	l = len(m.ProfileExecutionSnapshotHash)
 	if l > 0 {
@@ -4462,6 +4023,17 @@ func (m *TaskAssignmentViewV1) Size() (n int) {
 	}
 	l = m.MinStakeSnapshot.Size()
 	n += 2 + l + sovQueryTask(uint64(l))
+	if m.RecordHeight != 0 {
+		n += 2 + sovQueryTask(uint64(m.RecordHeight))
+	}
+	l = len(m.DispatchRecordHash)
+	if l > 0 {
+		n += 2 + l + sovQueryTask(uint64(l))
+	}
+	l = len(m.DispatchTicketHash)
+	if l > 0 {
+		n += 2 + l + sovQueryTask(uint64(l))
+	}
 	return n
 }
 
@@ -4483,15 +4055,6 @@ func (m *TaskAssignmentViewV1_InferDeadlineHeight) Size() (n int) {
 	n += 1 + sovQueryTask(uint64(m.InferDeadlineHeight))
 	return n
 }
-func (m *TaskAssignmentViewV1_AssignmentFailReason) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	n += 1 + sovQueryTask(uint64(m.AssignmentFailReason))
-	return n
-}
 func (m *TaskAssignmentViewV1_WinnerWorker) Size() (n int) {
 	if m == nil {
 		return 0
@@ -4502,18 +4065,6 @@ func (m *TaskAssignmentViewV1_WinnerWorker) Size() (n int) {
 	n += 1 + l + sovQueryTask(uint64(l))
 	return n
 }
-func (m *TaskAssignmentViewV1_WinnerDrawDigest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.WinnerDrawDigest != nil {
-		l = len(m.WinnerDrawDigest)
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	return n
-}
 func (m *TaskBuilderSelectionViewV1) Size() (n int) {
 	if m == nil {
 		return 0
@@ -4521,10 +4072,6 @@ func (m *TaskBuilderSelectionViewV1) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	l = len(m.SessionAnchorBlockHash)
 	if l > 0 {
 		n += 1 + l + sovQueryTask(uint64(l))
 	}
@@ -4682,85 +4229,6 @@ func (m *TaskStageViewV1_NextDeadlineHeight) Size() (n int) {
 	n += 1 + sovQueryTask(uint64(m.NextDeadlineHeight))
 	return n
 }
-func (m *AssignmentRandomnessViewV1) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	if m.AssignmentRandomnessHeight != 0 {
-		n += 1 + sovQueryTask(uint64(m.AssignmentRandomnessHeight))
-	}
-	l = len(m.AssignmentCandidateSetHash)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	l = len(m.BeaconRandomness)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	if m.XBeaconProofDigest != nil {
-		n += m.XBeaconProofDigest.Size()
-	}
-	if m.XWinnerWorker != nil {
-		n += m.XWinnerWorker.Size()
-	}
-	if m.XWinnerDrawDigest != nil {
-		n += m.XWinnerDrawDigest.Size()
-	}
-	if m.XWinnerConfirmHeight != nil {
-		n += m.XWinnerConfirmHeight.Size()
-	}
-	return n
-}
-
-func (m *AssignmentRandomnessViewV1_BeaconProofDigest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.BeaconProofDigest != nil {
-		l = len(m.BeaconProofDigest)
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	return n
-}
-func (m *AssignmentRandomnessViewV1_WinnerWorker) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.WinnerWorker)
-	n += 1 + l + sovQueryTask(uint64(l))
-	return n
-}
-func (m *AssignmentRandomnessViewV1_WinnerDrawDigest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.WinnerDrawDigest != nil {
-		l = len(m.WinnerDrawDigest)
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	return n
-}
-func (m *AssignmentRandomnessViewV1_WinnerConfirmHeight) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	n += 1 + sovQueryTask(uint64(m.WinnerConfirmHeight))
-	return n
-}
 func (m *ActiveTaskRefV1) Size() (n int) {
 	if m == nil {
 		return 0
@@ -4848,6 +4316,33 @@ func (m *QueryTaskResponse) Size() (n int) {
 	return n
 }
 
+func (m *QueryTaskFrozenParamsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.TaskId)
+	if l > 0 {
+		n += 1 + l + sovQueryTask(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryTaskFrozenParamsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Params.Size()
+	n += 1 + l + sovQueryTask(uint64(l))
+	if m.ParamsVersion != 0 {
+		n += 1 + sovQueryTask(uint64(m.ParamsVersion))
+	}
+	return n
+}
+
 func (m *QueryTaskStageRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -4892,30 +4387,6 @@ func (m *QueryTaskAssignmentResponse) Size() (n int) {
 	var l int
 	_ = l
 	l = m.Assignment.Size()
-	n += 1 + l + sovQueryTask(uint64(l))
-	return n
-}
-
-func (m *QueryAssignmentRandomnessRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.TaskId)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	return n
-}
-
-func (m *QueryAssignmentRandomnessResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = m.Randomness.Size()
 	n += 1 + l + sovQueryTask(uint64(l))
 	return n
 }
@@ -5125,9 +4596,8 @@ func (m *QueryVerifierValueEvidenceRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovQueryTask(uint64(l))
 	}
-	if m.Position != 0 {
-		n += 1 + sovQueryTask(uint64(m.Position))
-	}
+	l = m.Page.Size()
+	n += 1 + l + sovQueryTask(uint64(l))
 	return n
 }
 
@@ -5137,17 +4607,14 @@ func (m *QueryVerifierValueEvidenceResponse) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.EvidenceDigest)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
+	if len(m.Receipts) > 0 {
+		for _, e := range m.Receipts {
+			l = e.Size()
+			n += 1 + l + sovQueryTask(uint64(l))
+		}
 	}
-	l = len(m.FaultId)
-	if l > 0 {
-		n += 1 + l + sovQueryTask(uint64(l))
-	}
-	if m.AcceptedHeight != 0 {
-		n += 1 + sovQueryTask(uint64(m.AcceptedHeight))
-	}
+	l = m.Page.Size()
+	n += 1 + l + sovQueryTask(uint64(l))
 	return n
 }
 
@@ -5220,44 +4687,6 @@ func (m *TaskAssignmentViewV1) Unmarshal(dAtA []byte) error {
 				m.TaskId = []byte{}
 			}
 			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignAcceptHeight", wireType)
-			}
-			m.AssignAcceptHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.AssignAcceptHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentRandomnessHeight", wireType)
-			}
-			m.AssignmentRandomnessHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.AssignmentRandomnessHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field WinnerConfirmHeight", wireType)
@@ -5298,26 +4727,6 @@ func (m *TaskAssignmentViewV1) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.XInferDeadlineHeight = &TaskAssignmentViewV1_InferDeadlineHeight{v}
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentFailReason", wireType)
-			}
-			var v AssignmentFailureReason
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= AssignmentFailureReason(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.XAssignmentFailReason = &TaskAssignmentViewV1_AssignmentFailReason{v}
 		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field CandidatePoolSnapshotId", wireType)
@@ -5386,40 +4795,6 @@ func (m *TaskAssignmentViewV1) Unmarshal(dAtA []byte) error {
 				m.CandidatePoolHash = []byte{}
 			}
 			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentCandidateSetHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.AssignmentCandidateSetHash = append(m.AssignmentCandidateSetHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.AssignmentCandidateSetHash == nil {
-				m.AssignmentCandidateSetHash = []byte{}
-			}
-			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field WinnerWorker", wireType)
@@ -5451,39 +4826,6 @@ func (m *TaskAssignmentViewV1) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.XWinnerWorker = &TaskAssignmentViewV1_WinnerWorker{string(dAtA[iNdEx:postIndex])}
-			iNdEx = postIndex
-		case 11:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WinnerDrawDigest", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := make([]byte, postIndex-iNdEx)
-			copy(v, dAtA[iNdEx:postIndex])
-			m.XWinnerDrawDigest = &TaskAssignmentViewV1_WinnerDrawDigest{v}
 			iNdEx = postIndex
 		case 12:
 			if wireType != 2 {
@@ -5773,6 +5115,93 @@ func (m *TaskAssignmentViewV1) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 22:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RecordHeight", wireType)
+			}
+			m.RecordHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RecordHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 23:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchRecordHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DispatchRecordHash = append(m.DispatchRecordHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.DispatchRecordHash == nil {
+				m.DispatchRecordHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 24:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DispatchTicketHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DispatchTicketHash = append(m.DispatchTicketHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.DispatchTicketHash == nil {
+				m.DispatchTicketHash = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQueryTask(dAtA[iNdEx:])
@@ -5855,40 +5284,6 @@ func (m *TaskBuilderSelectionViewV1) Unmarshal(dAtA []byte) error {
 			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
 			if m.TaskId == nil {
 				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SessionAnchorBlockHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SessionAnchorBlockHash = append(m.SessionAnchorBlockHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.SessionAnchorBlockHash == nil {
-				m.SessionAnchorBlockHash = []byte{}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -6724,295 +6119,6 @@ func (m *TaskStageViewV1) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *AssignmentRandomnessViewV1) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQueryTask
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: AssignmentRandomnessViewV1: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: AssignmentRandomnessViewV1: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
-			if m.TaskId == nil {
-				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentRandomnessHeight", wireType)
-			}
-			m.AssignmentRandomnessHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.AssignmentRandomnessHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentCandidateSetHash", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.AssignmentCandidateSetHash = append(m.AssignmentCandidateSetHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.AssignmentCandidateSetHash == nil {
-				m.AssignmentCandidateSetHash = []byte{}
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BeaconRandomness", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.BeaconRandomness = append(m.BeaconRandomness[:0], dAtA[iNdEx:postIndex]...)
-			if m.BeaconRandomness == nil {
-				m.BeaconRandomness = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BeaconProofDigest", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := make([]byte, postIndex-iNdEx)
-			copy(v, dAtA[iNdEx:postIndex])
-			m.XBeaconProofDigest = &AssignmentRandomnessViewV1_BeaconProofDigest{v}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WinnerWorker", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XWinnerWorker = &AssignmentRandomnessViewV1_WinnerWorker{string(dAtA[iNdEx:postIndex])}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WinnerDrawDigest", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			v := make([]byte, postIndex-iNdEx)
-			copy(v, dAtA[iNdEx:postIndex])
-			m.XWinnerDrawDigest = &AssignmentRandomnessViewV1_WinnerDrawDigest{v}
-			iNdEx = postIndex
-		case 8:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field WinnerConfirmHeight", wireType)
-			}
-			var v uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.XWinnerConfirmHeight = &AssignmentRandomnessViewV1_WinnerConfirmHeight{v}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQueryTask(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *ActiveTaskRefV1) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -7535,6 +6641,192 @@ func (m *QueryTaskResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *QueryTaskFrozenParamsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQueryTask
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryTaskFrozenParamsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryTaskFrozenParamsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
+			if m.TaskId == nil {
+				m.TaskId = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQueryTask(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryTaskFrozenParamsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQueryTask
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryTaskFrozenParamsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryTaskFrozenParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Params", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Params.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ParamsVersion", wireType)
+			}
+			m.ParamsVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQueryTask
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ParamsVersion |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQueryTask(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *QueryTaskStageRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -7845,173 +7137,6 @@ func (m *QueryTaskAssignmentResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.Assignment.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQueryTask(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryAssignmentRandomnessRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQueryTask
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryAssignmentRandomnessRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryAssignmentRandomnessRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TaskId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TaskId = append(m.TaskId[:0], dAtA[iNdEx:postIndex]...)
-			if m.TaskId == nil {
-				m.TaskId = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQueryTask(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryAssignmentRandomnessResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQueryTask
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryAssignmentRandomnessResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryAssignmentRandomnessResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Randomness", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQueryTask
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.Randomness.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -9458,11 +8583,11 @@ func (m *QueryVerifierValueEvidenceRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.TargetOperatorAddress = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Position", wireType)
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Page", wireType)
 			}
-			m.Position = 0
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQueryTask
@@ -9472,11 +8597,25 @@ func (m *QueryVerifierValueEvidenceRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Position |= uint32(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if msglen < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQueryTask
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Page.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQueryTask(dAtA[iNdEx:])
@@ -9527,11 +8666,11 @@ func (m *QueryVerifierValueEvidenceResponse) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: QueryVerifierValueEvidenceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
+		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EvidenceDigest", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Receipts", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQueryTask
@@ -9541,31 +8680,31 @@ func (m *QueryVerifierValueEvidenceResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthQueryTask
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthQueryTask
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.EvidenceDigest = append(m.EvidenceDigest[:0], dAtA[iNdEx:postIndex]...)
-			if m.EvidenceDigest == nil {
-				m.EvidenceDigest = []byte{}
+			m.Receipts = append(m.Receipts, VerifierValueEvidenceReceiptState{})
+			if err := m.Receipts[len(m.Receipts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FaultId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Page", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQueryTask
@@ -9575,45 +8714,25 @@ func (m *QueryVerifierValueEvidenceResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthQueryTask
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthQueryTask
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.FaultId = append(m.FaultId[:0], dAtA[iNdEx:postIndex]...)
-			if m.FaultId == nil {
-				m.FaultId = []byte{}
+			if err := m.Page.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AcceptedHeight", wireType)
-			}
-			m.AcceptedHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQueryTask
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.AcceptedHeight |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQueryTask(dAtA[iNdEx:])

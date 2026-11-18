@@ -46,7 +46,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: "1.25.10"
 
       # CGO_ENABLED=0 is what makes cross-compiling darwin from this runner
       # work at all, and it is what the Dockerfile already does; the ldflags

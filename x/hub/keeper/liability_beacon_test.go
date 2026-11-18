@@ -59,6 +59,7 @@ func TestBeaconPaths(t *testing.T) {
 	operator := hubAddress(t, 0x42)
 	registeredPubkey := vrfPubkey(0x9A)
 	require.NoError(t, f2.keeper.StoreVrfKey(f2.ctx, types.VrfKeyState{
+		ParticipantType:       validatorVrfRole,
 		OperatorAddress:       operator,
 		ActiveVrfPubkey:       registeredPubkey,
 		ActiveFromEpoch:       0,
@@ -121,4 +122,33 @@ func verifiedBeaconCarrier(height uint64, randomnessByte, proofByte string, prop
 		ProposerConsensusAddress: sdk.ConsAddress(proposer).String(), SourceTag: types.BeaconSourceProposerVRFV1,
 		ProofCodec: "test-vrf-codec-v1",
 	}
+}
+
+// A chain whose validator registered its VRF key after genesis has only
+// placeholder beacons. While VRF is not yet required, the first VRF input must
+// anchor on a zero prior instead of failing forever on the placeholder; once
+// VRF is required a placeholder prior is still rejected.
+func TestBeaconVRFInputAnchorsOnPlaceholderPrior(t *testing.T) {
+	f := initFixture(t)
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
+	for height := uint64(1); height <= 2; height++ {
+		_, err := f.keeper.WriteBlockBeacon(f.ctx, height, beaconTestBlockHash("block-"+string(rune('0'+height))), types.BeaconSourcePlaceholderBlockHashV1)
+		require.NoError(t, err)
+	}
+	proposer := bytes.Repeat([]byte{0x42}, 20)
+
+	input, err := f.keeper.BeaconVRFInputBytes(f.ctx, 3, proposer)
+	require.NoError(t, err)
+	expected := sha256.Sum256(shared.CanonicalFrameBytes(
+		[]byte(shared.MustDomain(shared.DomainBeaconVRFInputV1)),
+		[]byte(testHubChainID), shared.Uint64BE(3), make([]byte, 32), proposer,
+	))
+	require.Equal(t, expected[:], input, "a placeholder prior must anchor the VRF chain with a zero prior")
+
+	params, err := f.keeper.Params.Get(f.ctx)
+	require.NoError(t, err)
+	params.Beacon.VrfRequiredFromHeight = 2
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+	_, err = f.keeper.BeaconVRFInputBytes(f.ctx, 3, proposer)
+	require.ErrorContains(t, err, "dev-only beacon source is not allowed")
 }

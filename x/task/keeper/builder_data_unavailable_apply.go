@@ -8,7 +8,7 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 
-	"github.com/TrueOpen/wire/bus"
+	"github.com/TrueOpen/wire/dispatch"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
@@ -86,7 +86,7 @@ func (k Keeper) applyDataUnavailableBuilderFaults(ctx context.Context, core type
 		// The fact is rebuilt through the same constructor the public entry point
 		// uses. That is what makes a later MsgSubmitBuilderEvidence for this Task an
 		// exact replay that returns NOOP instead of a second, later-timed charge.
-		fact, err := k.canonicalBuilderDataUnavailable(ctx, bus.DataUnavailableStateReferenceV1{
+		fact, err := k.canonicalBuilderDataUnavailable(ctx, dispatch.DataUnavailableContent{
 			TaskID:          append([]byte(nil), core.TaskId...),
 			VerifyRound:     types.VerifyRoundV1,
 			BuilderOperator: builder.operator,

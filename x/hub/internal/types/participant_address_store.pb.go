@@ -24,18 +24,22 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // CortexNodeStoreState keeps account addresses in codec bytes.
 type CortexNodeStoreState struct {
-	SchemaVersion                  uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	OperatorAddress                []byte `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
-	CurrentServiceAddress          []byte `protobuf:"bytes,3,opt,name=current_service_address,json=currentServiceAddress,proto3" json:"current_service_address,omitempty"`
-	CurrentServicePubkey           []byte `protobuf:"bytes,4,opt,name=current_service_pubkey,json=currentServicePubkey,proto3" json:"current_service_pubkey,omitempty"`
-	ServiceAuthorizationNonce      uint64 `protobuf:"varint,5,opt,name=service_authorization_nonce,json=serviceAuthorizationNonce,proto3" json:"service_authorization_nonce,omitempty"`
-	ServiceKeyStatus               int32  `protobuf:"varint,6,opt,name=service_key_status,json=serviceKeyStatus,proto3" json:"service_key_status,omitempty"`
-	CurrentDescriptorVersion       uint64 `protobuf:"varint,7,opt,name=current_descriptor_version,json=currentDescriptorVersion,proto3" json:"current_descriptor_version,omitempty"`
-	RegisteredHeight               uint64 `protobuf:"varint,8,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
-	UpdatedHeight                  uint64 `protobuf:"varint,9,opt,name=updated_height,json=updatedHeight,proto3" json:"updated_height,omitempty"`
-	ActiveTaskLiabilityCount       uint32 `protobuf:"varint,10,opt,name=active_task_liability_count,json=activeTaskLiabilityCount,proto3" json:"active_task_liability_count,omitempty"`
-	PendingStageDutyCount          uint32 `protobuf:"varint,11,opt,name=pending_stage_duty_count,json=pendingStageDutyCount,proto3" json:"pending_stage_duty_count,omitempty"`
-	PendingEvidenceSubmissionCount uint32 `protobuf:"varint,12,opt,name=pending_evidence_submission_count,json=pendingEvidenceSubmissionCount,proto3" json:"pending_evidence_submission_count,omitempty"`
+	SchemaVersion                     uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	OperatorAddress                   []byte `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
+	CurrentServiceAddress             []byte `protobuf:"bytes,3,opt,name=current_service_address,json=currentServiceAddress,proto3" json:"current_service_address,omitempty"`
+	CurrentServicePubkey              []byte `protobuf:"bytes,4,opt,name=current_service_pubkey,json=currentServicePubkey,proto3" json:"current_service_pubkey,omitempty"`
+	ServiceAuthorizationNonce         uint64 `protobuf:"varint,5,opt,name=service_authorization_nonce,json=serviceAuthorizationNonce,proto3" json:"service_authorization_nonce,omitempty"`
+	ServiceKeyStatus                  int32  `protobuf:"varint,6,opt,name=service_key_status,json=serviceKeyStatus,proto3" json:"service_key_status,omitempty"`
+	CurrentDescriptorVersion          uint64 `protobuf:"varint,7,opt,name=current_descriptor_version,json=currentDescriptorVersion,proto3" json:"current_descriptor_version,omitempty"`
+	RegisteredHeight                  uint64 `protobuf:"varint,8,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
+	UpdatedHeight                     uint64 `protobuf:"varint,9,opt,name=updated_height,json=updatedHeight,proto3" json:"updated_height,omitempty"`
+	ActiveTaskLiabilityCount          uint32 `protobuf:"varint,10,opt,name=active_task_liability_count,json=activeTaskLiabilityCount,proto3" json:"active_task_liability_count,omitempty"`
+	PendingStageDutyCount             uint32 `protobuf:"varint,11,opt,name=pending_stage_duty_count,json=pendingStageDutyCount,proto3" json:"pending_stage_duty_count,omitempty"`
+	PendingEvidenceSubmissionCount    uint32 `protobuf:"varint,12,opt,name=pending_evidence_submission_count,json=pendingEvidenceSubmissionCount,proto3" json:"pending_evidence_submission_count,omitempty"`
+	PreviousServicePubkey             []byte `protobuf:"bytes,13,opt,name=previous_service_pubkey,json=previousServicePubkey,proto3" json:"previous_service_pubkey,omitempty"`
+	PreviousServiceAuthorizationNonce uint64 `protobuf:"varint,14,opt,name=previous_service_authorization_nonce,json=previousServiceAuthorizationNonce,proto3" json:"previous_service_authorization_nonce,omitempty"`
+	PreviousRetiredHeight             uint64 `protobuf:"varint,15,opt,name=previous_retired_height,json=previousRetiredHeight,proto3" json:"previous_retired_height,omitempty"`
+	RevokedHeight                     uint64 `protobuf:"varint,16,opt,name=revoked_height,json=revokedHeight,proto3" json:"revoked_height,omitempty"`
 }
 
 func (m *CortexNodeStoreState) Reset()         { *m = CortexNodeStoreState{} }
@@ -155,19 +159,51 @@ func (m *CortexNodeStoreState) GetPendingEvidenceSubmissionCount() uint32 {
 	return 0
 }
 
+func (m *CortexNodeStoreState) GetPreviousServicePubkey() []byte {
+	if m != nil {
+		return m.PreviousServicePubkey
+	}
+	return nil
+}
+
+func (m *CortexNodeStoreState) GetPreviousServiceAuthorizationNonce() uint64 {
+	if m != nil {
+		return m.PreviousServiceAuthorizationNonce
+	}
+	return 0
+}
+
+func (m *CortexNodeStoreState) GetPreviousRetiredHeight() uint64 {
+	if m != nil {
+		return m.PreviousRetiredHeight
+	}
+	return 0
+}
+
+func (m *CortexNodeStoreState) GetRevokedHeight() uint64 {
+	if m != nil {
+		return m.RevokedHeight
+	}
+	return 0
+}
+
 // BuilderStoreState keeps account addresses in codec bytes.
 type BuilderStoreState struct {
-	SchemaVersion                  uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	BuilderAddress                 []byte `protobuf:"bytes,2,opt,name=builder_address,json=builderAddress,proto3" json:"builder_address,omitempty"`
-	CurrentServiceAddress          []byte `protobuf:"bytes,3,opt,name=current_service_address,json=currentServiceAddress,proto3" json:"current_service_address,omitempty"`
-	CurrentServicePubkey           []byte `protobuf:"bytes,4,opt,name=current_service_pubkey,json=currentServicePubkey,proto3" json:"current_service_pubkey,omitempty"`
-	CurrentServiceKeyStatus        int32  `protobuf:"varint,5,opt,name=current_service_key_status,json=currentServiceKeyStatus,proto3" json:"current_service_key_status,omitempty"`
-	ServiceAuthorizationNonce      uint64 `protobuf:"varint,6,opt,name=service_authorization_nonce,json=serviceAuthorizationNonce,proto3" json:"service_authorization_nonce,omitempty"`
-	CurrentDescriptorVersion       uint64 `protobuf:"varint,7,opt,name=current_descriptor_version,json=currentDescriptorVersion,proto3" json:"current_descriptor_version,omitempty"`
-	RegisteredHeight               uint64 `protobuf:"varint,8,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
-	ActiveTaskLiabilityCount       uint32 `protobuf:"varint,9,opt,name=active_task_liability_count,json=activeTaskLiabilityCount,proto3" json:"active_task_liability_count,omitempty"`
-	PendingStageDutyCount          uint32 `protobuf:"varint,10,opt,name=pending_stage_duty_count,json=pendingStageDutyCount,proto3" json:"pending_stage_duty_count,omitempty"`
-	PendingEvidenceSubmissionCount uint32 `protobuf:"varint,11,opt,name=pending_evidence_submission_count,json=pendingEvidenceSubmissionCount,proto3" json:"pending_evidence_submission_count,omitempty"`
+	SchemaVersion                     uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	BuilderAddress                    []byte `protobuf:"bytes,2,opt,name=builder_address,json=builderAddress,proto3" json:"builder_address,omitempty"`
+	CurrentServiceAddress             []byte `protobuf:"bytes,3,opt,name=current_service_address,json=currentServiceAddress,proto3" json:"current_service_address,omitempty"`
+	CurrentServicePubkey              []byte `protobuf:"bytes,4,opt,name=current_service_pubkey,json=currentServicePubkey,proto3" json:"current_service_pubkey,omitempty"`
+	CurrentServiceKeyStatus           int32  `protobuf:"varint,5,opt,name=current_service_key_status,json=currentServiceKeyStatus,proto3" json:"current_service_key_status,omitempty"`
+	ServiceAuthorizationNonce         uint64 `protobuf:"varint,6,opt,name=service_authorization_nonce,json=serviceAuthorizationNonce,proto3" json:"service_authorization_nonce,omitempty"`
+	CurrentDescriptorVersion          uint64 `protobuf:"varint,7,opt,name=current_descriptor_version,json=currentDescriptorVersion,proto3" json:"current_descriptor_version,omitempty"`
+	RegisteredHeight                  uint64 `protobuf:"varint,8,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
+	ActiveTaskLiabilityCount          uint32 `protobuf:"varint,9,opt,name=active_task_liability_count,json=activeTaskLiabilityCount,proto3" json:"active_task_liability_count,omitempty"`
+	PendingStageDutyCount             uint32 `protobuf:"varint,10,opt,name=pending_stage_duty_count,json=pendingStageDutyCount,proto3" json:"pending_stage_duty_count,omitempty"`
+	PendingEvidenceSubmissionCount    uint32 `protobuf:"varint,11,opt,name=pending_evidence_submission_count,json=pendingEvidenceSubmissionCount,proto3" json:"pending_evidence_submission_count,omitempty"`
+	PreviousServicePubkey             []byte `protobuf:"bytes,12,opt,name=previous_service_pubkey,json=previousServicePubkey,proto3" json:"previous_service_pubkey,omitempty"`
+	PreviousServiceAuthorizationNonce uint64 `protobuf:"varint,13,opt,name=previous_service_authorization_nonce,json=previousServiceAuthorizationNonce,proto3" json:"previous_service_authorization_nonce,omitempty"`
+	PreviousRetiredHeight             uint64 `protobuf:"varint,14,opt,name=previous_retired_height,json=previousRetiredHeight,proto3" json:"previous_retired_height,omitempty"`
+	RevokedHeight                     uint64 `protobuf:"varint,15,opt,name=revoked_height,json=revokedHeight,proto3" json:"revoked_height,omitempty"`
 }
 
 func (m *BuilderStoreState) Reset()         { *m = BuilderStoreState{} }
@@ -280,6 +316,34 @@ func (m *BuilderStoreState) GetPendingEvidenceSubmissionCount() uint32 {
 	return 0
 }
 
+func (m *BuilderStoreState) GetPreviousServicePubkey() []byte {
+	if m != nil {
+		return m.PreviousServicePubkey
+	}
+	return nil
+}
+
+func (m *BuilderStoreState) GetPreviousServiceAuthorizationNonce() uint64 {
+	if m != nil {
+		return m.PreviousServiceAuthorizationNonce
+	}
+	return 0
+}
+
+func (m *BuilderStoreState) GetPreviousRetiredHeight() uint64 {
+	if m != nil {
+		return m.PreviousRetiredHeight
+	}
+	return 0
+}
+
+func (m *BuilderStoreState) GetRevokedHeight() uint64 {
+	if m != nil {
+		return m.RevokedHeight
+	}
+	return 0
+}
+
 // CurrentServiceAddressIndexStoreState stores the operator as codec bytes.
 type CurrentServiceAddressIndexStoreState struct {
 	OperatorAddress           []byte `protobuf:"bytes,1,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
@@ -333,10 +397,158 @@ func (m *CurrentServiceAddressIndexStoreState) GetServiceAuthorizationNonce() ui
 	return 0
 }
 
+// PendingServiceKeyRotationStoreState stores the operator as raw account bytes.
+type PendingServiceKeyRotationStoreState struct {
+	ParticipantType                  int32  `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3" json:"participant_type,omitempty"`
+	OperatorAddress                  []byte `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
+	CurrentServiceAuthorizationNonce uint64 `protobuf:"varint,3,opt,name=current_service_authorization_nonce,json=currentServiceAuthorizationNonce,proto3" json:"current_service_authorization_nonce,omitempty"`
+	NewServicePubkey                 []byte `protobuf:"bytes,4,opt,name=new_service_pubkey,json=newServicePubkey,proto3" json:"new_service_pubkey,omitempty"`
+	NextServiceAuthorizationNonce    uint64 `protobuf:"varint,5,opt,name=next_service_authorization_nonce,json=nextServiceAuthorizationNonce,proto3" json:"next_service_authorization_nonce,omitempty"`
+	RegisteredHeight                 uint64 `protobuf:"varint,6,opt,name=registered_height,json=registeredHeight,proto3" json:"registered_height,omitempty"`
+	EffectiveHeight                  uint64 `protobuf:"varint,7,opt,name=effective_height,json=effectiveHeight,proto3" json:"effective_height,omitempty"`
+}
+
+func (m *PendingServiceKeyRotationStoreState) Reset()         { *m = PendingServiceKeyRotationStoreState{} }
+func (m *PendingServiceKeyRotationStoreState) String() string { return proto.CompactTextString(m) }
+func (*PendingServiceKeyRotationStoreState) ProtoMessage()    {}
+func (*PendingServiceKeyRotationStoreState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a7cd7de785e462aa, []int{3}
+}
+func (m *PendingServiceKeyRotationStoreState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PendingServiceKeyRotationStoreState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PendingServiceKeyRotationStoreState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PendingServiceKeyRotationStoreState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PendingServiceKeyRotationStoreState.Merge(m, src)
+}
+func (m *PendingServiceKeyRotationStoreState) XXX_Size() int {
+	return m.Size()
+}
+func (m *PendingServiceKeyRotationStoreState) XXX_DiscardUnknown() {
+	xxx_messageInfo_PendingServiceKeyRotationStoreState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PendingServiceKeyRotationStoreState proto.InternalMessageInfo
+
+func (m *PendingServiceKeyRotationStoreState) GetParticipantType() int32 {
+	if m != nil {
+		return m.ParticipantType
+	}
+	return 0
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetOperatorAddress() []byte {
+	if m != nil {
+		return m.OperatorAddress
+	}
+	return nil
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetCurrentServiceAuthorizationNonce() uint64 {
+	if m != nil {
+		return m.CurrentServiceAuthorizationNonce
+	}
+	return 0
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetNewServicePubkey() []byte {
+	if m != nil {
+		return m.NewServicePubkey
+	}
+	return nil
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetNextServiceAuthorizationNonce() uint64 {
+	if m != nil {
+		return m.NextServiceAuthorizationNonce
+	}
+	return 0
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetRegisteredHeight() uint64 {
+	if m != nil {
+		return m.RegisteredHeight
+	}
+	return 0
+}
+
+func (m *PendingServiceKeyRotationStoreState) GetEffectiveHeight() uint64 {
+	if m != nil {
+		return m.EffectiveHeight
+	}
+	return 0
+}
+
+// PendingServiceAddressStoreState reserves a future address across both roles.
+type PendingServiceAddressStoreState struct {
+	ParticipantType int32  `protobuf:"varint,1,opt,name=participant_type,json=participantType,proto3" json:"participant_type,omitempty"`
+	OperatorAddress []byte `protobuf:"bytes,2,opt,name=operator_address,json=operatorAddress,proto3" json:"operator_address,omitempty"`
+}
+
+func (m *PendingServiceAddressStoreState) Reset()         { *m = PendingServiceAddressStoreState{} }
+func (m *PendingServiceAddressStoreState) String() string { return proto.CompactTextString(m) }
+func (*PendingServiceAddressStoreState) ProtoMessage()    {}
+func (*PendingServiceAddressStoreState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a7cd7de785e462aa, []int{4}
+}
+func (m *PendingServiceAddressStoreState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PendingServiceAddressStoreState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PendingServiceAddressStoreState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PendingServiceAddressStoreState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PendingServiceAddressStoreState.Merge(m, src)
+}
+func (m *PendingServiceAddressStoreState) XXX_Size() int {
+	return m.Size()
+}
+func (m *PendingServiceAddressStoreState) XXX_DiscardUnknown() {
+	xxx_messageInfo_PendingServiceAddressStoreState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PendingServiceAddressStoreState proto.InternalMessageInfo
+
+func (m *PendingServiceAddressStoreState) GetParticipantType() int32 {
+	if m != nil {
+		return m.ParticipantType
+	}
+	return 0
+}
+
+func (m *PendingServiceAddressStoreState) GetOperatorAddress() []byte {
+	if m != nil {
+		return m.OperatorAddress
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*CortexNodeStoreState)(nil), "hub.internal.v1.CortexNodeStoreState")
 	proto.RegisterType((*BuilderStoreState)(nil), "hub.internal.v1.BuilderStoreState")
 	proto.RegisterType((*CurrentServiceAddressIndexStoreState)(nil), "hub.internal.v1.CurrentServiceAddressIndexStoreState")
+	proto.RegisterType((*PendingServiceKeyRotationStoreState)(nil), "hub.internal.v1.PendingServiceKeyRotationStoreState")
+	proto.RegisterType((*PendingServiceAddressStoreState)(nil), "hub.internal.v1.PendingServiceAddressStoreState")
 }
 
 func init() {
@@ -344,45 +556,59 @@ func init() {
 }
 
 var fileDescriptor_a7cd7de785e462aa = []byte{
-	// 597 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x95, 0xcb, 0x6b, 0xd4, 0x40,
-	0x1c, 0xc7, 0x9b, 0xda, 0xad, 0x76, 0xfa, 0x0e, 0xad, 0x8d, 0x16, 0xc2, 0x5a, 0x14, 0x57, 0xd4,
-	0x86, 0xa2, 0xe8, 0xc1, 0x07, 0xf4, 0x21, 0x5a, 0x94, 0x2a, 0x9b, 0xe2, 0xc1, 0xcb, 0x30, 0xc9,
-	0xfc, 0xd8, 0x0c, 0xbb, 0x9d, 0x09, 0xf3, 0x08, 0x5d, 0xff, 0x0a, 0x3d, 0xfa, 0x1f, 0x79, 0xec,
-	0xd1, 0xa3, 0xec, 0xfe, 0x1b, 0x1e, 0x24, 0x93, 0x64, 0xb7, 0x5b, 0x16, 0x56, 0x29, 0xe8, 0xf5,
-	0xfb, 0x98, 0x49, 0xe6, 0xf7, 0x61, 0x06, 0x05, 0x89, 0x89, 0x02, 0xc6, 0x35, 0x48, 0x4e, 0x3a,
-	0x41, 0xb6, 0x13, 0xa4, 0x44, 0x6a, 0x16, 0xb3, 0x94, 0x70, 0x8d, 0x09, 0xa5, 0x12, 0x94, 0xc2,
-	0x4a, 0x0b, 0x09, 0xdb, 0xa9, 0x14, 0x5a, 0xb8, 0xcb, 0x89, 0x89, 0xb6, 0xab, 0xc2, 0x76, 0xb6,
-	0xb3, 0xf5, 0xad, 0x86, 0xd6, 0xf6, 0x85, 0xd4, 0x70, 0x7a, 0x24, 0x28, 0x84, 0x79, 0x34, 0xd4,
-	0x44, 0x83, 0x7b, 0x07, 0x2d, 0xa9, 0x38, 0x81, 0x13, 0x82, 0x33, 0x90, 0x8a, 0x09, 0xee, 0x39,
-	0x75, 0xa7, 0xb1, 0xd8, 0x5c, 0x2c, 0xd4, 0x8f, 0x85, 0xe8, 0xde, 0x43, 0x2b, 0x22, 0x05, 0x49,
-	0xb4, 0x90, 0xd5, 0x86, 0xde, 0x74, 0xdd, 0x69, 0x2c, 0x34, 0x97, 0x2b, 0x7d, 0xb7, 0x90, 0xdd,
-	0x27, 0x68, 0x23, 0x36, 0x52, 0x02, 0xd7, 0x58, 0x81, 0xcc, 0x58, 0x0c, 0x83, 0xc6, 0x15, 0xdb,
-	0x58, 0x2f, 0xed, 0xb0, 0x70, 0xab, 0xde, 0x63, 0x74, 0xfd, 0x62, 0x2f, 0x35, 0x51, 0x1b, 0xba,
-	0xde, 0x8c, 0xad, 0xad, 0x8d, 0xd6, 0x3e, 0x58, 0xcf, 0x7d, 0x89, 0x36, 0x07, 0xbb, 0x18, 0x9d,
-	0x08, 0xc9, 0x3e, 0x13, 0xcd, 0x04, 0xc7, 0x5c, 0xf0, 0x18, 0xbc, 0x5a, 0xdd, 0x69, 0xcc, 0x34,
-	0x6f, 0x94, 0x91, 0xdd, 0xf3, 0x89, 0xa3, 0x3c, 0xe0, 0x3e, 0x40, 0x6e, 0xd5, 0x6f, 0x43, 0x17,
-	0x2b, 0x4d, 0xb4, 0x51, 0xde, 0x6c, 0xdd, 0x69, 0xd4, 0x9a, 0x2b, 0xa5, 0xf3, 0x16, 0xba, 0xa1,
-	0xd5, 0xdd, 0xe7, 0xe8, 0x66, 0xf5, 0x8d, 0x14, 0x54, 0x2c, 0x59, 0x9a, 0x1f, 0x48, 0x75, 0x72,
-	0x57, 0xed, 0x66, 0x5e, 0x99, 0x38, 0x18, 0x04, 0xaa, 0x43, 0xbc, 0x8f, 0x56, 0x25, 0xb4, 0x98,
-	0xd2, 0x20, 0x81, 0xe2, 0x04, 0x58, 0x2b, 0xd1, 0xde, 0x35, 0x5b, 0x5a, 0x19, 0x1a, 0x6f, 0xac,
-	0x9e, 0x0f, 0xc6, 0xa4, 0x94, 0xe8, 0x61, 0x72, 0xce, 0x26, 0x17, 0x4b, 0xb5, 0x8c, 0xbd, 0x40,
-	0x9b, 0x24, 0xd6, 0x2c, 0x03, 0xac, 0x89, 0x6a, 0xe3, 0x0e, 0x23, 0x11, 0xeb, 0x30, 0xdd, 0xc5,
-	0xb1, 0x30, 0x5c, 0x7b, 0xc8, 0x0e, 0xd3, 0x2b, 0x22, 0xc7, 0x44, 0xb5, 0xdf, 0x55, 0x81, 0xfd,
-	0xdc, 0x77, 0x9f, 0x22, 0x2f, 0x05, 0x4e, 0x19, 0x6f, 0xe5, 0xbf, 0xde, 0x02, 0x4c, 0xcd, 0xa0,
-	0x3b, 0x6f, 0xbb, 0xeb, 0xa5, 0x1f, 0xe6, 0xf6, 0x81, 0xa9, 0x8a, 0x87, 0xe8, 0x56, 0x55, 0x84,
-	0x8c, 0x51, 0xe0, 0x31, 0x60, 0x65, 0xa2, 0x13, 0xa6, 0xf2, 0x5f, 0x2d, 0x57, 0x58, 0xb0, 0x2b,
-	0xf8, 0x65, 0xf0, 0x55, 0x99, 0x0b, 0x07, 0x31, 0xbb, 0xd4, 0xd6, 0xaf, 0x19, 0xb4, 0xba, 0x67,
-	0x58, 0x87, 0x82, 0xfc, 0x7b, 0x30, 0xef, 0xa2, 0xe5, 0xa8, 0xe8, 0x5e, 0xe0, 0x72, 0xa9, 0x94,
-	0xff, 0x0f, 0x96, 0xcf, 0x86, 0xa0, 0x8c, 0xc1, 0xab, 0x66, 0xf1, 0xda, 0x18, 0x6d, 0x0e, 0x29,
-	0x9b, 0xc0, 0xf4, 0xec, 0x24, 0xa6, 0xff, 0x21, 0xa5, 0x13, 0xf0, 0x9b, 0xbb, 0x04, 0x7e, 0xe8,
-	0xd2, 0xf8, 0xcd, 0xff, 0x11, 0x7e, 0x5f, 0x1d, 0x74, 0x7b, 0x7f, 0xdc, 0xe8, 0x0f, 0x39, 0x85,
-	0xd3, 0x73, 0x44, 0x8e, 0xbb, 0x03, 0x9d, 0xf1, 0x77, 0xe0, 0x84, 0x09, 0x4e, 0x4f, 0x98, 0xe0,
-	0xde, 0xeb, 0xef, 0x3d, 0xdf, 0x39, 0xeb, 0xf9, 0xce, 0xcf, 0x9e, 0xef, 0x7c, 0xe9, 0xfb, 0x53,
-	0x67, 0x7d, 0x7f, 0xea, 0x47, 0xdf, 0x9f, 0xfa, 0xf4, 0xb0, 0xc5, 0x74, 0x7e, 0xb9, 0xc7, 0xe2,
-	0x24, 0x38, 0x96, 0x06, 0xde, 0xa7, 0xc0, 0x03, 0x2e, 0x28, 0x04, 0xa7, 0xa3, 0xaf, 0x84, 0xee,
-	0xa6, 0xa0, 0xa2, 0x59, 0xfb, 0x1e, 0x3c, 0xfa, 0x1d, 0x00, 0x00, 0xff, 0xff, 0xa8, 0x2d, 0xdb,
-	0x96, 0x42, 0x06, 0x00, 0x00,
+	// 818 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x96, 0x49, 0x4f, 0x23, 0x47,
+	0x14, 0xc7, 0x69, 0xc0, 0x06, 0x0a, 0xbc, 0xd0, 0x82, 0xd0, 0x04, 0xc5, 0x31, 0x86, 0x28, 0x46,
+	0x49, 0xb0, 0x50, 0x22, 0x72, 0xc8, 0x22, 0xb1, 0x44, 0x84, 0x2c, 0x80, 0xda, 0x28, 0x87, 0x5c,
+	0x5a, 0xe5, 0xee, 0x87, 0x5d, 0xb2, 0x5d, 0xd5, 0xaa, 0xaa, 0x6e, 0xec, 0xdc, 0xf2, 0x0d, 0x92,
+	0xaf, 0x33, 0x9f, 0x60, 0x8e, 0x1c, 0xe7, 0x38, 0x82, 0xf9, 0x20, 0xa3, 0xae, 0x5e, 0xbc, 0xd0,
+	0x8c, 0x85, 0x60, 0x66, 0xae, 0xef, 0xfd, 0xff, 0xb5, 0xbd, 0xf7, 0xab, 0x2a, 0x54, 0x6b, 0x79,
+	0x8d, 0x1a, 0xa1, 0x12, 0x38, 0xc5, 0x9d, 0x9a, 0xbf, 0x57, 0x73, 0x31, 0x97, 0xc4, 0x26, 0x2e,
+	0xa6, 0xd2, 0xc2, 0x8e, 0xc3, 0x41, 0x08, 0x4b, 0x48, 0xc6, 0x61, 0xd7, 0xe5, 0x4c, 0x32, 0xbd,
+	0xd0, 0xf2, 0x1a, 0xbb, 0xb1, 0x61, 0xd7, 0xdf, 0xab, 0xfc, 0x3b, 0x87, 0x56, 0x8e, 0x18, 0x97,
+	0xd0, 0x3b, 0x63, 0x0e, 0xd4, 0x03, 0x69, 0x5d, 0x62, 0x09, 0xfa, 0x17, 0x28, 0x2f, 0xec, 0x16,
+	0x74, 0xb1, 0xe5, 0x03, 0x17, 0x84, 0x51, 0x43, 0x2b, 0x6b, 0xd5, 0x9c, 0x99, 0x0b, 0xa3, 0x7f,
+	0x85, 0x41, 0x7d, 0x07, 0x15, 0x99, 0x0b, 0x1c, 0x4b, 0xc6, 0xe3, 0x09, 0x8d, 0xe9, 0xb2, 0x56,
+	0x5d, 0x32, 0x0b, 0x71, 0xfc, 0x20, 0x0c, 0xeb, 0xfb, 0x68, 0xcd, 0xf6, 0x38, 0x07, 0x2a, 0x2d,
+	0x01, 0xdc, 0x27, 0x36, 0x24, 0x8e, 0x19, 0xe5, 0x58, 0x8d, 0xd2, 0xf5, 0x30, 0x1b, 0xfb, 0xbe,
+	0x43, 0x9f, 0x8c, 0xfb, 0x5c, 0xaf, 0xd1, 0x86, 0xbe, 0x31, 0xab, 0x6c, 0x2b, 0xa3, 0xb6, 0x0b,
+	0x95, 0xd3, 0x7f, 0x46, 0x1b, 0xc9, 0x2c, 0x9e, 0x6c, 0x31, 0x4e, 0xfe, 0xc1, 0x92, 0x30, 0x6a,
+	0x51, 0x46, 0x6d, 0x30, 0x32, 0x65, 0xad, 0x3a, 0x6b, 0xae, 0x47, 0x92, 0x83, 0x61, 0xc5, 0x59,
+	0x20, 0xd0, 0xbf, 0x46, 0x7a, 0xec, 0x6f, 0x43, 0xdf, 0x12, 0x12, 0x4b, 0x4f, 0x18, 0xd9, 0xb2,
+	0x56, 0xcd, 0x98, 0xc5, 0x28, 0xf3, 0x3b, 0xf4, 0xeb, 0x2a, 0xae, 0xff, 0x88, 0x3e, 0x8d, 0xd7,
+	0xe8, 0x80, 0xb0, 0x39, 0x71, 0x83, 0x03, 0x89, 0x4f, 0x6e, 0x4e, 0x4d, 0x66, 0x44, 0x8a, 0xe3,
+	0x44, 0x10, 0x1f, 0xe2, 0x57, 0x68, 0x99, 0x43, 0x93, 0x08, 0x09, 0x1c, 0x1c, 0xab, 0x05, 0xa4,
+	0xd9, 0x92, 0xc6, 0xbc, 0x32, 0x15, 0x07, 0x89, 0x5f, 0x55, 0x3c, 0x28, 0x8c, 0xe7, 0x3a, 0x58,
+	0x0e, 0x94, 0x0b, 0x4a, 0x99, 0x8b, 0xa2, 0x91, 0xec, 0x27, 0xb4, 0x81, 0x6d, 0x49, 0x7c, 0xb0,
+	0x24, 0x16, 0x6d, 0xab, 0x43, 0x70, 0x83, 0x74, 0x88, 0xec, 0x5b, 0x36, 0xf3, 0xa8, 0x34, 0x90,
+	0x2a, 0xa6, 0x11, 0x4a, 0x2e, 0xb1, 0x68, 0xff, 0x11, 0x0b, 0x8e, 0x82, 0xbc, 0xfe, 0x3d, 0x32,
+	0x5c, 0xa0, 0x0e, 0xa1, 0xcd, 0x60, 0xeb, 0x4d, 0xb0, 0x1c, 0x2f, 0xf1, 0x2e, 0x2a, 0xef, 0x6a,
+	0x94, 0xaf, 0x07, 0xe9, 0x63, 0x2f, 0x36, 0x9e, 0xa2, 0xcd, 0xd8, 0x08, 0x3e, 0x71, 0x80, 0xda,
+	0x60, 0x09, 0xaf, 0xd1, 0x25, 0x22, 0xd8, 0x6a, 0x34, 0xc2, 0x92, 0x1a, 0xa1, 0x14, 0x09, 0x7f,
+	0x89, 0x74, 0xf5, 0x44, 0x16, 0x0e, 0xb5, 0x8f, 0xd6, 0x5c, 0x0e, 0x3e, 0x61, 0x9e, 0x18, 0xaf,
+	0x7c, 0x2e, 0x6c, 0x98, 0x38, 0x3d, 0x5a, 0xfa, 0x73, 0xb4, 0x7d, 0xcf, 0x97, 0xd6, 0x03, 0x79,
+	0x75, 0x6e, 0x9b, 0x63, 0x83, 0xa4, 0xf4, 0xc2, 0xf0, 0x42, 0x38, 0x48, 0x32, 0x54, 0xa5, 0x82,
+	0x1a, 0x23, 0x59, 0x88, 0x19, 0x66, 0x07, 0xa5, 0xe2, 0xe0, 0xb3, 0xf6, 0x40, 0x5e, 0x0c, 0x4b,
+	0x15, 0x45, 0x43, 0x59, 0xe5, 0x4d, 0x16, 0x2d, 0x1f, 0x7a, 0xa4, 0xe3, 0x00, 0x7f, 0x3c, 0x80,
+	0x5f, 0xa2, 0x42, 0x23, 0xf4, 0x8e, 0xf1, 0x97, 0x8f, 0xc2, 0x1f, 0x07, 0xbf, 0x1f, 0x06, 0x40,
+	0xa4, 0x60, 0x94, 0x51, 0x18, 0xad, 0x8d, 0x3a, 0x07, 0x34, 0x4d, 0x60, 0x37, 0x3b, 0x89, 0xdd,
+	0x0f, 0x48, 0xe3, 0x04, 0xcc, 0x16, 0x9e, 0x80, 0x19, 0x7a, 0x32, 0x66, 0x8b, 0x4f, 0xc5, 0x6c,
+	0xe9, 0x39, 0x30, 0xcb, 0x3d, 0x03, 0x66, 0xf9, 0xc7, 0x61, 0x56, 0x48, 0xc3, 0xec, 0x7f, 0x0d,
+	0x6d, 0x1f, 0xa5, 0xb5, 0xf8, 0x29, 0x75, 0xa0, 0x37, 0x44, 0x5e, 0xda, 0x9b, 0xa6, 0xa5, 0xbf,
+	0x69, 0x13, 0x3a, 0x75, 0x7a, 0x42, 0xa7, 0x56, 0x5e, 0xcc, 0xa0, 0xad, 0x8b, 0xa8, 0xc0, 0x09,
+	0x05, 0x26, 0x93, 0x4a, 0x32, 0xba, 0xa4, 0xe1, 0xa7, 0x5d, 0xf6, 0x5d, 0x50, 0x4b, 0xca, 0x98,
+	0x85, 0xa1, 0xf8, 0x65, 0xdf, 0x85, 0xc7, 0xbc, 0xc8, 0x7f, 0xa2, 0xad, 0x7b, 0x57, 0x42, 0xca,
+	0x2e, 0x66, 0xd4, 0x2e, 0xca, 0x63, 0xd7, 0x43, 0xea, 0x93, 0x49, 0xe1, 0x3a, 0xfd, 0x96, 0x28,
+	0x52, 0xb8, 0x1e, 0x6d, 0x9f, 0x13, 0x54, 0xa6, 0xd0, 0x7b, 0xf7, 0xcc, 0xe1, 0x2b, 0xfd, 0x59,
+	0xa0, 0x7b, 0x78, 0xda, 0x54, 0x5e, 0xb3, 0x0f, 0xf0, 0xba, 0x83, 0x8a, 0x70, 0x75, 0x05, 0x21,
+	0xb2, 0x91, 0x36, 0xbc, 0x10, 0x0a, 0x49, 0x3c, 0x94, 0xfe, 0x36, 0x3b, 0x3f, 0x5f, 0x5c, 0x30,
+	0xd7, 0x59, 0xc7, 0xb1, 0xba, 0x58, 0x02, 0x27, 0xb8, 0x63, 0xd9, 0x1d, 0x26, 0x62, 0x5f, 0xe5,
+	0x1a, 0x7d, 0x3e, 0x5a, 0xbb, 0xe8, 0x5c, 0xdf, 0x77, 0xdd, 0x0e, 0x4f, 0x5e, 0xde, 0x96, 0xb4,
+	0x9b, 0xdb, 0x92, 0xf6, 0xfa, 0xb6, 0xa4, 0xfd, 0x77, 0x57, 0x9a, 0xba, 0xb9, 0x2b, 0x4d, 0xbd,
+	0xba, 0x2b, 0x4d, 0xfd, 0xfd, 0x4d, 0x93, 0xc8, 0xe0, 0x8b, 0x67, 0xb3, 0x6e, 0xed, 0x92, 0x7b,
+	0x70, 0xee, 0x02, 0xad, 0x51, 0xe6, 0x40, 0xad, 0x37, 0xfa, 0x57, 0x0c, 0x56, 0x22, 0x1a, 0x59,
+	0xf5, 0x2b, 0xfc, 0xf6, 0x6d, 0x00, 0x00, 0x00, 0xff, 0xff, 0x32, 0x42, 0xd2, 0x81, 0x48, 0x0a,
+	0x00, 0x00,
 }
 
 func (m *CortexNodeStoreState) Marshal() (dAtA []byte, err error) {
@@ -405,6 +631,30 @@ func (m *CortexNodeStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.RevokedHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.RevokedHeight))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.PreviousRetiredHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PreviousRetiredHeight))
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.PreviousServiceAuthorizationNonce != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PreviousServiceAuthorizationNonce))
+		i--
+		dAtA[i] = 0x70
+	}
+	if len(m.PreviousServicePubkey) > 0 {
+		i -= len(m.PreviousServicePubkey)
+		copy(dAtA[i:], m.PreviousServicePubkey)
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(len(m.PreviousServicePubkey)))
+		i--
+		dAtA[i] = 0x6a
+	}
 	if m.PendingEvidenceSubmissionCount != 0 {
 		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PendingEvidenceSubmissionCount))
 		i--
@@ -494,6 +744,28 @@ func (m *BuilderStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.RevokedHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.RevokedHeight))
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.PreviousRetiredHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PreviousRetiredHeight))
+		i--
+		dAtA[i] = 0x70
+	}
+	if m.PreviousServiceAuthorizationNonce != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PreviousServiceAuthorizationNonce))
+		i--
+		dAtA[i] = 0x68
+	}
+	if len(m.PreviousServicePubkey) > 0 {
+		i -= len(m.PreviousServicePubkey)
+		copy(dAtA[i:], m.PreviousServicePubkey)
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(len(m.PreviousServicePubkey)))
+		i--
+		dAtA[i] = 0x62
+	}
 	if m.PendingEvidenceSubmissionCount != 0 {
 		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.PendingEvidenceSubmissionCount))
 		i--
@@ -593,6 +865,103 @@ func (m *CurrentServiceAddressIndexStoreState) MarshalToSizedBuffer(dAtA []byte)
 	return len(dAtA) - i, nil
 }
 
+func (m *PendingServiceKeyRotationStoreState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PendingServiceKeyRotationStoreState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingServiceKeyRotationStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.EffectiveHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.EffectiveHeight))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.RegisteredHeight != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.RegisteredHeight))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.NextServiceAuthorizationNonce != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.NextServiceAuthorizationNonce))
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.NewServicePubkey) > 0 {
+		i -= len(m.NewServicePubkey)
+		copy(dAtA[i:], m.NewServicePubkey)
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(len(m.NewServicePubkey)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.CurrentServiceAuthorizationNonce != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.CurrentServiceAuthorizationNonce))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.OperatorAddress) > 0 {
+		i -= len(m.OperatorAddress)
+		copy(dAtA[i:], m.OperatorAddress)
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(len(m.OperatorAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.ParticipantType != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.ParticipantType))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *PendingServiceAddressStoreState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PendingServiceAddressStoreState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PendingServiceAddressStoreState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.OperatorAddress) > 0 {
+		i -= len(m.OperatorAddress)
+		copy(dAtA[i:], m.OperatorAddress)
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(len(m.OperatorAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.ParticipantType != 0 {
+		i = encodeVarintParticipantAddressStore(dAtA, i, uint64(m.ParticipantType))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintParticipantAddressStore(dAtA []byte, offset int, v uint64) int {
 	offset -= sovParticipantAddressStore(v)
 	base := offset
@@ -649,6 +1018,19 @@ func (m *CortexNodeStoreState) Size() (n int) {
 	if m.PendingEvidenceSubmissionCount != 0 {
 		n += 1 + sovParticipantAddressStore(uint64(m.PendingEvidenceSubmissionCount))
 	}
+	l = len(m.PreviousServicePubkey)
+	if l > 0 {
+		n += 1 + l + sovParticipantAddressStore(uint64(l))
+	}
+	if m.PreviousServiceAuthorizationNonce != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.PreviousServiceAuthorizationNonce))
+	}
+	if m.PreviousRetiredHeight != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.PreviousRetiredHeight))
+	}
+	if m.RevokedHeight != 0 {
+		n += 2 + sovParticipantAddressStore(uint64(m.RevokedHeight))
+	}
 	return n
 }
 
@@ -694,6 +1076,19 @@ func (m *BuilderStoreState) Size() (n int) {
 	if m.PendingEvidenceSubmissionCount != 0 {
 		n += 1 + sovParticipantAddressStore(uint64(m.PendingEvidenceSubmissionCount))
 	}
+	l = len(m.PreviousServicePubkey)
+	if l > 0 {
+		n += 1 + l + sovParticipantAddressStore(uint64(l))
+	}
+	if m.PreviousServiceAuthorizationNonce != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.PreviousServiceAuthorizationNonce))
+	}
+	if m.PreviousRetiredHeight != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.PreviousRetiredHeight))
+	}
+	if m.RevokedHeight != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.RevokedHeight))
+	}
 	return n
 }
 
@@ -709,6 +1104,54 @@ func (m *CurrentServiceAddressIndexStoreState) Size() (n int) {
 	}
 	if m.ServiceAuthorizationNonce != 0 {
 		n += 1 + sovParticipantAddressStore(uint64(m.ServiceAuthorizationNonce))
+	}
+	return n
+}
+
+func (m *PendingServiceKeyRotationStoreState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ParticipantType != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.ParticipantType))
+	}
+	l = len(m.OperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovParticipantAddressStore(uint64(l))
+	}
+	if m.CurrentServiceAuthorizationNonce != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.CurrentServiceAuthorizationNonce))
+	}
+	l = len(m.NewServicePubkey)
+	if l > 0 {
+		n += 1 + l + sovParticipantAddressStore(uint64(l))
+	}
+	if m.NextServiceAuthorizationNonce != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.NextServiceAuthorizationNonce))
+	}
+	if m.RegisteredHeight != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.RegisteredHeight))
+	}
+	if m.EffectiveHeight != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.EffectiveHeight))
+	}
+	return n
+}
+
+func (m *PendingServiceAddressStoreState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ParticipantType != 0 {
+		n += 1 + sovParticipantAddressStore(uint64(m.ParticipantType))
+	}
+	l = len(m.OperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovParticipantAddressStore(uint64(l))
 	}
 	return n
 }
@@ -1021,6 +1464,97 @@ func (m *CortexNodeStoreState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousServicePubkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PreviousServicePubkey = append(m.PreviousServicePubkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.PreviousServicePubkey == nil {
+				m.PreviousServicePubkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousServiceAuthorizationNonce", wireType)
+			}
+			m.PreviousServiceAuthorizationNonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PreviousServiceAuthorizationNonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousRetiredHeight", wireType)
+			}
+			m.PreviousRetiredHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PreviousRetiredHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RevokedHeight", wireType)
+			}
+			m.RevokedHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RevokedHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipParticipantAddressStore(dAtA[iNdEx:])
@@ -1325,6 +1859,97 @@ func (m *BuilderStoreState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousServicePubkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PreviousServicePubkey = append(m.PreviousServicePubkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.PreviousServicePubkey == nil {
+				m.PreviousServicePubkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousServiceAuthorizationNonce", wireType)
+			}
+			m.PreviousServiceAuthorizationNonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PreviousServiceAuthorizationNonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PreviousRetiredHeight", wireType)
+			}
+			m.PreviousRetiredHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PreviousRetiredHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RevokedHeight", wireType)
+			}
+			m.RevokedHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RevokedHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipParticipantAddressStore(dAtA[iNdEx:])
@@ -1428,6 +2053,322 @@ func (m *CurrentServiceAddressIndexStoreState) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipParticipantAddressStore(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PendingServiceKeyRotationStoreState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowParticipantAddressStore
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PendingServiceKeyRotationStoreState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PendingServiceKeyRotationStoreState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ParticipantType", wireType)
+			}
+			m.ParticipantType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ParticipantType |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OperatorAddress", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OperatorAddress = append(m.OperatorAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.OperatorAddress == nil {
+				m.OperatorAddress = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CurrentServiceAuthorizationNonce", wireType)
+			}
+			m.CurrentServiceAuthorizationNonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CurrentServiceAuthorizationNonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewServicePubkey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewServicePubkey = append(m.NewServicePubkey[:0], dAtA[iNdEx:postIndex]...)
+			if m.NewServicePubkey == nil {
+				m.NewServicePubkey = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NextServiceAuthorizationNonce", wireType)
+			}
+			m.NextServiceAuthorizationNonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.NextServiceAuthorizationNonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RegisteredHeight", wireType)
+			}
+			m.RegisteredHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RegisteredHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveHeight", wireType)
+			}
+			m.EffectiveHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EffectiveHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipParticipantAddressStore(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PendingServiceAddressStoreState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowParticipantAddressStore
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PendingServiceAddressStoreState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PendingServiceAddressStoreState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ParticipantType", wireType)
+			}
+			m.ParticipantType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ParticipantType |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OperatorAddress", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowParticipantAddressStore
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthParticipantAddressStore
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OperatorAddress = append(m.OperatorAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.OperatorAddress == nil {
+				m.OperatorAddress = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipParticipantAddressStore(dAtA[iNdEx:])

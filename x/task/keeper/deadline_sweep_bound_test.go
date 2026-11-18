@@ -98,6 +98,51 @@ func TestDeadlineSweepChargesVisitedItemsForPoisonRows(t *testing.T) {
 	require.Equal(t, dueRows, remaining)
 }
 
+// A handler failure for one task must not abort the block: EndBlock runs on every
+// validator, so an error returned here halts the chain until a new binary ships.
+// The failed row is deferred, its partial writes are dropped, and the rows behind
+// it are still processed in the same sweep.
+func TestDeadlineSweepDefersFailingRowInsteadOfAbortingTheBlock(t *testing.T) {
+	f := initInternalFixture(t)
+	failing := taskKeyFromByte(0x51)
+	healthy := taskKeyFromByte(0x52)
+	partialWrite := taskKeyFromByte(0x53)
+	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.InferDeadlineIndex, failing, 10))
+	require.NoError(t, addDeadlineIndex(f.ctx, f.keeper.InferDeadlineIndex, healthy, 11))
+
+	const currentHeight = uint64(100)
+	handled := map[string]deadlineSweepOutcome{}
+	usage, err := f.keeper.sweepExpiredTaskDeadlinesWithBudget(
+		f.ctx, f.keeper.InferDeadlineIndex, currentHeight, 8, maxDeadlineSweepBytesPerBlockV1,
+		func(ctx context.Context, taskID types.TaskKey, _ uint64) (deadlineSweepOutcome, uint64, error) {
+			if bytes.Equal(taskID, failing) {
+				// Written before the failure; it must not survive.
+				require.NoError(t, addDeadlineIndex(ctx, f.keeper.RevealDeadlineIndex, partialWrite, 5))
+				return deadlineSweepPending, 0, fmt.Errorf("invariant broken")
+			}
+			handled[string(taskID)] = deadlineSweepStale
+			return deadlineSweepStale, 0, nil
+		},
+	)
+	require.NoError(t, err, "a failing row must not return an error to EndBlock")
+	require.Equal(t, uint64(2), usage.visited)
+	require.Contains(t, handled, string(healthy), "the row behind the failing one must still be processed")
+
+	has, err := f.keeper.InferDeadlineIndex.Has(f.ctx, types.NewDeadlineIndexKey(10, failing))
+	require.NoError(t, err)
+	require.False(t, has, "the failing row must leave the head of the sweep")
+	has, err = f.keeper.InferDeadlineIndex.Has(f.ctx,
+		types.NewDeadlineIndexKey(currentHeight+deadlineSweepFailureRetryBlocksV1, failing))
+	require.NoError(t, err)
+	require.True(t, has, "the failing row must be retried later")
+	has, err = f.keeper.RevealDeadlineIndex.Has(f.ctx, types.NewDeadlineIndexKey(5, partialWrite))
+	require.NoError(t, err)
+	require.False(t, has, "writes made by the failing handler must be discarded")
+	has, err = f.keeper.InferDeadlineIndex.Has(f.ctx, types.NewDeadlineIndexKey(11, healthy))
+	require.NoError(t, err)
+	require.False(t, has, "the healthy stale row is still retired")
+}
+
 // A provably stale row is counted *and* deleted, so the index
 // self-heals instead of accumulating orphans.
 func TestDeadlineSweepDeletesStaleRows(t *testing.T) {
@@ -190,19 +235,19 @@ func TestEndBlockDeadlineByteBudgetIsSharedAcrossQueues(t *testing.T) {
 // All twelve Wire v0.3 kind_priority values, and only those, resolve.
 func TestDeadlineKindPriorityTableIsComplete(t *testing.T) {
 	expected := map[types.DeadlineKindV1]uint32{
-		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:          30,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:        40,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:     20,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:          50,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:          60,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:            70,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:           80,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT:      90,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:      100,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:           45,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: 25,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:       110,
-		types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT:         41,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_FINALITY:                        30,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT:                      40,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE:                   20,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_REVEAL:                        50,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT:                        60,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN:                          70,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER:                         80,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_SESSION_LIFECYCLE:                    100,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL:                         45,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE:               25,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP:                     110,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: 30,
+		types.DeadlineKindV1_DEADLINE_KIND_V1_ANCHOR_VERDICT:                       41,
 	}
 	require.Len(t, deadlineKindPriority, len(expected))
 	for kind, priority := range expected {

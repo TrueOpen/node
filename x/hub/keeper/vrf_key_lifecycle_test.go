@@ -18,6 +18,7 @@ func vrfLifecycleGenesis(t *testing.T, operators ...string) types.GenesisState {
 	gs.Params.Beacon.MaxVrfKeyHistoryEpochs = 3
 	for index, operator := range operators {
 		gs.VrfKeys = append(gs.VrfKeys, types.VrfKeyState{
+			ParticipantType:       validatorVrfRole,
 			OperatorAddress:       operator,
 			ActiveVrfPubkey:       vrfPubkey(byte(index + 1)),
 			ActiveFromEpoch:       0,
@@ -51,7 +52,7 @@ func TestEndBlockActivatesVrfKeyBeforeNextEpochProposal(t *testing.T) {
 		f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(8))
 
 		require.NoError(t, f.keeper.EndBlocker(f.ctx))
-		state, err := f.keeper.GetVrfKey(f.ctx, operator)
+		state, err := f.keeper.GetVrfKey(f.ctx, validatorVrfRole, operator)
 		require.NoError(t, err)
 		require.Equal(t, vrfPubkey(1), state.ActiveVrfPubkey)
 		require.Equal(t, vrfPubkey(11), state.GetPendingVrfPubkey())
@@ -63,10 +64,10 @@ func TestVrfKeyHistoryPruneLifecycle(t *testing.T) {
 	f := initFixture(t)
 	gs := vrfLifecycleGenesis(t, operators...)
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, gs))
-	require.NoError(t, f.keeper.ActivateDueVrfKeys(f.ctx, 1))
+	activateVrfKeysForTest(t, f, 1)
 
 	for _, operator := range operators {
-		has, err := f.keeper.VrfKeyPruneIndex.Has(f.ctx, types.NewVrfKeyPruneKey(4, operator, 0))
+		has, err := f.keeper.VrfKeyPruneIndex.Has(f.ctx, types.NewVrfKeyPruneKey(4, validatorVrfRole, operator, 0))
 		require.NoError(t, err)
 		require.True(t, has)
 	}
@@ -93,13 +94,13 @@ func TestVrfKeyGenesisRebuildsAndChecksPruneIndex(t *testing.T) {
 	source := initFixture(t)
 	gs := vrfLifecycleGenesis(t, operator)
 	require.NoError(t, source.keeper.InitGenesis(source.ctx, gs))
-	require.NoError(t, source.keeper.ActivateDueVrfKeys(source.ctx, 1))
+	activateVrfKeysForTest(t, source, 1)
 	exported, err := source.keeper.ExportGenesis(source.ctx)
 	require.NoError(t, err)
 
 	restarted := initFixture(t)
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
-	key := types.NewVrfKeyPruneKey(4, operator, 0)
+	key := types.NewVrfKeyPruneKey(4, validatorVrfRole, operator, 0)
 	has, err := restarted.keeper.VrfKeyPruneIndex.Has(restarted.ctx, key)
 	require.NoError(t, err)
 	require.True(t, has)
@@ -107,7 +108,7 @@ func TestVrfKeyGenesisRebuildsAndChecksPruneIndex(t *testing.T) {
 	require.NoError(t, restarted.keeper.VrfKeyPruneIndex.Remove(restarted.ctx, key))
 	require.ErrorContains(t, restarted.keeper.EnsureVrfKeyPruneIndexInvariant(restarted.ctx), "missing operator")
 	require.NoError(t, restarted.keeper.VrfKeyPruneIndex.Set(restarted.ctx, key))
-	extra := types.NewVrfKeyPruneKey(5, operator, 0)
+	extra := types.NewVrfKeyPruneKey(5, validatorVrfRole, operator, 0)
 	require.NoError(t, restarted.keeper.VrfKeyPruneIndex.Set(restarted.ctx, extra))
 	require.ErrorContains(t, restarted.keeper.EnsureVrfKeyPruneIndexInvariant(restarted.ctx), "extra row")
 }

@@ -41,12 +41,9 @@ var ErrInsufficientVerifierHandraises = errors.New("verifier handraise count is 
 // ErrVerifierLiabilityUnavailable reports that a selected verifier could no
 // longer back its frozen candidate fact with a live task-liability reservation.
 //
-// This is the verifier-side twin of the "winner unavailable" outcome the
-// worker path already handles gracefully (assignment_randomness.go maps it to
-// ASSIGNMENT_FAILURE_REASON_WINNER_LIABILITY_UNAVAILABLE and refunds). Because
-// the legal set is frozen at the handraise close, there is no redraw: the round
-// cannot be assigned and the later verify-open assignment deadline owns the
-// terminal transition, exactly as for ErrInsufficientVerifierHandraises.
+// The legal set is frozen at handraise close, so there is no redraw. The
+// later verify-open assignment deadline owns the terminal transition, as for
+// ErrInsufficientVerifierHandraises.
 //
 // Propagating it instead aborted FinalizeBlock and halted consensus, which is
 // how devnet stopped at height 1011: a stale available_bond snapshot is normal
@@ -140,7 +137,7 @@ func (k Keeper) RunVerifierRound(
 			cursor.Status == types.FinalizeCursorStatusV1_FINALIZE_CURSOR_STATUS_V1_WAITING_RANDOMNESS {
 			advanced, rowBytes, err := k.finalizeVerifierAssignmentAtHeight(ctx, taskKey, window, union, cursor, currentHeight)
 			result.SerializedBytes += rowBytes
-			if errors.Is(err, ErrVerifierLiabilityUnavailable) {
+			if errors.Is(err, ErrVerifierLiabilityUnavailable) || errors.Is(err, types.ErrDeadlineExpired) {
 				// Same disposal as a short window above: the round cannot be
 				// assigned and the verify-open deadline owns the terminal
 				// transition, so this is not a caller fault.

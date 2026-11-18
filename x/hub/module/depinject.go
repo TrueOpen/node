@@ -84,10 +84,11 @@ type ModuleInputs struct {
 	Cdc       codec.Codec
 	HubKeeper keeper.Keeper
 
-	FreezeTaskValidator       types.FreezeSignalTaskValidator
-	ValidatorSnapshotProvider types.ValidatorSnapshotProvider
-	TaskSafetyWindowProvider  types.TaskSafetyWindowProvider
-	RoleFaultConsumerGate     types.RoleFaultConsumerGate
+	FreezeTaskValidator           types.FreezeSignalTaskValidator
+	ValidatorSnapshotProvider     types.ValidatorSnapshotProvider
+	TaskSafetyWindowProvider      types.TaskSafetyWindowProvider
+	RoleFaultConsumerGate         types.RoleFaultConsumerGate
+	WorkerCandidateWeightProvider types.WorkerCandidateWeightProvider
 	// BridgeUpstream is supplied by app wiring over the pinned Hyperlane
 	// keepers. It is optional so a chain without a bridge, and every direct
 	// keeper fixture, still wires; ValidateBridgeUpstream reports its absence
@@ -116,10 +117,11 @@ type ModuleOutputs struct {
 
 func ProvideModule(in ModuleInputs) ModuleOutputs {
 	deps := types.MsgServerDependencies{
-		FreezeTaskValidator:       in.FreezeTaskValidator,
-		ValidatorSnapshotProvider: in.ValidatorSnapshotProvider,
-		TaskSafetyWindowProvider:  in.TaskSafetyWindowProvider,
-		RoleFaultConsumerGate:     in.RoleFaultConsumerGate,
+		FreezeTaskValidator:           in.FreezeTaskValidator,
+		ValidatorSnapshotProvider:     in.ValidatorSnapshotProvider,
+		TaskSafetyWindowProvider:      in.TaskSafetyWindowProvider,
+		RoleFaultConsumerGate:         in.RoleFaultConsumerGate,
+		WorkerCandidateWeightProvider: in.WorkerCandidateWeightProvider,
 	}
 	hub := in.HubKeeper.WithBridgeUpstream(in.BridgeUpstream)
 	if in.VrfPoPVerifier != nil {

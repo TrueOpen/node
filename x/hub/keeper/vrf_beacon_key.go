@@ -34,6 +34,7 @@ import (
 	"cosmossdk.io/collections"
 
 	"github.com/TrueOpen/node/x/hub/types"
+	shared "github.com/TrueOpen/node/x/shared/types"
 )
 
 // ErrNoActiveVrfKey reports that the operator has no active VRF public key usable
@@ -65,7 +66,7 @@ func (k Keeper) ActiveVrfPubkeyForHeight(ctx context.Context, operator string, h
 	}
 	epoch := epochForHeight(height, epochLength)
 
-	state, err := k.GetVrfKey(ctx, operator)
+	state, err := k.GetVrfKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_VALIDATOR, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, fmt.Errorf("%w: operator %s", ErrNoActiveVrfKey, operator)

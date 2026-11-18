@@ -40,7 +40,7 @@ func (k Keeper) loadActiveTaskBuilderSelection(ctx context.Context, taskKey type
 	return selection, nil
 }
 
-func (k Keeper) authorizeOpenTaskBuilder(ctx context.Context, selection types.TaskBuilderSelectionState, submitter string) (string, error) {
+func (k Keeper) authorizeTaskBuilder(ctx context.Context, selection types.TaskBuilderSelectionState, submitter string) (string, error) {
 	if err := validateActiveTaskBuilderSelection(sdk.UnwrapSDKContext(ctx).ChainID(), selection, selection.TaskId); err != nil {
 		return "", err
 	}

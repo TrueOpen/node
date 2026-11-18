@@ -167,10 +167,6 @@ func New(
 			),
 		)
 	)
-	sessionKeyConfig, err := SessionKeyConfigFromAppOptions(appOpts)
-	if err != nil {
-		panic(err)
-	}
 	taskEventConfig, err := taskevents.ConfigFromAppOptions(appOpts)
 	if err != nil {
 		panic(err)
@@ -210,9 +206,6 @@ func New(
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 
 	// build app
-	if err := app.TaskKeeper.ConfigureSessionKeyActivation(sessionKeyConfig.ActivationHeight); err != nil {
-		panic(err)
-	}
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 	// Only MsgProcessMessage and MsgRemoteTransfer are callable Hyperlane messages. The circuit
 	// breaker is consulted by the router for every message before its handler
@@ -255,6 +248,9 @@ func New(
 		}
 		if err := app.EnsureCrossModuleReferences(ctx); err != nil {
 			return nil, fmt.Errorf("invalid TrueOpen cross-module genesis: %w", err)
+		}
+		if err := app.trueopenInvariants.runChecks(ctx, invariantDiagnosticChecks); err != nil {
+			return nil, fmt.Errorf("invalid TrueOpen genesis invariants: %w", err)
 		}
 		// Fresh bootstrap fixes every validator key at epoch 0. A normal state
 		// export re-import also enters InitChain, but preserves a later
@@ -369,6 +365,9 @@ func (app *App) EnsureLoadedStoreSchemas() error {
 	}
 	if err := app.EnsureCrossModuleReferences(ctx); err != nil {
 		return fmt.Errorf("refusing to load inconsistent TrueOpen cross-module state: %w", err)
+	}
+	if err := app.trueopenInvariants.runChecks(sdk.UnwrapSDKContext(ctx), invariantDiagnosticChecks); err != nil {
+		return fmt.Errorf("refusing to load inconsistent TrueOpen state: %w", err)
 	}
 	return nil
 }

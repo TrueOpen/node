@@ -180,9 +180,8 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		members[member.Slot] = member
 	}
 
-	// A handraise that is no longer eligible by the time this proposal lands is
-	// skipped, not fatal: see the identical reasoning in
-	// msg_server_worker_handraises.go and errCandidateNotApplicable.
+	// A handraise that became ineligible after signing is skipped so it cannot
+	// invalidate otherwise eligible candidates in the same proposal.
 	facts := make([]types.TaskCandidateFactState, 0, len(msg.Handraises))
 	newSlots := make([]uint32, 0, len(msg.Handraises))
 	newSlotSet := make(map[uint32]struct{}, len(msg.Handraises))

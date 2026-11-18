@@ -37,6 +37,19 @@ func CheckedAddUint64(left, right uint64) (uint64, bool) {
 	return value, carry != 0
 }
 
+// CheckedSumUint64 adds a bounded list without allowing an intermediate wrap.
+func CheckedSumUint64(values ...uint64) (uint64, bool) {
+	var total uint64
+	for _, value := range values {
+		next, overflow := CheckedAddUint64(total, value)
+		if overflow {
+			return 0, true
+		}
+		total = next
+	}
+	return total, false
+}
+
 func CheckedMulUint64(left, right uint64) (uint64, bool) {
 	high, low := bits.Mul64(left, right)
 	return low, high != 0

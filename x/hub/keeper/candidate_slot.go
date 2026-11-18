@@ -321,12 +321,23 @@ func (k Keeper) tryReleaseCandidateSlot(ctx context.Context, current types.Candi
 	if err := k.OperatorCandidateSlot.Remove(ctx, current.OperatorAddress); err != nil {
 		return err
 	}
+	operator := current.OperatorAddress
 	current.OperatorAddress = ""
 	current.Status = candidateSlotFree
 	if err := k.WriteCandidateSlotCurrent(ctx, current.Slot, current); err != nil {
 		return err
 	}
-	return k.noteCandidateMembershipChange(ctx, current.Slot, height)
+	if err := k.noteCandidateMembershipChange(ctx, current.Slot, height); err != nil {
+		return err
+	}
+	bond, exists, err := k.loadServiceBond(ctx, operator)
+	if err != nil {
+		return err
+	}
+	if exists && (bond.Status == types.ServiceBondStatusExited || bond.Status == types.ServiceBondStatusTombstoned) {
+		return k.removeCortexIdentityOnTerminalBond(ctx, operator)
+	}
+	return nil
 }
 
 func (k Keeper) operatorHasActiveLiability(ctx context.Context, operatorAddress string) (bool, error) {

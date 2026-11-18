@@ -80,7 +80,7 @@ func TestAnchorFaultSlashesRequestedAmountAndJails(t *testing.T) {
 			}
 			fault, err := f.keeper.ApplyTaskRoleFault(f.ctx, fact)
 			require.NoError(t, err)
-			require.Equal(t, types.FaultKind_FAULT_KIND_INVALID_RESULT, fault.FaultClass)
+			require.Equal(t, shared.FaultKind_FAULT_KIND_INVALID_RESULT, fault.FaultClass)
 			after, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 			require.NoError(t, err)
 			require.Equal(t, before.ActiveBond-requested, after.ActiveBond, "the anchor slash is the absolute amount, not a share of the reservation")

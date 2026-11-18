@@ -58,3 +58,23 @@ func TestConfigRejectsTaskEventsWhenStandardGRPCIsDisabled(t *testing.T) {
 	_, err := ConfigFromAppOptions(opts)
 	require.ErrorContains(t, err, "requires grpc.enable=true")
 }
+
+func TestEventReplayRequiresHistoricalStateRetention(t *testing.T) {
+	for _, test := range []struct {
+		strategy, recent string
+		allowed          bool
+	}{
+		{"default", "", true}, {"nothing", "", true}, {"everything", "", false},
+		{"custom", "10000", false}, {"custom", "11000", true},
+	} {
+		t.Run(test.strategy+test.recent, func(t *testing.T) {
+			opts := simtestutil.AppOptionsMap{"task-event-grpc.enabled": true, "pruning": test.strategy, "pruning-keep-recent": test.recent, "pruning-interval": "10"}
+			_, err := ConfigFromAppOptions(opts)
+			if test.allowed {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "state retention")
+			}
+		})
+	}
+}

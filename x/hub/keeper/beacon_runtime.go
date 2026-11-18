@@ -361,6 +361,14 @@ func (k Keeper) priorBeaconBytes(ctx context.Context, height uint64) ([]byte, er
 		}
 		return nil, err
 	}
+	// Before VRF is required, a placeholder prior means no verified beacon chain
+	// exists yet (for example the validator registered its VRF key after
+	// genesis). Anchor the chain here with the same zero prior used at height 1 and
+	// at the activation height, rather than rejecting every proposal forever.
+	if prior.SourceTag == types.BeaconSourcePlaceholderBlockHashV1 &&
+		(params.Beacon.VrfRequiredFromHeight == 0 || height < params.Beacon.VrfRequiredFromHeight) {
+		return make([]byte, sha256.Size), nil
+	}
 	if err := validateBeaconStoreState(prior, true); err != nil {
 		return nil, fmt.Errorf("height %d: %w", height-1, err)
 	}

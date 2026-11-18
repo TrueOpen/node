@@ -75,7 +75,10 @@ func (k Keeper) WriteServiceBondValue(ctx context.Context, key string, state typ
 	if err != nil {
 		return err
 	}
-	return k.ServiceBond.Set(ctx, key, stored)
+	if err := k.ServiceBond.Set(ctx, key, stored); err != nil {
+		return err
+	}
+	return k.refreshCandidateWeightInputs(ctx, state.OperatorAddress)
 }
 
 func (k Keeper) exportServiceBonds(ctx context.Context) ([]types.ServiceBondState, error) {

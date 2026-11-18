@@ -17,6 +17,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 		Query: &autocliv1.ServiceCommandDescriptor{
 			Service: types.Query_serviceDesc.ServiceName,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
+				{RpcMethod: "CandidatePoolSnapshotMember", Use: "candidate-pool-snapshot-member [snapshot-id] [operator-address]", Short: "Queries candidate pool snapshot member", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "snapshot_id"}, {ProtoField: "operator_address"}}},
+				{RpcMethod: "BuilderCompensationAccount", Use: "builder-compensation-account [builder-address]", Short: "Queries builder compensation account", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "builder_address"}}},
+
 				{
 					RpcMethod: "Params",
 					Use:       "params",
@@ -238,6 +241,8 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			Service:              types.Msg_serviceDesc.ServiceName,
 			EnhanceCustomCommand: true,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
+				{RpcMethod: "FundBuilderCompensation", Use: "fund-builder-compensation", Short: "Submits FundBuilderCompensation"},
+
 				{
 					RpcMethod: "UpdateHubParams",
 					Skip:      true, // authority gated

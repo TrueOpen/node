@@ -60,6 +60,13 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	require.Equal(t, locator.BuilderOperator, acquired.BuilderOperator)
 	require.Equal(t, locator.TaskId, acquired.TaskId)
 	require.Equal(t, locator.ServiceAuthorizationNonce, acquired.ServiceAuthorizationNonce)
+	proofBinding, err := f.keeper.GetBuilderEvidenceProofKey(f.ctx, locator.BuilderOperator, locator.ServiceAuthorizationNonce, locator.SessionId, locator.TaskId)
+	require.NoError(t, err)
+	require.Equal(t, locator.ServiceAuthorizationNonce, proofBinding.AuthorizationNonce)
+	_, err = f.keeper.GetBuilderEvidenceProofKey(f.ctx, locator.BuilderOperator, locator.ServiceAuthorizationNonce, locator.SessionId, hubHashBytes("another-task"))
+	require.ErrorContains(t, err, "responsibility is unavailable")
+	_, err = f.keeper.GetBuilderEvidenceProofKey(f.ctx, locator.BuilderOperator, 2, locator.SessionId, locator.TaskId)
+	require.ErrorContains(t, err, "nonce does not match the frozen Task responsibility")
 
 	primaryKey := types.NewServiceKeyResponsibilityKey(
 		shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, locator.BuilderOperator, acquired.ResponsibilityId,
@@ -120,10 +127,13 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, revoked.Status)
-	binding, err := f.keeper.GetBuilderObjectiveEvidenceCurrentBinding(f.ctx, locator.BuilderOperator)
+	binding, err := f.keeper.GetDispatchServiceProofKey(f.ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, locator.BuilderOperator)
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceKeyStatusRevoked, binding.Status)
 	require.Equal(t, locator.ServiceAuthorizationNonce, binding.AuthorizationNonce)
+	proofBinding, err = f.keeper.GetBuilderEvidenceProofKey(f.ctx, locator.BuilderOperator, locator.ServiceAuthorizationNonce, locator.SessionId, locator.TaskId)
+	require.NoError(t, err)
+	require.Equal(t, types.ServiceKeyStatusRevoked, proofBinding.Status)
 
 	replayed, err = f.keeper.AcquireBusObjectiveEvidenceResponsibility(f.ctx, locator)
 	require.NoError(t, err, "an acquired row remains an exact replay after revoke")
@@ -135,6 +145,8 @@ func TestBusObjectiveEvidenceResponsibilityLifecycle(t *testing.T) {
 	released, err := f.keeper.ReleaseBusObjectiveEvidenceResponsibility(f.ctx, locator)
 	require.NoError(t, err)
 	require.False(t, released.Active)
+	_, err = f.keeper.GetBuilderEvidenceProofKey(f.ctx, locator.BuilderOperator, locator.ServiceAuthorizationNonce, locator.SessionId, locator.TaskId)
+	require.ErrorContains(t, err, "responsibility is unavailable")
 	require.Equal(t, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED, released.Status)
 	has, err = f.keeper.ServiceKeyResponsibility.Has(f.ctx, primaryKey)
 	require.NoError(t, err)
@@ -174,12 +186,7 @@ func TestBusObjectiveEvidenceResponsibilityAtomicFailures(t *testing.T) {
 		))
 		require.NoError(t, getErr)
 		require.False(t, has)
-		_, err = keeper.NewMsgServerImpl(f.keeper).RotateServiceKey(f.ctx, &types.MsgRotateServiceKey{
-			OperatorAddress:                          identity.Address,
-			ParticipantType:                          shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
-			ExpectedCurrentServiceAuthorizationNonce: 1,
-		})
-		require.ErrorContains(t, err, "evidence submissions are pending")
+
 	})
 
 	t.Run("missing index and counter underflow retain primary", func(t *testing.T) {

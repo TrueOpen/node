@@ -61,7 +61,7 @@ func initTaskBucketGenesisFixture(t *testing.T, hub tasktypes.HubKeeper) *fixtur
 	ctx := testutil.DefaultContextWithDB(t, storeKey, transientKey).Ctx
 	authority := authtypes.NewModuleAddress(tasktypes.GovModuleName)
 	k := keeper.NewKeeper(storeService, transientStoreService, encCfg.Codec, addressCodec, authority, taskExternalAuthKeeper{}, taskExternalBankKeeper{}, hub)
-	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1")), keeper: k}
+	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1").WithBlockHeight(11)), keeper: k}
 }
 
 func taskGenesisWithBucketRefs(t *testing.T, chainID string) *tasktypes.GenesisState {

@@ -4,8 +4,12 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"cosmossdk.io/collections"
+	"github.com/TrueOpen/wire/dispatch"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TrueOpen/node/x/hub/keeper"
 	"github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
@@ -35,6 +39,7 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	// The liability that has to outlive the identity.
 	_, err := f.keeper.ReserveTaskLiabilityFromFrozenFact(f.ctx, survivor)
 	require.NoError(t, err)
+	require.NoError(t, f.keeper.AcquirePendingStageDuty(f.ctx, identity.Address))
 
 	// A second liability on the same operator. Its fault is what escalates the
 	// jail ladder, mirroring the localnet trace where the deadline that tombstoned
@@ -81,6 +86,10 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	proofOnly, err := f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
 	require.NoError(t, err)
 	require.Equal(t, types.ServiceKeyStatusRevoked, proofOnly.ServiceKeyStatus)
+	replacement := hubIdentity(t, 216)
+	rotationProof := serviceKeyRotationProofBytes(sdk.UnwrapSDKContext(f.ctx).ChainID(), shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, sdk.MustAccAddressFromBech32(identity.Address), replacement.PubKey, 1, 2)
+	_, err = keeper.NewMsgServerImpl(f.keeper).RotateServiceKey(f.ctx, &types.MsgRotateServiceKey{ParticipantType: shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, OperatorAddress: identity.Address, ExpectedCurrentServiceAuthorizationNonce: 1, NewServicePubkey: replacement.PubKey, NewServiceKeyProof: hubSign(t, replacement, rotationProof)})
+	require.ErrorContains(t, err, "terminal participant", "a proof-only terminal identity cannot register a replacement")
 	orphan, err := f.keeper.ReadTaskLiabilityValue(f.ctx, survivorKey)
 	require.NoError(t, err)
 	require.Equal(t, types.TaskLiabilityStatusReserved, orphan.Status)
@@ -95,7 +104,11 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	require.Equal(t, types.TaskLiabilityStatusReleased, closed.Status)
 	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)
 	require.NoError(t, err)
-	require.False(t, hasNode, "the proof-only identity retires with its final hold")
+	require.True(t, hasNode, "the remaining stage duty keeps the proof-only identity")
+	require.NoError(t, f.keeper.ReleasePendingStageDuty(f.ctx, identity.Address))
+	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.True(t, hasNode, "retained candidate bindings still own dispatch proof authority")
 
 	// The money and the candidate slot reference still settle. Only the
 	// participant-scoped counter is gone, together with the identity that owned
@@ -106,13 +119,53 @@ func TestTombstonedOperatorClosesOrphanedTaskLiabilityWithoutHalting(t *testing.
 	require.Equal(t, types.ServiceBondStatusTombstoned, bond.Status)
 	hasNode, err = f.keeper.CortexNode.Has(f.ctx, identity.Address)
 	require.NoError(t, err)
-	require.False(t, hasNode, "closing a liability must not resurrect a retired identity")
+	require.True(t, hasNode, "closing a liability preserves the already retained proof identity")
 
-	// "terminal bond, no identity" is not merely tolerated by genesis, it is what
-	// ValidateServiceBondGenesis demands, so the resulting state must re-import.
+	// Terminal proof-only identities with retained candidate bindings must import.
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.NoError(t, exported.Validate())
+}
+
+func TestTerminalCandidateProofIdentityFollowsSnapshotLifetime(t *testing.T) {
+	f, identity, request := seedJailAdmissionLiabilityFixture(t, 7)
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(3))
+	require.NoError(t, f.keeper.SetTombstone(f.ctx, identity.Address, 3, "dispatch proof retention"))
+	node, err := f.keeper.ReadCortexNodeStore(f.ctx, identity.Address)
+	require.NoError(t, err)
+	require.Zero(t, node.ActiveTaskLiabilityCount)
+	require.Zero(t, node.PendingStageDutyCount)
+	require.Zero(t, node.PendingEvidenceSubmissionCount)
+	proof, err := f.keeper.GetDispatchServiceProofKey(f.ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, identity.Address)
+	require.NoError(t, err)
+	key, err := proof.ResolveProofKey(1)
+	require.NoError(t, err)
+	require.Equal(t, dispatch.ProofKeyRevoked, key.Status)
+	exported, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.NoError(t, exported.Validate())
+	restored := initCandidatePoolFixture(t)
+	restored.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restored.ctx).WithBlockHeight(3))
+	require.NoError(t, restored.keeper.InitGenesis(restored.ctx, *exported))
+	_, err = restored.keeper.GetDispatchServiceProofKey(restored.ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, identity.Address)
+	require.NoError(t, err)
+	_, err = f.keeper.ReleaseCandidatePoolTaskRef(f.ctx, request.TaskID, request.CandidatePoolSnapshotID, 4)
+	require.NoError(t, err)
+	snapshot, err := f.keeper.CandidatePoolSnapshot.Get(f.ctx, request.CandidatePoolSnapshotID)
+	require.NoError(t, err)
+	_, err = f.keeper.ProcessCandidatePoolExpiries(f.ctx, snapshot.ExpiresHeight, 100)
+	require.NoError(t, err)
+	iter, err := f.keeper.CandidatePoolPruneIndex.Iterate(f.ctx, nil)
+	require.NoError(t, err)
+	require.True(t, iter.Valid())
+	due, err := iter.Key()
+	require.NoError(t, err)
+	require.NoError(t, iter.Close())
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(due.K1())))
+	_, err = f.keeper.ProcessCandidateSnapshotPrunes(f.ctx, due.K1(), 100)
+	require.NoError(t, err)
+	_, err = f.keeper.GetDispatchServiceProofKey(f.ctx, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, identity.Address)
+	require.ErrorIs(t, err, collections.ErrNotFound)
 }
 
 // The relaxation above is scoped to terminal bonds. A live bond whose cortex
