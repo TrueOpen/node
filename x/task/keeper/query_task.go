@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	hubtypes "github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
@@ -206,12 +205,7 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 		return 0, 0, false, err
 	}
 	switch core.TaskPhase {
-	case types.TaskPhase_TASK_PHASE_WORKER_ASSIGNMENT_PENDING:
-		if assignment.AssignmentRandomnessHeight == 0 {
-			return 0, 0, false, nil
-		}
-		return types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_ASSIGNMENT, assignment.AssignmentRandomnessHeight, true, nil
-	case types.TaskPhase_TASK_PHASE_WORKER_ASSIGNED:
+	case types.TaskPhase_TASK_PHASE_INFER_PENDING:
 		if assignment.InferDeadlineHeight == 0 {
 			return 0, 0, false, nil
 		}
@@ -222,18 +216,17 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING,
 		types.VerificationStatus_VERIFICATION_STATUS_VERIFY_COLLECTION_OPEN,
 		types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING:
-		window, err := q.k.VerifierCandidateWindow.Get(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
+		window, err := q.k.verifyOpenWindowForSweep(ctx, taskKey)
 		if err != nil {
 			return 0, 0, false, err
 		}
-		if !bytes.Equal(window.TaskId, core.TaskId) || window.VerifyRound != types.VerifyRoundV1 {
+		if !bytes.Equal(window.TaskId, core.TaskId) {
 			return 0, 0, false, errors.New("verifier candidate window scope does not match task")
 		}
-		if window.EligibilityFrozenHeight == 0 || window.EligibilityFrozenHeight >= window.WindowRandomnessHeight ||
-			window.WindowRandomnessHeight >= window.BuilderProposalCloseHeight ||
-			window.BuilderProposalCloseHeight >= window.HandraiseCloseHeight ||
-			window.HandraiseCloseHeight >= window.SelectionRandomnessHeight ||
-			window.SelectionRandomnessHeight >= window.AssignmentDeadlineHeight {
+		if err := q.k.validateActiveVerifierStage(ctx, taskKey, core, window.VerifyRound, core.VerificationStatus); err != nil {
+			return 0, 0, false, err
+		}
+		if !validVerifierWindowQueryClock(window) {
 			return 0, 0, false, errors.New("verifier candidate window has a non-canonical deadline clock")
 		}
 		// The window clock is monotone (validated just above), so the pending
@@ -269,9 +262,9 @@ func (q *queryServer) nextTaskDeadline(ctx context.Context, taskKey types.TaskKe
 	case types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_ASSIGNED,
 		types.VerificationStatus_VERIFICATION_STATUS_COMMITTING,
 		types.VerificationStatus_VERIFICATION_STATUS_REVEALING:
-		round := core.EffectiveVerifyRound
-		if round == 0 {
-			round = types.VerifyRoundV1
+		round, _, err := q.k.activeVerifierAssignment(ctx, taskKey)
+		if err != nil {
+			return 0, 0, false, err
 		}
 		assignment, err := q.loadVerifierAssignment(ctx, taskKey, round)
 		if err != nil {
@@ -310,7 +303,16 @@ func (q *queryServer) nextChallengeWindowDeadline(
 	if !bytes.Equal(summary.TaskId, core.TaskId) {
 		return 0, 0, false, errors.New("task round summary scope does not match task")
 	}
+	valuePending := summary.XVerifierValueEvidenceCloseHeight != nil && summary.XVerifierValueEvidenceWindowClosedHeight == nil
+	if valuePending && summary.GetVerifierValueEvidenceCloseHeight() == 0 {
+		return 0, 0, false, errors.New("value evidence window has no close height")
+	}
 	if summary.MaxClosedRound == types.ChallengeVerifyRoundV1 && summary.OpenRoundCount == 0 && summary.XRoundsClosedHeight == nil {
+		// Evidence closes before the round-effect plan can be frozen. There is
+		// deliberately no apply cursor yet while this window is still pending.
+		if valuePending {
+			return types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE, summary.GetVerifierValueEvidenceCloseHeight(), true, nil
+		}
 		cursor, err := q.k.RoundEconomicEffectApplyCursor.Get(
 			ctx, types.NewVerifyRoundKey(taskKey, types.ChallengeVerifyRoundV1),
 		)
@@ -349,6 +351,13 @@ func (q *queryServer) nextChallengeWindowDeadline(
 	if (round.GetVerdict() == types.TaskVerdict_TASK_VERDICT_PASS) !=
 		(core.VerificationStatus == types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED) {
 		return 0, 0, false, errors.New("round 1 verdict does not match task verification status")
+	}
+	height, err := currentBlockHeight(ctx)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	if valuePending && (summary.GetVerifierValueEvidenceCloseHeight() < closeHeight || height >= closeHeight) {
+		return types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE, summary.GetVerifierValueEvidenceCloseHeight(), true, nil
 	}
 	return types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE, closeHeight, true, nil
 }
@@ -409,14 +418,16 @@ func nextEvidenceCleanupDeadline(core types.TaskCoreState) (types.DeadlineKindV1
 
 // advancedVerifyFinalDeadline names the row advanceToVerifyDeadline leaves behind
 // once a commit or reveal deadline has been consumed: the phase is unchanged and
-// the task's only queued deadline is VERIFY_FINAL. loadVerifierAssignmentV1
-// already rejects a row whose verify deadline is not strictly past the commit and
-// reveal ones, so the ordering check below is unreachable defense that keeps this
-// helper total rather than letting a zero height pass for a real deadline.
+// the task's only remaining deadline is VERIFY_FINAL. Round two combines reveal
+// and final expiry, so once that shared height is reached there is no later mark
+// to advertise while the bounded terminal sweep catches up.
 func advancedVerifyFinalDeadline(
 	assignment types.VerifierAssignmentState,
 	consumed uint64,
 ) (types.DeadlineKindV1, uint64, bool, error) {
+	if assignment.VerifyRound == types.ChallengeVerifyRoundV1 && assignment.VerifyDeadlineHeight == consumed {
+		return 0, 0, false, nil
+	}
 	if assignment.VerifyDeadlineHeight <= consumed {
 		return 0, 0, false, errors.New("verifier assignment has no verify deadline past its consumed phase deadline")
 	}
@@ -467,11 +478,11 @@ func (q *queryServer) TaskAssignment(ctx context.Context, req *types.QueryTaskAs
 func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmentState) types.TaskAssignmentViewV1 {
 	view := types.TaskAssignmentViewV1{
 		TaskId:                       append([]byte(nil), assignment.TaskId...),
-		AssignAcceptHeight:           assignment.AssignAcceptHeight,
-		AssignmentRandomnessHeight:   assignment.AssignmentRandomnessHeight,
+		RecordHeight:                 assignment.RecordHeight,
+		DispatchRecordHash:           append([]byte(nil), assignment.DispatchRecordHash...),
+		DispatchTicketHash:           append([]byte(nil), assignment.DispatchTicketHash...),
 		CandidatePoolSnapshotId:      append([]byte(nil), assignment.CandidatePoolSnapshotId...),
 		CandidatePoolHash:            append([]byte(nil), assignment.CandidatePoolHash...),
-		AssignmentCandidateSetHash:   append([]byte(nil), assignment.AssignmentCandidateSetHash...),
 		ProfileExecutionSnapshotHash: append([]byte(nil), assignment.ProfileExecutionSnapshotHash...),
 		JudgmentFunctionVersion:      assignment.JudgmentFunctionVersion,
 		EvidenceSchemaHash:           append([]byte(nil), assignment.EvidenceSchemaHash...),
@@ -486,75 +497,13 @@ func taskAssignmentView(core types.TaskCoreState, assignment types.TaskAssignmen
 	if assignment.WinnerWorker != "" {
 		view.XWinnerWorker = &types.TaskAssignmentViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}
 	}
-	if len(assignment.WinnerDrawDigest) == types.Hash32Len {
-		view.XWinnerDrawDigest = &types.TaskAssignmentViewV1_WinnerDrawDigest{WinnerDrawDigest: append([]byte(nil), assignment.WinnerDrawDigest...)}
-	}
 	if assignment.WinnerConfirmHeight != 0 {
 		view.XWinnerConfirmHeight = &types.TaskAssignmentViewV1_WinnerConfirmHeight{WinnerConfirmHeight: assignment.WinnerConfirmHeight}
 	}
 	if assignment.InferDeadlineHeight != 0 {
 		view.XInferDeadlineHeight = &types.TaskAssignmentViewV1_InferDeadlineHeight{InferDeadlineHeight: assignment.InferDeadlineHeight}
 	}
-	if assignment.AssignmentFailReason != types.AssignmentFailureReason_ASSIGNMENT_FAILURE_REASON_UNSPECIFIED {
-		view.XAssignmentFailReason = &types.TaskAssignmentViewV1_AssignmentFailReason{AssignmentFailReason: assignment.AssignmentFailReason}
-	}
 	return view
-}
-
-// AssignmentRandomness is `QueryAssignmentRandomness`: the frozen height,
-// beacon and draw digest only. field 7 projects `winner_draw_digest`, whose sole
-// producer is the `TRUEOPEN_WINNER_DRAW_V1` preimage.
-func (q *queryServer) AssignmentRandomness(ctx context.Context, req *types.QueryAssignmentRandomnessRequest) (*types.QueryAssignmentRandomnessResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "request is required")
-	}
-	taskKey, err := requireQueryHash32("task_id", req.TaskId)
-	if err != nil {
-		return nil, err
-	}
-	assignment, err := q.k.ReadTaskAssignment(ctx, taskKey)
-	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			return nil, status.Error(codes.NotFound, "task assignment not found")
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	view := types.AssignmentRandomnessViewV1{
-		TaskId:                     append([]byte(nil), assignment.TaskId...),
-		AssignmentRandomnessHeight: assignment.AssignmentRandomnessHeight,
-		AssignmentCandidateSetHash: append([]byte(nil), assignment.AssignmentCandidateSetHash...),
-	}
-	if assignment.AssignmentRandomnessHeight != 0 && shared.IsBlockHeightV1(assignment.AssignmentRandomnessHeight) {
-		beacon, ok := q.k.hubKeeper.GetBeaconForDomain(
-			sdkContextFrom(ctx), shared.DomainWeightedDrawV1, int64(assignment.AssignmentRandomnessHeight),
-		)
-		if !ok || len(beacon.Randomness) != types.Hash32Len {
-			return nil, status.Error(codes.Internal, "assignment beacon is unavailable")
-		}
-		view.BeaconRandomness = append([]byte(nil), beacon.Randomness...)
-		// beacon_proof_digest is optional since wire v0.2.1 and carries protobuf
-		// presence, so the dev-only placeholder source projects it as absent
-		// rather than as an empty or zero32 value. proposer_vrf_v1 is the only
-		// source that produces one, and GetBeaconForDomain already refuses a
-		// snapshot whose digest is not exactly 32 bytes.
-		if len(beacon.ProofDigest) == types.Hash32Len {
-			view.XBeaconProofDigest = &types.AssignmentRandomnessViewV1_BeaconProofDigest{
-				BeaconProofDigest: append([]byte(nil), beacon.ProofDigest...),
-			}
-		} else if beacon.SourceTag != hubtypes.BeaconSourcePlaceholderBlockHashV1 {
-			return nil, status.Error(codes.Internal, "assignment beacon proof digest is unavailable")
-		}
-	}
-	if assignment.WinnerWorker != "" {
-		view.XWinnerWorker = &types.AssignmentRandomnessViewV1_WinnerWorker{WinnerWorker: assignment.WinnerWorker}
-	}
-	if len(assignment.WinnerDrawDigest) == types.Hash32Len {
-		view.XWinnerDrawDigest = &types.AssignmentRandomnessViewV1_WinnerDrawDigest{WinnerDrawDigest: append([]byte(nil), assignment.WinnerDrawDigest...)}
-	}
-	if assignment.WinnerConfirmHeight != 0 {
-		view.XWinnerConfirmHeight = &types.AssignmentRandomnessViewV1_WinnerConfirmHeight{WinnerConfirmHeight: assignment.WinnerConfirmHeight}
-	}
-	return &types.QueryAssignmentRandomnessResponse{Randomness: view}, nil
 }
 
 // TaskBudget is `QueryTaskBudget`: the single authoritative ledger row. A
@@ -580,9 +529,48 @@ func (q *queryServer) TaskBudget(ctx context.Context, req *types.QueryTaskBudget
 	return &types.QueryTaskBudgetResponse{Budget: budget}, nil
 }
 
+// TaskFrozenParams is `QueryTaskFrozenParams`: the parameter version a Task bound
+// when it was accepted and that version's body. Existence follows the Task row,
+// so a compacted or unknown task is NotFound. The binding is read directly
+// instead of through the row helper that substitutes the current version for a
+// missing binding: a live Task without one breaks the version invariant, and a
+// query must report that rather than answer with parameters the Task never ran
+// under.
+func (q *queryServer) TaskFrozenParams(ctx context.Context, req *types.QueryTaskFrozenParamsRequest) (*types.QueryTaskFrozenParamsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request is required")
+	}
+	taskKey, err := requireQueryHash32("task_id", req.TaskId)
+	if err != nil {
+		return nil, err
+	}
+	core, err := q.k.TaskCore.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, "task not found")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if !bytes.Equal(core.TaskId, req.TaskId) {
+		return nil, status.Error(codes.Internal, "task_core primary key does not match task_id")
+	}
+	version, err := q.k.TaskParamsVersion.Get(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return nil, status.Error(codes.Internal, "task has no parameter version binding")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	params, err := q.k.paramsAtVersion(ctx, version)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &types.QueryTaskFrozenParamsResponse{Params: params, ParamsVersion: version}, nil
+}
+
 // TaskBuilders is `QueryTaskBuilders`. The three body states are frozen:
 //
-//   - ACTIVE  -> exactly `builders_per_task` members; an empty array with ACTIVE
+//   - ACTIVE  -> the immutable group's stored member count; an empty array with ACTIVE
 //     is an invariant break (`Internal`), *never* an empty page;
 //   - PRUNED  -> members empty but count / hash / builder_set_id /
 //     builder_set_hash / session_anchor_block_hash / created_height are all
@@ -623,7 +611,6 @@ func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuil
 			return nil, status.Error(codes.Internal, "PRUNED task builder selection still has resident members")
 		}
 		if selection.SelectedTaskBuilderCount == 0 || len(selection.BuilderSetHash) != types.Hash32Len ||
-			len(selection.SessionAnchorBlockHash) != types.Hash32Len ||
 			selection.BuilderSetId == "" || selection.CreatedHeight == 0 {
 			return nil, status.Error(codes.Internal, "PRUNED task builder selection lost a retained header field")
 		}
@@ -635,7 +622,6 @@ func (q *queryServer) TaskBuilders(ctx context.Context, req *types.QueryTaskBuil
 	// internal field and is deliberately not in the view schema.
 	return &types.QueryTaskBuildersResponse{Selection: types.TaskBuilderSelectionViewV1{
 		TaskId:                   append([]byte(nil), selection.TaskId...),
-		SessionAnchorBlockHash:   append([]byte(nil), selection.SessionAnchorBlockHash...),
 		BuilderSetId:             selection.BuilderSetId,
 		BuilderSetHash:           append([]byte(nil), selection.BuilderSetHash...),
 		SelectedTaskBuilders:     append([]string(nil), selection.SelectedTaskBuilders...),

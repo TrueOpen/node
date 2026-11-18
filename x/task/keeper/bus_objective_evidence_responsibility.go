@@ -49,7 +49,7 @@ func (k Keeper) taskBuilderEvidenceResponsibilityLocators(
 
 		var binding hubtypes.CurrentServiceKeySnapshot
 		if allowRevoked {
-			binding, err = k.hubKeeper.GetBuilderObjectiveEvidenceCurrentBinding(ctx, builder)
+			binding, err = k.hubKeeper.GetDispatchServiceProofKey(ctx, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, builder)
 		} else {
 			binding, err = k.hubKeeper.GetCurrentServiceKey(ctx, shared.ParticipantTypeBuilder, builder)
 		}
@@ -64,6 +64,14 @@ func (k Keeper) taskBuilderEvidenceResponsibilityLocators(
 			return nil, fmt.Errorf("current Builder service key status is invalid for objective-evidence responsibility %s", builder)
 		}
 
+		nonce := binding.AuthorizationNonce
+		if allowRevoked {
+			frozen, err := k.hubKeeper.ReadBusObjectiveEvidenceResponsibility(ctx, builder, core.SessionId, core.TaskId)
+			if err != nil {
+				return nil, err
+			}
+			nonce = frozen.ServiceAuthorizationNonce
+		}
 		ordered = append(ordered, orderedBusObjectiveEvidenceResponsibility{
 			addressBytes: append([]byte(nil), addressBytes...),
 			locator: shared.BusObjectiveEvidenceResponsibilityV1{
@@ -71,7 +79,7 @@ func (k Keeper) taskBuilderEvidenceResponsibilityLocators(
 				BuilderOperator:           builder,
 				SessionId:                 append([]byte(nil), core.SessionId...),
 				TaskId:                    append([]byte(nil), core.TaskId...),
-				ServiceAuthorizationNonce: binding.AuthorizationNonce,
+				ServiceAuthorizationNonce: nonce,
 			},
 		})
 	}

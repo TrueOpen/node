@@ -629,7 +629,7 @@ func TestInitializeAnchorContentParamsUpgrade(t *testing.T) {
 	require.Equal(t, d.AnchorContentRejectSlashBps, got.Verification.AnchorContentRejectSlashBps)
 	archived, err := f.keeper.ParamsHistory.Get(ctx, before.ParamsVersion)
 	require.NoError(t, err)
-	require.Zero(t, archived.Verification.AnchorPositionsPerTask, "tasks pinned to the old version keep the v6 shape")
+	require.Zero(t, archived.Params.Verification.AnchorPositionsPerTask, "tasks pinned to the old version keep the v6 shape")
 
 	require.NoError(t, f.keeper.InitializeAnchorContentParams(ctx))
 	again, err := f.keeper.GetTaskParamsMeta(ctx)

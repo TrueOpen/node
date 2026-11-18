@@ -37,6 +37,6 @@ func (k Keeper) GetTaskLiabilityReservation(
 	return types.TaskLiabilityReservationSnapshot{
 		TaskID: append([]byte(nil), row.TaskId...), OperatorAddress: row.OperatorAddress,
 		Duty: row.Duty, ReservedAmount: row.ReservedAmount,
-		Reserved: row.Status == types.TaskLiabilityStatusReserved,
+		Status: row.Status,
 	}, nil
 }

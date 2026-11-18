@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"cosmossdk.io/collections"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -40,6 +41,9 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	if msg == nil {
 		return nil, status.Error(codes.InvalidArgument, "request must not be nil")
 	}
+	if !types.IsVrfParticipantType(msg.ParticipantType) {
+		return nil, status.Error(codes.InvalidArgument, "participant_type must be VALIDATOR or BUILDER")
+	}
 	operatorBytes, operator, err := m.k.requireCanonicalAddress("operator_address", msg.OperatorAddress)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -53,14 +57,18 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	// Step 1: only a registered validator has a beacon duty to hold a VRF key for.
-	if m.k.validatorSnapshots == nil {
-		return nil, status.Error(codes.FailedPrecondition, "validator snapshot provider is not installed")
-	}
-	if err := m.k.requireKnownValidator(sdkCtx, operator, operatorBytes); err != nil {
-		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	if msg.ParticipantType == shared.ParticipantType_PARTICIPANT_TYPE_VALIDATOR {
+		if m.k.validatorSnapshots == nil {
+			return nil, status.Error(codes.FailedPrecondition, "validator snapshot provider is not installed")
+		}
+		if err := m.k.requireKnownValidator(sdkCtx, operator, operatorBytes); err != nil {
+			return nil, status.Error(codes.FailedPrecondition, err.Error())
+		}
+	} else if _, err := m.k.GetBuilderState(ctx, operator); err != nil {
+		return nil, status.Error(codes.FailedPrecondition, "Builder identity is not registered")
 	}
 
-	current, found, err := m.k.getVrfKeyState(ctx, operator)
+	current, found, err := m.k.getVrfKeyState(ctx, msg.ParticipantType, operator)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -68,6 +76,9 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	// exact replay or a conflict; nothing else may reuse it.
 	expected := uint64(1)
 	if found {
+		if current.VrfAuthorizationNonce == math.MaxUint64 && msg.VrfAuthorizationNonce != current.VrfAuthorizationNonce {
+			return nil, status.Error(codes.FailedPrecondition, "VRF authorization nonce overflow")
+		}
 		expected = current.VrfAuthorizationNonce + 1
 		if msg.VrfAuthorizationNonce == current.VrfAuthorizationNonce {
 			if bytes.Equal(current.GetPendingVrfPubkey(), msg.VrfPubkey) ||
@@ -90,7 +101,7 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 
 	// Steps 2-3: the key must be a usable point and the submitter must prove
 	// possession of it over the domain-separated digest.
-	digest, err := types.VrfKeyPoPDigest(sdkCtx.ChainID(), operator, msg.VrfPubkey, msg.VrfAuthorizationNonce)
+	digest, err := types.VrfKeyPoPDigest(sdkCtx.ChainID(), msg.ParticipantType, operator, msg.VrfPubkey, msg.VrfAuthorizationNonce)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -106,12 +117,15 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	pendingFrom := epoch + 1
+	pendingFrom, err := checkedAdd(epoch, 1)
+	if err != nil {
+		return nil, err
+	}
 	height := uint64(sdkCtx.BlockHeight())
 
 	next := current
 	if !found {
-		next = types.VrfKeyState{OperatorAddress: operator}
+		next = types.VrfKeyState{ParticipantType: msg.ParticipantType, OperatorAddress: operator}
 	}
 	next.VrfAuthorizationNonce = msg.VrfAuthorizationNonce
 	next.RegisteredHeight = height
@@ -120,24 +134,31 @@ func (m msgServer) RegisterVrfKey(ctx context.Context, msg *types.MsgRegisterVrf
 	if err := types.ValidateVrfKeyState(next); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if err := m.k.StoreVrfKey(ctx, next); err != nil {
+	cacheCtx, commit := sdkCtx.CacheContext()
+	cache := sdk.WrapSDKContext(cacheCtx)
+	if err := m.k.StoreVrfKey(cache, next); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if err := m.k.VrfKeyActivationIndex.Set(ctx, types.NewVrfKeyActivationKey(pendingFrom, operator)); err != nil {
+	if err := m.k.VrfKeyActivationIndex.Set(cache, types.NewVrfKeyActivationKey(pendingFrom, next.ParticipantType, operator)); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	if next.ParticipantType == shared.ParticipantType_PARTICIPANT_TYPE_BUILDER {
+		mustEmitHubEvent(cache, &types.EventBuilderVrfKeyRegistered{Builder: operator, PendingFromEpoch: pendingFrom, VrfAuthorizationNonce: next.VrfAuthorizationNonce})
+	}
+	commit()
 	return vrfKeyResponse(operator, next, shared.MutationStatusV1_MUTATION_STATUS_V1_APPLIED), nil
 }
 
 func vrfKeyResponse(operator string, state types.VrfKeyState, mutation shared.MutationStatusV1) *types.MsgRegisterVrfKeyResponse {
 	return &types.MsgRegisterVrfKeyResponse{
+		ParticipantType: state.ParticipantType,
 		OperatorAddress: operator, PendingFromEpoch: state.GetPendingFromEpoch(),
 		VrfAuthorizationNonce: state.VrfAuthorizationNonce, Status: mutation,
 	}
 }
 
-func (k Keeper) getVrfKeyState(ctx context.Context, operator string) (types.VrfKeyState, bool, error) {
-	state, err := k.GetVrfKey(ctx, operator)
+func (k Keeper) getVrfKeyState(ctx context.Context, role shared.ParticipantType, operator string) (types.VrfKeyState, bool, error) {
+	state, err := k.GetVrfKey(ctx, role, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return types.VrfKeyState{}, false, nil
@@ -175,12 +196,7 @@ func (k Keeper) ActivateDueVrfKeys(ctx context.Context, epoch uint64) error {
 	if err != nil {
 		return err
 	}
-	// The whole key is carried, not just the operator. Every retirement below has
-	// to remove the exact row that was iterated: a row whose activation epoch is
-	// older than the current one — a rotation that came due while the chain was
-	// down, say — would otherwise be deleted under (epoch, operator), miss, and be
-	// re-visited on every single block for the life of the chain.
-	due := make([]types.VrfKeyActivationKeyPair, 0)
+	due := make([]types.VrfKeyActivationKeyTriple, 0)
 	for ; iter.Valid(); iter.Next() {
 		key, err := iter.Key()
 		if err != nil {
@@ -188,7 +204,6 @@ func (k Keeper) ActivateDueVrfKeys(ctx context.Context, epoch uint64) error {
 			return err
 		}
 		if key.K1() > epoch {
-			// The index ascends by activation epoch, so the first future row ends it.
 			break
 		}
 		due = append(due, key)
@@ -196,68 +211,51 @@ func (k Keeper) ActivateDueVrfKeys(ctx context.Context, epoch uint64) error {
 	if err := iter.Close(); err != nil {
 		return err
 	}
-
-	var historyRetention uint64
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+	cacheCtx, commit := sdk.UnwrapSDKContext(ctx).CacheContext()
+	cache := sdk.WrapSDKContext(cacheCtx)
 	for _, key := range due {
-		operator := key.K2()
-		state, found, err := k.getVrfKeyState(ctx, operator)
+		role, operator := shared.ParticipantType(key.K2()), key.K3()
+		state, found, err := k.getVrfKeyState(cache, role, operator)
 		if err != nil {
 			return err
 		}
-		if !found || state.XPendingVrfPubkey == nil {
-			// A stale index row still has to be retired or the sweep revisits it
-			// every block.
-			if err := k.VrfKeyActivationIndex.Remove(ctx, key); err != nil {
-				return err
-			}
-			continue
-		}
-		pendingFrom := state.GetPendingFromEpoch()
-		if pendingFrom > epoch {
-			// The row claims this rotation is due but the state disagrees. Retiring
-			// the row is the only way out: leaving it makes this block's work repeat
-			// forever, and honouring it would activate a key before its epoch.
-			if err := k.VrfKeyActivationIndex.Remove(ctx, key); err != nil {
+		if !found || state.XPendingVrfPubkey == nil || state.GetPendingFromEpoch() != key.K1() {
+			if err := k.VrfKeyActivationIndex.Remove(cache, key); err != nil {
 				return err
 			}
 			continue
 		}
 		if len(state.ActiveVrfPubkey) == types.VrfPubkeyLen {
-			if historyRetention == 0 {
-				params, err := k.Params.Get(ctx)
-				if err != nil {
-					return err
-				}
-				historyRetention = uint64(params.Beacon.MaxVrfKeyHistoryEpochs)
-			}
-			pruneEpoch, err := checkedAdd(pendingFrom, historyRetention)
+			pruneEpoch, err := checkedAdd(epoch, uint64(params.Beacon.MaxVrfKeyHistoryEpochs))
 			if err != nil {
-				return fmt.Errorf("schedule VRF key history prune for %s: %w", operator, err)
-			}
-			history := types.VrfKeyHistoryState{
-				OperatorAddress: operator, EffectiveFromEpoch: state.ActiveFromEpoch,
-				VrfPubkey: append([]byte(nil), state.ActiveVrfPubkey...), RetiredAtEpoch: pendingFrom,
-			}
-			if err := k.StoreVrfKeyHistory(ctx, history); err != nil {
 				return err
 			}
-			if err := k.VrfKeyPruneIndex.Set(ctx, types.NewVrfKeyPruneKey(pruneEpoch, operator, state.ActiveFromEpoch)); err != nil {
+			history := types.VrfKeyHistoryState{ParticipantType: role, OperatorAddress: operator, EffectiveFromEpoch: state.ActiveFromEpoch, VrfPubkey: append([]byte(nil), state.ActiveVrfPubkey...), RetiredAtEpoch: epoch}
+			if err := k.StoreVrfKeyHistory(cache, history); err != nil {
+				return err
+			}
+			if err := k.VrfKeyPruneIndex.Set(cache, types.NewVrfKeyPruneKey(pruneEpoch, role, operator, state.ActiveFromEpoch)); err != nil {
 				return err
 			}
 		}
 		state.ActiveVrfPubkey = append([]byte(nil), state.GetPendingVrfPubkey()...)
-		state.ActiveFromEpoch = pendingFrom
+		state.ActiveFromEpoch = epoch
 		state.XPendingVrfPubkey = nil
 		state.XPendingFromEpoch = nil
 		if err := types.ValidateVrfKeyState(state); err != nil {
 			return err
 		}
-		if err := k.StoreVrfKey(ctx, state); err != nil {
+		if err := k.StoreVrfKey(cache, state); err != nil {
 			return err
 		}
-		if err := k.VrfKeyActivationIndex.Remove(ctx, key); err != nil {
+		if err := k.VrfKeyActivationIndex.Remove(cache, key); err != nil {
 			return err
 		}
 	}
+	commit()
 	return nil
 }

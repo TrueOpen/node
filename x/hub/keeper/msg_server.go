@@ -21,6 +21,7 @@ func NewMsgServerImpl(k Keeper, dependencies ...types.MsgServerDependencies) typ
 	server := &msgServer{k: k}
 	if len(dependencies) > 0 {
 		server.k = k.WithRuntimeDependencies(dependencies[0].FreezeTaskValidator, dependencies[0].ValidatorSnapshotProvider, dependencies[0].RoleFaultConsumerGate)
+		server.k = server.k.WithWorkerCandidateWeights(dependencies[0].WorkerCandidateWeightProvider)
 		server.freezeTaskValidator = dependencies[0].FreezeTaskValidator
 		server.validatorSnapshots = dependencies[0].ValidatorSnapshotProvider
 		server.taskSafetyWindows = dependencies[0].TaskSafetyWindowProvider

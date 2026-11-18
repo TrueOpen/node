@@ -22,6 +22,9 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 		ChainID: app.BaseApp.ChainID(),
 		Height:  app.LastBlockHeight(),
 	})
+	if err := app.trueopenInvariants.runChecks(ctx, invariantDiagnosticChecks); err != nil {
+		return servertypes.ExportedApp{}, err
+	}
 
 	// We export at last height + 1, because that's the height at which
 	// CometBFT will start InitChain.

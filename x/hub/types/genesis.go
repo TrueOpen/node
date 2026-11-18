@@ -11,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
+	"github.com/TrueOpen/wire/dispatch"
 )
 
 func DefaultTreasuryState() TreasuryState {
@@ -53,14 +54,14 @@ func (gs GenesisState) Validate() error {
 	if err != nil {
 		return err
 	}
-	nodes, bonds, err := validateServiceGenesis(gs.CortexNodes, gs.ServiceBonds, gs.ServiceUnbondings, gs.ServiceUnbondingReceipts, gs.TaskLiabilityReservations, gs.Params)
+	nodes, bonds, err := validateServiceGenesis(gs.CortexNodes, gs.ServiceBonds, gs.ServiceUnbondings, gs.ServiceUnbondingReceipts, gs.TaskLiabilityReservations, gs.CandidateSlotCurrents, gs.Params)
 	if err != nil {
 		return err
 	}
 	if err := validateTaskLiabilityCandidateOwnership(gs, nodes); err != nil {
 		return err
 	}
-	if err := validateIdentityGenesis(gs, nodes); err != nil {
+	if err := validateIdentityGenesis(gs, nodes, bonds); err != nil {
 		return err
 	}
 	if err := validateCandidateSlotGenesisCoverage(gs, nodes, bonds); err != nil {
@@ -326,6 +327,9 @@ func validateTaskLiabilityCandidateOwnership(gs GenesisState, nodes map[string]C
 
 	snapshots := make(map[string]CandidatePoolSnapshotState, len(gs.CandidatePoolSnapshots))
 	for _, snapshot := range gs.CandidatePoolSnapshots {
+		if err := snapshot.ValidateWorkerWeightPolicy(); err != nil {
+			return err
+		}
 		key := hex.EncodeToString(snapshot.SnapshotId)
 		if _, exists := snapshots[key]; exists {
 			return fmt.Errorf("duplicate candidate pool snapshot %s", key)
@@ -334,6 +338,9 @@ func validateTaskLiabilityCandidateOwnership(gs GenesisState, nodes map[string]C
 	}
 	members := make(map[string]CandidatePoolMemberState, len(gs.CandidatePoolMembers))
 	for _, member := range gs.CandidatePoolMembers {
+		if member.WeightInputs == nil {
+			return fmt.Errorf("candidate weight inputs are required")
+		}
 		key := fmt.Sprintf("%d/%d", member.Epoch, member.Slot)
 		if _, exists := members[key]; exists {
 			return fmt.Errorf("duplicate candidate pool member %s", key)
@@ -577,12 +584,16 @@ func validateBeaconGenesis(rows []BeaconState, checkpoints []BeaconCheckpointSta
 // and that constraint is enforced here for active rows; a pending-only row can only
 // come from the export of a running chain, so it is let through.
 func validateVrfKeyGenesis(keys []VrfKeyState, history []VrfKeyHistoryState) error {
-	states := make(map[string]VrfKeyState, len(keys))
+	type identity struct {
+		role     shared.ParticipantType
+		operator string
+	}
+	states := make(map[identity]VrfKeyState, len(keys))
 	for _, state := range keys {
 		if err := ValidateVrfKeyState(state); err != nil {
 			return fmt.Errorf("vrf key %s: %w", state.OperatorAddress, err)
 		}
-		if _, duplicate := states[state.OperatorAddress]; duplicate {
+		if _, duplicate := states[identity{state.ParticipantType, state.OperatorAddress}]; duplicate {
 			return fmt.Errorf("duplicate vrf key row for operator %s", state.OperatorAddress)
 		}
 		// A row with neither an active nor a pending key describes no public key at
@@ -594,11 +605,18 @@ func validateVrfKeyGenesis(keys []VrfKeyState, history []VrfKeyHistoryState) err
 		if len(state.ActiveVrfPubkey) != VrfPubkeyLen && state.ActiveFromEpoch != 0 {
 			return fmt.Errorf("vrf key %s has active_from_epoch %d without an active pubkey", state.OperatorAddress, state.ActiveFromEpoch)
 		}
-		states[state.OperatorAddress] = state
+		states[identity{state.ParticipantType, state.OperatorAddress}] = state
 	}
 
-	seen := make(map[VrfKeyHistoryKeyPair]struct{}, len(history))
+	type historyIdentity struct {
+		identity
+		epoch uint64
+	}
+	seen := make(map[historyIdentity]struct{}, len(history))
 	for _, row := range history {
+		if !IsVrfParticipantType(row.ParticipantType) {
+			return fmt.Errorf("VRF history participant_type must be VALIDATOR or BUILDER")
+		}
 		if row.OperatorAddress == "" {
 			return fmt.Errorf("vrf key history operator_address is required")
 		}
@@ -612,12 +630,12 @@ func validateVrfKeyGenesis(keys []VrfKeyState, history []VrfKeyHistoryState) err
 			return fmt.Errorf("vrf key history %s/%d retired_at_epoch %d must be after effective_from_epoch",
 				row.OperatorAddress, row.EffectiveFromEpoch, row.RetiredAtEpoch)
 		}
-		key := NewVrfKeyHistoryKey(row.OperatorAddress, row.EffectiveFromEpoch)
+		key := historyIdentity{identity{row.ParticipantType, row.OperatorAddress}, row.EffectiveFromEpoch}
 		if _, duplicate := seen[key]; duplicate {
 			return fmt.Errorf("duplicate vrf key history row for operator %s at epoch %d", row.OperatorAddress, row.EffectiveFromEpoch)
 		}
 		seen[key] = struct{}{}
-		state, exists := states[row.OperatorAddress]
+		state, exists := states[identity{row.ParticipantType, row.OperatorAddress}]
 		if !exists {
 			return fmt.Errorf("vrf key history %s/%d has no VrfKeyState row", row.OperatorAddress, row.EffectiveFromEpoch)
 		}
@@ -694,7 +712,13 @@ func validateModelProfileGenesis(modelRows []ModelState, profileRows []ProfileSt
 	return models, profiles, nil
 }
 
-func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondState, unbondingRows []UnbondingState, receiptRows []UnbondingReceiptState, liabilityRows []TaskLiabilityReservationState, params HubParamsV2) (map[string]CortexNodeState, map[string]ServiceBondState, error) {
+func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondState, unbondingRows []UnbondingState, receiptRows []UnbondingReceiptState, liabilityRows []TaskLiabilityReservationState, slotRows []CandidateSlotCurrentState, params HubParamsV2) (map[string]CortexNodeState, map[string]ServiceBondState, error) {
+	retainedCandidate := make(map[string]bool, len(slotRows))
+	for _, slot := range slotRows {
+		if slot.OperatorAddress != "" {
+			retainedCandidate[slot.OperatorAddress] = true
+		}
+	}
 	nodes := make(map[string]CortexNodeState, len(nodeRows))
 	for _, state := range nodeRows {
 		if err := state.Validate(); err != nil {
@@ -720,7 +744,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 		if terminal && hasNode {
 			node := nodes[state.OperatorAddress]
 			if node.ServiceKeyStatus != ServiceKeyStatusRevoked || node.CurrentDescriptorVersion != 0 ||
-				node.ActiveTaskLiabilityCount == 0 && node.PendingStageDutyCount == 0 && node.PendingEvidenceSubmissionCount == 0 {
+				node.ActiveTaskLiabilityCount == 0 && node.PendingStageDutyCount == 0 && node.PendingEvidenceSubmissionCount == 0 && !retainedCandidate[state.OperatorAddress] {
 				return nil, nil, fmt.Errorf("terminal service bond %s retains a non-proof-only cortex identity", state.OperatorAddress)
 			}
 		}
@@ -740,7 +764,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 		if bond.Status == ServiceBondStatusExited || bond.Status == ServiceBondStatusTombstoned {
 			state := nodes[operator]
 			if state.ServiceKeyStatus != ServiceKeyStatusRevoked || state.CurrentDescriptorVersion != 0 ||
-				state.ActiveTaskLiabilityCount == 0 && state.PendingStageDutyCount == 0 && state.PendingEvidenceSubmissionCount == 0 {
+				state.ActiveTaskLiabilityCount == 0 && state.PendingStageDutyCount == 0 && state.PendingEvidenceSubmissionCount == 0 && !retainedCandidate[operator] {
 				return nil, nil, fmt.Errorf("cortex node %s is not a valid terminal proof-only identity", operator)
 			}
 		}
@@ -817,7 +841,7 @@ func validateServiceGenesis(nodeRows []CortexNodeState, bondRows []ServiceBondSt
 	return nodes, bonds, nil
 }
 
-func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) error {
+func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState, bonds map[string]ServiceBondState) error {
 	activeAddresses := map[string]string{}
 	// current_service_address is the primary key of CurrentServiceAddressIndex, so
 	// two ACTIVE participants can never share one: the second Set would silently
@@ -838,12 +862,7 @@ func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) 
 		if _, err := requireCanonicalNonEmpty("builder address", state.BuilderAddress); err != nil {
 			return err
 		}
-		// BuilderState has no Validate() of its own, so the service-key binding of
-		// a builder row is only checked here. It must be the same check
-		// CortexNodeState.Validate performs for a cortex row: without it a Genesis
-		// document can point a builder at a current_service_address that its
-		// current_service_pubkey does not derive.
-		if err := ValidateCurrentServiceKeyBinding("builder", state.BuilderAddress, state.CurrentServiceAddress, state.CurrentServicePubkey); err != nil {
+		if err := state.Validate(); err != nil {
 			return err
 		}
 		if _, exists := builders[state.BuilderAddress]; exists {
@@ -890,6 +909,103 @@ func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) 
 			return fmt.Errorf("cortex descriptor presence mismatch for %s", operator)
 		}
 	}
+	compensationAccounts := map[string]struct{}{}
+	for _, account := range gs.BuilderCompensationAccounts {
+		if err := account.Validate(); err != nil {
+			return err
+		}
+		if _, exists := builders[account.BuilderAddress]; !exists {
+			return fmt.Errorf("compensation account Builder is missing")
+		}
+		if _, exists := compensationAccounts[account.BuilderAddress]; exists {
+			return fmt.Errorf("duplicate Builder compensation account")
+		}
+		compensationAccounts[account.BuilderAddress] = struct{}{}
+	}
+	dispatchFaults := map[string]bool{}
+	for _, fault := range gs.DispatchFaults {
+		if err := fault.Validate(); err != nil {
+			return err
+		}
+		if _, found := builders[fault.BuilderAddress]; !found {
+			return fmt.Errorf("dispatch fault Builder is missing")
+		}
+		key := fault.BuilderAddress + string(fault.FaultId)
+		if dispatchFaults[key] {
+			return fmt.Errorf("duplicate dispatch fault")
+		}
+		dispatchFaults[key] = true
+	}
+	type proofGeneration struct {
+		role     shared.ParticipantType
+		operator string
+		nonce    uint64
+	}
+	evidenceGenerations := make(map[proofGeneration]struct{})
+	for _, responsibility := range gs.ServiceKeyResponsibilities {
+		if IsServiceKeyEvidenceResponsibility(responsibility.ResponsibilityKind) {
+			evidenceGenerations[proofGeneration{responsibility.ParticipantType, responsibility.OperatorAddress, responsibility.ServiceAuthorizationNonce}] = struct{}{}
+		}
+	}
+	pendingRotations := map[string]struct{}{}
+	for _, pending := range gs.PendingServiceKeyRotations {
+		key := fmt.Sprintf("%d/%s", pending.ParticipantType, pending.OperatorAddress)
+		if _, exists := pendingRotations[key]; exists {
+			return fmt.Errorf("duplicate pending rotation %s", key)
+		}
+		var nonce, previousNonce, previousRetired uint64
+		var currentAddress string
+		switch pending.ParticipantType {
+		case shared.ParticipantType_PARTICIPANT_TYPE_CORTEX:
+			current, ok := nodes[pending.OperatorAddress]
+			if !ok {
+				return fmt.Errorf("pending rotation Cortex identity missing")
+			}
+			nonce = current.ServiceAuthorizationNonce
+			currentAddress = current.CurrentServiceAddress
+			previousNonce, previousRetired = current.GetPreviousServiceAuthorizationNonce(), current.GetPreviousRetiredHeight()
+		case shared.ParticipantType_PARTICIPANT_TYPE_BUILDER:
+			current, ok := builders[pending.OperatorAddress]
+			if !ok {
+				return fmt.Errorf("pending rotation Builder identity missing")
+			}
+			nonce = current.ServiceAuthorizationNonce
+			currentAddress = current.CurrentServiceAddress
+			previousNonce, previousRetired = current.GetPreviousServiceAuthorizationNonce(), current.GetPreviousRetiredHeight()
+		default:
+			return fmt.Errorf("invalid pending rotation participant")
+		}
+		if err := pending.Validate(gs.Params.Epoch.EpochLengthBlocks, nonce, currentAddress); err != nil {
+			return err
+		}
+		if pending.ParticipantType == shared.ParticipantType_PARTICIPANT_TYPE_CORTEX {
+			bond := bonds[pending.OperatorAddress]
+			if bond.Status == ServiceBondStatusExited || bond.Status == ServiceBondStatusTombstoned {
+				return fmt.Errorf("terminal participant cannot retain a pending service key rotation")
+			}
+		}
+		var evidenceCount uint64
+		if _, exists := evidenceGenerations[proofGeneration{pending.ParticipantType, pending.OperatorAddress, previousNonce}]; exists && previousNonce != 0 {
+			evidenceCount = 1
+		}
+		allowed, err := dispatch.CanRegisterServiceKeyRotation(pending.RegisteredHeight, previousRetired, evidenceCount, shared.DispatchRotationWindowHardLimits())
+		if err != nil {
+			return fmt.Errorf("pending rotation protection: %w", err)
+		}
+		if !allowed {
+			return fmt.Errorf("pending rotation previous generation is still protected")
+		}
+		pub, err := ParseSecp256k1PubKeyBytes("pending service pubkey", pending.NewServicePubkey)
+		if err != nil {
+			return err
+		}
+		futureAddress := sdk.AccAddress(ServicePubKeyAddress(pub)).String()
+		if _, exists := activeAddresses[futureAddress]; exists {
+			return fmt.Errorf("pending service address conflicts with another binding")
+		}
+		activeAddresses[futureAddress] = key
+		pendingRotations[key] = struct{}{}
+	}
 	responsibilities := map[string]struct{}{}
 	busObjectiveEvidenceCounts := map[string]uint32{}
 	workerOutputEvidenceCounts := map[string]uint32{}
@@ -914,7 +1030,7 @@ func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) 
 				return err
 			}
 			node, exists := nodes[state.OperatorAddress]
-			if !exists || state.ServiceAuthorizationNonce != node.ServiceAuthorizationNonce {
+			if !exists || !ServiceKeyNonceMatches(node.ServiceAuthorizationNonce, node.GetPreviousServiceAuthorizationNonce(), state.ServiceAuthorizationNonce) {
 				return fmt.Errorf("WORKER_OUTPUT_EVIDENCE responsibility does not match Cortex binding")
 			}
 			expectedID, err := shared.NewCanonicalHashBuilderV1(shared.MustDomain(shared.DomainServiceKeyResponsibilityIDV1)).Raw(
@@ -941,7 +1057,7 @@ func validateIdentityGenesis(gs GenesisState, nodes map[string]CortexNodeState) 
 				return err
 			}
 			builder, exists := builders[state.OperatorAddress]
-			if !exists || state.ServiceAuthorizationNonce != builder.ServiceAuthorizationNonce {
+			if !exists || !ServiceKeyNonceMatches(builder.ServiceAuthorizationNonce, builder.GetPreviousServiceAuthorizationNonce(), state.ServiceAuthorizationNonce) {
 				return fmt.Errorf("BUS_OBJECTIVE_EVIDENCE responsibility does not match Builder binding")
 			}
 			if busObjectiveEvidenceCounts[state.OperatorAddress] == math.MaxUint32 {
@@ -1017,7 +1133,7 @@ func validateBuilderGenesis(gs GenesisState) error {
 			len(state.BuilderSetMembersHash) != shared.Hash32KeySize {
 			return fmt.Errorf("builder set %d has an invalid header", state.BuilderSetVersion)
 		}
-		if state.ActiveBuilderCount < gs.Params.Builder.BuildersPerTask ||
+		if state.ActiveBuilderCount == 0 ||
 			state.ActiveBuilderCount > gs.Params.Builder.BuilderSetCap {
 			return fmt.Errorf("builder set %d member count is outside configured bounds", state.BuilderSetVersion)
 		}

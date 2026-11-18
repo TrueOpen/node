@@ -1,6 +1,7 @@
 {
   "schema": "trueopen-node-wire-pin-v1",
   "notes": [
+    "Wire v0.7.0-anchor-content.2 is the ADR-0040 anchor audit contract with the content-integrity verdict track, carried on the immutable, reviewed Phase 1 release v0.6.0. It is a pre-release tag that go.mod resolves from a fork until TrueOpen/wire publishes it; the descriptor below was rebuilt from the tagged tree with the buf version the release names. The domain registry is the v0.6.0 asset: the one domain the anchor contract adds (TRUEOPEN_WORKER_ANCHOR_COMMITMENT_V1) is produced by the Worker and retained opaquely by Node, so Node's in-process registry does not list it.",
     "wire.binpb is the descriptor image published by the TrueOpen/wire release named below. Every protobuf artifact this repository generates - Go, OpenAPI, the node API document - is generated from it, so the wire release is the single source of the contract and this repository holds no .proto of its own for those packages.",
     "It is vendored rather than downloaded at build time so that generation is reproducible offline and at any past commit, and so no credential sits in the path of a local `make proto-gen`. The blob itself is not reviewable, but its effect is: the regenerated .pb.go diff is what a reviewer reads.",
     "The one exception is internal/proto, which holds node-private messages that never cross a process boundary and are therefore not part of the wire contract. A separate buf invocation generates them.",
@@ -12,20 +13,19 @@
     "To move to a newer wire release: take its wire.binpb and domains.json, replace both vendored artifacts, and update release_tag, release_commit, artifact metadata and package lists from that release's release-manifest.json. Then run make proto-gen and review the regenerated .pb.go diff, which is the readable half of this change."
   ],
   "source_repository": "https://github.com/TrueOpen/wire",
-  "release_tag": "v0.7.0-anchor-content.1",
-  "release_commit": "cd07fef2a88de62c0ac42b5c64af3ad75c4cd3aa",
+  "release_tag": "v0.7.0-anchor-content.2",
+  "release_commit": "b02f1a013ef1099b9703321eb988cdb13d1b6941",
   "descriptor": {
     "path": "wire/wire.binpb",
-    "bytes": 1154458,
-    "sha256": "9c607e17380138e59aa8dbaa2774b34f146a336124244227a8f7f704969ed3c5"
+    "bytes": 1297972,
+    "sha256": "7e1dd44afae9bb0211de6ef2e5433109e06f9eb596d264ae504a8c19776ff9f9"
   },
   "domain_registry": {
     "path": "registry/v1/domains.json",
-    "bytes": 162211,
-    "sha256": "4637ed84cdb5177c996c6ead8f7efeaad388835fdebf464f91ec66e96e8672d0"
+    "bytes": 173412,
+    "sha256": "e38b99cd3f3ef91f82bc9e6b09c6932bc215f440d9011e4df24c4177376ec4aa"
   },
   "released_packages": [
-    "bus.v1",
     "hub.module.v1",
     "hub.v1",
     "nexus.v1",
@@ -36,7 +36,7 @@
   "withheld_packages": [
     {
       "package": "cortex.v1",
-      "reason": "The v0.3.3 release withholds Cortex messages because their data-plane contract remains unfrozen; Node must not generate or depend on them from this descriptor."
+      "reason": "Fields are not frozen. An open design decision still assigns Cortex further changes to chat_input - an output_decoding block, a tool_calling block, and manifest_version 3 - so a release that promised compatibility here would have to break it. Release once those fields have landed."
     }
   ]
 }

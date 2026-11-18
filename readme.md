@@ -86,8 +86,8 @@ Artifacts, signing, verification, distribution and rollback are documented in
   cannot do, the lifecycle, tallying and parameters
 - [docs/governance_dualmode_design.md](docs/governance_dualmode_design.md) —
   proposal domain routing, and why there is no custom tally
-- [docs/builder_registration_design.md](docs/builder_registration_design.md) —
-  the Builder admission path
+- [docs/static/node-api.md](docs/static/node-api.md) — generated messages,
+  queries and field constraints for the current contract
 - [docs/runbooks/](docs/runbooks/) — operator runbooks: build and test, daily
   ops, governance changes, upgrades and migration, metrics, release artifacts
 - [docs/rpc.md](docs/rpc.md) — the RPC surface

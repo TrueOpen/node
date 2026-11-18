@@ -109,7 +109,6 @@ Implement these as written if and when they are needed:
 | `task_session_created_total` | counter | After a successful `CreateSession` | User growth |
 | `task_task_assigned_total{status}` | counter, `ok`/`fallback`/`expired` | Settlement classification | Task success rate |
 | `task_task_verify_deadline_swept_total` | counter | EndBlocker deadline sweep | Congestion |
-| `task_task_assignment_randomness_pending_gauge` | gauge | BeginBlocker candidate walk | Undetermined task backlog |
 | `hub_earnings_claimed_amount_bytes` | histogram | After a successful claim | Claim size distribution |
 | `hub_builder_bond_slashed_total` | counter | Bond slash to treasury | Slash frequency |
 | `hub_reward_epoch_finalized_total{bucket}` | counter | Reward epoch finalisation | Reward pipeline health |

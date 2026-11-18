@@ -73,6 +73,9 @@ func initFixture(t *testing.T) *fixture {
 		auth,
 		bank,
 	)
+	k = k.WithWorkerCandidateWeights(&candidateWeightProvider{
+		policy: shared.WorkerCandidateWeightPolicy{StakeWeightPPM: 300_000, PerformanceWeightPPM: 700_000},
+	})
 
 	return &fixture{
 		ctx:    ctx,
@@ -96,7 +99,7 @@ func seedRoleFaultForTest(t *testing.T, f *fixture, operator string, duty shared
 	t.Helper()
 	state := types.RoleFaultState{
 		FaultId: hubHashBytes("role-fault-" + marker), TaskId: append([]byte(nil), taskID...),
-		OperatorAddress: operator, Duty: duty, FaultClass: types.FaultKind_FAULT_KIND_TIMEOUT,
+		OperatorAddress: operator, Duty: duty, FaultClass: shared.FaultKind_FAULT_KIND_TIMEOUT,
 		ClassificationSource: shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE,
 		EvidenceDigest:       append([]byte(nil), evidenceDigest...), RecordedHeight: recordedHeight,
 		Status: types.RoleFaultStatus_ROLE_FAULT_STATUS_CONFIRMED,

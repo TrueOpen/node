@@ -190,6 +190,13 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		nextHeight, err := checkedAdd(height, 1)
+		if err != nil {
+			return err
+		}
+		if err := k.ProcessServiceKeyRotations(ctx, nextHeight); err != nil {
+			return err
+		}
 		if err := k.ActivateDueVrfKeys(ctx, nextEpoch); err != nil {
 			return err
 		}
@@ -309,6 +316,11 @@ func (k Keeper) EndBlocker(ctx context.Context) error {
 	if err := run(params.Service.MaxRoleFaultPruneItemsPerBlock, visitedOnlyProcessor(rowBytes, func(limit uint64) (uint64, error) {
 		return k.ProcessRoleFaultPrunes(ctx, height, limit)
 	})); err != nil {
+		return err
+	}
+	if err := run(params.Service.MaxRoleFaultPruneItemsPerBlock, func(visitedLimit, bytesLimit uint64) (uint64, uint64, error) {
+		return k.ProcessDispatchFaultPrunes(ctx, height, visitedLimit, bytesLimit)
+	}); err != nil {
 		return err
 	}
 	if err := run(params.CandidatePool.MaxCandidatePoolBuildMembersPerBlock, visitedOnlyProcessor(rowBytes, func(limit uint64) (uint64, error) {

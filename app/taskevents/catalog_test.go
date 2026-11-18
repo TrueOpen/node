@@ -18,11 +18,10 @@ import (
 )
 
 func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
-	// Wire RC2 reserves code 30 for a later verifier value-evidence payload.
-	// It is allocated in the enum but cannot be emitted before activation.
+	// Phase 1 removes Worker assignment events and activates bounded value evidence.
 	want := make([]int, 0, 68)
 	for code := 1; code <= 30; code++ {
-		if code == 18 {
+		if code == 18 || code == 10 || code == 11 || code == 22 {
 			continue
 		}
 		want = append(want, code)
@@ -34,7 +33,7 @@ func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
 	for code := 109; code <= 113; code++ {
 		want = append(want, code)
 	}
-	for code := 120; code <= 127; code++ {
+	for code := 120; code <= 145; code++ {
 		want = append(want, code)
 	}
 
@@ -56,8 +55,8 @@ func TestProtocolEventCodeRegistryMatchesFrozenCatalog(t *testing.T) {
 func TestProtocolEventCodeRegistryIsFullyCovered(t *testing.T) {
 	taskWrappers := (&tasktypes.TaskProtocolEventPayloadV1{}).XXX_OneofWrappers()
 	hubWrappers := (&hubtypes.ProtocolEventPayloadV1{}).XXX_OneofWrappers()
-	// Exclude UNSPECIFIED and the explicitly reserved verifier evidence code.
-	require.Len(t, append(append([]interface{}{}, taskWrappers...), hubWrappers...), len(shared.ProtocolEventCodeV1_name)-2)
+	// Only UNSPECIFIED has no public payload.
+	require.Len(t, append(append([]interface{}{}, taskWrappers...), hubWrappers...), len(shared.ProtocolEventCodeV1_name)-1)
 
 	seen := make(map[shared.ProtocolEventCodeV1]struct{}, len(taskWrappers)+len(hubWrappers))
 
@@ -96,7 +95,7 @@ func TestProtocolEventCodeRegistryIsFullyCovered(t *testing.T) {
 		assertTypedEventRoundTrip(t, payload)
 		assertNarrowPublicEvent(t, payload)
 	}
-	require.NotContains(t, seen, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_VALUE_EVIDENCE_ACCEPTED)
+	require.Contains(t, seen, shared.ProtocolEventCodeV1_PROTOCOL_EVENT_CODE_V1_VERIFIER_VALUE_EVIDENCE_ACCEPTED)
 }
 
 func TestSessionCreatedTargetsOwnerAccount(t *testing.T) {
@@ -129,8 +128,8 @@ func TestSessionKeyUpdatedIsSessionScopedAndTargetsOwner(t *testing.T) {
 	require.Equal(t, payload, envelope.Payload.GetSessionKeyUpdated())
 }
 
-func TestWorkerAssignmentFinalizedTargetsWinnerWorker(t *testing.T) {
-	payload := &tasktypes.EventWorkerAssignmentFinalized{
+func TestDispatchRecordedTargetsWinnerWorker(t *testing.T) {
+	payload := &tasktypes.EventDispatchRecorded{
 		SessionId:    []byte("session-assign"),
 		TaskId:       []byte("task-assign"),
 		WinnerWorker: "trueopen1worker",

@@ -14,6 +14,9 @@ func (k Keeper) commitToStore(state types.CommitState) (internaltypes.CommitStor
 	if err != nil {
 		return internaltypes.CommitStoreState{}, err
 	}
+	if state.XVerifierValueRoot != nil && len(state.GetVerifierValueRoot()) != 32 {
+		return internaltypes.CommitStoreState{}, fmt.Errorf("commit value root must be raw32 when present")
+	}
 	return internaltypes.CommitStoreState{
 		CommitKey:               append([]byte(nil), state.CommitKey...),
 		TaskId:                  append([]byte(nil), state.TaskId...),
@@ -24,10 +27,14 @@ func (k Keeper) commitToStore(state types.CommitState) (internaltypes.CommitStor
 		SignatureDigest:         append([]byte(nil), state.SignatureDigest...),
 		CommitHeight:            state.CommitHeight,
 		Status:                  int32(state.Status),
+		VerifierValueRoot:       bytes.Clone(state.GetVerifierValueRoot()),
 	}, nil
 }
 
 func (k Keeper) ProjectCommitStore(stored internaltypes.CommitStoreState) (types.CommitState, error) {
+	if len(stored.VerifierValueRoot) != 0 && len(stored.VerifierValueRoot) != 32 {
+		return types.CommitState{}, fmt.Errorf("stored commit value root must be raw32")
+	}
 	address, err := k.sessionAddressFromStore("commit verifier", stored.VerifierOperatorAddress)
 	if err != nil {
 		return types.CommitState{}, err
@@ -35,7 +42,7 @@ func (k Keeper) ProjectCommitStore(stored internaltypes.CommitStoreState) (types
 	if stored.Status != int32(types.CommitStatusV1_COMMIT_STATUS_V1_ACCEPTED) {
 		return types.CommitState{}, fmt.Errorf("stored commit status is invalid")
 	}
-	return types.CommitState{
+	out := types.CommitState{
 		CommitKey:               append([]byte(nil), stored.CommitKey...),
 		TaskId:                  append([]byte(nil), stored.TaskId...),
 		VerifyRound:             stored.VerifyRound,
@@ -45,7 +52,11 @@ func (k Keeper) ProjectCommitStore(stored internaltypes.CommitStoreState) (types
 		SignatureDigest:         append([]byte(nil), stored.SignatureDigest...),
 		CommitHeight:            stored.CommitHeight,
 		Status:                  types.CommitStatusV1(stored.Status),
-	}, nil
+	}
+	if len(stored.VerifierValueRoot) != 0 {
+		out.XVerifierValueRoot = &types.CommitState_VerifierValueRoot{VerifierValueRoot: bytes.Clone(stored.VerifierValueRoot)}
+	}
+	return out, nil
 }
 
 func (k Keeper) ReadCommit(ctx context.Context, key types.CommitKey) (types.CommitState, error) {

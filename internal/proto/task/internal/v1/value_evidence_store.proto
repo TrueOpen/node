@@ -1,0 +1,18 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// ValueEvidenceReceiptStoreState retains attribution without raw proof material.
+message ValueEvidenceReceiptStoreState {
+  uint32 schema_version = 1;
+  bytes task_id = 2;
+  uint32 verify_round = 3;
+  bytes target_operator_address = 4;
+  uint64 position = 5;
+  int32 evidence_kind = 6;
+  int32 faulted_duty = 7;
+  bytes evidence_digest = 8;
+  bytes fault_id = 9;
+  uint64 accepted_height = 10;
+}

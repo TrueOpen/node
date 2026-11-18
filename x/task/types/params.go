@@ -31,6 +31,14 @@ func ValidateFrozenSlashBps(bps uint32) error {
 // first block after activation; it is not a protocol-wide fixed limit.
 const DefaultMaxSessionKeyBlocks = uint64(604_800)
 
+// Local defaults require deployment review before a fresh network is started.
+const (
+	DefaultSessionWithdrawDelayBlocks  = uint64(100)
+	DefaultSessionChangeDelayBlocks    = uint64(100)
+	DefaultSessionMinPrefund           = uint64(1)
+	DefaultMaxActiveSessionsPerAccount = uint32(16)
+)
+
 const (
 	DefaultMaxOrderSequencesPerActiveSession           = uint32(4096)
 	DefaultSessionIdleTTLBlocks                        = uint64(100)
@@ -41,7 +49,6 @@ const (
 	DefaultMaxSessionTerminalSummaryPruneItemsPerBlock = uint32(256)
 	DefaultMaxSessionSweepPerBlock                     = uint32(1024)
 	DefaultCancelOrderMinGas                           = uint64(50_000)
-	DefaultAnchorFreshnessWindowBlocks                 = uint64(10_000)
 	DefaultVerifyOpenDeadlineBlocks                    = uint64(400)
 	DefaultCommitWindowBlocks                          = uint64(20)
 	DefaultRevealWindowBlocks                          = uint64(10)
@@ -160,6 +167,9 @@ const (
 	DefaultMaxOutputMMRLeaves                       = uint64(65_536)
 	DefaultMinOutputStreamFrameBytes                = uint32(256)
 	DefaultMaxWorkerEvidenceBytesV1                 = uint64(1 << 20)
+	DefaultVerifierValueEvidenceWindowBlocks        = uint64(120)
+	DefaultMaxVerifierValueEvidencePositions        = uint32(64)
+	DefaultMaxVerifierValueEvidenceBytes            = uint64(1 << 20)
 	DefaultMaxTaskCleanupItemsPerBlock              = uint32(1024)
 	DefaultTaskTerminalSummaryRetentionBlocks       = uint64(60_480)
 	DefaultMaxTaskTerminalSummaryPruneItemsPerBlock = uint32(256)
@@ -220,8 +230,11 @@ func DefaultTaskParams() TaskParamsV1 {
 			MaxSessionTerminalSummaryPruneItemsPerBlock: DefaultMaxSessionTerminalSummaryPruneItemsPerBlock,
 			MaxSessionSweepPerBlock:                     DefaultMaxSessionSweepPerBlock,
 			CancelOrderMinGas:                           DefaultCancelOrderMinGas,
-			AnchorFreshnessWindowBlocks:                 DefaultAnchorFreshnessWindowBlocks,
 			MaxSessionKeyBlocks:                         DefaultMaxSessionKeyBlocks,
+			SessionWithdrawDelayBlocks:                  DefaultSessionWithdrawDelayBlocks,
+			SessionChangeDelayBlocks:                    DefaultSessionChangeDelayBlocks,
+			SessionMinPrefund:                           shared.NewAmount(DefaultSessionMinPrefund),
+			MaxActiveSessionsPerAccount:                 DefaultMaxActiveSessionsPerAccount,
 		},
 		Deadlines: TaskDeadlineParamsV1{
 			VerifyOpenDeadlineBlocks: DefaultVerifyOpenDeadlineBlocks,
@@ -278,6 +291,9 @@ func DefaultTaskParams() TaskParamsV1 {
 			MaxOutputMmrLeaves:                    DefaultMaxOutputMMRLeaves,
 			MinOutputStreamFrameBytes:             DefaultMinOutputStreamFrameBytes,
 			MaxWorkerEvidenceBytesV1:              DefaultMaxWorkerEvidenceBytesV1,
+			VerifierValueEvidenceWindowBlocks:     DefaultVerifierValueEvidenceWindowBlocks,
+			MaxVerifierValueEvidencePositions:     DefaultMaxVerifierValueEvidencePositions,
+			MaxVerifierValueEvidenceBytes:         DefaultMaxVerifierValueEvidenceBytes,
 		},
 		Cleanup: TaskCleanupParamsV1{
 			MaxTaskCleanupItemsPerBlock:              DefaultMaxTaskCleanupItemsPerBlock,
@@ -313,6 +329,7 @@ func DefaultTaskParams() TaskParamsV1 {
 			AssignmentDelayBlocks: 1, CommitWindowBlocks: DefaultCommitWindowBlocks,
 			RevealWindowBlocks: DefaultRevealWindowBlocks, MaxRoundEffectItemsPerBlock: DefaultMaxRoundEffectItemsPerBlock,
 		},
+		Dispatch: DefaultDispatchParams(),
 	}
 }
 
@@ -460,7 +477,13 @@ func (p TaskParamsV1) Validate() error {
 	if err := validateFeeParams(p.Fee); err != nil {
 		return err
 	}
-	return validateChallengeParams(p.Challenge, p.Weights.SelectedVerifierCount)
+	if err := validateChallengeParams(p.Challenge, p.Weights.SelectedVerifierCount); err != nil {
+		return err
+	}
+	if p.Evidence.MaxEvidenceRetentionBlocks < p.Dispatch.DispatchChallengeWindowBlocks {
+		return fmt.Errorf("evidence.max_evidence_retention_blocks must cover the dispatch challenge window")
+	}
+	return validateDispatchParams(p.Dispatch, p.Session)
 }
 
 func validateFeeParams(p TaskFeeParamsV1) error {
@@ -507,7 +530,7 @@ func validateChallengeParams(p ChallengeParamsV1, selectedVerifierCount uint32) 
 			return fmt.Errorf("challenge.%s must be in 1..%d", item.name, MaxVerificationWindowBlocksLimit)
 		}
 	}
-	if _, overflow := checkedAddManyUint64(
+	if _, overflow := shared.CheckedSumUint64(
 		p.CandidateWindowDelayBlocks, p.HandraiseWindowBlocks, p.AssignmentDelayBlocks,
 		p.CommitWindowBlocks, p.RevealWindowBlocks,
 	); overflow {
@@ -550,7 +573,16 @@ func validateSessionParams(p SessionParamsV1) error {
 	if err := positiveUint64("session.cancel_order_min_gas", p.CancelOrderMinGas, MaxCancelOrderMinGasLimit); err != nil {
 		return err
 	}
-	return positiveUint64("session.anchor_freshness_window_blocks", p.AnchorFreshnessWindowBlocks, MaxRetentionBlocksLimit)
+	if err := positiveUint64("session.session_withdraw_delay_blocks", p.SessionWithdrawDelayBlocks, MaxRetentionBlocksLimit); err != nil {
+		return err
+	}
+	if err := positiveUint64("session.session_change_delay_blocks", p.SessionChangeDelayBlocks, MaxRetentionBlocksLimit); err != nil {
+		return err
+	}
+	if amount, err := shared.ParseAmount(p.SessionMinPrefund); err != nil || amount == 0 {
+		return fmt.Errorf("session.session_min_prefund must be a canonical positive amount")
+	}
+	return positiveUint32("session.max_active_sessions_per_account", p.MaxActiveSessionsPerAccount, MaxSessionRowsLimit)
 }
 
 func validateDeadlineParams(p TaskDeadlineParamsV1) error {
@@ -569,7 +601,7 @@ func validateDeadlineParams(p TaskDeadlineParamsV1) error {
 			return err
 		}
 	}
-	collectionMinimum, overflow := checkedAddManyUint64(
+	collectionMinimum, overflow := shared.CheckedSumUint64(
 		p.CommitWindowBlocks,
 		p.RevealWindowBlocks,
 		p.SettleMarginBlocks,
@@ -589,18 +621,11 @@ func validateDeadlineParams(p TaskDeadlineParamsV1) error {
 // ValidateVerifyOpenClock checks the Task/Hub clock relation without importing
 // Hub types into this package.
 func ValidateVerifyOpenClock(p TaskDeadlineParamsV1, deltaWBlocks, builderProposalWindowBlocks uint64) error {
-	required, overflow := checkedAddManyUint64(deltaWBlocks, deltaWBlocks, builderProposalWindowBlocks, p.SelfRescueMarginBlocks)
-	if overflow {
-		return fmt.Errorf("verify-open clock lower bound overflows")
-	}
-	if p.VerifyOpenDeadlineBlocks <= required {
-		return fmt.Errorf("deadlines.verify_open_deadline_blocks must be greater than %d", required)
-	}
-	return nil
+	return shared.ValidateVerifyOpenClock(p.VerifyOpenDeadlineBlocks, p.SelfRescueMarginBlocks, deltaWBlocks, builderProposalWindowBlocks)
 }
 
 func ValidateSessionCloseHorizon(p TaskParamsV1, challengeOpenWindowBlocks uint64) error {
-	required, overflow := checkedAddManyUint64(
+	required, overflow := shared.CheckedSumUint64(
 		p.Deadlines.VerifyOpenDeadlineBlocks,
 		p.Deadlines.CommitWindowBlocks,
 		p.Deadlines.RevealWindowBlocks,
@@ -793,7 +818,13 @@ func validateEvidenceParams(p EvidenceLimitParamsV1) error {
 	if p.MaxWorkerEvidenceBytesV1 == 0 {
 		return fmt.Errorf("evidence.max_worker_evidence_bytes_v1 must be positive")
 	}
-	return nil
+	if err := positiveUint64("evidence.verifier_value_evidence_window_blocks", p.VerifierValueEvidenceWindowBlocks, p.MaxEvidenceRetentionBlocks); err != nil {
+		return err
+	}
+	if err := positiveUint32("evidence.max_verifier_value_evidence_positions", p.MaxVerifierValueEvidencePositions, MaxCandidateProposalItemsLimit); err != nil {
+		return err
+	}
+	return positiveUint64("evidence.max_verifier_value_evidence_bytes", p.MaxVerifierValueEvidenceBytes, MaxBatchBytesLimit)
 }
 
 func validateCleanupParams(p TaskCleanupParamsV1) error {
@@ -880,18 +911,6 @@ func positiveUint64(name string, value, maximum uint64) error {
 	return nil
 }
 
-func checkedAddManyUint64(values ...uint64) (uint64, bool) {
-	total := uint64(0)
-	for _, value := range values {
-		next, overflow := shared.CheckedAddUint64(total, value)
-		if overflow {
-			return 0, true
-		}
-		total = next
-	}
-	return total, false
-}
-
 // GenesisOnlyTaskParamsChanged identifies V1 geometry frozen at genesis.
 func GenesisOnlyTaskParamsChanged(current, next TaskParamsV1) (string, bool) {
 	switch {
@@ -942,7 +961,7 @@ func RuntimeImmutableTaskParamsChanged(current, next TaskParamsV1) (string, bool
 
 // CanonicalTaskParamsTypedFields is the H_FIELDS_V1 field vector of TaskParamsV1:
 // schema_version as a scalar of the outer message, then one nested FRAME_V1 per
-// submessage in ascending proto field-number order (fields 2 to 11).
+// submessage in ascending proto field-number order (fields 2 to 13).
 //
 // It is the only view of this encoding. The domain used to carry a second,
 // hand-written []byte projection alongside it; keeping two orderings of one
@@ -951,10 +970,6 @@ func RuntimeImmutableTaskParamsChanged(current, next TaskParamsV1) (string, bool
 // gone rather than re-derived.
 func CanonicalTaskParamsTypedFields(p TaskParamsV1) []shared.CanonicalFieldV1 {
 	sections := canonicalTaskParamsSectionFields(p)
-	// Zero identifies the pre-registration schema retained in historical versions.
-	if p.Session.MaxSessionKeyBlocks == 0 {
-		sections[0] = sections[0][:len(sections[0])-1]
-	}
 	fields := make([]shared.CanonicalFieldV1, 0, len(sections)+1)
 	fields = append(fields, shared.RawCanonicalFieldV1(shared.Uint32BE(p.SchemaVersion)))
 	for _, section := range sections {
@@ -987,12 +1002,12 @@ func canonicalTaskParamsStringList(values []string) shared.CanonicalFieldV1 {
 }
 
 // canonicalTaskParamsSectionFields is the single source of canonical field order
-// for TaskParamsV1's ten submessages, each listed in ascending proto
+// for TaskParamsV1's twelve submessages, each listed in ascending proto
 // field-number order.
 func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV1 {
 	return [][]shared.CanonicalFieldV1{
 		// field 2: SessionParamsV1
-		shared.RawCanonicalFieldsV1(
+		append(shared.RawCanonicalFieldsV1(
 			shared.Uint32BE(p.Session.MaxOrderSequencesPerActiveSession),
 			shared.Uint64BE(p.Session.SessionIdleTtlBlocks),
 			shared.Uint64BE(p.Session.SessionCloseTtlBlocks),
@@ -1002,9 +1017,10 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 			shared.Uint32BE(p.Session.MaxSessionTerminalSummaryPruneItemsPerBlock),
 			shared.Uint32BE(p.Session.MaxSessionSweepPerBlock),
 			shared.Uint64BE(p.Session.CancelOrderMinGas),
-			shared.Uint64BE(p.Session.AnchorFreshnessWindowBlocks),
 			shared.Uint64BE(p.Session.MaxSessionKeyBlocks),
-		),
+			shared.Uint64BE(p.Session.SessionWithdrawDelayBlocks),
+			shared.Uint64BE(p.Session.SessionChangeDelayBlocks),
+		), append(canonicalTaskParamsAmountFields(p.Session.SessionMinPrefund), shared.RawCanonicalFieldV1(shared.Uint32BE(p.Session.MaxActiveSessionsPerAccount)))...),
 		// field 3: TaskDeadlineParamsV1
 		shared.RawCanonicalFieldsV1(
 			shared.Uint64BE(p.Deadlines.VerifyOpenDeadlineBlocks),
@@ -1089,6 +1105,8 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 		canonicalTaskFeeParamsFields(p.Fee),
 		// field 12: ChallengeParamsV1
 		canonicalChallengeParamsFields(p.Challenge),
+		// field 13: DispatchParamsV1
+		canonicalDispatchParamsFields(p.Dispatch),
 	}
 }
 
@@ -1126,6 +1144,8 @@ func canonicalTaskParamsAmountFields(amounts ...shared.Amount) []shared.Canonica
 // TaskParamsHashV1 is the single producer of TaskParamsMetaState.params_hash and
 // of the value echoed by MsgUpdateTaskParamsResponse and event 111.
 func TaskParamsHashV1(chainID string, version uint64, params TaskParamsV1) ([]byte, error) {
+	// A pre-anchor body (ADR-0040) keeps a defined hash: history rows and a
+	// pre-anchor genesis are committed to as recorded.
 	if err := ValidateHistoricalTaskParams(params); err != nil {
 		return nil, err
 	}
@@ -1146,12 +1166,13 @@ func (s TaskParamsMetaState) Validate() error {
 	return nil
 }
 
-// ValidateHistoricalTaskParams accepts an omitted registration limit only in a
-// pre-activation parameter body. New genesis and live updates use Validate.
+// ValidateHistoricalTaskParams validates a parameter body that may have been
+// recorded before the ADR-0040 anchor parameters existed: the body in a
+// retained history row, or the one a pre-anchor genesis carries until
+// InitGenesis fills it. The missing anchor fields are read as the frozen
+// Default* values for validation only; the body itself, and therefore its
+// hash, is unchanged. New genesis bodies and live updates use Validate.
 func ValidateHistoricalTaskParams(params TaskParamsV1) error {
-	if params.Session.MaxSessionKeyBlocks == 0 {
-		params.Session.MaxSessionKeyBlocks = DefaultMaxSessionKeyBlocks
-	}
 	// Bodies recorded before ADR-0040 v6 carry no anchor windows.
 	if params.Verification.AnchorOpenWindowBlocks == 0 {
 		params.Verification.AnchorOpenWindowBlocks = DefaultAnchorOpenWindowBlocks

@@ -77,7 +77,7 @@ func TestHubKeeperDomainFixtureBindsProductionProducers(t *testing.T) {
 		return roleFaultID(
 			vector.String(t, 0, "chain_id"), vector.Bytes(t, 1, "task_id"),
 			vector.Bytes(t, 2, "operator_address"), shared.Duty(vector.Uint(t, 3, "duty")),
-			types.FaultKind(vector.Uint(t, 4, "fault_class")), vector.Bytes(t, 5, "evidence_digest"),
+			shared.FaultKind(vector.Uint(t, 4, "fault_class")), vector.Bytes(t, 5, "evidence_digest"),
 		)
 	})
 

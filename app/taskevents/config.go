@@ -3,6 +3,8 @@ package taskevents
 import (
 	"fmt"
 
+	pruningtypes "cosmossdk.io/store/pruning/types"
+	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cast"
 )
@@ -83,6 +85,18 @@ func ConfigFromAppOptions(opts servertypes.AppOptions) (Config, error) {
 
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
+	}
+	if cfg.Enabled {
+		pruning := pruningtypes.NewPruningOptionsFromString(pruningtypes.PruningOptionDefault)
+		if value := opts.Get(server.FlagPruning); value != nil && cast.ToString(value) != "" {
+			pruning, err = server.GetPruningOptionsFromFlags(opts)
+			if err != nil {
+				return Config{}, err
+			}
+		}
+		if pruning.KeepRecent != 0 && pruning.KeepRecent <= cfg.MaxReplayBlocks {
+			return Config{}, fmt.Errorf("task-event-grpc requires state retention greater than max-replay-blocks, including live reader lag")
+		}
 	}
 	return cfg, nil
 }

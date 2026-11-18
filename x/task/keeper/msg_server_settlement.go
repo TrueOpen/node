@@ -268,6 +268,20 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil {
 		return settlementInputs{}, err
 	}
+	evidence, err := k.firstValueEvidenceReceipts(ctx, taskKey)
+	if err != nil {
+		return settlementInputs{}, err
+	}
+	seenDisqualified := make(map[string]bool, len(disqualified))
+	for _, operator := range disqualified {
+		seenDisqualified[operator] = true
+	}
+	for _, receipt := range evidence {
+		if !seenDisqualified[receipt.TargetOperatorAddress] {
+			disqualified = append(disqualified, receipt.TargetOperatorAddress)
+			seenDisqualified[receipt.TargetOperatorAddress] = true
+		}
+	}
 	round1Assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1))
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 verifier assignment is unavailable")
@@ -436,7 +450,7 @@ func (k Keeper) settlementDutyBuilder(
 	index, _, err := settlementBuilderSchedule(
 		uint64(len(selection.SelectedTaskBuilders)),
 		k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).SettlementBuilderGraceBlocks,
-		assignment.RevealDeadlineHeight,
+		settlementScheduleAnchor(assignment),
 		height,
 	)
 	if err != nil {
@@ -454,7 +468,7 @@ func (k Keeper) authorizeSettlementSubmitter(
 	grace := k.hubKeeper.GetHubParams(sdk.UnwrapSDKContext(ctx)).SettlementBuilderGraceBlocks
 	index, permissionless, err := settlementBuilderSchedule(
 		uint64(len(inputs.BuilderSelection.SelectedTaskBuilders)), grace,
-		inputs.Round1Assignment.RevealDeadlineHeight, height,
+		settlementScheduleAnchor(inputs.Round1Assignment), height,
 	)
 	if err != nil {
 		return false, err
@@ -470,6 +484,20 @@ func (k Keeper) authorizeSettlementSubmitter(
 		return false, err
 	}
 	return true, nil
+}
+
+// settlementScheduleAnchor is the height the SETTLE Builder rank schedule counts
+// from. A round that closes at its commit deadline with too few commits never
+// enters the reveal phase, so its assignment keeps reveal_deadline_height at 0;
+// the commit deadline is then the last height of the verify phase and anchors
+// the schedule. Without this fallback such a task could not be settled at all,
+// and because the deadline sweep runs in EndBlock the resulting invariant error
+// halted the chain.
+func settlementScheduleAnchor(assignment types.VerifierAssignmentState) uint64 {
+	if assignment.RevealDeadlineHeight != 0 {
+		return assignment.RevealDeadlineHeight
+	}
+	return assignment.CommitDeadlineHeight
 }
 
 func settlementBuilderSchedule(builderCount, grace, revealDeadline, height uint64) (uint64, bool, error) {
@@ -826,7 +854,7 @@ func settlementEarningsCredits(inputs settlementInputs, plan types.SettlementPla
 //
 //	net + gas   -> Hub Rewards, which is the account MsgClaimEarnings pays from
 //	maintenance -> Treasury
-//	refund      -> the ordering user
+//	refund      -> available session balance
 //
 // The earnings ledger is only a claim, never a transfer, so omitting the Rewards
 // leg would leave every payout unclaimable and strand the balance in escrow.
@@ -849,10 +877,8 @@ func (k Keeper) finalizeSettledBudget(ctx context.Context, inputs settlementInpu
 	if err := k.sendFromTaskEscrow(ctx, hubtypes.TreasuryModuleName, maintenance); err != nil {
 		return err
 	}
-	if refund > 0 {
-		if err := k.releaseTaskBudgetRefund(ctx, inputs.Core.UserAddress, refund); err != nil {
-			return err
-		}
+	if err := k.finalizeSessionTaskFunds(ctx, inputs.Core.SessionId, inputs.Budget.ReservedAmount, refund); err != nil {
+		return err
 	}
 	budget := inputs.Budget
 	budget.ReservedAmount = shared.NewAmount(0)

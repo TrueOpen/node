@@ -178,6 +178,8 @@ func candidateSnapshotView(snapshot types.CandidatePoolSnapshotState) types.Cand
 		Status: snapshot.Status, SlotCapacity: snapshot.SlotCapacity, ActiveCount: snapshot.ActiveCount,
 		ActiveBitmapHash: append([]byte(nil), snapshot.ActiveBitmapHash...), MemberSetHash: append([]byte(nil), snapshot.MemberSetHash...),
 		EffectiveHeight: snapshot.EffectiveHeight, ExpiresHeight: snapshot.ExpiresHeight,
+		WorkerStakeWeightPpm:       snapshot.WorkerStakeWeightPpm,
+		WorkerPerformanceWeightPpm: snapshot.WorkerPerformanceWeightPpm,
 	}
 	if snapshot.PublishedHeight != 0 {
 		view.XPublishedHeight = &types.CandidatePoolSnapshotViewV1_PublishedHeight{PublishedHeight: snapshot.PublishedHeight}

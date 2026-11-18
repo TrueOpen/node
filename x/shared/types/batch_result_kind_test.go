@@ -50,5 +50,5 @@ func TestBatchResultDigestGoldenAndMutation(t *testing.T) {
 	require.ErrorContains(t, err, "unknown batch result kind")
 	items[1].Status = 0
 	_, err = shared.BatchResultDigestV1("trueopen-test-1", shared.BatchResultKindVerifyCommit, items)
-	require.ErrorContains(t, err, "not APPLIED or NOOP")
+	require.ErrorContains(t, err, "not allowed for its batch kind")
 }

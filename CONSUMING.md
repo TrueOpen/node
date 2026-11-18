@@ -61,7 +61,7 @@ modules, including:
 | `github.com/cosmos/cosmos-sdk` | `v0.53.6` |
 | `cosmossdk.io/api` | `v0.9.2` |
 | `github.com/cometbft/cometbft` | `v0.38.21` |
-| `github.com/TrueOpen/wire` | `v0.1.0`, pinned by `wire/pin.json` |
+| `github.com/TrueOpen/wire` | Exact candidate commit recorded in `wire/pin.json`; `go.mod`, the descriptor and fixtures must use that same pin. |
 | `github.com/grpc-ecosystem/grpc-gateway` | `v1.16.0`, the runtime the generated gateway code uses |
 | `cosmossdk.io/collections`, `core`, `store`, `math`, `errors`, `log` | see `go.mod` |
 | `github.com/cosmos/gogoproto`, `google.golang.org/grpc`, `google.golang.org/protobuf` | see `go.mod` |

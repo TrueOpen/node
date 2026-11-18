@@ -18,11 +18,14 @@ func (q queryServer) VrfKey(ctx context.Context, req *types.QueryVrfKeyRequest) 
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request must not be nil")
 	}
+	if !types.IsVrfParticipantType(req.ParticipantType) {
+		return nil, status.Error(codes.InvalidArgument, "participant_type must be VALIDATOR or BUILDER")
+	}
 	_, operator, err := q.k.requireCanonicalAddress("operator_address", req.OperatorAddress)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	state, err := q.k.GetVrfKey(ctx, operator)
+	state, err := q.k.GetVrfKey(ctx, req.ParticipantType, operator)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return nil, status.Errorf(codes.NotFound, "operator %s has no registered vrf key", operator)

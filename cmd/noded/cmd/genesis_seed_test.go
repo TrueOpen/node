@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -346,7 +347,7 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	}
 	model := seed.Models[0]
 	require.Equal(t, "HUGGINGFACE", model.Profile.Source.Provider)
-	require.Equal(t, "Qwen/Qwen3.8-27B-FP8", model.Profile.Source.RepoId)
+	require.Equal(t, "Qwen/Qwen3-8B", model.Profile.Source.RepoId)
 	require.Equal(t, uint32(1), model.Profile.ProfileVersion)
 	require.Equal(t, []string{"TEXT_GENERATION", "CHAT"}, model.Profile.TaskTypes)
 	require.Equal(t, "uusdc", model.Profile.MinStake.Denom)
@@ -354,17 +355,17 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	require.Equal(t, "uusdc", model.Profile.RegistrationFee.Denom)
 	require.Equal(t, uint64(1_000_000), model.Profile.RegistrationFee.Amount)
 	require.Equal(t, seed.CortexNodes[0].OperatorAddress, model.ProposerAddress)
-	// The dev model profile is the published canonical projection of the testnet
-	// model, so its hash, challenge window, bootstrap timeouts and pass limits
+	// The dev model profile is the published canonical projection of the dev
+	// chain, so its hash, challenge window, bootstrap timeouts and pass limits
 	// are pinned to it; a seed edit that drifts from it no longer matches the
 	// registry manifest.
-	require.Equal(t, "0x8c35c84d9d043464d298a48d8a5cb3fb396a651646a52a31393d045214e2cfd6", model.Profile.ManifestHash)
+	require.Equal(t, "0xa25b2d5b0d7cb32f6f42bca7ccce6175ace8bd12b3b92ec4c88022bb4bdcb023", model.Profile.ManifestHash)
 	require.Equal(t, uint64(100), model.Profile.ChallengeOpenWindow)
 	require.Equal(t, uint32(20), model.Profile.TimeoutBootstrapProfile.CommitTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(100), model.Profile.TimeoutBootstrapProfile.InferTimeoutBootstrapBlocks)
 	require.Equal(t, uint32(50), model.Profile.TimeoutBootstrapProfile.VerifyTimeoutBootstrapBlocks)
-	require.Equal(t, uint32(220000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
-	require.Equal(t, uint32(550000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
+	require.Equal(t, uint32(100000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP95Max)
+	require.Equal(t, uint32(200000), model.Profile.VerificationThresholds.PassAbsLogprobDiffP99Max)
 	operators := make(map[string]struct{}, len(seed.CortexNodes))
 	serviceAddresses := make(map[string]struct{}, len(seed.CortexNodes))
 	for _, cortex := range seed.CortexNodes {
@@ -379,156 +380,25 @@ func TestLocalnetGenesisSeedContainsQueriedBuilders(t *testing.T) {
 	cdc := codec.NewProtoCodec(interfaceRegistry)
 	hubParams := hubtypes.DefaultHubParams()
 	require.NoError(t, applyHubParamsOverride(cdc, &hubParams, seed.HubParams))
-	// 14400 blocks is four hours under FAST_BLOCKS. The seed previously carried
-	// 60_480_000 - seven hundred days - which meant the epoch counter never
-	// advanced on a localnet, and a freshly registered cortex could never join.
-	// StakeService sets effective_active_bond to zero and effective_bond_epoch to
-	// current_epoch + ServiceBondEffectiveEpochDelay, and candidate eligibility
-	// reads effective_active_bond, so without a rollover a new operator stays at
-	// zero bond forever however much it staked.
-	//
-	// Shorter would onboard faster - the wait is uniform on [0, one epoch] - but
-	// the epoch-denominated retentions are all 30 epochs (builder set, candidate
-	// pool header, slot binding, vrf key history, daily support, support row,
-	// reward audit). Four hours puts those at five days, which outlives a
-	// debugging session; an hour would put them at thirty.
-	require.Equal(t, uint64(14_400), hubParams.Epoch.EpochLengthBlocks)
+	// Short epochs and windows exercise Phase 1 rollover and delayed actions.
+	require.Equal(t, uint64(600), hubParams.Epoch.EpochLengthBlocks)
 	require.Equal(t, uint64(1), hubParams.Epoch.DeltaWBlocks)
-	require.Equal(t, uint64(4), hubParams.Builder.AssignmentBuilderProposalWindowBlocks)
 	require.Equal(t, uint64(60), hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks)
-	// Freshness is epoch-based now; daily_support_window_blocks is gone.
-	//
-	// A rolling epoch also switches support expiry on, and support_fresh_until is
-	// current_epoch + support_window_epochs. At the protocol value of 2 that is
-	// eight hours, after which every support row goes stale and the network stops
-	// admitting tasks unless something keeps calling MsgBatchConfirmModelSupport.
-	// Trading "a new operator can never join" for "every operator drops out
-	// overnight" is not a trade a debugging network wants, so the seed widens the
-	// window to 30 days.
-	//
-	// This one is a governance parameter rather than genesis-only, so narrowing it
-	// back to exercise the expiry path costs a proposal rather than a fresh
-	// genesis - both behaviours are reachable on the same chain.
 	require.Equal(t, uint32(180), hubParams.Support.SupportWindowEpochs)
 	require.Equal(t, uint32(1024), hubParams.Reward.MaxRewardEpochItemsPerBlock)
 	require.Equal(t, uint32(32), hubParams.Support.MaxSupportExpiryItemsPerBlock)
 	requireGenesisSeedListsAllParams(t, cdc, &hubParams, seed.HubParams)
 	taskParams := tasktypes.DefaultTaskParams()
 	require.NoError(t, applyTaskParamsOverride(cdc, &taskParams, seed.TaskParams))
-	// Localnet runs with FAST_BLOCKS at roughly one second per block, where the
-	// former 8-block commit and reveal windows were under two seconds of wall
-	// clock. A cortex paused on a breakpoint missed them every time, and a missed
-	// Verifier deadline is an immediate jail, so debugging the node reliably
-	// jailed it.
-	//
-	// Every fault x/task can raise is a missed deadline — worker_infer_
-	// timeout, verifier_miss, commit_no_result — so wall clock on a breakpoint is
-	// the whole exposure. The windows are not interchangeable, though, and the
-	// budget belongs on the ones that are free:
-	//
-	//   - commit_window is a pure upper bound. verification_runtime.go opens the
-	//     reveal phase on REVEAL_PHASE_TRIGGER_ALL_COMMITS the moment the last
-	//     commit lands, so 100000 blocks — a day under FAST_BLOCKS — costs a
-	//     healthy task nothing. It is also where a breakpoint actually lands,
-	//     since committing is what runs verification.
-	//   - verify_open_deadline is the one window where a longer value is strictly
-	//     worse, and it used to be justified here as "an upper bound, widening it
-	//     buys more handraise retries". It buys none. freezeVerifierWindowClock
-	//     freezes the whole verifier clock off the receipt height, and selection
-	//     runs once, at handraise_close + delta_w. If fewer than
-	//     selected_verifier_count cortexes raised a hand by then, verifier_finalize
-	//     _runtime.go drops the queue key outright — "the union cannot grow after
-	//     the close height" — and the task just sits there until
-	//     receipt + verify_open_deadline finally fails it as
-	//     TASK_FAILURE_CLASS_INSUFFICIENT_VERIFIER and refunds.
-	//
-	//     So verify_open_deadline is not tolerance, it is how long a task that has
-	//     ALREADY failed takes to say so. At 150000 that was 41 hours of a hung
-	//     task per missed handraise, on a chain whose whole point is that a
-	//     breakpoint is cheap. 300 blocks is five minutes to the refund and still
-	//     twelve times the receipt+45 height selection actually needs, which is
-	//     ample against a deadline-sweep backlog (verifyDeadlineRetryBlocksV1 is 1,
-	//     so a capped sweep retries on the very next block).
-	//
-	//     The tolerance that a missed handraise actually needs goes into
-	//     self_rescue_margin_blocks instead — see the selection bound below.
-	//   - reveal_window used to be treated here as the one window that is NOT an
-	//     upper bound, on the grounds that settlement refuses any height <= the
-	//     reveal deadline. That branch does not exist: loadSettlementInputs gates
-	//     settlement on the challenge close height
-	//     (msg_server_settlement.go: "round 1 challenge window is still open"),
-	//     and the remote devnet confirmed it — round 1 closed at 16457 with a
-	//     reveal deadline of 16575, yet no MsgSettleTask could succeed before
-	//     18257 = 16457 + challenge_open_window_blocks. reveal_window is an upper
-	//     bound exactly like commit_window: applyVerifyResult closes the round the
-	//     moment the last reveal lands, so a healthy task never waits it out.
-	//
-	//     What it actually buys is tolerance. planVerifyResult hard-rejects a
-	//     reveal past the deadline ("reveal deadline has passed"), and
-	//     handleExpiredRevealDeadline does not close the round — it only moves the
-	//     index to verify_deadline_height. So a verifier that overruns by one
-	//     block can never close the round, and the task hangs until
-	//     open_verify_height + collection_window. At 120 blocks that turned a
-	//     two-minute overrun into a day of waiting, which is the exact opposite of
-	//     what a debug chain wants. Matching commit_window at 100000 lets the slow
-	//     verifier still reveal and close the round immediately.
-	//
-	//     The one coupling that remains is authorizeSettlementSubmitter: below the
-	//     reveal deadline, settlementBuilderSchedule returns rank 0 and is not yet
-	//     permissionless, so only Builder rank 0 may submit MsgSettleTask. That is
-	//     the frozen rank duty doing its job, and it costs nothing: if rank 0 stays
-	//     silent, processExpiredSettlementDeadlines settles the task anyway at
-	//     rounds_closed_height + settle_margin_blocks.
-	//
-	// collection_window must cover commit + reveal + settle_margin, and the whole
-	// chain has to stay under session_close_ttl_blocks, which is why collection is
-	// 200200 and the TTL had to move with it. ValidateSessionCloseHorizon is
-	// asserted directly below: it runs in InitGenesis rather than in Validate, so
-	// without that assertion a bad horizon here would only surface as a panic
-	// inside the lifecycle integration tests. These windows are the debug chain's
-	// only; DefaultTaskParams is untouched.
-	require.Equal(t, uint64(3000), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
-	require.Equal(t, uint64(100000), taskParams.Deadlines.CommitWindowBlocks)
-	require.Equal(t, uint64(100000), taskParams.Deadlines.RevealWindowBlocks)
-	require.Equal(t, uint64(200200), taskParams.Deadlines.CollectionWindowBlocks)
+	require.Equal(t, uint64(1200), taskParams.Deadlines.VerifyOpenDeadlineBlocks)
+	require.Equal(t, uint64(600), taskParams.Deadlines.CommitWindowBlocks)
+	require.Equal(t, uint64(600), taskParams.Deadlines.RevealWindowBlocks)
+	require.Equal(t, uint64(1800), taskParams.Deadlines.CollectionWindowBlocks)
 	require.Equal(t, uint64(20), taskParams.Deadlines.SettleMarginBlocks)
-	require.Equal(t, uint64(15), taskParams.Deadlines.SelfRescueMarginBlocks)
-	require.NoError(t, tasktypes.ValidateVerifyOpenClock(
-		taskParams.Deadlines,
-		hubParams.Epoch.DeltaWBlocks,
-		hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks,
-	))
-	require.NoError(t, tasktypes.ValidateSessionCloseHorizon(
-		taskParams, hubtypes.ProfileChallengeOpenWindowMaxBlocks,
-	), "widening a deadline window without moving session_close_ttl_blocks would panic InitGenesis")
-	workerSelectionBlocks := hubParams.Builder.AssignmentBuilderProposalWindowBlocks + hubParams.Epoch.DeltaWBlocks
-	verifierSelectionBlocks := 2*hubParams.Epoch.DeltaWBlocks +
-		hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks +
-		taskParams.Deadlines.SelfRescueMarginBlocks
-	// These two spans are the only mandatory waits on the happy path besides the
-	// challenge window: both selections run once, at a height frozen off the
-	// receipt, so every block added here is a block added to every task that
-	// succeeds. The exchange rate for self_rescue_margin_blocks is exactly 1:1.
-	//
-	// It is still worth paying. The verifier handraise window is the one place in
-	// the lifecycle with no second chance at all — miss it and the task is dead,
-	// per the "union cannot grow" comment quoted above — while commit and reveal
-	// each tolerate a full day. 10 blocks of margin made that window 25 blocks,
-	// twenty-five seconds under FAST_BLOCKS, for the one deadline a cortex on a
-	// breakpoint cannot recover from. 30 makes it 45, and the whole selection
-	// budget 55 blocks, under a minute, against a challenge window of 300.
-	//
-	// The bound below was 36 with the rationale "three minutes at five seconds per
-	// block". FAST_BLOCKS is one second per block, so it was really enforcing
-	// thirty-six seconds, and it was later restated as one minute.
-	//
-	// The verifier window is now 60 blocks because the Cortex nodes were measured
-	// raising their hands 12 to 25 seconds after the receipt, past a 4 block
-	// window, which left the union empty and stalled every such task. Verifier
-	// selection is off the path to the first token, so the budget is 90 blocks:
-	// the extra wait only delays verification, never the first output.
-	require.LessOrEqual(t, workerSelectionBlocks+verifierSelectionBlocks, uint64(90),
-		"Worker and Verifier selection are mandatory waits on every successful task and must stay inside a minute and a half at FAST_BLOCKS")
+	require.Equal(t, uint64(120), taskParams.Deadlines.SelfRescueMarginBlocks)
+	require.NoError(t, tasktypes.ValidateVerifyOpenClock(taskParams.Deadlines, hubParams.Epoch.DeltaWBlocks, hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks))
+	require.NoError(t, tasktypes.ValidateSessionCloseHorizon(taskParams, hubtypes.ProfileChallengeOpenWindowMaxBlocks))
+	require.Less(t, 2*hubParams.Epoch.DeltaWBlocks+hubParams.Builder.OpenVerifyBuilderProposalWindowBlocks+taskParams.Deadlines.SelfRescueMarginBlocks, taskParams.Deadlines.VerifyOpenDeadlineBlocks)
 	require.Equal(t, uint32(16), taskParams.Generation.StopSequenceMaxItems)
 	requireGenesisSeedListsAllParams(t, cdc, &taskParams, seed.TaskParams)
 }
@@ -540,76 +410,80 @@ func TestGenesisSeedRejectsProtocolEventsWithoutTaskEventService(t *testing.T) {
 	require.ErrorContains(t, validateGenesisSeed(seed), "requires enabled=true")
 }
 
-func TestLocalnetGenesisSeedAppliesRunnableModelSupportState(t *testing.T) {
-	seed, err := readGenesisSeed(filepath.Join("..", "..", "..", "config", "localnet_genesis_seed.json"))
-	require.NoError(t, err)
-	interfaceRegistry := codectypes.NewInterfaceRegistry()
-	authtypes.RegisterInterfaces(interfaceRegistry)
-	cdc := codec.NewProtoCodec(interfaceRegistry)
-	raw := makeGenesisSeedDocument(
-		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
-	)
+func TestGenesisSeedsApplyRunnableModelSupportState(t *testing.T) {
+	for _, filename := range []string{"localnet_genesis_seed.json", "testnet_genesis_seed.json"} {
+		t.Run(filename, func(t *testing.T) {
+			seed, err := readGenesisSeed(filepath.Join("..", "..", "..", "config", filename))
+			require.NoError(t, err)
+			interfaceRegistry := codectypes.NewInterfaceRegistry()
+			authtypes.RegisterInterfaces(interfaceRegistry)
+			cdc := codec.NewProtoCodec(interfaceRegistry)
+			raw := makeGenesisSeedDocument(
+				t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+			)
 
-	updated, err := applyGenesisSeed(cdc, raw, seed)
-	require.NoError(t, err)
-	hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
-	require.NoError(t, hub.Validate())
-	require.NoError(t, bank.Validate())
-	require.NoError(t, authtypes.ValidateGenesis(auth))
-	require.Len(t, hub.Builders, 3)
-	require.Len(t, hub.CortexNodes, 4)
-	require.Len(t, hub.ServiceBonds, 4)
-	require.Len(t, hub.ServiceDescriptors, 3)
-	for i, builder := range seed.Builders {
-		descriptor := hub.ServiceDescriptors[i]
-		require.Equal(t, builder.Address, descriptor.OperatorAddress)
-		expectedEndpoints, err := genesisServiceEndpoints(builder.Descriptor)
-		require.NoError(t, err)
-		require.Equal(t, expectedEndpoints, descriptor.Endpoints)
-		operatorBytes, err := sdk.AccAddressFromBech32(builder.Address)
-		require.NoError(t, err)
-		expectedHash, err := hubtypes.CanonicalServiceDescriptorHash(
-			shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
-			operatorBytes,
-			descriptor.DescriptorVersion,
-			expectedEndpoints,
-			hub.Params.Service,
-		)
-		require.NoError(t, err)
-		require.Equal(t, expectedHash, descriptor.DescriptorHash)
-	}
-	for _, node := range hub.CortexNodes {
-		require.Zero(t, node.CurrentDescriptorVersion)
-	}
-	require.Len(t, hub.ModelCapabilities, 4)
-	require.Len(t, hub.ModelSupports, 4)
-	require.Len(t, hub.DailySupports, 4)
-	require.Len(t, hub.Models, 1)
-	require.Len(t, hub.Profiles, 1)
-	require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
-	require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
-	require.Equal(t, []shared.TaskType{
-		shared.TaskType_TASK_TYPE_TEXT_GENERATION,
-		shared.TaskType_TASK_TYPE_CHAT,
-	}, hub.Profiles[0].TaskTypes)
-	require.Equal(t, uint32(4), hub.Models[0].ActiveSupporterCount)
-	for _, support := range hub.ModelSupports {
-		require.True(t, support.DeclaredSupport)
-		require.True(t, support.SupportActive)
-		require.Equal(t, seed.SupportUntilEpoch, support.SupportFreshUntilEpoch)
-	}
-	// TreasuryState is (balance, treasury_version) now;
-	// total_collected and the per-epoch treasury ledger both left the wire
-	// with TreasuryEpochState. The genesis seed credits the registration fee
-	// into balance, so that is what this pins.
-	require.Equal(t, shared.NewAmount(hubtypes.ModelRegistrationFeeMinMicroUSDC), hub.Treasury.Balance)
-	require.Equal(t, hubtypes.ModelRegistrationFeeMinMicroUSDC, genesisBalanceAmount(
-		bank,
-		authtypes.NewModuleAddress(hubtypes.TreasuryModuleName).String(),
-	))
-	require.NotEmpty(t, seed.FaucetAccounts)
-	for _, faucet := range seed.FaucetAccounts {
-		require.Equal(t, faucet.Balance, genesisBalanceAmount(bank, faucet.Address))
+			updated, err := applyGenesisSeed(cdc, raw, seed)
+			require.NoError(t, err)
+			hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
+			require.NoError(t, hub.Validate())
+			require.NoError(t, bank.Validate())
+			require.NoError(t, authtypes.ValidateGenesis(auth))
+			require.Len(t, hub.Builders, 3)
+			require.Len(t, hub.CortexNodes, 4)
+			require.Len(t, hub.ServiceBonds, 4)
+			require.Len(t, hub.ServiceDescriptors, 3)
+			for i, builder := range seed.Builders {
+				descriptor := hub.ServiceDescriptors[i]
+				require.Equal(t, builder.Address, descriptor.OperatorAddress)
+				expectedEndpoints, err := genesisServiceEndpoints(builder.Descriptor)
+				require.NoError(t, err)
+				require.Equal(t, expectedEndpoints, descriptor.Endpoints)
+				operatorBytes, err := sdk.AccAddressFromBech32(builder.Address)
+				require.NoError(t, err)
+				expectedHash, err := hubtypes.CanonicalServiceDescriptorHash(
+					shared.ParticipantType_PARTICIPANT_TYPE_BUILDER,
+					operatorBytes,
+					descriptor.DescriptorVersion,
+					expectedEndpoints,
+					hub.Params.Service,
+				)
+				require.NoError(t, err)
+				require.Equal(t, expectedHash, descriptor.DescriptorHash)
+			}
+			for _, node := range hub.CortexNodes {
+				require.Zero(t, node.CurrentDescriptorVersion)
+			}
+			require.Len(t, hub.ModelCapabilities, 4)
+			require.Len(t, hub.ModelSupports, 4)
+			require.Len(t, hub.DailySupports, 4)
+			require.Len(t, hub.Models, 1)
+			require.Len(t, hub.Profiles, 1)
+			require.Equal(t, hubtypes.ModelStatusActive, hub.Models[0].Status)
+			require.Equal(t, hubtypes.ModelStatusRegistered, hub.Profiles[0].Status)
+			require.Equal(t, []shared.TaskType{
+				shared.TaskType_TASK_TYPE_TEXT_GENERATION,
+				shared.TaskType_TASK_TYPE_CHAT,
+			}, hub.Profiles[0].TaskTypes)
+			require.Equal(t, uint32(4), hub.Models[0].ActiveSupporterCount)
+			for _, support := range hub.ModelSupports {
+				require.True(t, support.DeclaredSupport)
+				require.True(t, support.SupportActive)
+				require.Equal(t, seed.SupportUntilEpoch, support.SupportFreshUntilEpoch)
+			}
+			// TreasuryState is (balance, treasury_version) now;
+			// total_collected and the per-epoch treasury ledger both left the wire
+			// with TreasuryEpochState. The genesis seed credits the registration fee
+			// into balance, so that is what this pins.
+			require.Equal(t, shared.NewAmount(hubtypes.ModelRegistrationFeeMinMicroUSDC), hub.Treasury.Balance)
+			require.Equal(t, hubtypes.ModelRegistrationFeeMinMicroUSDC, genesisBalanceAmount(
+				bank,
+				authtypes.NewModuleAddress(hubtypes.TreasuryModuleName).String(),
+			))
+			require.NotEmpty(t, seed.FaucetAccounts)
+			for _, faucet := range seed.FaucetAccounts {
+				require.Equal(t, faucet.Balance, genesisBalanceAmount(bank, faucet.Address))
+			}
+		})
 	}
 }
 
@@ -903,4 +777,152 @@ func TestStockGenesisSeedsCarryRecommendedAnchorWindows(t *testing.T) {
 		require.NotZero(t, v.AnchorAuditMinRateBps, name)
 		require.NoError(t, params.Validate(), name)
 	}
+}
+
+func TestGenesisSeedFundsBuilderCompensationAccount(t *testing.T) {
+	funded := newGenesisSeedTestIdentity()
+	unfunded := newGenesisSeedTestIdentity()
+	fundedService := newGenesisSeedTestIdentity()
+	unfundedService := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	const (
+		accountBalance = uint64(10_000_000)
+		funding        = uint64(4_000_000)
+	)
+	newSeed := func(compensation uint64) genesisSeed {
+		return genesisSeed{
+			Version:        genesisSeedVersion,
+			AccountBalance: accountBalance,
+			Builders: []genesisSeedBuilder{
+				{
+					Address: funded.address, ServiceAddress: fundedService.address, ServicePubKey: fundedService.pubKeyHex,
+					CompensationFunding: compensation,
+					Descriptor: newGenesisSeedTestDescriptor(
+						"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/a", "trueopen-nexus-ingress-v1",
+					),
+				},
+				{
+					Address: unfunded.address, ServiceAddress: unfundedService.address, ServicePubKey: unfundedService.pubKeyHex,
+					Descriptor: newGenesisSeedTestDescriptor(
+						"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/b", "trueopen-nexus-ingress-v1",
+					),
+				},
+			},
+		}
+	}
+
+	updated, err := applyGenesisSeed(cdc, raw, newSeed(funding))
+	require.NoError(t, err)
+	hub, bank, auth := decodeGenesisSeedDocument(t, cdc, updated)
+	require.NoError(t, hub.Validate())
+	require.NoError(t, bank.Validate())
+	require.NoError(t, authtypes.ValidateGenesis(auth))
+
+	// Only the Builder that asked for funding gets a compensation account, and
+	// the money comes out of its own balance without changing total supply.
+	require.Len(t, hub.BuilderCompensationAccounts, 1)
+	account := hub.BuilderCompensationAccounts[0]
+	require.Equal(t, funded.address, account.BuilderAddress)
+	require.Equal(t, shared.NewAmount(funding), account.Balance)
+	require.Equal(t, shared.NewAmount(funding), account.TotalFunded)
+	require.Equal(t, shared.NewAmount(0), account.TotalPaid)
+	require.Equal(t, shared.NewAmount(0), account.TotalPenalized)
+	require.Equal(t, funding, genesisBalanceAmount(
+		bank, authtypes.NewModuleAddress(hubtypes.BuilderCompensationModuleName).String(),
+	))
+	require.Equal(t, accountBalance-funding, genesisBalanceAmount(bank, funded.address))
+	require.Equal(t, accountBalance, genesisBalanceAmount(bank, unfunded.address))
+	require.Equal(t, 4*accountBalance, bank.Supply.AmountOf(hubtypes.DefaultBusinessDenom).Uint64())
+
+	// Reapplying must not fund the same Builder twice.
+	reapplied, err := applyGenesisSeed(cdc, updated, newSeed(funding))
+	require.NoError(t, err)
+	reappliedHub, reappliedBank, _ := decodeGenesisSeedDocument(t, cdc, reapplied)
+	require.Equal(t, hub.BuilderCompensationAccounts, reappliedHub.BuilderCompensationAccounts)
+	require.Equal(t, funding, genesisBalanceAmount(
+		reappliedBank, authtypes.NewModuleAddress(hubtypes.BuilderCompensationModuleName).String(),
+	))
+
+	// Zero funding leaves the genesis free of compensation state.
+	plain, err := applyGenesisSeed(cdc, raw, newSeed(0))
+	require.NoError(t, err)
+	plainHub, _, _ := decodeGenesisSeedDocument(t, cdc, plain)
+	require.Empty(t, plainHub.BuilderCompensationAccounts)
+
+	// A Builder cannot fund more than it holds.
+	_, err = applyGenesisSeed(cdc, raw, newSeed(accountBalance+1))
+	require.ErrorContains(t, err, "compensation account")
+}
+
+func TestGenesisSeedActivatesVrfKeysFromEpochZero(t *testing.T) {
+	builder := newGenesisSeedTestIdentity()
+	builderService := newGenesisSeedTestIdentity()
+	validator := newGenesisSeedTestIdentity()
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	authtypes.RegisterInterfaces(interfaceRegistry)
+	cdc := codec.NewProtoCodec(interfaceRegistry)
+	raw := makeGenesisSeedDocument(
+		t, cdc, hubtypes.DefaultGenesis(), banktypes.DefaultGenesisState(), authtypes.DefaultGenesisState(),
+	)
+	builderKey := strings.Repeat("11", hubtypes.VrfPubkeyLen)
+	validatorKey := strings.Repeat("22", hubtypes.VrfPubkeyLen)
+	newSeed := func(keys ...genesisSeedVrfKey) genesisSeed {
+		return genesisSeed{
+			Version:        genesisSeedVersion,
+			AccountBalance: 10_000_000,
+			Builders: []genesisSeedBuilder{{
+				Address: builder.address, ServiceAddress: builderService.address, ServicePubKey: builderService.pubKeyHex,
+				Descriptor: newGenesisSeedTestDescriptor(
+					"SERVICE_ENDPOINT_KIND_NEXUS_GRPC", "https://builders.example/a", "trueopen-nexus-ingress-v1",
+				),
+			}},
+			VrfKeys: keys,
+		}
+	}
+	builderRow := genesisSeedVrfKey{ParticipantType: "PARTICIPANT_TYPE_BUILDER", OperatorAddress: builder.address, VrfPubkey: builderKey}
+	validatorRow := genesisSeedVrfKey{ParticipantType: "PARTICIPANT_TYPE_VALIDATOR", OperatorAddress: validator.address, VrfPubkey: validatorKey}
+
+	updated, err := applyGenesisSeed(cdc, raw, newSeed(builderRow, validatorRow))
+	require.NoError(t, err)
+	hub, _, _ := decodeGenesisSeedDocument(t, cdc, updated)
+	require.NoError(t, hub.Validate())
+	require.Len(t, hub.VrfKeys, 2)
+	for _, state := range hub.VrfKeys {
+		// Active immediately, with nothing pending to wait for.
+		require.Equal(t, uint64(0), state.ActiveFromEpoch)
+		require.Nil(t, state.XPendingVrfPubkey)
+		require.Equal(t, uint64(1), state.VrfAuthorizationNonce)
+	}
+
+	// Reapplying must not duplicate rows.
+	reapplied, err := applyGenesisSeed(cdc, updated, newSeed(builderRow, validatorRow))
+	require.NoError(t, err)
+	reappliedHub, _, _ := decodeGenesisSeedDocument(t, cdc, reapplied)
+	require.Equal(t, hub.VrfKeys, reappliedHub.VrfKeys)
+
+	// A seed without keys leaves the registry empty.
+	plain, err := applyGenesisSeed(cdc, raw, newSeed())
+	require.NoError(t, err)
+	plainHub, _, _ := decodeGenesisSeedDocument(t, cdc, plain)
+	require.Empty(t, plainHub.VrfKeys)
+
+	bad := builderRow
+	bad.OperatorAddress = validator.address
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "not a seeded Builder")
+	bad = validatorRow
+	bad.VrfPubkey = "abcd"
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "vrf_pubkey")
+	bad = validatorRow
+	bad.ParticipantType = "PARTICIPANT_TYPE_CORTEX"
+	err = validateGenesisSeed(newSeed(bad))
+	require.ErrorContains(t, err, "participant_type")
+	err = validateGenesisSeed(newSeed(validatorRow, validatorRow))
+	require.ErrorContains(t, err, "repeats")
 }

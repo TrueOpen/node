@@ -197,7 +197,7 @@ func (k Keeper) validateBuilderSetState(ctx context.Context, state types.Builder
 	if err != nil {
 		return err
 	}
-	if state.ActiveBuilderCount < params.Builder.BuildersPerTask || state.ActiveBuilderCount > params.Builder.BuilderSetCap {
+	if state.ActiveBuilderCount == 0 || state.ActiveBuilderCount > params.Builder.BuilderSetCap {
 		return fmt.Errorf("builder set member count is outside configured bounds")
 	}
 	addresses := make([][]byte, len(state.ActiveBuilders))

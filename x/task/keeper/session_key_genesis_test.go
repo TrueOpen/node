@@ -22,7 +22,7 @@ func TestSessionKeyRotationGenesisDoesNotReauthorizeAcceptedTask(t *testing.T) {
 	stream.SessionKeyExpiryHeight = 9
 	stream.SessionKeySpent = shared.NewAmount(1000)
 	stream.SessionKeySpendCap = shared.NewAmount(500)
-	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(3))
+	f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(7))
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
 	ctx := sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(10))
 	_, err := keeper.NewMsgServerImpl(f.keeper).UpdateSessionKey(ctx, &tasktypes.MsgUpdateSessionKey{
@@ -36,9 +36,10 @@ func TestSessionKeyRotationGenesisDoesNotReauthorizeAcceptedTask(t *testing.T) {
 	require.Equal(t, genesis.TaskCores, exported.TaskCores)
 	require.Equal(t, genesis.TaskBudgets, exported.TaskBudgets)
 	require.Equal(t, shared.NewAmount(1000), exported.Streams[0].SessionKeySpent)
-	require.Nil(t, exported.Streams[0].XSessionKey)
+	require.NotNil(t, exported.Streams[0].XSessionKey)
+	require.NotNil(t, exported.Streams[0].GetPendingSessionKeyChange())
 	restarted := initFixture(t)
-	restarted.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restarted.ctx).WithBlockHeight(10))
+	restarted.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(restarted.ctx).WithBlockHeight(11))
 	require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
 	again, err := restarted.keeper.ExportGenesis(restarted.ctx)
 	require.NoError(t, err)

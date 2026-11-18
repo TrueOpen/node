@@ -176,6 +176,7 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 		NewServiceKeyProof: hubSign(t, replacementKey, rotateBytes),
 	})
 	require.NoError(t, err)
+	activateServiceRotationForTest(t, f, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, firstOwner.Address)
 	rotatedEvents := hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceKeyRotated{})
 	require.Len(t, rotatedEvents, rotatedEventsBefore+1)
 	rotatedEvent := rotatedEvents[len(rotatedEvents)-1].(*types.EventServiceKeyRotated)
@@ -199,7 +200,7 @@ func TestRotationDoesNotDeleteAnotherOperatorsServiceAddressIndexRow(t *testing.
 	require.NoError(t, f.keeper.EnsureCurrentServiceAddressIndexInvariant(f.ctx))
 }
 
-func TestBuilderRotationRequiresAllIdentityCountersToBeZero(t *testing.T) {
+func TestBuilderRotationRegistersWithoutDroppingIdentityCounters(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*types.BuilderState)
@@ -234,7 +235,7 @@ func TestBuilderRotationRequiresAllIdentityCountersToBeZero(t *testing.T) {
 			}
 			eventsBefore := len(hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceKeyRotated{}))
 			_, err := keeper.NewMsgServerImpl(f.keeper).RotateServiceKey(f.ctx, request)
-			require.ErrorIs(t, err, types.ErrPendingResponsibility)
+			require.NoError(t, err)
 			require.Len(t, hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceKeyRotated{}), eventsBefore)
 
 			stored, err := f.keeper.GetBuilderState(f.ctx, operator.Address)
@@ -272,6 +273,7 @@ func TestBuilderRotationRequiresAllIdentityCountersToBeZero(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, newKey.Address, response.NewServiceAddress)
 		require.Equal(t, uint64(2), response.NewNonce)
+		activateServiceRotationForTest(t, f, shared.ParticipantType_PARTICIPANT_TYPE_BUILDER, operator.Address)
 		events := hubEventsOfType(t, sdk.UnwrapSDKContext(f.ctx), &types.EventServiceKeyRotated{})
 		require.Len(t, events, eventsBefore+1)
 		event := events[len(events)-1].(*types.EventServiceKeyRotated)
@@ -566,6 +568,7 @@ func TestMsgStakeServiceTopUpRejectsOldKeyImmediatelyAfterRotation(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, newKey.Address, rotateResponse.NewServiceAddress)
 	require.Equal(t, uint64(2), rotateResponse.NewNonce)
+	activateServiceRotationForTest(t, f, shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operator.Address)
 
 	// (1) The pre-rotation nonce cannot be replayed.
 	replayBytes := serviceKeyRotationProofBytes(

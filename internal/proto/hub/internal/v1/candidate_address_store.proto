@@ -40,4 +40,27 @@ message CandidatePoolMemberStoreState {
   uint64 slot_version = 3;
   bytes operator_address = 4;
   bytes binding_hash = 5;
+  CandidateWeightInputsStoreState weight_inputs = 6;
+}
+
+// CandidateWeightInputsStoreState stores bounded numeric facts without Amount wrappers.
+message CandidateWeightInputsStoreState {
+  uint64 active_bond = 1;
+  uint64 available_bond = 2;
+  uint32 performance_score_ppm = 3;
+  uint32 performance_method_version = 4;
+  uint32 candidate_jail_factor_ppm = 5;
+  bool inference_capable = 6;
+  bool unbonding = 7;
+  bool tombstoned = 8;
+  repeated CandidateProfileWeightInputStoreState profiles = 9;
+}
+
+// CandidateProfileWeightInputStoreState keeps raw32 model identity and compact stake.
+message CandidateProfileWeightInputStoreState {
+  bytes model_id = 1;
+  uint32 profile_version = 2;
+  bool profile_support_fresh = 3;
+  uint64 min_stake_snapshot = 4;
+  bool inference_capable = 5;
 }

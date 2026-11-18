@@ -168,6 +168,40 @@ func (k Keeper) loadOrCreateTaskCleanupCursor(ctx context.Context, taskKey types
 }
 
 func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (bool, error) {
+	if count, err := k.pendingDispatchCount(ctx, taskKey); err != nil || count != 0 {
+		return count != 0, err
+	}
+	// Finalized Tasks still own proof authority until their frozen challenge
+	// window closes. A cleanup timer alone cannot retire those consumers.
+	if record, err := k.readDispatchRecord(ctx, taskKey); err == nil {
+		params, err := k.ParamsForTask(ctx, taskKey)
+		if err != nil {
+			return false, err
+		}
+		closeHeight, overflow := shared.CheckedHeightAddV1(record.RecordedHeight, params.Dispatch.DispatchChallengeWindowBlocks)
+		if overflow {
+			return false, fmt.Errorf("dispatch challenge cleanup boundary overflows")
+		}
+		core, err := k.TaskCore.Get(ctx, taskKey)
+		if err != nil {
+			return false, err
+		}
+		sessionParams, err := k.ParamsForSession(ctx, core.SessionId)
+		if err != nil {
+			return false, err
+		}
+		_, doubleClose, err := dispatchWindowBounds(record.EarliestSubmitHeight, record.BoundChangeHeight, sessionParams.Dispatch.RecordDeadlineBlocks, sessionParams.Dispatch.DispatchChallengeWindowBlocks)
+		if err != nil {
+			return false, err
+		}
+		closeHeight = max(closeHeight, doubleClose)
+		height, err := currentBlockHeight(ctx)
+		if err != nil || height <= closeHeight {
+			return true, err
+		}
+	} else if !errors.Is(err, collections.ErrNotFound) {
+		return false, err
+	}
 	blocked, err := k.taskCleanupBaseBlocked(ctx, taskKey)
 	if err != nil || blocked {
 		return blocked, err
@@ -288,6 +322,19 @@ func (k Keeper) runTaskCleanupStep(
 ) (taskCleanupStepResult, error) {
 	switch cursor.Phase {
 	case types.TaskCleanupPhase_TASK_CLEANUP_PHASE_ROUND_STATE_AND_EFFECTS:
+		for _, number := range []uint32{types.VerifyRoundV1, types.ChallengeVerifyRoundV1} {
+			round, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(taskKey, number))
+			if errIsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return taskCleanupStepResult{}, err
+			}
+			if deleted, err := k.hubKeeper.DeleteOneRoundSlashSummary(ctx, taskKey, round.RoundId); err != nil || deleted {
+				return taskCleanupStepResult{visited: 1, deleted: boolCount(deleted)}, err
+			}
+		}
+
 		if deleted, err := deleteFirstMapRow(ctx, k.RoundEconomicEffect,
 			collections.NewPrefixedTripleRange[types.Hash32Key, uint32, uint32](taskKey)); err != nil || deleted {
 			return taskCleanupStepResult{visited: 1, deleted: boolCount(deleted)}, err
@@ -492,6 +539,9 @@ func (k Keeper) cleanupResponsibilities(ctx context.Context, taskKey types.TaskK
 	} else if has {
 		return taskCleanupStepResult{}, fmt.Errorf("task cleanup found a retained parameter bucket ref")
 	}
+	if deleted, err := deleteFirstMapRow(ctx, k.ValueEvidenceReceipt, collections.NewPrefixedQuadRange[types.Hash32Key, uint32, types.AddrKey, uint64](taskKey)); err != nil || deleted {
+		return taskCleanupStepResult{visited: 1, deleted: boolCount(deleted)}, err
+	}
 	if deleted, err := deleteFirstMapRow(ctx, k.WorkerEvidenceReceipt,
 		collections.NewPrefixedQuadRange[types.Hash32Key, string, int32, uint64](taskKey)); err != nil || deleted {
 		return taskCleanupStepResult{visited: 1, deleted: boolCount(deleted)}, err
@@ -553,7 +603,6 @@ func (k Keeper) removeTaskDeadlineIndexes(ctx context.Context, taskKey types.Tas
 		set    collections.KeySet[types.DeadlineIndexKey]
 		height uint64
 	}{
-		{k.AssignmentRandomnessIndex, assignment.AssignmentRandomnessHeight},
 		{k.InferDeadlineIndex, assignment.InferDeadlineHeight},
 	}
 	for _, deadline := range deadlines {
@@ -812,7 +861,7 @@ func (k Keeper) buildTaskTerminalSummary(ctx context.Context, taskKey types.Task
 		ModelId:              core.ModelId, ProfileVersion: core.ProfileVersion, TaskType: core.TaskType,
 		CandidatePoolSnapshotId:             append([]byte(nil), assignment.CandidatePoolSnapshotId...),
 		CandidatePoolHash:                   append([]byte(nil), assignment.CandidatePoolHash...),
-		AssignmentCandidateSetHash:          append([]byte(nil), assignment.AssignmentCandidateSetHash...),
+		DispatchRecordHash:                  append([]byte(nil), assignment.DispatchRecordHash...),
 		CandidatePoolRefReleased:            assignment.CandidatePoolRefReleased,
 		Round1SelectedVerifiersHashOrZero32: round1Selected,
 		Round2SelectedVerifiersHashOrZero32: round2Selected,
@@ -858,7 +907,7 @@ func (k Keeper) buildTaskTerminalSummary(ctx context.Context, taskKey types.Task
 func (k Keeper) taskTerminalSummaryHash(ctx context.Context, state types.TaskTerminalSummaryState) ([]byte, error) {
 	hashes := [][]byte{
 		state.TaskId, state.SessionId, state.TaskHash,
-		state.CandidatePoolSnapshotId, state.CandidatePoolHash, state.AssignmentCandidateSetHash,
+		state.CandidatePoolSnapshotId, state.CandidatePoolHash, state.DispatchRecordHash,
 		state.Round1SelectedVerifiersHashOrZero32, state.Round2SelectedVerifiersHashOrZero32,
 		state.BuilderSetHash, state.SelectedTaskBuildersHash, state.ProfileExecutionSnapshotHash,
 		state.GenerationParamsDigest, state.InferReceiptRefOrZero32, state.SettlementId,
@@ -890,7 +939,7 @@ func (k Keeper) taskTerminalSummaryHash(ctx context.Context, state types.TaskTer
 		shared.EnumBE(uint32(state.FailureClass)), shared.EnumBE(uint32(state.SettlementStatus)),
 		shared.EnumBE(uint32(state.FinalityStatus)), shared.Uint32BE(state.EffectiveVerifyRound),
 		[]byte(state.ModelId), shared.Uint32BE(state.ProfileVersion), shared.EnumBE(uint32(state.TaskType)),
-		state.CandidatePoolSnapshotId, state.CandidatePoolHash, state.AssignmentCandidateSetHash,
+		state.CandidatePoolSnapshotId, state.CandidatePoolHash, state.DispatchRecordHash,
 		shared.BoolByte(state.CandidatePoolRefReleased),
 	).Field(winner).Raw(
 		state.Round1SelectedVerifiersHashOrZero32, state.Round2SelectedVerifiersHashOrZero32,
@@ -917,7 +966,6 @@ func (k Keeper) removeCompactedTaskDetails(ctx context.Context, taskKey types.Ta
 		return err
 	}
 	for _, remove := range []func(context.Context, types.TaskKey) error{
-		k.AssignmentCandidateSet.Remove,
 		k.InferReceipt.Remove,
 		k.TaskRoundSummary.Remove,
 		k.TaskSettlement.Remove,
@@ -925,7 +973,7 @@ func (k Keeper) removeCompactedTaskDetails(ctx context.Context, taskKey types.Ta
 		k.TaskBuilderSelection.Remove,
 		k.TaskAssignment.Remove,
 		k.TaskBudget.Remove,
-		k.TaskParamsVersion.Remove,
+		k.UnpinTaskParams,
 		k.TaskCore.Remove,
 	} {
 		if err := remove(ctx, taskKey); err != nil {
@@ -1006,7 +1054,11 @@ func (k Keeper) SweepTaskTerminalSummaryPrune(ctx context.Context, currentHeight
 		if err != nil {
 			return visited, err
 		}
-		if !consumed {
+		faultsOpen, err := k.hubKeeper.HasTaskRoleFaults(cache, key.K2())
+		if err != nil {
+			return visited, err
+		}
+		if !consumed || faultsOpen {
 			retry, overflow := checkedHeightAdd(currentHeight, 1)
 			if overflow {
 				return visited, fmt.Errorf("task terminal summary prune retry overflow")

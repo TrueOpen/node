@@ -37,6 +37,7 @@ type AppModule struct {
 
 func NewAppModule(cdc codec.Codec, keeper keeper.Keeper, msgServerDeps types.MsgServerDependencies) AppModule {
 	keeper = keeper.WithRuntimeDependencies(msgServerDeps.FreezeTaskValidator, msgServerDeps.ValidatorSnapshotProvider, msgServerDeps.RoleFaultConsumerGate)
+	keeper = keeper.WithWorkerCandidateWeights(msgServerDeps.WorkerCandidateWeightProvider)
 	return AppModule{cdc: cdc, keeper: keeper, msgServerDeps: msgServerDeps}
 }
 
@@ -97,6 +98,9 @@ func validateMsgServerDependencies(deps types.MsgServerDependencies) error {
 	}
 	if deps.RoleFaultConsumerGate == nil {
 		return fmt.Errorf("%s role fault consumer gate is required", types.ModuleName)
+	}
+	if deps.WorkerCandidateWeightProvider == nil {
+		return fmt.Errorf("%s Worker candidate weight provider is required", types.ModuleName)
 	}
 	return nil
 }
