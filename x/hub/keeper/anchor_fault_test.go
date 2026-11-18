@@ -14,15 +14,18 @@ import (
 // TestAnchorFaultSlashesRequestedAmountAndJails covers ADR-0040 v6 on the hub
 // side: an anchor fault consumes the task reservation without money, debits
 // the absolute amount Task computed from the bond fixed at sampling, replays
-// idempotently, jails on anchor_reject and not on anchor_timeout.
+// idempotently, jails on anchor_reject and not on anchor_timeout. The slash
+// and jail events name the cause: an objective fault for a REJECT, a timeout
+// for a missed deadline.
 func TestAnchorFaultSlashesRequestedAmountAndJails(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		faultType string
 		jailed    bool
+		reason    types.EventLifecycleReason
 	}{
-		{"reject", types.FaultTypeAnchorReject, true},
-		{"timeout", types.FaultTypeAnchorTimeout, false},
+		{"reject", types.FaultTypeAnchorReject, true, types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_OBJECTIVE_FAULT},
+		{"timeout", types.FaultTypeAnchorTimeout, false, types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_TIMEOUT},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := initCandidatePoolFixture(t)
@@ -78,9 +81,29 @@ func TestAnchorFaultSlashesRequestedAmountAndJails(t *testing.T) {
 				EvidenceDigest:       hubHashBytes("anchor-fault-evidence"), SlashBps: 2500, Height: 3,
 				RequestedAmount: requested,
 			}
+			f.ctx = sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithEventManager(sdk.NewEventManager()))
 			fault, err := f.keeper.ApplyTaskRoleFault(f.ctx, fact)
 			require.NoError(t, err)
 			require.Equal(t, shared.FaultKind_FAULT_KIND_INVALID_RESULT, fault.FaultClass)
+			var slashed, jailed []types.EventLifecycleReason
+			for _, raw := range sdk.UnwrapSDKContext(f.ctx).EventManager().ABCIEvents() {
+				msg, err := sdk.ParseTypedEvent(raw)
+				if err != nil {
+					continue
+				}
+				switch event := msg.(type) {
+				case *types.EventRoleSlashed:
+					slashed = append(slashed, event.Reason)
+				case *types.EventRoleJailed:
+					jailed = append(jailed, event.Reason)
+				}
+			}
+			require.Equal(t, []types.EventLifecycleReason{tc.reason}, slashed, "the slash event names the cause of the fault")
+			if tc.jailed {
+				require.Equal(t, []types.EventLifecycleReason{tc.reason}, jailed, "the jail event names the cause of the fault")
+			} else {
+				require.Empty(t, jailed)
+			}
 			after, err := f.keeper.GetServiceBondState(f.ctx, identity.Address)
 			require.NoError(t, err)
 			require.Equal(t, before.ActiveBond-requested, after.ActiveBond, "the anchor slash is the absolute amount, not a share of the reservation")
