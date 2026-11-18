@@ -175,6 +175,36 @@ func TestAnchorReceiptAdmissionRejectsMalformedTokenCommitment(t *testing.T) {
 	}}))
 }
 
+// A receipt that claims no generated token. An honest Worker does not sign one
+// under a kind 5 Profile (the engine issues no commitment over a prompt alone
+// and the Worker service does not end a generation before its first token),
+// but the chain must stay well defined for one that is signed anyway: the row
+// count is the prompt length minus one, the positions are drawn inside it
+// without a zero modulus, and a token commitment too short to have a row is
+// refused at receipt admission, never discovered in EndBlock.
+func TestAnchorRowsOfAReceiptWithNoGeneratedToken(t *testing.T) {
+	receipt := func(prompt uint64) types.InferReceiptState {
+		return types.InferReceiptState{GeneratedTokenCount: 0, RequiredEvidenceCommitments: []types.EvidenceCommitmentV1{
+			{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING, EncodedSizeBytes: tokenIDsRawOverheadBytes + 4*prompt},
+			{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING, EncodedSizeBytes: 64},
+		}}
+	}
+	for _, prompt := range []uint64{2, 3, 57} {
+		require.NoError(t, validateAnchorTokenCommitment(receipt(prompt)))
+		rows, err := anchorRowsOf(receipt(prompt))
+		require.NoError(t, err)
+		require.Equal(t, prompt-1, rows, "rows = prompt + generated - 1 with generated = 0")
+		positions := anchorSamplePositions(bytes.Repeat([]byte{7}, 32), bytes.Repeat([]byte{9}, 32), rows, anchorSamplePositionsV0)
+		require.Len(t, positions, int(min(rows, uint64(anchorSamplePositionsV0))), "as many distinct positions as there are rows, at most the sample size")
+		for _, p := range positions {
+			require.Less(t, p, rows, "every sampled position is a prompt row")
+		}
+	}
+	for _, prompt := range []uint64{0, 1} {
+		require.Error(t, validateAnchorTokenCommitment(receipt(prompt)), "a prompt of %d tokens and nothing generated has no row to sample", prompt)
+	}
+}
+
 // ---- Worker messages -----------------------------------------------------
 
 func (f *anchorFixture) openingMsg(state types.AnchorAuditState, submitter string) *types.MsgSubmitAnchorOpening {
