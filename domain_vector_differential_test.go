@@ -710,6 +710,7 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	"TRUEOPEN_TASK_DATA_REQUEST_V1":                "Wire testdata/v1/task/task_data_auth_v1.json",
 	"TRUEOPEN_TASK_DATA_UPLOAD_BODY_V2":            "Wire testdata/v1/task/task_data_auth_v1.json",
 	shared.DomainTaskOrderV3:                       "Wire testdata/v1/task/task_order_v3.json; TestTaskOrderHashMatchesPublishedWire executes all admitted vectors and rejects the encoding-only case",
+	"TRUEOPEN_WORKER_ANCHOR_COMMITMENT_V1":         "Wire testdata/v1/task/worker_anchor_commitment_v1.json; the selected Worker produces it and Node retains it opaquely",
 	"TRUEOPEN_WORKER_TOKEN_COMMITMENT_V1":          "Wire testdata/v1/task/worker_token_commitment_v1.json",
 	shared.DomainBurnBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
 	shared.DomainMintBondV1:                        "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
