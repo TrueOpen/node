@@ -31,21 +31,21 @@ func TestAnchorDefaultWindowsAreFrozen(t *testing.T) {
 // The recommended windows are wall-clock times; in blocks they depend on the
 // block time. The constants are stated for the reference block time.
 func TestRecommendedAnchorWindowBlocksFollowBlockTime(t *testing.T) {
-	require.Equal(t, time.Second, AnchorWindowBlockTime)
+	require.Equal(t, 500*time.Millisecond, AnchorWindowBlockTime)
 	open, proof, verdict := RecommendedAnchorWindowBlocks(AnchorWindowBlockTime)
-	require.Equal(t, uint64(900), open)
-	require.Equal(t, uint64(10_000), proof)
-	require.Equal(t, uint64(3_600), verdict)
+	require.Equal(t, uint64(1_800), open)
+	require.Equal(t, uint64(20_000), proof)
+	require.Equal(t, uint64(7_200), verdict)
 	require.Equal(t, RecommendedAnchorOpenWindowBlocks, open)
 	require.Equal(t, RecommendedAnchorProofWindowBlocks, proof)
 	require.Equal(t, RecommendedAnchorVerdictWindowBlocks, verdict)
 
 	open, proof, verdict = RecommendedAnchorWindowBlocks(6 * time.Second)
 	require.Equal(t, []uint64{150, 1_667, 600}, []uint64{open, proof, verdict}, "rounded up: never shorter than the time it stands for")
-	open, proof, verdict = RecommendedAnchorWindowBlocks(500 * time.Millisecond)
-	require.Equal(t, []uint64{1_800, 20_000, 7_200}, []uint64{open, proof, verdict})
+	open, proof, verdict = RecommendedAnchorWindowBlocks(time.Second)
+	require.Equal(t, []uint64{900, 10_000, 3_600}, []uint64{open, proof, verdict})
 	open, proof, verdict = RecommendedAnchorWindowBlocks(0)
-	require.Equal(t, []uint64{900, 10_000, 3_600}, []uint64{open, proof, verdict}, "no block time reads as the reference")
+	require.Equal(t, []uint64{1_800, 20_000, 7_200}, []uint64{open, proof, verdict}, "no block time reads as the reference")
 	open, proof, verdict = RecommendedAnchorWindowBlocks(time.Nanosecond)
 	require.Equal(t, []uint64{AnchorWindowBlocksMaximum, AnchorWindowBlocksMaximum, AnchorWindowBlocksMaximum}, []uint64{open, proof, verdict}, "capped at the validation bound")
 }
@@ -53,8 +53,9 @@ func TestRecommendedAnchorWindowBlocksFollowBlockTime(t *testing.T) {
 // The content-track recommendations are wall-clock times too and convert the
 // same way; the content track itself ships off.
 func TestRecommendedAnchorContentWindowsFollowBlockTime(t *testing.T) {
-	require.Equal(t, uint64(3_600), RecommendedAnchorContentVerdictWindowBlocks)
-	require.Equal(t, uint64(2_400), RecommendedAnchorContentOpenWindowBlocks)
+	require.Equal(t, uint64(7_200), RecommendedAnchorContentVerdictWindowBlocks, "one hour at the 0.5 s reference")
+	require.Equal(t, uint64(4_800), RecommendedAnchorContentOpenWindowBlocks, "40 minutes at the 0.5 s reference")
+	require.Equal(t, uint64(3_600), AnchorContentOpenWindowBlocksMinimum, "30 minutes at the 0.5 s reference")
 	require.Equal(t, RecommendedAnchorContentVerdictWindowBlocks, AnchorWindowBlocks(RecommendedAnchorContentVerdictWindowSeconds, AnchorWindowBlockTime))
 	require.Equal(t, RecommendedAnchorContentOpenWindowBlocks, AnchorWindowBlocks(RecommendedAnchorContentOpenWindowSeconds, AnchorWindowBlockTime))
 	require.Equal(t, uint64(600), AnchorWindowBlocks(RecommendedAnchorContentVerdictWindowSeconds, 6*time.Second))
@@ -82,6 +83,7 @@ func TestDefaultGenesisCarriesRecommendedAnchorWindows(t *testing.T) {
 	require.Equal(t, RecommendedAnchorProofWindowBlocks, v.AnchorProofWindowBlocks)
 	require.Equal(t, RecommendedAnchorVerdictWindowBlocks, v.AnchorVerdictWindowBlocks)
 	want := DefaultTaskParams()
+	want.Verification.AnchorOpenWindowBlocks = RecommendedAnchorOpenWindowBlocks
 	want.Verification.AnchorProofWindowBlocks, want.Verification.AnchorVerdictWindowBlocks = RecommendedAnchorProofWindowBlocks, RecommendedAnchorVerdictWindowBlocks
 	require.Equal(t, want, gs.Params, "nothing but the anchor windows differs from the default body")
 }

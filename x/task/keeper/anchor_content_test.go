@@ -690,7 +690,7 @@ func TestAnchorParamsUpgradeToleratesInvalidLiveBody(t *testing.T) {
 	got, err := f.keeper.Params.Get(ctx)
 	require.NoError(t, err)
 	d := types.DefaultTaskParams().Verification
-	require.Equal(t, d.AnchorOpenWindowBlocks, got.Verification.AnchorOpenWindowBlocks)
+	require.Equal(t, types.RecommendedAnchorOpenWindowBlocks, got.Verification.AnchorOpenWindowBlocks, "the upgrade writes the recommended window, not the historical default")
 	require.Equal(t, d.AnchorPositionsPerTask, got.Verification.AnchorPositionsPerTask)
 	require.Equal(t, types.DefaultTaskTerminalSummaryRetentionBlocks, got.Cleanup.TaskTerminalSummaryRetentionBlocks, "the known conflict is repaired, not left to halt the chain")
 	require.NoError(t, got.Validate())

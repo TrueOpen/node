@@ -108,19 +108,21 @@ const (
 	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
 	// 2026-11-09). One hour.
 	RecommendedAnchorVerdictWindowSeconds = uint64(3_600)
-	// AnchorWindowReferenceBlockSeconds is the block time the Recommended*Blocks
-	// constants are stated for. The anchor windows are counted in blocks while the
-	// work they bound (opening, proving, verifying) takes wall-clock time, so the
-	// block counts hold only at this block time: a network that produces blocks
-	// at another pace must use RecommendedAnchorWindowBlocks with its own block
-	// time and set the result through genesis or governance.
-	AnchorWindowReferenceBlockSeconds = uint64(1)
+	// AnchorWindowReferenceBlockMillis is the block time the Recommended*Blocks
+	// constants are stated for: 500 ms. The anchor windows are counted in blocks
+	// while the work they bound (opening, proving, verifying) takes wall-clock
+	// time, so the block counts hold only at this block time. A chain that
+	// produces blocks slower than this gets proportionally longer windows, which
+	// only gives an honest Worker more time; a network that wants the windows
+	// to equal the recommended times must use RecommendedAnchorWindowBlocks with
+	// its own block time and set the result through genesis or governance.
+	AnchorWindowReferenceBlockMillis = uint64(500)
 	// Recommended*WindowBlocks are the Recommended*WindowSeconds at the reference
 	// block time. The anchor upgrade and the genesis cold start write these; a
 	// stock genesis carries them (DefaultGenesis and the seeds under config/).
-	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds / AnchorWindowReferenceBlockSeconds
-	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds / AnchorWindowReferenceBlockSeconds
-	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
 	// be positive: with a floor of zero a task whose order is worth nothing to
 	// cheat on would never be audited.
@@ -154,9 +156,9 @@ const (
 	// fp64 content check is bounded at ~90 s per position.
 	RecommendedAnchorContentVerdictWindowSeconds = uint64(3_600)
 	// RecommendedAnchorContentVerdictWindowBlocks is that hour at the reference
-	// block time (AnchorWindowReferenceBlockSeconds); for another block time use
+	// block time (AnchorWindowReferenceBlockMillis); for another block time use
 	// AnchorWindowBlocks.
-	RecommendedAnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 	// ADR-0040 v7: share of D taken (and jail) on a REJECT_CONTENT verdict.
 	DefaultAnchorContentRejectSlashBPS              = uint32(2_500)
 	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
@@ -339,7 +341,7 @@ func DefaultTaskParams() TaskParamsV1 {
 // inside consensus and cannot read a node's block time, so the assumption is
 // fixed here; a network with another block time must replace the windows by
 // governance before the first anchor Profile is registered.
-const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockSeconds) * time.Second
+const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockMillis) * time.Millisecond
 
 // AnchorWindowBlocks converts a window of the given seconds into blocks at
 // blockTime, rounding up so a window is never shorter than the time it stands
@@ -754,11 +756,14 @@ func validateVerificationParams(p VerificationParamsV1) error {
 // content-integrity track is enabled (ADR-0040 v7). RecommendedAnchorContentOpenWindowBlocks
 // is the intended value.
 // Both are block counts at the reference block time
-// (AnchorWindowReferenceBlockSeconds): 30 and 40 minutes.
+// (AnchorWindowReferenceBlockMillis): 30 and 40 minutes. A content-track
+// opening is serial and takes minutes per task on the Worker, so the minimum is
+// stated in time and follows the reference block time like the other windows.
 const (
-	AnchorContentOpenWindowBlocksMinimum      = uint64(1_800)
+	AnchorContentOpenWindowSecondsMinimum     = uint64(1_800)
+	AnchorContentOpenWindowBlocksMinimum      = AnchorContentOpenWindowSecondsMinimum * 1000 / AnchorWindowReferenceBlockMillis
 	RecommendedAnchorContentOpenWindowSeconds = uint64(2_400)
-	RecommendedAnchorContentOpenWindowBlocks  = RecommendedAnchorContentOpenWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorContentOpenWindowBlocks  = RecommendedAnchorContentOpenWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 )
 
 // AnchorPositionsPerTaskMaximum caps the sampled positions per audit (ADR-0040 v7):
