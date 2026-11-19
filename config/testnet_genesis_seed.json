@@ -273,7 +273,11 @@
       "anchor_audit_risk_margin_bps": 10000,
       "anchor_open_window_blocks": "1800",
       "anchor_proof_window_blocks": "20000",
-      "anchor_timeout_slash_bps": 500
+      "anchor_timeout_slash_bps": 500,
+      "anchor_positions_per_task": 2,
+      "anchor_min_bond_multiple": 40,
+      "anchor_content_verdict_window_blocks": "0",
+      "anchor_content_reject_slash_bps": 2500
     },
     "evidence": {
       "max_evidence_retention_blocks": 14400,

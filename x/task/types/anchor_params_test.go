@@ -50,6 +50,29 @@ func TestRecommendedAnchorWindowBlocksFollowBlockTime(t *testing.T) {
 	require.Equal(t, []uint64{AnchorWindowBlocksMaximum, AnchorWindowBlocksMaximum, AnchorWindowBlocksMaximum}, []uint64{open, proof, verdict}, "capped at the validation bound")
 }
 
+// The content-track recommendations are wall-clock times too and convert the
+// same way; the content track itself ships off.
+func TestRecommendedAnchorContentWindowsFollowBlockTime(t *testing.T) {
+	require.Equal(t, uint64(7_200), RecommendedAnchorContentVerdictWindowBlocks, "one hour at the 0.5 s reference")
+	require.Equal(t, uint64(4_800), RecommendedAnchorContentOpenWindowBlocks, "40 minutes at the 0.5 s reference")
+	require.Equal(t, uint64(3_600), AnchorContentOpenWindowBlocksMinimum, "30 minutes at the 0.5 s reference")
+	require.Equal(t, RecommendedAnchorContentVerdictWindowBlocks, AnchorWindowBlocks(RecommendedAnchorContentVerdictWindowSeconds, AnchorWindowBlockTime))
+	require.Equal(t, RecommendedAnchorContentOpenWindowBlocks, AnchorWindowBlocks(RecommendedAnchorContentOpenWindowSeconds, AnchorWindowBlockTime))
+	require.Equal(t, uint64(600), AnchorWindowBlocks(RecommendedAnchorContentVerdictWindowSeconds, 6*time.Second))
+	require.Zero(t, DefaultAnchorContentVerdictWindowBlocks)
+	require.Zero(t, DefaultGenesis().Params.Verification.AnchorContentVerdictWindowBlocks)
+
+	// A body without the content-track fields gets the defaults and keeps its windows.
+	p := DefaultTaskParams()
+	v := &p.Verification
+	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = 100, 200, 300
+	v.AnchorPositionsPerTask, v.AnchorMinBondMultiple, v.AnchorContentVerdictWindowBlocks, v.AnchorContentRejectSlashBps = 0, 0, 0, 0
+	filled := p.WithAnchorDefaults().Verification
+	require.Equal(t, []uint64{100, 200, 300}, []uint64{filled.AnchorOpenWindowBlocks, filled.AnchorProofWindowBlocks, filled.AnchorVerdictWindowBlocks})
+	require.Equal(t, DefaultAnchorPositionsPerTask, filled.AnchorPositionsPerTask)
+	require.Zero(t, filled.AnchorContentVerdictWindowBlocks)
+}
+
 // A new chain starts on the recommended windows; the frozen default body is not
 // what DefaultGenesis hands out.
 func TestDefaultGenesisCarriesRecommendedAnchorWindows(t *testing.T) {

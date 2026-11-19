@@ -36,9 +36,10 @@ func DefaultGenesis() *GenesisState {
 // cross-row and cross-module checks that require collections, Hub snapshots, or
 // recomputed indexes.
 func (gs GenesisState) Validate() error {
-	// A genesis written before the anchor parameters existed is accepted:
-	// InitGenesis fills them (ensureAnchorParamsInitialized: default shares,
-	// recommended windows), so validate the body it will hold.
+	// A genesis written before the anchor parameters existed (no v6 windows or no
+	// v7 content-track fields) is accepted: InitGenesis fills them
+	// (ensureAnchorParamsInitialized: default shares, recommended windows), so
+	// validate the body it will hold.
 	params := gs.Params
 	if !params.HasAnchorParams() {
 		params = params.WithAnchorDefaults()

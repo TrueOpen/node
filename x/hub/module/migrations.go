@@ -36,6 +36,10 @@ func migrations(_ keeper.Keeper) map[uint64]module.MigrationHandler {
 		// faults and absolute anchor slashes are new behavior with no stored
 		// state to rewrite.
 		2: func(sdk.Context) error { return nil },
+		// 3 -> 4 (ADR-0040 v7): the anchor_content_reject role fault (jailed,
+		// absolute slash, also after the reservation was released) is new
+		// behavior with no stored state to rewrite.
+		3: func(sdk.Context) error { return nil },
 	}
 }
 

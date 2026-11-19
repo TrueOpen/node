@@ -23,7 +23,26 @@ import (
 
 type anchorHubStub struct {
 	*verificationHubStub
-	bond uint64
+	bond     uint64
+	beacons  map[int64][]byte              // hub beacon randomness by height (ADR-0040 v7 x beacon)
+	faults   *[]hubtypes.TaskRoleFaultFact // role faults the task module applied
+	faultErr error                         // when set, ApplyTaskRoleFault refuses with it
+}
+
+func (s anchorHubStub) GetBeaconForDomain(_ sdk.Context, _ string, height int64) (hubtypes.BeaconSnapshot, bool) {
+	randomness, ok := s.beacons[height]
+	if !ok {
+		return hubtypes.BeaconSnapshot{}, false
+	}
+	return hubtypes.BeaconSnapshot{Height: height, Randomness: randomness}, true
+}
+
+func (s anchorHubStub) ApplyTaskRoleFault(_ context.Context, fact hubtypes.TaskRoleFaultFact) (hubtypes.RoleFaultState, error) {
+	if s.faultErr != nil {
+		return hubtypes.RoleFaultState{}, s.faultErr
+	}
+	*s.faults = append(*s.faults, fact)
+	return stubAppliedRoleFault(fact), nil
 }
 
 func (s anchorHubStub) GetServiceBondFacts(sdk.Context, string) hubtypes.ServiceBondFacts {
@@ -67,16 +86,19 @@ type anchorFixture struct {
 	beacon   []byte
 	sampleAt uint64
 	params   types.TaskParamsV1
+	beacons  map[int64][]byte
+	faults   *[]hubtypes.TaskRoleFaultFact
 }
 
 func newAnchorFixture(t *testing.T, bond uint64, tokenSize uint64) *anchorFixture {
 	t.Helper()
 	vf := newVerificationFixture(t)
-	vf.keeper.hubKeeper = anchorHubStub{verificationHubStub: vf.hub, bond: bond}
+	beacons, faults := map[int64][]byte{}, &[]hubtypes.TaskRoleFaultFact{}
+	vf.keeper.hubKeeper = anchorHubStub{verificationHubStub: vf.hub, bond: bond, beacons: beacons, faults: faults}
 	valCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
 	staking := anchorStakingStub{codec: valCodec, powers: map[string]int64{}}
 	f := &anchorFixture{verificationFixture: vf, staking: staking, worker: vf.operators[0],
-		beacon: bytes.Repeat([]byte{0x77}, types.Hash32Len), sampleAt: 100}
+		beacon: bytes.Repeat([]byte{0x77}, types.Hash32Len), sampleAt: 100, beacons: beacons, faults: faults}
 	for i := byte(1); i <= 3; i++ {
 		raw := bytes.Repeat([]byte{0xA0 + i}, 20)
 		staking.powers[string(raw)] = 1

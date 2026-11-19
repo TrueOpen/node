@@ -252,3 +252,55 @@ func TestTaskParamsUpdateClassifiers(t *testing.T) {
 	require.Equal(t, "evidence.max_output_mmr_leaves", field)
 
 }
+
+// TestAnchorContentParamsValidate covers the ADR-0040 v7 verification fields.
+func TestAnchorContentParamsValidate(t *testing.T) {
+	valid := DefaultTaskParams()
+	require.NoError(t, valid.Validate())
+	require.Equal(t, uint32(2), valid.Verification.AnchorPositionsPerTask)
+	require.Equal(t, uint32(40), valid.Verification.AnchorMinBondMultiple)
+
+	for name, mutate := range map[string]func(*VerificationParamsV1){
+		"zero positions":           func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = 0 },
+		"too many positions":       func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = AnchorPositionsPerTaskMaximum + 1 },
+		"bond multiple too large":  func(v *VerificationParamsV1) { v.AnchorMinBondMultiple = AnchorMinBondMultipleMaximum + 1 },
+		"content window too long":  func(v *VerificationParamsV1) { v.AnchorContentVerdictWindowBlocks = AnchorWindowBlocksMaximum + 1 },
+		"content slash above 100%": func(v *VerificationParamsV1) { v.AnchorContentRejectSlashBps = BasisPointsMaximum + 1 },
+		"windows outlive retention": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = valid.Cleanup.TaskTerminalSummaryRetentionBlocks
+		},
+		"content track with a v6 opening window": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowBlocks
+			v.AnchorOpenWindowBlocks = DefaultAnchorOpenWindowBlocks
+		},
+	} {
+		params := DefaultTaskParams()
+		mutate(&params.Verification)
+		require.Error(t, params.Validate(), name)
+	}
+	for name, mutate := range map[string]func(*VerificationParamsV1){
+		"content track off": func(v *VerificationParamsV1) { v.AnchorContentVerdictWindowBlocks = 0 },
+		"bond guard off":    func(v *VerificationParamsV1) { v.AnchorMinBondMultiple = 0 },
+		"no content slash":  func(v *VerificationParamsV1) { v.AnchorContentRejectSlashBps = 0 },
+		"maximum positions": func(v *VerificationParamsV1) { v.AnchorPositionsPerTask = AnchorPositionsPerTaskMaximum },
+		"content track with the recommended opening window": func(v *VerificationParamsV1) {
+			v.AnchorContentVerdictWindowBlocks = RecommendedAnchorContentVerdictWindowBlocks
+			v.AnchorOpenWindowBlocks = RecommendedAnchorContentOpenWindowBlocks
+		},
+	} {
+		params := DefaultTaskParams()
+		mutate(&params.Verification)
+		require.NoError(t, params.Validate(), name)
+	}
+	// A body recorded before v7 has zero positions and still validates historically.
+	legacy := DefaultTaskParams()
+	legacy.Verification.AnchorPositionsPerTask = 0
+	legacy.Verification.AnchorMinBondMultiple = 0
+	legacy.Verification.AnchorContentVerdictWindowBlocks = 0
+	legacy.Verification.AnchorContentRejectSlashBps = 0
+	require.Error(t, legacy.Validate())
+	require.NoError(t, ValidateHistoricalTaskParams(legacy))
+	require.Equal(t, valid.Verification.AnchorTotalWindowBlocks(),
+		valid.Verification.AnchorOpenWindowBlocks+valid.Verification.AnchorProofWindowBlocks+
+			valid.Verification.AnchorVerdictWindowBlocks+valid.Verification.AnchorContentVerdictWindowBlocks)
+}

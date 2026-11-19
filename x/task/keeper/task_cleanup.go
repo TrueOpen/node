@@ -57,6 +57,23 @@ func (k Keeper) runTaskCleanup(ctx context.Context, _ types.SessionStoreKey, tas
 		}
 	}
 	if errors.Is(cursorErr, collections.ErrNotFound) {
+		// ADR-0040 v7: an open anchor content verdict holds cleanup until its
+		// deadline, in one jump rather than a retry every block.
+		if hold, err := k.anchorContentCleanupHold(ctx, taskKey, currentHeight); err != nil {
+			return evidenceCleanupProgress{}, err
+		} else if hold != 0 {
+			sdkCtx := sdk.UnwrapSDKContext(ctx)
+			cacheCtx, write := sdkCtx.CacheContext()
+			cache := sdk.WrapSDKContext(cacheCtx)
+			if err := removeDeadlineIndex(cache, k.EvidenceCleanupIndex, taskKey, targetHeight); err != nil {
+				return evidenceCleanupProgress{}, err
+			}
+			if err := addDeadlineIndex(cache, k.EvidenceCleanupIndex, taskKey, hold); err != nil {
+				return evidenceCleanupProgress{}, err
+			}
+			write()
+			return evidenceCleanupProgress{processed: 1}, nil
+		}
 		if blocked, err := k.taskCleanupBlocked(ctx, taskKey); err != nil {
 			return evidenceCleanupProgress{}, err
 		} else if blocked {
