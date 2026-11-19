@@ -107,19 +107,21 @@ const (
 	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
 	// 2026-11-09). One hour.
 	RecommendedAnchorVerdictWindowSeconds = uint64(3_600)
-	// AnchorWindowReferenceBlockSeconds is the block time the Recommended*Blocks
-	// constants are stated for. The anchor windows are counted in blocks while the
-	// work they bound (opening, proving, verifying) takes wall-clock time, so the
-	// block counts hold only at this block time: a network that produces blocks
-	// at another pace must use RecommendedAnchorWindowBlocks with its own block
-	// time and set the result through genesis or governance.
-	AnchorWindowReferenceBlockSeconds = uint64(1)
+	// AnchorWindowReferenceBlockMillis is the block time the Recommended*Blocks
+	// constants are stated for: 500 ms. The anchor windows are counted in blocks
+	// while the work they bound (opening, proving, verifying) takes wall-clock
+	// time, so the block counts hold only at this block time. A chain that
+	// produces blocks slower than this gets proportionally longer windows, which
+	// only gives an honest Worker more time; a network that wants the windows
+	// to equal the recommended times must use RecommendedAnchorWindowBlocks with
+	// its own block time and set the result through genesis or governance.
+	AnchorWindowReferenceBlockMillis = uint64(500)
 	// Recommended*WindowBlocks are the Recommended*WindowSeconds at the reference
 	// block time. The anchor upgrade and the genesis cold start write these; a
 	// stock genesis carries them (DefaultGenesis and the seeds under config/).
-	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds / AnchorWindowReferenceBlockSeconds
-	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds / AnchorWindowReferenceBlockSeconds
-	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
 	// be positive: with a floor of zero a task whose order is worth nothing to
 	// cheat on would never be audited.
@@ -305,7 +307,7 @@ func DefaultTaskParams() TaskParamsV1 {
 // inside consensus and cannot read a node's block time, so the assumption is
 // fixed here; a network with another block time must replace the windows by
 // governance before the first anchor Profile is registered.
-const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockSeconds) * time.Second
+const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockMillis) * time.Millisecond
 
 // RecommendedAnchorWindowBlocks converts the recommended opening, proof and
 // verdict windows (Recommended*WindowSeconds) into blocks at blockTime, rounding
