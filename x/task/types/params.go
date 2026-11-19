@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	shared "github.com/TrueOpen/node/x/shared/types"
 )
@@ -74,35 +75,89 @@ const (
 	DefaultWorkerInferTimeoutSlashBPS                  = uint32(0)
 	DefaultResultRevealMissingSlashBPS                 = uint32(0)
 	DefaultBuilderFaultSlashBPS                        = uint32(0)
-	DefaultMaxEvidenceRetentionBlocks                  = uint64(1000)
-	DefaultMaxInferEvidenceCommitmentsPerReceipt       = uint32(32)
-	DefaultMaxInferReceiptCommitmentBytes              = uint64(8 << 10)
-	DefaultMaxSupportedEvidenceSchemaVersions          = uint32(16)
-	DefaultMaxSupportedLeafOrderingVersions            = uint32(16)
-	DefaultMaxOutputMMRLeaves                          = uint64(65_536)
-	DefaultMinOutputStreamFrameBytes                   = uint32(256)
-	DefaultMaxWorkerEvidenceBytesV1                    = uint64(1 << 20)
-	DefaultVerifierValueEvidenceWindowBlocks           = uint64(120)
-	DefaultMaxVerifierValueEvidencePositions           = uint32(64)
-	DefaultMaxVerifierValueEvidenceBytes               = uint64(1 << 20)
-	DefaultMaxTaskCleanupItemsPerBlock                 = uint32(1024)
-	DefaultTaskTerminalSummaryRetentionBlocks          = uint64(60_480)
-	DefaultMaxTaskTerminalSummaryPruneItemsPerBlock    = uint32(256)
-	DefaultMaxEpochTaskSummaryItemsPerBlock            = uint32(256)
-	DefaultMaxEpochTaskSummarySupportCandidates        = uint32(64)
-	DefaultMaxEpochTaskSummaryBytes                    = uint64(64 << 10)
-	DefaultMaxTaskFailureClassPruneItemsPerBlock       = uint32(256)
-	DefaultMaxBatchCommitItems                         = uint32(512)
-	DefaultMaxBatchResultItems                         = uint32(512)
-	DefaultMaxBatchCommitBytes                         = uint64(512 << 10)
-	DefaultMaxBatchResultBytes                         = uint64(512 << 10)
-	DefaultStopSequenceMaxItems                        = uint32(16)
-	DefaultStopSequenceMaxBytesEach                    = uint32(128)
-	DefaultStopSequenceMaxTotalBytes                   = uint32(1024)
-	DefaultStopTokenMaxItems                           = uint32(64)
-	DefaultTopKMax                                     = uint32(1000)
-	DefaultGenerationMaxOutputTokens                   = uint64(131_072)
-	DefaultMaxRoundEffectItemsPerBlock                 = uint32(1024)
+	// ADR-0040 v6: a REJECT anchor verdict takes this share of the slashable bond D fixed at sampling.
+	DefaultAnchorRejectSlashBPS = uint32(2_500)
+	// ADR-0040 v6: a Worker that never opened or never proved by the deadline loses this share of D.
+	DefaultAnchorTimeoutSlashBPS = uint32(500)
+	// ADR-0040 v6: opening window after sampling (blocks). Default* anchor windows
+	// are the fallback read into a params body recorded before the windows existed
+	// (ValidateHistoricalTaskParams) and the values of the frozen DefaultTaskParams
+	// body; they are never changed. A chain is started or upgraded with the
+	// Recommended* windows below (RecommendedAnchorWindowBlocks).
+	DefaultAnchorOpenWindowBlocks = uint64(900)
+	// ADR-0040 v6: proof window after the opening deadline. Kept at 6,600 as a
+	// historical value only: it is too short for a loaded Worker, see
+	// RecommendedAnchorProofWindowSeconds.
+	DefaultAnchorProofWindowBlocks = uint64(6_600)
+	// RecommendedAnchorOpenWindowSeconds is the time a Worker has to open the
+	// sampled rows: 15 minutes.
+	RecommendedAnchorOpenWindowSeconds = uint64(900)
+	// RecommendedAnchorProofWindowSeconds sizes the proof window for a fully loaded
+	// single-GPU Worker that must wait for the previous epoch's proof before proving
+	// its own: the production registration measured 51–67 min per epoch on an A40
+	// with 61 cores, so two epochs plus the opening window and margin need
+	// ~9,200 s; 10,000 s are given. The historical 6,600 blocks (sized for
+	// 2×45 min) made the second epoch miss its deadline under load (audit D-F1,
+	// 2026-11-09): an honest Worker would be slashed anchor_timeout.
+	RecommendedAnchorProofWindowSeconds = uint64(10_000)
+	// RecommendedAnchorVerdictWindowSeconds sizes the validator voting window: a
+	// Worker may record its proof at the very end of the proof window, and a
+	// validator (no GPU, no weights) measured 352 s for a one-task epoch and
+	// 2,364 s for three tasks plus material fetches, so the historical 900 blocks
+	// could expire mid-verification and pay a NO_VERDICT task (audit A-H1,
+	// 2026-11-09). One hour.
+	RecommendedAnchorVerdictWindowSeconds = uint64(3_600)
+	// AnchorWindowReferenceBlockSeconds is the block time the Recommended*Blocks
+	// constants are stated for. The anchor windows are counted in blocks while the
+	// work they bound (opening, proving, verifying) takes wall-clock time, so the
+	// block counts hold only at this block time: a network that produces blocks
+	// at another pace must use RecommendedAnchorWindowBlocks with its own block
+	// time and set the result through genesis or governance.
+	AnchorWindowReferenceBlockSeconds = uint64(1)
+	// Recommended*WindowBlocks are the Recommended*WindowSeconds at the reference
+	// block time. The anchor upgrade and the genesis cold start write these; a
+	// stock genesis carries them (DefaultGenesis and the seeds under config/).
+	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds / AnchorWindowReferenceBlockSeconds
+	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds / AnchorWindowReferenceBlockSeconds
+	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
+	// be positive: with a floor of zero a task whose order is worth nothing to
+	// cheat on would never be audited.
+	DefaultAnchorAuditMinRateBPS = uint32(500)
+	// ADR-0040 v5: risk margin k in s = kR/(D+kR); 10000 = 1x.
+	DefaultAnchorAuditRiskMarginBPS = uint32(10_000)
+	// ADR-0040 v6: validator voting window after the proof deadline (blocks).
+	// Historical value only, see RecommendedAnchorVerdictWindowSeconds.
+	DefaultAnchorVerdictWindowBlocks                = uint64(900)
+	DefaultMaxEvidenceRetentionBlocks               = uint64(1000)
+	DefaultMaxInferEvidenceCommitmentsPerReceipt    = uint32(32)
+	DefaultMaxInferReceiptCommitmentBytes           = uint64(8 << 10)
+	DefaultMaxSupportedEvidenceSchemaVersions       = uint32(16)
+	DefaultMaxSupportedLeafOrderingVersions         = uint32(16)
+	DefaultMaxOutputMMRLeaves                       = uint64(65_536)
+	DefaultMinOutputStreamFrameBytes                = uint32(256)
+	DefaultMaxWorkerEvidenceBytesV1                 = uint64(1 << 20)
+	DefaultVerifierValueEvidenceWindowBlocks        = uint64(120)
+	DefaultMaxVerifierValueEvidencePositions        = uint32(64)
+	DefaultMaxVerifierValueEvidenceBytes            = uint64(1 << 20)
+	DefaultMaxTaskCleanupItemsPerBlock              = uint32(1024)
+	DefaultTaskTerminalSummaryRetentionBlocks       = uint64(60_480)
+	DefaultMaxTaskTerminalSummaryPruneItemsPerBlock = uint32(256)
+	DefaultMaxEpochTaskSummaryItemsPerBlock         = uint32(256)
+	DefaultMaxEpochTaskSummarySupportCandidates     = uint32(64)
+	DefaultMaxEpochTaskSummaryBytes                 = uint64(64 << 10)
+	DefaultMaxTaskFailureClassPruneItemsPerBlock    = uint32(256)
+	DefaultMaxBatchCommitItems                      = uint32(512)
+	DefaultMaxBatchResultItems                      = uint32(512)
+	DefaultMaxBatchCommitBytes                      = uint64(512 << 10)
+	DefaultMaxBatchResultBytes                      = uint64(512 << 10)
+	DefaultStopSequenceMaxItems                     = uint32(16)
+	DefaultStopSequenceMaxBytesEach                 = uint32(128)
+	DefaultStopSequenceMaxTotalBytes                = uint32(1024)
+	DefaultStopTokenMaxItems                        = uint32(64)
+	DefaultTopKMax                                  = uint32(1000)
+	DefaultGenerationMaxOutputTokens                = uint64(131_072)
+	DefaultMaxRoundEffectItemsPerBlock              = uint32(1024)
 )
 
 const (
@@ -185,6 +240,13 @@ func DefaultTaskParams() TaskParamsV1 {
 			WorkerInferTimeoutSlashBps:  DefaultWorkerInferTimeoutSlashBPS,
 			ResultRevealMissingSlashBps: DefaultResultRevealMissingSlashBPS,
 			BuilderFaultSlashBps:        DefaultBuilderFaultSlashBPS,
+			AnchorRejectSlashBps:        DefaultAnchorRejectSlashBPS,
+			AnchorVerdictWindowBlocks:   DefaultAnchorVerdictWindowBlocks,
+			AnchorAuditMinRateBps:       DefaultAnchorAuditMinRateBPS,
+			AnchorAuditRiskMarginBps:    DefaultAnchorAuditRiskMarginBPS,
+			AnchorOpenWindowBlocks:      DefaultAnchorOpenWindowBlocks,
+			AnchorProofWindowBlocks:     DefaultAnchorProofWindowBlocks,
+			AnchorTimeoutSlashBps:       DefaultAnchorTimeoutSlashBPS,
 		},
 		Evidence: EvidenceLimitParamsV1{
 			MaxEvidenceRetentionBlocks:            DefaultMaxEvidenceRetentionBlocks,
@@ -237,6 +299,101 @@ func DefaultTaskParams() TaskParamsV1 {
 	}
 }
 
+// AnchorWindowBlockTime is the block time assumed by the anchor windows that
+// the anchor upgrade and the genesis cold start write (WithAnchorDefaults): the
+// reference block time of the Recommended*WindowBlocks constants. Both paths run
+// inside consensus and cannot read a node's block time, so the assumption is
+// fixed here; a network with another block time must replace the windows by
+// governance before the first anchor Profile is registered.
+const AnchorWindowBlockTime = time.Duration(AnchorWindowReferenceBlockSeconds) * time.Second
+
+// RecommendedAnchorWindowBlocks converts the recommended opening, proof and
+// verdict windows (Recommended*WindowSeconds) into blocks at blockTime, rounding
+// up so a window is never shorter than the time it stands for. A non-positive
+// blockTime reads as the reference block time. Each result is capped at
+// AnchorWindowBlocksMaximum.
+//
+// The chain itself only ever calls it with AnchorWindowBlockTime (the upgrade
+// and the cold start cannot read a node's block time). The parameter is the
+// documented entry point for a network with another block time: its operators
+// call this with their block time and put the three results into genesis or a
+// governance params update.
+func RecommendedAnchorWindowBlocks(blockTime time.Duration) (open, proof, verdict uint64) {
+	if blockTime <= 0 {
+		blockTime = AnchorWindowBlockTime
+	}
+	step := uint64(blockTime)
+	blocks := func(seconds uint64) uint64 {
+		// seconds are the small Recommended* constants: no overflow in nanoseconds.
+		window := (seconds*uint64(time.Second) + step - 1) / step
+		if window > AnchorWindowBlocksMaximum {
+			return AnchorWindowBlocksMaximum
+		}
+		return window
+	}
+	return blocks(RecommendedAnchorOpenWindowSeconds), blocks(RecommendedAnchorProofWindowSeconds), blocks(RecommendedAnchorVerdictWindowSeconds)
+}
+
+// WithRecommendedAnchorWindows returns p with the three anchor windows set to
+// the recommended sizes at AnchorWindowBlockTime, whatever p carried.
+func (p TaskParamsV1) WithRecommendedAnchorWindows() TaskParamsV1 {
+	v := &p.Verification
+	v.AnchorOpenWindowBlocks, v.AnchorProofWindowBlocks, v.AnchorVerdictWindowBlocks = RecommendedAnchorWindowBlocks(AnchorWindowBlockTime)
+	return p
+}
+
+// WithAnchorDefaults returns p with the ADR-0040 anchor parameters filled where
+// the body predates them (the opening window is zero): the default slash shares,
+// audit floor and risk margin, and the recommended windows at
+// AnchorWindowBlockTime. The windows are deliberately not the Default*Window
+// constants, which are too short for an honest Worker under load and are kept
+// only as historical values. A body that already carries anchor windows is
+// returned unchanged. Genesis validation and InitGenesis accept a pre-anchor
+// body through it, and the anchor upgrade writes exactly this (audit F-P1-5,
+// 2026-11-09).
+func (p TaskParamsV1) WithAnchorDefaults() TaskParamsV1 {
+	if p.Verification.AnchorOpenWindowBlocks != 0 {
+		return p
+	}
+	d := DefaultTaskParams().Verification
+	v := &p.Verification
+	v.AnchorRejectSlashBps, v.AnchorTimeoutSlashBps = d.AnchorRejectSlashBps, d.AnchorTimeoutSlashBps
+	v.AnchorAuditMinRateBps, v.AnchorAuditRiskMarginBps = d.AnchorAuditMinRateBps, d.AnchorAuditRiskMarginBps
+	return p.WithRecommendedAnchorWindows()
+}
+
+// RepairAnchorParams fills the anchor parameters a pre-anchor body lacks
+// (WithAnchorDefaults) and then applies the repairs an anchor upgrade may make
+// on its own so that the body validates under the new rules; each repair is
+// described in the returned notes. It never changes a governance-chosen anchor
+// value that is valid. Run it offline on the live params before the upgrade
+// height: a body it cannot repair would halt the upgrade (audit F-P1-4,
+// 2026-11-09).
+func RepairAnchorParams(p TaskParamsV1) (TaskParamsV1, []string) {
+	p = p.WithAnchorDefaults()
+	var notes []string
+	if p.Verification.AnchorAuditMinRateBps == 0 {
+		notes = append(notes, fmt.Sprintf("verification.anchor_audit_min_rate_bps 0 is not a valid audit floor: raised to %d", DefaultAnchorAuditMinRateBPS))
+		p.Verification.AnchorAuditMinRateBps = DefaultAnchorAuditMinRateBPS
+	}
+	if total := p.Verification.AnchorTotalWindowBlocks(); total >= p.Cleanup.TaskTerminalSummaryRetentionBlocks {
+		want := DefaultTaskTerminalSummaryRetentionBlocks
+		if want <= total {
+			want = total + 1
+		}
+		notes = append(notes, fmt.Sprintf("cleanup.task_terminal_summary_retention_blocks %d is not longer than the anchor windows (%d): raised to %d",
+			p.Cleanup.TaskTerminalSummaryRetentionBlocks, total, want))
+		p.Cleanup.TaskTerminalSummaryRetentionBlocks = want
+	}
+	return p, notes
+}
+
+// HasAnchorParams reports whether the body carries the ADR-0040 anchor
+// parameters.
+func (p TaskParamsV1) HasAnchorParams() bool {
+	return p.Verification.AnchorOpenWindowBlocks != 0
+}
+
 func (p TaskParamsV1) Validate() error {
 	if p.SchemaVersion != TaskParamsSchemaVersion {
 		return fmt.Errorf("schema_version must be %d", TaskParamsSchemaVersion)
@@ -255,6 +412,10 @@ func (p TaskParamsV1) Validate() error {
 	}
 	if err := validateVerificationParams(p.Verification); err != nil {
 		return err
+	}
+	if p.Verification.AnchorTotalWindowBlocks() >= p.Cleanup.TaskTerminalSummaryRetentionBlocks {
+		return fmt.Errorf("verification anchor windows (%d blocks) must be shorter than cleanup.task_terminal_summary_retention_blocks",
+			p.Verification.AnchorTotalWindowBlocks())
 	}
 	if err := validateEvidenceParams(p.Evidence); err != nil {
 		return err
@@ -495,13 +656,49 @@ func validateVerificationParams(p VerificationParamsV1) error {
 		{"verification.worker_infer_timeout_slash_bps", p.WorkerInferTimeoutSlashBps},
 		{"verification.result_reveal_missing_slash_bps", p.ResultRevealMissingSlashBps},
 		{"verification.builder_fault_slash_bps", p.BuilderFaultSlashBps},
+		{"verification.anchor_reject_slash_bps", p.AnchorRejectSlashBps},
+		{"verification.anchor_audit_min_rate_bps", p.AnchorAuditMinRateBps},
+		{"verification.anchor_timeout_slash_bps", p.AnchorTimeoutSlashBps},
 	} {
 		if item.value > BasisPointsMaximum {
 			return fmt.Errorf("%s must be <= %d", item.name, BasisPointsMaximum)
 		}
 	}
+	// A floor of zero would let the audit rate itself be zero (no margin, or an
+	// order worth nothing): such a task is never selected, so the floor would
+	// switch the audit off instead of bounding it from below.
+	if p.AnchorAuditMinRateBps == 0 {
+		return fmt.Errorf("verification.anchor_audit_min_rate_bps must be greater than 0")
+	}
+	if p.AnchorAuditRiskMarginBps > AnchorAuditRiskMarginMaximum {
+		return fmt.Errorf("verification.anchor_audit_risk_margin_bps must be <= %d", AnchorAuditRiskMarginMaximum)
+	}
+	for _, item := range []struct {
+		name  string
+		value uint64
+	}{
+		{"verification.anchor_open_window_blocks", p.AnchorOpenWindowBlocks},
+		{"verification.anchor_proof_window_blocks", p.AnchorProofWindowBlocks},
+		{"verification.anchor_verdict_window_blocks", p.AnchorVerdictWindowBlocks},
+	} {
+		if err := positiveUint64(item.name, item.value, AnchorWindowBlocksMaximum); err != nil {
+			return err
+		}
+	}
 	return nil
 }
+
+// AnchorWindowBlocksMaximum caps each anchor window (ADR-0040 v6) so deadline
+// arithmetic cannot overflow and an audit cannot outlive task retention.
+const AnchorWindowBlocksMaximum = uint64(1_000_000)
+
+// AnchorTotalWindowBlocks is how long after sampling an audit may stay open.
+func (v VerificationParamsV1) AnchorTotalWindowBlocks() uint64 {
+	return v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks
+}
+
+// AnchorAuditRiskMarginMaximum caps the risk margin k at 100x (ADR-0040 v5).
+const AnchorAuditRiskMarginMaximum = uint32(1_000_000)
 
 func validateEvidenceParams(p EvidenceLimitParamsV1) error {
 	if err := positiveUint64("evidence.max_evidence_retention_blocks", p.MaxEvidenceRetentionBlocks, MaxEvidenceRetentionBlocksLimit); err != nil {
@@ -777,11 +974,7 @@ func canonicalTaskParamsSectionFields(p TaskParamsV1) [][]shared.CanonicalFieldV
 			shared.Uint32BE(p.Weights.MaxWeightedDrawAttemptsPerSelection),
 		),
 		// field 6: VerificationParamsV1
-		shared.RawCanonicalFieldsV1(
-			shared.Uint32BE(p.Verification.WorkerInferTimeoutSlashBps),
-			shared.Uint32BE(p.Verification.ResultRevealMissingSlashBps),
-			shared.Uint32BE(p.Verification.BuilderFaultSlashBps),
-		),
+		verificationParamsCanonicalFields(p.Verification),
 		// field 7: EvidenceLimitParamsV1, whose fields 7 and 8 are repeated.
 		append(
 			shared.RawCanonicalFieldsV1(
@@ -870,7 +1063,9 @@ func canonicalTaskParamsAmountFields(amounts ...shared.Amount) []shared.Canonica
 // TaskParamsHashV1 is the single producer of TaskParamsMetaState.params_hash and
 // of the value echoed by MsgUpdateTaskParamsResponse and event 111.
 func TaskParamsHashV1(chainID string, version uint64, params TaskParamsV1) ([]byte, error) {
-	if err := params.Validate(); err != nil {
+	// A pre-anchor body (ADR-0040) keeps a defined hash: history rows and a
+	// pre-anchor genesis are committed to as recorded.
+	if err := ValidateHistoricalTaskParams(params); err != nil {
 		return nil, err
 	}
 	body := shared.NewCanonicalFrameBuilderV1().Field(CanonicalTaskParamsTypedFields(params)...).Build()
@@ -888,4 +1083,46 @@ func (s TaskParamsMetaState) Validate() error {
 		return fmt.Errorf("params meta params_hash must be 32 bytes")
 	}
 	return nil
+}
+
+// ValidateHistoricalTaskParams validates a parameter body that may have been
+// recorded before the ADR-0040 anchor parameters existed: the body in a
+// retained history row, or the one a pre-anchor genesis carries until
+// InitGenesis fills it. The missing anchor fields are read as the frozen
+// Default* values for validation only; the body itself, and therefore its
+// hash, is unchanged. New genesis bodies and live updates use Validate.
+func ValidateHistoricalTaskParams(params TaskParamsV1) error {
+	// Bodies recorded before ADR-0040 v6 carry no anchor windows.
+	if params.Verification.AnchorOpenWindowBlocks == 0 {
+		params.Verification.AnchorOpenWindowBlocks = DefaultAnchorOpenWindowBlocks
+	}
+	if params.Verification.AnchorProofWindowBlocks == 0 {
+		params.Verification.AnchorProofWindowBlocks = DefaultAnchorProofWindowBlocks
+	}
+	if params.Verification.AnchorVerdictWindowBlocks == 0 {
+		params.Verification.AnchorVerdictWindowBlocks = DefaultAnchorVerdictWindowBlocks
+	}
+	// The audit floor had no lower bound when those bodies were recorded, and a
+	// pre-anchor body has none at all; live code treats a zero rate as unselected.
+	if params.Verification.AnchorAuditMinRateBps == 0 {
+		params.Verification.AnchorAuditMinRateBps = DefaultAnchorAuditMinRateBPS
+	}
+	return params.Validate()
+}
+
+// verificationParamsCanonicalFields frames VerificationParamsV1 for the params
+// hash: every field, in field-number order (7..13 are ADR-0040).
+func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
+	return shared.RawCanonicalFieldsV1(
+		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
+		shared.Uint32BE(v.ResultRevealMissingSlashBps),
+		shared.Uint32BE(v.BuilderFaultSlashBps),
+		shared.Uint32BE(v.AnchorRejectSlashBps),
+		shared.Uint64BE(v.AnchorVerdictWindowBlocks),
+		shared.Uint32BE(v.AnchorAuditMinRateBps),
+		shared.Uint32BE(v.AnchorAuditRiskMarginBps),
+		shared.Uint64BE(v.AnchorOpenWindowBlocks),
+		shared.Uint64BE(v.AnchorProofWindowBlocks),
+		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+	)
 }

@@ -6,7 +6,9 @@ const (
 	EvidenceSchemaVersionV1              = uint32(1)
 	WorkerValueCommitmentSchemaVersionV3 = uint32(3)
 	WorkerTokenCommitmentSchemaVersionV1 = uint32(1)
-	MaxEvidenceEncodedSizeBytesV1        = uint64(1 << 40)
+	// WorkerAnchorCommitmentSchemaVersionV1 is the first anchor-commitment schema (ADR-0040).
+	WorkerAnchorCommitmentSchemaVersionV1 = uint32(1)
+	MaxEvidenceEncodedSizeBytesV1         = uint64(1 << 40)
 )
 
 func NewPhase0WorkerEvidenceSchemaV1(maxValueBytes, maxTokenBytes uint64) EvidenceSchemaV1 {
@@ -60,7 +62,8 @@ func IsKnownEvidenceKind(kind EvidenceKind) bool {
 	case EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING,
 		EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING,
 		EvidenceKind_EVIDENCE_KIND_VERIFIER_VALUE_OPENING,
-		EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING:
+		EvidenceKind_EVIDENCE_KIND_SETTLEMENT_ROOT_OPENING,
+		EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING:
 		return true
 	default:
 		return false

@@ -31,6 +31,12 @@ type fixture struct {
 
 func initFixture(t *testing.T) *fixture {
 	t.Helper()
+	return initFixtureWithHub(t, stubHubKeeper{})
+}
+
+// initFixtureWithHub is initFixture over a caller-chosen Hub stub.
+func initFixtureWithHub(t *testing.T, hub tasktypes.HubKeeper) *fixture {
+	t.Helper()
 
 	encCfg := moduletestutil.MakeTestEncodingConfig(module.AppModule{})
 	addressCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
@@ -41,7 +47,7 @@ func initFixture(t *testing.T) *fixture {
 	ctx := testutil.DefaultContextWithDB(t, storeKey, transientKey).Ctx
 	authority := authtypes.NewModuleAddress(tasktypes.GovModuleName)
 
-	k := keeper.NewKeeper(storeService, transientStoreService, encCfg.Codec, addressCodec, authority, taskExternalAuthKeeper{}, taskExternalBankKeeper{}, stubHubKeeper{})
+	k := keeper.NewKeeper(storeService, transientStoreService, encCfg.Codec, addressCodec, authority, taskExternalAuthKeeper{}, taskExternalBankKeeper{}, hub)
 	// Every registered hash binds chain_id, so the test context
 	// must carry one or the canonical helpers correctly refuse to hash.
 	return &fixture{ctx: sdk.WrapSDKContext(ctx.WithChainID("trueopen-test-1").WithBlockHeight(11)), keeper: k}

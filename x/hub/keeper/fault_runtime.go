@@ -104,7 +104,7 @@ func (k Keeper) ApplyTaskRoleFault(ctx context.Context, fact types.TaskRoleFault
 	result, err := k.applyRoleFaultAtomic(
 		ctx, fact.OperatorAddress, role, fact.FaultType,
 		hex.EncodeToString(fact.SessionID), hex.EncodeToString(fact.TaskID), hex.EncodeToString(fact.EvidenceDigest),
-		fact.ClassificationSource, fact.SlashBps, fact.Height,
+		fact.ClassificationSource, fact.SlashBps, fact.Height, fact.RequestedAmount,
 	)
 	if err != nil {
 		return types.RoleFaultState{}, err
@@ -155,7 +155,7 @@ func (k Keeper) ApplyWorkerObjectiveEvidence(
 		ctx, fact.WorkerOperatorAddress, types.ServiceBondRoleWorker, types.FaultTypeObjectiveForgery,
 		sessionID, taskID, hex.EncodeToString(fact.EvidenceDigest),
 		shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE,
-		fact.FrozenSlashBps, height,
+		fact.FrozenSlashBps, height, 0,
 	)
 	if err != nil {
 		return types.RoleFaultState{}, err
@@ -174,10 +174,10 @@ func roleFromDuty(duty shared.Duty) (string, error) {
 	}
 }
 
-func (k Keeper) applyRoleFaultAtomic(ctx context.Context, operatorAddress, role, faultType, sessionID, taskID, evidenceDigest string, classificationSource shared.FailureClassificationSource, slashBps uint32, height uint64) (roleFaultApplyResult, error) {
+func (k Keeper) applyRoleFaultAtomic(ctx context.Context, operatorAddress, role, faultType, sessionID, taskID, evidenceDigest string, classificationSource shared.FailureClassificationSource, slashBps uint32, height uint64, requestedAmount uint64) (roleFaultApplyResult, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, commit := sdkCtx.CacheContext()
-	result, err := k.applyRoleFault(sdk.WrapSDKContext(cacheCtx), operatorAddress, role, faultType, sessionID, taskID, evidenceDigest, classificationSource, slashBps, height)
+	result, err := k.applyRoleFault(sdk.WrapSDKContext(cacheCtx), operatorAddress, role, faultType, sessionID, taskID, evidenceDigest, classificationSource, slashBps, height, requestedAmount)
 	if err != nil {
 		return roleFaultApplyResult{}, err
 	}
@@ -185,7 +185,7 @@ func (k Keeper) applyRoleFaultAtomic(ctx context.Context, operatorAddress, role,
 	return result, nil
 }
 
-func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType, sessionID, taskID, evidenceDigest string, classificationSource shared.FailureClassificationSource, slashBps uint32, height uint64) (roleFaultApplyResult, error) {
+func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType, sessionID, taskID, evidenceDigest string, classificationSource shared.FailureClassificationSource, slashBps uint32, height uint64, requestedAmount uint64) (roleFaultApplyResult, error) {
 	_, roleAddress, err := k.requireCanonicalAddress("operator_address", roleAddress)
 	if err != nil {
 		return roleFaultApplyResult{}, err
@@ -264,7 +264,16 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 			return roleFaultApplyResult{}, reservationErr
 		}
 		requested := types.SlashByFraction(reservation.ReservedAmount, uint64(slashBps), types.ObjectiveForgerySlashDenom)
-		slashable = requested > 0
+		// ADR-0040 v6: an anchor fault takes the absolute amount Task computed
+		// from the slashable bond D fixed at sampling. The reservation is consumed
+		// without money and the amount is debited through the full waterfall, so
+		// bond moved into unbonding after sampling is still reached.
+		anchorBondSlash := uint64(0)
+		if faultType == types.FaultTypeAnchorReject || faultType == types.FaultTypeAnchorTimeout {
+			anchorBondSlash = requestedAmount
+			requested = 0
+		}
+		slashable = requested > 0 || anchorBondSlash > 0
 		if classificationSource == shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_OBJECTIVE_EVIDENCE {
 			if duty != shared.DutyWorker || faultType != types.FaultTypeObjectiveForgery {
 				return roleFaultApplyResult{}, fmt.Errorf("worker objective evidence has invalid attribution")
@@ -297,6 +306,16 @@ func (k Keeper) applyRoleFault(ctx context.Context, roleAddress, role, faultType
 				ctx, canonicalTaskID, roleAddress, duty, types.TaskLiabilityStatusSlashed, requested, height,
 				newRoleFaultSlashMetadata(prospective),
 			)
+			if err == nil && anchorBondSlash > 0 {
+				metadata := newRoleFaultSlashMetadata(prospective)
+				slash, err = k.applyServiceSlashInCache(ctx, ApplyServiceSlashRequest{
+					OperatorAddress: roleAddress, Duty: duty, TaskID: canonicalTaskID,
+					Requested: anchorBondSlash, Height: height,
+					SummaryID: append([]byte(nil), metadata.SummaryID...), SourceKind: metadata.SourceKind,
+					SourceID: append([]byte(nil), metadata.SourceID...), EffectIndex: metadata.EffectIndex,
+					Destination: metadata.Destination,
+				})
+			}
 		}
 	} else {
 		return roleFaultApplyResult{}, fmt.Errorf("role fault requires canonical session_id and task_id")
@@ -669,7 +688,8 @@ func shouldJailForFault(faultType string) bool {
 	switch strings.TrimSpace(faultType) {
 	case types.FaultTypeWorkerDispatchIneligible, types.FaultTypeWorkerDispatchContradiction:
 		return true
-	case types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult, types.FaultTypeResultNoSettleReveal, types.FaultTypeValueOutlier, types.FaultTypeCommitRevealMismatch, types.FaultTypeWorkerRevealTimeout, types.FaultTypeObjectiveForgery, types.FaultTypeRoundDivergence:
+	case types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult, types.FaultTypeResultNoSettleReveal, types.FaultTypeValueOutlier, types.FaultTypeCommitRevealMismatch, types.FaultTypeWorkerRevealTimeout, types.FaultTypeObjectiveForgery, types.FaultTypeRoundDivergence,
+		types.FaultTypeAnchorReject:
 		return true
 	default:
 		return false
@@ -682,7 +702,10 @@ func shouldTombstoneForFault(faultType string) bool {
 
 func eventLifecycleReasonForFault(faultType string) types.EventLifecycleReason {
 	switch strings.TrimSpace(faultType) {
-	case types.FaultTypeObjectiveForgery, types.FaultTypeCommitRevealMismatch, types.FaultTypeValueOutlier, types.FaultTypeRoundDivergence:
+	case types.FaultTypeObjectiveForgery, types.FaultTypeCommitRevealMismatch, types.FaultTypeValueOutlier, types.FaultTypeRoundDivergence,
+		// ADR-0040: an anchor REJECT is a verdict on the Worker's material, not a
+		// missed deadline. anchor_timeout stays a timeout.
+		types.FaultTypeAnchorReject:
 		return types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_OBJECTIVE_FAULT
 	default:
 		return types.EventLifecycleReason_EVENT_LIFECYCLE_REASON_TIMEOUT
@@ -817,7 +840,7 @@ func classifyRoleFaultType(faultType string) (shared.FaultKind, shared.FailureCl
 	case types.FaultTypeWorkerInferTimeout, types.FaultTypeVerifierMiss, types.FaultTypeCommitNoResult,
 		types.FaultTypeResultNoSettleReveal, types.FaultTypeWorkerRevealTimeout:
 		return shared.FaultKind_FAULT_KIND_TIMEOUT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_DEADLINE, nil
-	case types.FaultTypeValueOutlier:
+	case types.FaultTypeValueOutlier, types.FaultTypeAnchorReject, types.FaultTypeAnchorTimeout:
 		return shared.FaultKind_FAULT_KIND_INVALID_RESULT, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil
 	case types.FaultTypeCommitRevealMismatch:
 		return shared.FaultKind_FAULT_KIND_EQUIVOCATION, shared.FailureClassificationSource_FAILURE_CLASSIFICATION_SOURCE_SETTLEMENT, nil

@@ -31,8 +31,17 @@ type upgrade struct {
 // bump the ConsensusVersion of every module it touches and register the
 // matching module migration.
 func (app *App) plannedUpgrades() []upgrade {
-	return nil
+	return []upgrade{
+		// ADR-0040 anchor audit: task 3 -> 4 (anchor params initialized),
+		// hub 2 -> 3. New task store prefixes live inside the existing store.
+		{name: AnchorAuditUpgradeName},
+	}
 }
+
+// AnchorAuditUpgradeName is the governance plan name that activates the
+// ADR-0040 anchor audit. Nodes replaying earlier blocks run the previous binary
+// up to the plan height.
+const AnchorAuditUpgradeName = "v0.6.0-anchor-audit"
 
 // validateUpgrades rejects registry entries that would make two plans
 // indistinguishable or leave a plan name that governance cannot propose.

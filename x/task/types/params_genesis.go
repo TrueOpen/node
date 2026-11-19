@@ -23,7 +23,8 @@ func ValidateParamsVersionGenesis(genesis GenesisState) error {
 		if row.UpdatedHeight > row.SupersededHeight || row.SupersededHeight > genesis.ParamsMeta.UpdatedHeight || row.SupersededHeight != 0 && !shared.IsBlockHeightV1(row.SupersededHeight) {
 			return fmt.Errorf("parameter history has invalid effective heights")
 		}
-		if err := row.Params.Validate(); err != nil {
+		// A retained body may predate the ADR-0040 anchor parameters.
+		if err := ValidateHistoricalTaskParams(row.Params); err != nil {
 			return fmt.Errorf("parameter history version %d: %w", row.ParamsVersion, err)
 		}
 		history[row.ParamsVersion] = row

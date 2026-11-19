@@ -758,6 +758,27 @@ func genesisBalanceAmount(state banktypes.GenesisState, address string) uint64 {
 	return 0
 }
 
+// The stock seeds name the anchor windows themselves, so a chain started from
+// them runs on the recommended windows whatever body the seed is merged over -
+// including the frozen default body, whose windows are too short for an honest
+// Worker under load. The seeds are written for the reference block time.
+func TestStockGenesisSeedsCarryRecommendedAnchorWindows(t *testing.T) {
+	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, name := range []string{"localnet_genesis_seed.json", "testnet_genesis_seed.json"} {
+		seed, err := readGenesisSeed(filepath.Join("..", "..", "..", "config", name))
+		require.NoError(t, err, name)
+		params := tasktypes.DefaultTaskParams()
+		require.NoError(t, applyTaskParamsOverride(cdc, &params, seed.TaskParams), name)
+		open, proof, verdict := tasktypes.RecommendedAnchorWindowBlocks(tasktypes.AnchorWindowBlockTime)
+		v := params.Verification
+		require.Equal(t, open, v.AnchorOpenWindowBlocks, name)
+		require.Equal(t, proof, v.AnchorProofWindowBlocks, name)
+		require.Equal(t, verdict, v.AnchorVerdictWindowBlocks, name)
+		require.NotZero(t, v.AnchorAuditMinRateBps, name)
+		require.NoError(t, params.Validate(), name)
+	}
+}
+
 func TestGenesisSeedFundsBuilderCompensationAccount(t *testing.T) {
 	funded := newGenesisSeedTestIdentity()
 	unfunded := newGenesisSeedTestIdentity()
