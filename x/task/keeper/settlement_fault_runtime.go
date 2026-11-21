@@ -46,7 +46,10 @@ func (k Keeper) prepareSettlementFaults(
 		}
 		deadlineFacts := VerificationDeadlineFacts{}
 		assignment, assignmentErr := k.ReadVerifierAssignment(ctx, roundKey)
-		if assignmentErr == nil {
+		if assignmentErr == nil && isAnchorOnlyAssignment(assignment) {
+			// ADR-0040 anchor-only: no Verifier was selected, so there is no
+			// commit or result deadline anyone could have missed.
+		} else if assignmentErr == nil {
 			deadlineFacts, err = k.BuildVerificationDeadlineFacts(ctx, assignment)
 			if err != nil {
 				return inputs, err
