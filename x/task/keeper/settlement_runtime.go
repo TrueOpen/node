@@ -41,6 +41,9 @@ type settlementInputs struct {
 	Anchor *types.AnchorAuditState
 	// AnchorWorkerFaultID is the Worker role fault applied for a REJECT verdict.
 	AnchorWorkerFaultID []byte
+	// AnchorOnly marks a task verified by the anchor audit alone (ADR-0040): its
+	// round 1 has no Verifier, so the verify share of the price is the Worker's.
+	AnchorOnly bool
 }
 
 // BuildSettlementFacts derives every non-amount settlement field from
@@ -189,6 +192,21 @@ func (k Keeper) BuildSettlementPlan(
 	workerPayableGross := uint64(0)
 	if facts.Verdict == types.TaskVerdict_TASK_VERDICT_PASS && !inputs.isDisqualified(inputs.Assignment.WinnerWorker) {
 		workerPayableGross = workerGross
+	}
+	if inputs.AnchorOnly && workerPayableGross > 0 {
+		// ADR-0040 anchor-only: no Verifier is paid, and the Worker carries the
+		// whole verification duty (commitment, opening and proof), so the share
+		// of the price a Verifier round would have taken is paid to the Worker.
+		// The user pays what a fully verified task costs; nothing is redistributed
+		// on a task that does not pay the Worker.
+		verifyShare, ok := mulDivFloorRound(workerGross, uint64(inputs.Budget.VerifyRatioBpsSnapshot), uint64(types.BasisPointsMaximum))
+		if !ok {
+			return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("anchor-only verify share overflows")
+		}
+		workerPayableGross, ok = checkedAddU64(workerPayableGross, verifyShare)
+		if !ok {
+			return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("anchor-only worker gross overflows")
+		}
 	}
 	verifyTotalGross := uint64(0)
 	if len(inputs.Round1Cluster) > 0 {
