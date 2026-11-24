@@ -286,7 +286,13 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 verifier assignment is unavailable")
 	}
-	if round1Assignment.SelectedVerifierCount == 0 ||
+	// An anchor-only task carries a round-1 assignment with no
+	// Verifier, and only on a receipt that committed the anchor.
+	anchorOnly := isAnchorOnlyAssignment(round1Assignment)
+	if anchorOnly && (!receiptIsAnchorOnly(infer.RequiredEvidenceCommitments) || effectiveRound != types.VerifyRoundV1) {
+		return settlementInputs{}, errorsmod.Wrap(types.ErrInvariantBroken, "anchor-only assignment does not match its task")
+	}
+	if (!anchorOnly && round1Assignment.SelectedVerifierCount == 0) ||
 		round1Assignment.SelectedVerifierCount != uint32(len(round1Assignment.SelectedVerifiers)) {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 verifier assignment is non-canonical")
 	}
@@ -331,6 +337,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 		DutyBuilder: dutyBuilder, CutoffHeight: cutoff,
 		round1SelectedVerifierCount: round1Assignment.SelectedVerifierCount,
 		DisqualifiedOperators:       disqualified,
+		AnchorOnly:                  anchorOnly,
 	}, nil
 }
 
@@ -400,6 +407,23 @@ func (k Keeper) rebuildClosedRound(
 	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, verifyRound))
 	if err != nil {
 		return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "verifier assignment is unavailable")
+	}
+	if isAnchorOnlyAssignment(assignment) {
+		// Anchor-only: no Verifier sampled this round. It is PASS on the Worker's
+		// receipt, and the closed round must still say exactly that.
+		infer, err := k.ReadInferReceipt(ctx, taskKey)
+		if err != nil || !receiptIsAnchorOnly(infer.RequiredEvidenceCommitments) {
+			return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(types.ErrInvariantBroken, "anchor-only round has no anchor receipt")
+		}
+		result := anchorOnlyRoundResult(infer, closed)
+		if closed.GetVerdict() != result.Verdict || closed.GetFailureClass() != result.FailureClass ||
+			closed.GeneratedTokenCount != result.GeneratedTokenCount ||
+			!bytes.Equal(closed.GetResultReceiptRefsHash(), result.ResultReceiptRefsHash) ||
+			!bytes.Equal(closed.GetConsensusClusterHash(), result.ConsensusClusterHash) {
+			return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(
+				types.ErrInvariantBroken, "closed anchor-only round does not reproduce its frozen commitments")
+		}
+		return closed, result, nil
 	}
 	samples, err := k.collectRoundSamples(ctx, sdkCtx, core, assignment, verifyRound, cutoffHeight)
 	if err != nil {

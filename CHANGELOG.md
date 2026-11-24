@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- **Consensus-breaking: anchor-only verification.** A Profile version that
+  requires the Worker anchor commitment is now verified by the anchor audit
+  alone. Its Tasks draw no Verifier: the chain samples each one from the beacon
+  at the same height and rate as before, a sampled Task is opened and proved by
+  the Worker and decided by the validators, and an unsampled Task settles on the
+  Worker's receipt. The share of the price a Verifier round would have taken is
+  paid to the Worker. Profile versions without that commitment are unchanged.
+  - This changes every Profile version that already requires the commitment,
+    not only versions registered later: from the upgrade height on, new Tasks
+    on those versions stop drawing Verifiers.
+  - All validators must switch to the new binary at the same height. There is
+    no store migration and no parameter change.
+  - A Task whose receipt was accepted before the upgrade keeps the Verifier
+    path it froze, including its challenge window.
+- An anchor-only Task has no challenge round: `MsgOpenChallengeRound` is refused
+  for it, so an unsampled Task of that kind has no dispute path.
+- The billed token count of an anchor-only Task is the count in the Worker's
+  signed receipt. No Verifier recounts it. A sampled audit does not detect a
+  receipt that counts trailing prompt tokens as generated ones; the excess is
+  bounded per Task by the prompt length and by the order's `max_output_tokens`.
+
 ## v0.2.0
 
 Phase 1 is a coordinated breaking release for a fresh genesis. Retained Phase 0

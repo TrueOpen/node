@@ -2375,7 +2375,7 @@ Response fields:
 - Request/response: `task.v1.MsgOpenChallengeRound` -> `task.v1.MsgOpenChallengeRoundResponse`
 - Purpose: Performs the `OpenChallengeRound` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
 - Stage: The challenge, evidence-retention and dispute adjudication stage.
-- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+- Keeper behaviour: Applies only inside the challenge window that a round 1 closed by Verifiers opens. A Task whose Profile version requires the Worker anchor commitment is verified by the anchor audit alone: its round 1 draws no Verifier and opens no challenge window, so this message is refused for it and such a Task has no dispute path (a sampled one is decided by the validators' anchor verdict, an unsampled one settles on the Worker's receipt). Otherwise validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
 
 Request parameters:
 

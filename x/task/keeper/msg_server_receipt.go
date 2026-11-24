@@ -165,33 +165,43 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
-	slotCapacity, segmentBytes, candidates, err := m.k.deriveVerifierEligibilityCandidates(
-		ctx, core, assignment, hubParams,
-	)
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
-	}
-	windowSize, err := verifierWindowSize(
-		uint32(len(candidates)), params.Weights.VerifierCandidateRatioPpm,
-		params.Weights.VerifierCandidateWindowMin, params.Weights.VerifierCandidateWindowMax,
-	)
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
-	}
-	header := types.VerifierCandidateWindowState{
-		SchemaVersion: 1, TaskId: append([]byte(nil), receipt.TaskId...), VerifyRound: types.VerifyRoundV1,
-		InferReceiptHash:        append([]byte(nil), signingDigest[:]...),
-		CandidatePoolSnapshotId: append([]byte(nil), assignment.CandidatePoolSnapshotId...),
-		CandidatePoolHash:       append([]byte(nil), assignment.CandidatePoolHash...), EligibilityFrozenHeight: height,
-		WindowRandomnessHeight:     clock.WindowRandomnessHeight,
-		BuilderProposalCloseHeight: clock.BuilderProposalCloseHeight,
-		HandraiseCloseHeight:       clock.HandraiseCloseHeight,
-		SelectionRandomnessHeight:  clock.SelectionRandomnessHeight,
-		AssignmentDeadlineHeight:   clock.AssignmentDeadlineHeight, WindowSize: windowSize,
-	}
-	header, segments, err := freezeVerifierEligibilitySource(sdkCtx.ChainID(), header, slotCapacity, segmentBytes, candidates)
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+	// A Profile version that requires the anchor commitment is verified
+	// by the anchor audit alone. Its receipt freezes the same clock but no
+	// Verifier eligibility source, and goes straight to the sampling height.
+	anchorOnly := receiptIsAnchorOnly(receipt.RequiredEvidenceCommitments)
+	var header types.VerifierCandidateWindowState
+	var segments []types.VerifierCandidateEligibilitySegmentState
+	if anchorOnly {
+		header = anchorOnlyWindowHeader(receipt.TaskId, signingDigest[:], assignment, height, clock)
+	} else {
+		slotCapacity, segmentBytes, candidates, err := m.k.deriveVerifierEligibilityCandidates(
+			ctx, core, assignment, hubParams,
+		)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+		}
+		windowSize, err := verifierWindowSize(
+			uint32(len(candidates)), params.Weights.VerifierCandidateRatioPpm,
+			params.Weights.VerifierCandidateWindowMin, params.Weights.VerifierCandidateWindowMax,
+		)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+		}
+		header = types.VerifierCandidateWindowState{
+			SchemaVersion: 1, TaskId: append([]byte(nil), receipt.TaskId...), VerifyRound: types.VerifyRoundV1,
+			InferReceiptHash:        append([]byte(nil), signingDigest[:]...),
+			CandidatePoolSnapshotId: append([]byte(nil), assignment.CandidatePoolSnapshotId...),
+			CandidatePoolHash:       append([]byte(nil), assignment.CandidatePoolHash...), EligibilityFrozenHeight: height,
+			WindowRandomnessHeight:     clock.WindowRandomnessHeight,
+			BuilderProposalCloseHeight: clock.BuilderProposalCloseHeight,
+			HandraiseCloseHeight:       clock.HandraiseCloseHeight,
+			SelectionRandomnessHeight:  clock.SelectionRandomnessHeight,
+			AssignmentDeadlineHeight:   clock.AssignmentDeadlineHeight, WindowSize: windowSize,
+		}
+		header, segments, err = freezeVerifierEligibilitySource(sdkCtx.ChainID(), header, slotCapacity, segmentBytes, candidates)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+		}
 	}
 	cacheCtx, write := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
@@ -204,6 +214,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	}
 	buildKey := types.NewVerifyRoundIndexKey(header.WindowRandomnessHeight, taskKey, types.VerifyRoundV1)
 	closeKey := types.NewVerifyRoundIndexKey(header.HandraiseCloseHeight, taskKey, types.VerifyRoundV1)
+	selectionKey := types.NewVerifyRoundIndexKey(header.SelectionRandomnessHeight, taskKey, types.VerifyRoundV1)
 	deadlineKey := types.NewDeadlineIndexKey(header.AssignmentDeadlineHeight, taskKey)
 	if exists, err := m.k.VerifierWindowBuildIndex.Has(cache, buildKey); err != nil || exists {
 		if err != nil {
@@ -216,6 +227,16 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 			return nil, err
 		}
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier handraise close index already exists without a receipt")
+	}
+	if anchorOnly {
+		// Read only on the anchor-only path, which is the one that files this row
+		// at the receipt; the Verifier path keeps its exact store accesses.
+		if exists, err := m.k.VerifierSelectionRandomnessIndex.Has(cache, selectionKey); err != nil || exists {
+			if err != nil {
+				return nil, err
+			}
+			return nil, errorsmod.Wrap(types.ErrInvariantBroken, "verifier selection index already exists without a receipt")
+		}
 	}
 	if exists, err := m.k.VerifyOpenDeadlineIndex.Has(cache, deadlineKey); err != nil || exists {
 		if err != nil {
@@ -240,6 +261,11 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	core.TaskPhase = types.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED
 	core.ReceiptStatus = types.ReceiptStatus_RECEIPT_STATUS_RECEIPT_ACCEPTED
 	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_WINDOW_PENDING
+	if anchorOnly {
+		// No window to build and no handraise to wait for: the next step is the
+		// sampling beacon.
+		core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING
+	}
 	core.UpdatedHeight = height
 	if err := m.k.WriteInferReceipt(cache, taskKey, receiptState); err != nil {
 		return nil, err
@@ -271,11 +297,17 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err := removeDeadlineIndex(cache, m.k.InferDeadlineIndex, taskKey, assignment.InferDeadlineHeight); err != nil {
 		return nil, err
 	}
-	if err := m.k.VerifierWindowBuildIndex.Set(cache, buildKey); err != nil {
-		return nil, err
-	}
-	if err := m.k.VerifierHandraiseCloseIndex.Set(cache, closeKey); err != nil {
-		return nil, err
+	if anchorOnly {
+		if err := m.k.VerifierSelectionRandomnessIndex.Set(cache, selectionKey); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := m.k.VerifierWindowBuildIndex.Set(cache, buildKey); err != nil {
+			return nil, err
+		}
+		if err := m.k.VerifierHandraiseCloseIndex.Set(cache, closeKey); err != nil {
+			return nil, err
+		}
 	}
 	if err := m.k.VerifyOpenDeadlineIndex.Set(cache, deadlineKey); err != nil {
 		return nil, err
@@ -296,6 +328,9 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, "Task Builder selection is unavailable at verifier-window freeze")
 	}
+	// Reserved for an anchor-only task too: the Builder stage rows follow the
+	// receipt and the round-1 assignment on both paths, so the cross-module
+	// responsibility check reads one rule.
 	if err := m.k.reserveBuilderStageResponsibilities(
 		cache, core, selection, serviceKeyResponsibilityOpenVerifyBuilder, height,
 	); err != nil {

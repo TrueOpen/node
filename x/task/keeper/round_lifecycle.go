@@ -11,8 +11,12 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// closeRoundOnce is the only writer that turns an open round header into a
-// terminal round. Callers run it in their own cache transaction.
+// closeRoundOnce turns an open round header into a terminal round from the
+// Verifier samples of its assignment. Callers run it in their own cache
+// transaction. Two rounds are written closed without passing through it, because
+// they have no assignment to sample: the challenge round that could not be
+// staffed (closeUnavailableChallengeRound) and round 1 of an anchor-only task
+// (finalizeAnchorOnlyRoundAtHeight).
 func (k Keeper) closeRoundOnce(
 	ctx context.Context,
 	taskKey types.TaskKey,
@@ -81,7 +85,7 @@ func (k Keeper) closeRoundOnce(
 		return types.VerificationRoundState{}, false, err
 	}
 	if verifyRound == types.VerifyRoundV1 {
-		if err := k.closeRoundOneSummary(ctx, taskKey, closed, result); err != nil {
+		if err := k.closeRoundOneSummary(ctx, taskKey, closed, result, isExplicitRoundVerdict(result.Verdict)); err != nil {
 			return types.VerificationRoundState{}, false, err
 		}
 	} else {
@@ -181,11 +185,17 @@ func (k Keeper) removeVerifierActiveJobs(ctx context.Context, taskKey types.Task
 	return nil
 }
 
+// closeRoundOneSummary records the closed round 1 on the task and moves the task
+// on. challengeWindow says whether the round opens a challenge window: a
+// Verifier round does exactly when its verdict is explicit; an anchor-only round
+// never does (a challenge round re-verifies with Verifiers, which that mode does
+// not have). Without a window the task is finalized at once.
 func (k Keeper) closeRoundOneSummary(
 	ctx context.Context,
 	taskKey types.TaskKey,
 	round types.VerificationRoundState,
 	result roundCloseResult,
+	challengeWindow bool,
 ) error {
 	summary, err := k.TaskRoundSummary.Get(ctx, taskKey)
 	if err != nil && !errIsNotFound(err) {
@@ -200,7 +210,7 @@ func (k Keeper) closeRoundOneSummary(
 	summary.Round2FactsHashOrZero32 = make([]byte, 32)
 	summary.Round2EffectRootOrZero32 = make([]byte, 32)
 
-	if isExplicitRoundVerdict(result.Verdict) {
+	if challengeWindow {
 		assignment, err := k.ReadTaskAssignment(ctx, taskKey)
 		if err != nil || assignment.ChallengeOpenWindowBlocksSnapshot == 0 {
 			return errorsmod.Wrap(types.ErrInvariantBroken, "challenge window snapshot is unavailable")
@@ -225,13 +235,14 @@ func (k Keeper) closeRoundOneSummary(
 	}); err != nil {
 		return err
 	}
-	if !isExplicitRoundVerdict(result.Verdict) {
-		// A non-explicit round-1 verdict opens no challenge window, so the task goes
-		// straight to finalization — but the core status still has to move. Skipping
-		// it left verification_status parked on COMMITTING/REVEALING for a round that
-		// is already closed, which is exactly the "already FINAL but still pending"
-		// shape a Query must never show. The mapping is the same one the settlement
-		// path applies a moment later, so this only moves the write earlier.
+	if !challengeWindow {
+		// A round 1 that opens no challenge window (a non-explicit verdict, or an
+		// anchor-only round) sends the task straight to finalization — but the
+		// core status still has to move. Skipping it left verification_status
+		// parked on COMMITTING/REVEALING for a round that is already closed, which
+		// is exactly the "already FINAL but still pending" shape a Query must never
+		// show. The mapping is the same one the settlement path applies a moment
+		// later, so this only moves the write earlier.
 		if err := k.updateCoreAfterRoundClose(ctx, taskKey, result.Verdict); err != nil {
 			return err
 		}

@@ -68,6 +68,10 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 	case types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_SOURCE_FROZEN:
 		return nil, status.Error(codes.FailedPrecondition, "verifier candidate window is not materialized")
 	case types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY:
+		if isAnchorOnlyWindow(window) {
+			// Anchor-only task: the window is the frozen clock alone.
+			break
+		}
 		if window.WindowSize == 0 || len(window.GetVerifierWindowHash()) != types.Hash32Len {
 			return nil, status.Error(codes.Internal, "READY verifier candidate window has an incomplete header")
 		}
@@ -399,7 +403,11 @@ func (q *queryServer) loadVerifierAssignment(ctx context.Context, taskKey types.
 	if err != nil || !bytes.Equal(window.TaskId, taskKey) || window.VerifyRound != verifyRound {
 		return types.VerifierAssignmentState{}, status.Error(codes.Internal, "verifier assignment is orphaned from its candidate window")
 	}
-	if !bytes.Equal(window.GetVerifierWindowHash(), assignment.VerifierCandidateWindowHash) {
+	if isAnchorOnlyAssignment(assignment) != isAnchorOnlyWindow(window) {
+		return types.VerifierAssignmentState{}, status.Error(codes.Internal, "verifier assignment and its candidate window disagree on anchor-only verification")
+	}
+	// An anchor-only window has no member commitment; its assignment holds zero32.
+	if !isAnchorOnlyWindow(window) && !bytes.Equal(window.GetVerifierWindowHash(), assignment.VerifierCandidateWindowHash) {
 		return types.VerifierAssignmentState{}, status.Error(codes.Internal, "verifier assignment candidate window hash does not match its source")
 	}
 	if window.Status != types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY &&
@@ -418,7 +426,8 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 	if !bytes.Equal(assignment.TaskId, taskID) || assignment.VerifyRound != round {
 		return status.Error(codes.Internal, "verifier assignment primary key does not match its scope")
 	}
-	if assignment.SelectedVerifierCount == 0 || uint32(len(assignment.SelectedVerifiers)) != assignment.SelectedVerifierCount {
+	anchorOnly := isAnchorOnlyAssignment(assignment)
+	if (!anchorOnly && assignment.SelectedVerifierCount == 0) || uint32(len(assignment.SelectedVerifiers)) != assignment.SelectedVerifierCount {
 		return status.Error(codes.Internal, "verifier assignment has an invalid selected verifier count")
 	}
 	if len(assignment.VerifierCandidateWindowHash) != types.Hash32Len || len(assignment.VerifierLegalSetHash) != types.Hash32Len ||
@@ -431,6 +440,16 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 		(assignment.RevealDeadlineHeight > assignment.VerifyDeadlineHeight ||
 			round == types.VerifyRoundV1 && assignment.RevealDeadlineHeight == assignment.VerifyDeadlineHeight) {
 		return status.Error(codes.Internal, "verifier assignment has a non-canonical reveal deadline")
+	}
+	if anchorOnly {
+		// Anchor-only task: nothing was selected, and the three
+		// commitments are the zero32 "nothing selected" value.
+		zero := make([]byte, types.Hash32Len)
+		if !bytes.Equal(assignment.VerifierCandidateWindowHash, zero) || !bytes.Equal(assignment.VerifierLegalSetHash, zero) ||
+			!bytes.Equal(assignment.SelectedVerifiersHash, zero) {
+			return status.Error(codes.Internal, "anchor-only verifier assignment carries a selection commitment")
+		}
+		return nil
 	}
 	selectedHash, err := SelectedVerifierRefsHash(
 		chainID, taskID, round, assignment.VerifierLegalSetHash,

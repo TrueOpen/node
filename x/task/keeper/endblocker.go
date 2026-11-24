@@ -508,6 +508,25 @@ func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Co
 			if window.Status != types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY {
 				return deadlineSweepPending, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "verifier selection requires a READY window")
 			}
+			if isAnchorOnlyWindow(window) {
+				// Anchor-only task: sample the anchor audit and close
+				// round 1 without Verifiers.
+				advanced, applyBytes, err := k.finalizeAnchorOnlyRoundAtHeight(ctx, taskID, window, currentHeight)
+				rowBytes += applyBytes
+				if errors.Is(err, types.ErrDeadlineExpired) || errors.Is(err, errAnchorOnlyAuditNotWritten) {
+					// The sampling beacon never became available, or the audit
+					// could not be written: the round is not closed, and the
+					// verify-open deadline retires the task (refund, no fault).
+					return k.retireVerifierRowToFallbackDeadline(ctx, taskID, window, height, rowBytes)
+				}
+				if err != nil {
+					return deadlineSweepPending, rowBytes, err
+				}
+				if !advanced {
+					return deadlineSweepPending, rowBytes, nil
+				}
+				return deadlineSweepAdvanced, rowBytes, nil
+			}
 			stageKey := types.NewTaskStageKey(taskID, types.TaskCandidateStage_TASK_CANDIDATE_STAGE_OPEN_VERIFY)
 			union, err := k.TaskStageHandraiseUnion.Get(ctx, stageKey)
 			if err != nil {
