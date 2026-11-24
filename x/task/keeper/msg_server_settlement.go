@@ -286,7 +286,7 @@ func (k Keeper) loadSettlementInputs(ctx context.Context, taskKey types.TaskKey,
 	if err != nil {
 		return settlementInputs{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "round 1 verifier assignment is unavailable")
 	}
-	// ADR-0040: an anchor-only task carries a round-1 assignment with no
+	// An anchor-only task carries a round-1 assignment with no
 	// Verifier, and only on a receipt that committed the anchor.
 	anchorOnly := isAnchorOnlyAssignment(round1Assignment)
 	if anchorOnly && (!receiptIsAnchorOnly(infer.RequiredEvidenceCommitments) || effectiveRound != types.VerifyRoundV1) {
@@ -409,7 +409,7 @@ func (k Keeper) rebuildClosedRound(
 		return types.VerificationRoundState{}, roundCloseResult{}, errorsmod.Wrap(types.ErrInvalidTaskStatus, "verifier assignment is unavailable")
 	}
 	if isAnchorOnlyAssignment(assignment) {
-		// ADR-0040: no Verifier sampled this round. It is PASS on the Worker's
+		// Anchor-only: no Verifier sampled this round. It is PASS on the Worker's
 		// receipt, and the closed round must still say exactly that.
 		infer, err := k.ReadInferReceipt(ctx, taskKey)
 		if err != nil || !receiptIsAnchorOnly(infer.RequiredEvidenceCommitments) {

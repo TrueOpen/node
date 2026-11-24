@@ -165,7 +165,7 @@ func (m msgServer) SubmitInferReceipt(ctx context.Context, req *types.MsgSubmitI
 	if err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
-	// ADR-0040: a Profile version that requires the anchor commitment is verified
+	// A Profile version that requires the anchor commitment is verified
 	// by the anchor audit alone. Its receipt freezes the same clock but no
 	// Verifier eligibility source, and goes straight to the sampling height.
 	anchorOnly := receiptIsAnchorOnly(receipt.RequiredEvidenceCommitments)

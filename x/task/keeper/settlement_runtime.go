@@ -41,7 +41,7 @@ type settlementInputs struct {
 	Anchor *types.AnchorAuditState
 	// AnchorWorkerFaultID is the Worker role fault applied for a REJECT verdict.
 	AnchorWorkerFaultID []byte
-	// AnchorOnly marks a task verified by the anchor audit alone (ADR-0040): its
+	// AnchorOnly marks a task verified by the anchor audit alone: its
 	// round 1 has no Verifier, so the verify share of the price is the Worker's.
 	AnchorOnly bool
 }
@@ -194,7 +194,7 @@ func (k Keeper) BuildSettlementPlan(
 		workerPayableGross = workerGross
 	}
 	if inputs.AnchorOnly && workerPayableGross > 0 {
-		// ADR-0040 anchor-only: no Verifier is paid, and the Worker carries the
+		// Anchor-only: no Verifier is paid, and the Worker carries the
 		// whole verification duty (commitment, opening and proof), so the share
 		// of the price a Verifier round would have taken is paid to the Worker.
 		// The user pays what a fully verified task costs; nothing is redistributed

@@ -69,7 +69,7 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 		return nil, status.Error(codes.FailedPrecondition, "verifier candidate window is not materialized")
 	case types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY:
 		if isAnchorOnlyWindow(window) {
-			// ADR-0040 anchor-only task: the window is the frozen clock alone.
+			// Anchor-only task: the window is the frozen clock alone.
 			break
 		}
 		if window.WindowSize == 0 || len(window.GetVerifierWindowHash()) != types.Hash32Len {
@@ -442,7 +442,7 @@ func (q *queryServer) validateVerifierAssignmentQueryRow(assignment types.Verifi
 		return status.Error(codes.Internal, "verifier assignment has a non-canonical reveal deadline")
 	}
 	if anchorOnly {
-		// ADR-0040 anchor-only task: nothing was selected, and the three
+		// Anchor-only task: nothing was selected, and the three
 		// commitments are the zero32 "nothing selected" value.
 		zero := make([]byte, types.Hash32Len)
 		if !bytes.Equal(assignment.VerifierCandidateWindowHash, zero) || !bytes.Equal(assignment.VerifierLegalSetHash, zero) ||
