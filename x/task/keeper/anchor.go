@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"cosmossdk.io/collections"
@@ -38,7 +39,29 @@ const (
 	// tokenIDsRawOverheadBytes is the two u32 counts of the A-level artifact
 	// pair (input_token_ids_raw and generated_token_ids_raw).
 	tokenIDsRawOverheadBytes = 8
+	// maxAnchorOpeningSizeBytes and maxAnchorProofSizeBytes bound the sizes a
+	// Worker may record. Validators fetch and parse these objects, so the bound
+	// has to be the same for all of them and known to the Worker before it
+	// records anything: a size only some validators accept would split the
+	// vote. 2 GiB is the largest opening the reference validator and DA store
+	// take; a proof is a few hundred kilobytes.
+	maxAnchorOpeningSizeBytes = uint64(2) << 30
+	maxAnchorProofSizeBytes   = uint64(256) << 20
 )
+
+// validAnchorMaterialURI reports whether uri is a location validators can be
+// expected to fetch from: an absolute http or https URL with a host, within the
+// recorded length bound. Anything else can only ever end in "no vote".
+func validAnchorMaterialURI(uri string) bool {
+	if uri == "" || len(uri) > maxAnchorOpeningURIBytes || strings.TrimSpace(uri) != uri {
+		return false
+	}
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Host == "" || parsed.User != nil {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
 
 func anchorCommitmentOf(receipt types.InferReceiptState) (types.EvidenceCommitmentV1, bool) {
 	for _, item := range receipt.RequiredEvidenceCommitments {
@@ -241,9 +264,14 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		return nil, status.Error(codes.InvalidArgument, "anchor opening request is required")
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || bytes.Equal(req.OpeningHash, make([]byte, types.Hash32Len)) ||
-		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 || strings.TrimSpace(req.OpeningUri) == "" || len(req.OpeningUri) > maxAnchorOpeningURIBytes ||
-		strings.TrimSpace(req.AnchorCommitUri) == "" || len(req.AnchorCommitUri) > maxAnchorOpeningURIBytes {
+		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "anchor opening envelope is invalid")
+	}
+	if req.OpeningSizeBytes > maxAnchorOpeningSizeBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "anchor opening size exceeds the %d byte limit", maxAnchorOpeningSizeBytes)
+	}
+	if !validAnchorMaterialURI(req.OpeningUri) || !validAnchorMaterialURI(req.AnchorCommitUri) {
+		return nil, status.Error(codes.InvalidArgument, "anchor opening locations must be http or https URLs")
 	}
 	for i := 1; i < len(req.Positions); i++ {
 		if req.Positions[i] <= req.Positions[i-1] {
@@ -313,10 +341,14 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || len(req.ProofHash) != types.Hash32Len ||
 		bytes.Equal(req.ProofHash, make([]byte, types.Hash32Len)) || req.ProofSizeBytes == 0 ||
-		strings.TrimSpace(req.ProofUri) == "" || len(req.ProofUri) > maxAnchorOpeningURIBytes ||
-		len(req.EpochManifestHash) != types.Hash32Len || bytes.Equal(req.EpochManifestHash, make([]byte, types.Hash32Len)) ||
-		strings.TrimSpace(req.EpochManifestUri) == "" || len(req.EpochManifestUri) > maxAnchorOpeningURIBytes {
+		len(req.EpochManifestHash) != types.Hash32Len || bytes.Equal(req.EpochManifestHash, make([]byte, types.Hash32Len)) {
 		return nil, status.Error(codes.InvalidArgument, "anchor proof envelope is invalid")
+	}
+	if req.ProofSizeBytes > maxAnchorProofSizeBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "anchor proof size exceeds the %d byte limit", maxAnchorProofSizeBytes)
+	}
+	if !validAnchorMaterialURI(req.ProofUri) || !validAnchorMaterialURI(req.EpochManifestUri) {
+		return nil, status.Error(codes.InvalidArgument, "anchor proof locations must be http or https URLs")
 	}
 	if _, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -399,7 +431,8 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	}
 	positions := make([]uint64, len(req.Verdicts))
 	for i, v := range req.Verdicts {
-		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || len(v.Reason) > maxAnchorVerdictReasonBytes {
+		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE ||
+			len(v.Reason) > maxAnchorVerdictReasonBytes {
 			return nil, status.Error(codes.InvalidArgument, "anchor audit verdict is invalid")
 		}
 		positions[i] = v.Position

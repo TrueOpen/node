@@ -80,6 +80,8 @@ func (k Keeper) anchorRecountComputeTally(ctx context.Context, taskKey types.Tas
 			tally.PassPower += power
 		case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT:
 			tally.RejectPower += power
+		case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE:
+			tally.UnavailablePower += power
 		default:
 			tally.NoVerdictPower += power
 		}
@@ -97,8 +99,10 @@ func anchorQuorum(power, total uint64) bool {
 }
 
 // anchorTimeoutVerdict is the verdict the deadline imposes on an audit that has
-// no final vote: the Worker's own omissions are REJECT, a silent validator set
-// is NO_VERDICT (the Worker is paid, nothing is slashed).
+// no final vote, from the audit row alone: the Worker's own omissions are
+// REJECT, anything else is NO_VERDICT (the Worker is paid, nothing is slashed).
+// anchorSettlementView then turns a NO_VERDICT into the material-unavailable
+// REJECT when two thirds of the validators voted UNAVAILABLE.
 func anchorTimeoutVerdict(state types.AnchorAuditState) (types.AnchorVerdictV1, string) {
 	switch {
 	case len(state.Positions) == 0:
@@ -117,7 +121,7 @@ func emitAnchorVerdictEvent(ctx context.Context, state types.AnchorAuditState) e
 	return emitTypedEvent(ctx, &types.EventAnchorVerdictFinalized{
 		TaskId: append([]byte(nil), state.TaskId...), Verdict: state.TaskVerdict, Source: state.ResultSource,
 		PassPower: state.Tally.PassPower, RejectPower: state.Tally.RejectPower, TotalPower: state.Tally.TotalPower,
-		Reason: state.ResultReason,
+		Reason: state.ResultReason, UnavailablePower: state.Tally.UnavailablePower,
 	})
 }
 
@@ -153,7 +157,46 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 	}
 	state.TaskVerdict, state.ResultReason = anchorTimeoutVerdict(state)
 	state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT
+	if state.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT && len(state.WorkerProofHash) == types.Hash32Len {
+		// The Worker recorded an opening and a proof and no PASS or REJECT side
+		// reached two thirds. Silent validators leave that at NO_VERDICT. But
+		// when validators holding two thirds of the current bonded power are on
+		// record that they could not obtain what the Worker recorded, the Worker
+		// did not meet its obligation: keeping the material retrievable is its
+		// duty exactly like opening in time, so the audit ends like a missed
+		// deadline (REJECT, timeout fault), not as a paid task.
+		unavailable, tally, err := k.anchorUnavailableQuorum(ctx, taskKey)
+		if err != nil {
+			return nil, err
+		}
+		if unavailable {
+			state.Tally = tally
+			state.TaskVerdict = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
+			state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE
+			state.ResultReason = fmt.Sprintf("validators could not obtain the recorded material: unavailable %d / pass %d / reject %d of %d power (%d votes)",
+				tally.UnavailablePower, tally.PassPower, tally.RejectPower, tally.TotalPower, tally.VoteCount)
+		}
+	}
 	return &state, nil
+}
+
+// anchorUnavailableQuorum recounts the stored votes at current power and
+// reports whether UNAVAILABLE holds two thirds of the bonded set. It is read at
+// the verdict deadline only: until then a validator may still replace its
+// UNAVAILABLE vote with PASS or REJECT. An unreadable total (no staking keeper,
+// no bonded power) is "no quorum", never an error that would hold settlement.
+func (k Keeper) anchorUnavailableQuorum(ctx context.Context, taskKey types.TaskKey) (bool, types.AnchorVoteTallyV1, error) {
+	if k.stakingKeeper == nil {
+		return false, types.AnchorVoteTallyV1{}, nil
+	}
+	tally, err := k.anchorRecountComputeTally(ctx, taskKey)
+	if err != nil {
+		if errors.Is(err, types.ErrInvariantBroken) {
+			return false, types.AnchorVoteTallyV1{}, nil
+		}
+		return false, types.AnchorVoteTallyV1{}, err
+	}
+	return anchorQuorum(tally.UnavailablePower, tally.TotalPower), tally, nil
 }
 
 // anchorSettlementHoldHeight is the height a PASS round must wait for before it
@@ -210,11 +253,18 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 	}
 	switch req.Verdict {
 	case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS, types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT:
+	case types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE:
+		// Nothing was obtained, so there is no position to judge.
+		if len(req.Verdicts) != 0 {
+			return nil, status.Error(codes.InvalidArgument, "an UNAVAILABLE vote carries no position verdicts")
+		}
 	default:
 		return nil, status.Error(codes.InvalidArgument, "anchor validator vote verdict is invalid")
 	}
 	for _, v := range req.Verdicts {
-		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || len(v.Reason) > maxAnchorVerdictReasonBytes {
+		// UNAVAILABLE is a vote value, never the verdict of a position.
+		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE ||
+			len(v.Reason) > maxAnchorVerdictReasonBytes {
 			return nil, status.Error(codes.InvalidArgument, "anchor validator vote position verdict is invalid")
 		}
 	}
@@ -281,7 +331,14 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 		if existing.Verdict == req.Verdict && bytes.Equal(existing.ProofHash, req.ProofHash) {
 			return &types.MsgSubmitAnchorValidatorVoteResponse{TaskVerdict: state.TaskVerdict, Tally: state.Tally, Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 		}
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "validator already voted on this audit")
+		// One direction only: a validator that could not obtain the material
+		// earlier and has it now may replace UNAVAILABLE with its judgement. A
+		// judgement is never withdrawn.
+		replaces := existing.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE &&
+			(req.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS || req.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT)
+		if !replaces {
+			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "validator already voted on this audit")
+		}
 	} else if !errors.Is(err, collections.ErrNotFound) {
 		return nil, err
 	}
@@ -312,9 +369,11 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 		final = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_PASS
 	case anchorQuorum(tally.RejectPower, tally.TotalPower):
 		final = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
-	case tally.PassPower+tally.RejectPower+tally.NoVerdictPower >= tally.TotalPower:
+	case tally.UnavailablePower == 0 && tally.PassPower+tally.RejectPower+tally.NoVerdictPower >= tally.TotalPower:
 		final = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT // every bonded validator voted; no side reached two thirds
 	}
+	// UNAVAILABLE decides nothing here. It can still be replaced, so it is read
+	// once, at the verdict deadline (anchorSettlementView).
 	if final != types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED {
 		state.ResultHeight = height
 		state.TaskVerdict = final
