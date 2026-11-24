@@ -3733,7 +3733,7 @@
           "type": "string"
         },
         "opening_uri": {
-          "description": "Where the material can be fetched; devnet accepts file:// and http(s)://.",
+          "description": "Where the material can be fetched: an http:// or https:// URL.",
           "type": "string"
         },
         "positions": {
@@ -3879,13 +3879,14 @@
     },
     "task.v1.AnchorResultSourceV1": {
       "default": "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
-      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).",
+      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).\n - ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE: verdict_deadline_height passed and validators holding \u003e= 2/3 of the bonded\nvoting power had voted UNAVAILABLE: the Worker recorded an opening and a\nproof but did not keep them retrievable. Final REJECT, settled as the\ntimeout fault (the smaller slash, no jail); the task is not paid.\nValue 5 is left to the content-track contract.",
       "enum": [
         "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
         "ANCHOR_RESULT_SOURCE_V1_VERIFIER",
         "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
         "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
-        "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT"
+        "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT",
+        "ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE"
       ],
       "type": "string"
     },
@@ -3935,12 +3936,13 @@
     },
     "task.v1.AnchorVerdictV1": {
       "default": "ANCHOR_VERDICT_V1_UNSPECIFIED",
-      "description": "AnchorVerdictV1 is the verdict of the anchor commitment audit (ADR-0040) on\none sampled position, or on the whole task after all positions are judged.\nAnchorVerdictV1 defines the AnchorVerdictV1 wire type.\n\n - ANCHOR_VERDICT_V1_UNSPECIFIED: ANCHOR_VERDICT_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_VERDICT_V1_PASS: Every anchor, recurrent-state recomputation, direction statistic, glue row\nand token rule holds at the position.\n - ANCHOR_VERDICT_V1_REJECT: At least one rule failed at the position: the Worker did not compute it\nwith the registered weights under the registered precision class.\n - ANCHOR_VERDICT_V1_NO_VERDICT: The auditor could not judge the position (missing material, proof not\nestablished); attributable to the verifier, never to the Worker.",
+      "description": "AnchorVerdictV1 is the verdict of the anchor commitment audit (ADR-0040) on\none sampled position, or on the whole task after all positions are judged.\nAnchorVerdictV1 defines the AnchorVerdictV1 wire type.\n\n - ANCHOR_VERDICT_V1_UNSPECIFIED: ANCHOR_VERDICT_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_VERDICT_V1_PASS: Every anchor, recurrent-state recomputation, direction statistic, glue row\nand token rule holds at the position.\n - ANCHOR_VERDICT_V1_REJECT: At least one rule failed at the position: the Worker did not compute it\nwith the registered weights under the registered precision class.\n - ANCHOR_VERDICT_V1_NO_VERDICT: The auditor could not judge the position (missing material, proof not\nestablished); attributable to the verifier, never to the Worker.\n - ANCHOR_VERDICT_V1_UNAVAILABLE: Validator vote only; never the verdict of a position or of a task. The\nvalidator could not obtain the opening, proof or manifest the Worker\nrecorded, from the location the Worker recorded, by the time it voted. A\nvalidator may replace this vote with PASS or REJECT while the vote window\nis open. It is tallied in unavailable_power and decides nothing before\nverdict_deadline_height: if it then holds \u003e= 2/3 of the bonded voting power\nthe audit ends REJECT with source MATERIAL_UNAVAILABLE.",
       "enum": [
         "ANCHOR_VERDICT_V1_UNSPECIFIED",
         "ANCHOR_VERDICT_V1_PASS",
         "ANCHOR_VERDICT_V1_REJECT",
-        "ANCHOR_VERDICT_V1_NO_VERDICT"
+        "ANCHOR_VERDICT_V1_NO_VERDICT",
+        "ANCHOR_VERDICT_V1_UNAVAILABLE"
       ],
       "type": "string"
     },
@@ -3983,6 +3985,11 @@
         },
         "total_power": {
           "description": "total_power is the last total bonded voting power at the latest vote.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "unavailable_power": {
+          "description": "unavailable_power is the summed voting power of UNAVAILABLE votes.",
           "format": "uint64",
           "type": "string"
         },
