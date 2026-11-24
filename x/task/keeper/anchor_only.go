@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
@@ -12,7 +13,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// Anchor-only verification (ADR-0040). A Profile version that requires the
+// Anchor-only verification. A Profile version that requires the
 // Worker anchor commitment is verified by the anchor audit alone: the chain
 // samples the task from the beacon, the Worker opens and proves a sampled task,
 // and the consensus validators decide. No Verifier is drawn, so such a task
@@ -34,6 +35,16 @@ import (
 // The two shapes below are the only markers. Neither can be produced by the
 // Verifier path: a READY Verifier window always has members, and a Verifier
 // assignment always selects selected_verifier_count operators.
+
+// errAnchorOnlyAuditNotWritten reports that the sampling step of an anchor-only
+// round left no audit row. The audit is the only verification such a task has,
+// so the round is not closed: the caller retires the row to the verify-open
+// deadline, which fails and refunds the task without a fault.
+var errAnchorOnlyAuditNotWritten = errors.New("anchor-only sampling wrote no audit row")
+
+// anchorOnlyNoChallengeReason is why MsgOpenChallengeRound is refused for an
+// anchor-only task.
+const anchorOnlyNoChallengeReason = "task is verified by the anchor audit alone and has no challenge round"
 
 // receiptIsAnchorOnly reports whether an accepted receipt belongs to an
 // anchor-only Profile version. The receipt's commitments were checked one for
@@ -173,6 +184,16 @@ func (k Keeper) finalizeAnchorOnlyRoundAtHeight(
 	if err := k.sampleAnchorAudit(cache, assignment); err != nil {
 		return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
+	// Fail closed. sampleAnchorAudit returns without a row when it cannot size
+	// the audit (the task's parameters are unavailable, or a deadline overflows).
+	// On the Verifier path the round is still verified by its Verifiers; here
+	// the audit is all there is, so no row means no PASS. Nothing of this
+	// attempt is written.
+	if sampled, err := k.AnchorAudit.Has(cache, taskKey); err != nil {
+		return false, rowBytes, err
+	} else if !sampled {
+		return false, rowBytes, errAnchorOnlyAuditNotWritten
+	}
 
 	roundID, err := types.VerifyRoundID(cacheCtx.ChainID(), core.AcceptedTaskHash, types.VerifyRoundV1)
 	if err != nil {
@@ -207,7 +228,6 @@ func (k Keeper) finalizeAnchorOnlyRoundAtHeight(
 	}
 
 	advanceTaskPhase(&core, types.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED)
-	core.VerificationStatus = types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED
 	core.UpdatedHeight = currentHeight
 	if err := k.TaskCore.Set(cache, taskKey, core); err != nil {
 		return false, rowBytes, err
@@ -244,30 +264,9 @@ func (k Keeper) finalizeAnchorOnlyRoundAtHeight(
 	}
 
 	// Round 1 closes here with no challenge window: a challenge round re-verifies
-	// with Verifiers, which this mode does not have.
-	summary, err := k.TaskRoundSummary.Get(cache, taskKey)
-	if err != nil && !errIsNotFound(err) {
-		return false, rowBytes, err
-	}
-	if summary.MaxClosedRound != 0 {
-		return false, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "round 1 summary is already closed")
-	}
-	summary.TaskId = append([]byte(nil), core.TaskId...)
-	summary.MaxClosedRound = types.VerifyRoundV1
-	summary.Round1FactsHashOrZero32 = append([]byte(nil), factsHash[:]...)
-	summary.Round2FactsHashOrZero32 = make([]byte, types.Hash32Len)
-	summary.Round2EffectRootOrZero32 = make([]byte, types.Hash32Len)
-	if err := k.TaskRoundSummary.Set(cache, taskKey, summary); err != nil {
-		return false, rowBytes, err
-	}
-	if err := emitTypedEvent(cache, &types.EventVerificationRoundClosed{
-		TaskId: append([]byte(nil), core.TaskId...), VerifyRound: types.VerifyRoundV1,
-		Verdict: round.GetVerdict(), RoundFactsHash: append([]byte(nil), factsHash[:]...),
-		RoundEffectRoot: make([]byte, types.Hash32Len), ClosedHeight: currentHeight,
-	}); err != nil {
-		return false, rowBytes, err
-	}
-	if err := k.finalizeTaskRounds(cache, taskKey); err != nil {
+	// with Verifiers, which this mode does not have. The shared round-1 close
+	// writes the summary, maps the verdict onto the task and finalizes it.
+	if err := k.closeRoundOneSummary(cache, taskKey, round, anchorOnlyRoundResult(infer, round), false); err != nil {
 		return false, rowBytes, err
 	}
 	write()

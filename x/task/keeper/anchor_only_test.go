@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"math"
 	"testing"
 
 	"cosmossdk.io/collections"
@@ -682,6 +683,8 @@ func TestAnchorOnlyTaskAcceptsNoVerifierOrChallengeMessage(t *testing.T) {
 		TaskId: f.taskID, OpenerAddress: mustCore(t, f).UserAddress, MaxTotalDebit: shared.NewAmount(1_000_000),
 	})
 	require.ErrorIs(t, err, types.ErrInvalidOpenVerify)
+	require.ErrorContains(t, err, anchorOnlyNoChallengeReason,
+		"the refusal names the mode; it does not depend on the phase the round-1 close leaves the task in")
 	// The advisory Verifier result of the first anchor slice has no author here.
 	_, err = f.server.SubmitAnchorAuditResult(f.at(int64(state.SampleHeight+1)), &types.MsgSubmitAnchorAuditResult{
 		TaskId: f.taskID, OpeningHash: bytes32(0x0c), SubmitterAddress: f.operators[1],
@@ -722,6 +725,58 @@ func TestAnchorOnlyMissingBeaconNeverFaultsTheWorker(t *testing.T) {
 	require.Equal(t, types.TaskPhase_TASK_PHASE_FAILED, core.TaskPhase)
 	require.Equal(t, types.SettlementStatus_SETTLEMENT_STATUS_REFUNDED, core.SettlementStatus)
 	require.Empty(t, *f.faults)
+}
+
+// The audit is the only verification an anchor-only task has. If the sampling
+// step cannot write its row, round 1 is not closed as PASS: nothing of the
+// attempt is kept, the task cannot be settled, and the verify-open deadline fails
+// and refunds it without faulting the Worker.
+func TestAnchorOnlyRoundFailsClosedWithoutAnAuditRow(t *testing.T) {
+	f := newAnchorOnlyFixture(t, 0, true)
+	window := f.submitReceipt(t)
+	// An audit whose deadlines overflow cannot be sized: the sampling step logs
+	// it and writes no row.
+	f.params.Verification.AnchorVerdictWindowBlocks = math.MaxUint64
+	require.NoError(t, f.keeper.Params.Set(f.ctx, f.params))
+
+	h := window.SelectionRandomnessHeight
+	usage, err := f.keeper.processVerifierSelectionRandomnessIndexWithBudget(f.at(int64(h)), h, 10, 1<<30)
+	require.NoError(t, err, "a task that cannot be audited must not stop the chain")
+	require.Equal(t, uint64(1), usage.visited)
+
+	_, err = f.keeper.AnchorAudit.Get(f.ctx, f.taskKey)
+	require.Error(t, err, "no audit row was written")
+	roundKey := types.NewVerifyRoundKey(f.taskKey, types.VerifyRoundV1)
+	assigned, err := f.keeper.VerifierAssignment.Has(f.ctx, roundKey)
+	require.NoError(t, err)
+	require.False(t, assigned, "the zero-Verifier assignment of the failed attempt is not kept")
+	closed, err := f.keeper.VerificationRound.Has(f.ctx, roundKey)
+	require.NoError(t, err)
+	require.False(t, closed, "round 1 is not closed as PASS")
+	summarized, err := f.keeper.TaskRoundSummary.Has(f.ctx, f.taskKey)
+	require.NoError(t, err)
+	require.False(t, summarized)
+	core := mustCore(t, f)
+	require.Equal(t, types.TaskPhase_TASK_PHASE_RECEIPT_COMMITTED, core.TaskPhase)
+	require.Equal(t, types.VerificationStatus_VERIFICATION_STATUS_VERIFIER_SELECTION_PENDING, core.VerificationStatus)
+	queued, err := f.keeper.VerifierSelectionRandomnessIndex.Has(f.ctx, types.NewVerifyRoundIndexKey(h, f.taskKey, types.VerifyRoundV1))
+	require.NoError(t, err)
+	require.False(t, queued, "the row is retired, not retried on every block")
+	fallback, err := f.keeper.VerifyOpenDeadlineIndex.Has(f.ctx, types.NewDeadlineIndexKey(window.AssignmentDeadlineHeight, f.taskKey))
+	require.NoError(t, err)
+	require.True(t, fallback, "the verify-open deadline still owns the task")
+	_, err = f.settleNow(t, h+2)
+	require.Error(t, err, "an unaudited anchor-only task has nothing to settle as PASS")
+
+	late := window.AssignmentDeadlineHeight + 1
+	visited, err := f.keeper.processExpiredVerifyOpenDeadlines(f.at(int64(late)), late, 10)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), visited)
+	core = mustCore(t, f)
+	require.Equal(t, types.TaskPhase_TASK_PHASE_FAILED, core.TaskPhase)
+	require.Equal(t, types.SettlementStatus_SETTLEMENT_STATUS_REFUNDED, core.SettlementStatus)
+	require.Empty(t, *f.faults, "the Worker is not faulted for an audit the chain could not write")
+	require.Empty(t, *f.credits)
 }
 
 // The two markers cannot be combined with a task that did not commit the anchor.
@@ -870,4 +925,122 @@ func TestAnchorOnlyTaskIgnoresVerifierDeadlineSweeps(t *testing.T) {
 	}
 	_, err := f.settleNow(t, late)
 	require.ErrorContains(t, err, "pending until", "the task is still held for its verdict")
+}
+
+// ---- upgrade: tasks already on the Verifier path ---------------------------
+
+// bondedVerifierAdmissionHubStub adds the Worker bond facts the anchor draw reads
+// to the Verifier selection stub.
+type bondedVerifierAdmissionHubStub struct{ verifierAdmissionHubStub }
+
+func (bondedVerifierAdmissionHubStub) GetServiceBondFacts(sdk.Context, string) hubtypes.ServiceBondFacts {
+	return hubtypes.ServiceBondFacts{Found: true}
+}
+
+// The mode of a task is read from the rows it froze, not from its Profile. A
+// task whose receipt committed the anchor before anchor-only verification
+// existed holds a Verifier window with members; after the upgrade it still draws
+// its Verifiers, is audited with them on record, and settles as a Verifier task.
+func TestInFlightVerifierTaskWithAnAnchorReceiptKeepsTheVerifierPath(t *testing.T) {
+	ready := verifierSelectionReadyFixture(t)
+	f, taskKey, window := ready.f, ready.taskKey, ready.window
+	assignment, err := f.keeper.ReadTaskAssignment(f.ctx, taskKey)
+	require.NoError(t, err)
+	receipt := types.InferReceiptState{
+		TaskId: window.TaskId, WinnerWorker: assignment.WinnerWorker, GeneratedTokenCount: anchorOnlyGenerated,
+		InferReceiptHash: append([]byte(nil), window.InferReceiptHash...),
+		RequiredEvidenceCommitments: []types.EvidenceCommitmentV1{
+			{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING, EvidenceHashOrRoot: bytes32(0x74), EncodedSizeBytes: 100},
+			{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING, EvidenceHashOrRoot: bytes32(0x75),
+				EncodedSizeBytes: 8 + 4*(anchorOnlyPrompt+anchorOnlyGenerated)},
+			{EvidenceKind: shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING, EvidenceHashOrRoot: bytes32(0x76), EncodedSizeBytes: 64},
+		},
+	}
+	require.NoError(t, f.keeper.WriteInferReceipt(f.ctx, taskKey, receipt))
+	require.True(t, receiptIsAnchorOnly(receipt.RequiredEvidenceCommitments), "the receipt is the kind a new task would verify by the audit alone")
+	require.False(t, isAnchorOnlyWindow(window), "but this task froze a Verifier window")
+
+	reservations := make([]hubtypes.FrozenFactLiabilityRequest, 0, ready.factCount)
+	attempts := 0
+	responsibilities := make([]hubtypes.ServiceKeyResponsibilityState, 0, testBuildersPerStageResponsibility)
+	releases := make([]string, 0, testBuildersPerStageResponsibility)
+	f.keeper.hubKeeper = bondedVerifierAdmissionHubStub{verifierAdmissionHubStub{
+		membersBySlot: ready.membersBySlot, bindingsBySlot: ready.bindingsBySlot,
+		selectionBeacon: hubtypes.BeaconSnapshot{Height: 30, Randomness: bytes.Repeat([]byte{0x52}, types.Hash32Len)},
+		reservations:    &reservations, reservationAttempts: &attempts,
+		responsibilities: &responsibilities, responsibilityReleases: &releases,
+	}}
+
+	// The EndBlock selection sweep is where the two modes part.
+	usage, err := f.keeper.processVerifierSelectionRandomnessIndexWithBudget(f.ctx, 30, 10, 1<<30)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), usage.visited)
+
+	roundKey := types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1)
+	selected, err := f.keeper.ReadVerifierAssignment(f.ctx, roundKey)
+	require.NoError(t, err)
+	require.False(t, isAnchorOnlyAssignment(selected))
+	require.Equal(t, uint32(3), selected.SelectedVerifierCount)
+	require.Len(t, selected.SelectedVerifiers, 3)
+	require.Len(t, reservations, 3, "each selected Verifier reserved its task liability")
+	require.Equal(t, window.GetVerifierWindowHash(), selected.VerifierCandidateWindowHash)
+	core, err := f.keeper.TaskCore.Get(f.ctx, taskKey)
+	require.NoError(t, err)
+	require.Equal(t, types.TaskPhase_TASK_PHASE_VERIFIER_ASSIGNED, core.TaskPhase)
+	require.NotEqual(t, types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED, core.VerificationStatus,
+		"the round is open for its Verifiers, not closed on the Worker's receipt")
+	committing, err := f.keeper.CommitDeadlineIndex.Has(f.ctx, types.NewDeadlineIndexKey(selected.CommitDeadlineHeight, taskKey))
+	require.NoError(t, err)
+	require.True(t, committing, "the Verifier commit deadline is scheduled")
+	if round, err := f.keeper.ReadVerificationRound(f.ctx, roundKey); err == nil {
+		require.Nil(t, round.XClosedHeight, "round 1 stays open until the Verifiers answer")
+	}
+	summarized, err := f.keeper.TaskRoundSummary.Has(f.ctx, taskKey)
+	require.NoError(t, err)
+	require.False(t, summarized)
+
+	// The anchor audit is sampled on the same draw and records the Verifiers.
+	audit, err := f.keeper.AnchorAudit.Get(f.ctx, taskKey)
+	require.NoError(t, err)
+	require.True(t, audit.Sampled)
+	require.Len(t, audit.SelectedVerifiers, 3)
+
+	// Settlement keys on the same row: this assignment is not the anchor-only
+	// shape, so the task is settled from its Verifier samples (next test).
+}
+
+// Settlement side of the same rule. Whatever the receipt committed, a task whose
+// round 1 drew Verifiers is settled from their samples: a round closed as PASS on
+// the Worker's receipt is not accepted for it, and nothing is paid on that basis.
+func TestSettlementRebuildsAVerifierRoundFromItsSamplesDespiteAnAnchorReceipt(t *testing.T) {
+	f := newAnchorOnlyFixture(t, 1_000_000_000, true)
+	f.zeroAuditRate(t)
+	f.submitReceipt(t)
+	f.sampleRound(t)
+	height := f.window.SelectionRandomnessHeight + 2
+	inputs, err := f.keeper.loadSettlementInputs(f.at(int64(height)), f.taskKey, height)
+	require.NoError(t, err)
+	require.True(t, inputs.AnchorOnly, "as sampled, the task is anchor-only and settles")
+
+	// Give round 1 the assignment a Verifier draw leaves behind.
+	roundKey := types.NewVerifyRoundKey(f.taskKey, types.VerifyRoundV1)
+	assignment, err := f.keeper.ReadVerifierAssignment(f.ctx, roundKey)
+	require.NoError(t, err)
+	for index := range 3 {
+		verifier := sdk.AccAddress(bytes.Repeat([]byte{byte(0xd1 + index)}, 20)).String()
+		assignment.SelectedVerifiers = append(assignment.SelectedVerifiers,
+			types.SelectedVerifierV1{OperatorAddress: verifier, Slot: uint32(index + 1), SlotVersion: 1})
+	}
+	assignment.SelectedVerifierCount = uint32(len(assignment.SelectedVerifiers))
+	require.Equal(t, uint32(3), assignment.SelectedVerifierCount)
+	require.False(t, isAnchorOnlyAssignment(assignment))
+	require.NoError(t, f.keeper.WriteVerifierAssignment(f.ctx, roundKey, assignment))
+
+	_, err = f.keeper.loadSettlementInputs(f.at(int64(height)), f.taskKey, height)
+	require.ErrorIs(t, err, types.ErrInvariantBroken)
+	require.ErrorContains(t, err, "closed round does not reproduce its frozen commitments",
+		"the round is recomputed from Verifier samples; the anchor-only PASS is not taken at its word")
+	_, err = f.settleNow(t, height)
+	require.Error(t, err)
+	require.Empty(t, *f.credits, "nothing is paid on the anchor-only rule to a task that drew Verifiers")
 }

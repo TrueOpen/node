@@ -50,6 +50,13 @@ func (m msgServer) OpenChallengeRound(ctx context.Context, req *types.MsgOpenCha
 		core.SettlementStatus == types.SettlementStatus_SETTLEMENT_STATUS_REFUNDED || core.XTaskFinalityHeight != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "task is already final")
 	}
+	// An anchor-only task has no challenge round: its round 1 drew no Verifier,
+	// and a challenge round re-verifies with Verifiers. Refuse it by what the task
+	// is, not by the phase its round-1 close happens to leave it in.
+	if round1Assignment, err := m.k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskKey, types.VerifyRoundV1)); err == nil &&
+		isAnchorOnlyAssignment(round1Assignment) {
+		return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, anchorOnlyNoChallengeReason)
+	}
 	if core.TaskPhase != types.TaskPhase_TASK_PHASE_REVEALING ||
 		(core.VerificationStatus != types.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED &&
 			core.VerificationStatus != types.VerificationStatus_VERIFICATION_STATUS_VERIFY_FAILED) {

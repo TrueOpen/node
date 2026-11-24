@@ -509,13 +509,14 @@ func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Co
 				return deadlineSweepPending, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken, "verifier selection requires a READY window")
 			}
 			if isAnchorOnlyWindow(window) {
-				// ADR-0040 anchor-only task: sample the anchor audit and close
+				// Anchor-only task: sample the anchor audit and close
 				// round 1 without Verifiers.
 				advanced, applyBytes, err := k.finalizeAnchorOnlyRoundAtHeight(ctx, taskID, window, currentHeight)
 				rowBytes += applyBytes
-				if errors.Is(err, types.ErrDeadlineExpired) {
-					// The sampling beacon never became available; the verify-open
-					// deadline retires the task (refund, no fault).
+				if errors.Is(err, types.ErrDeadlineExpired) || errors.Is(err, errAnchorOnlyAuditNotWritten) {
+					// The sampling beacon never became available, or the audit
+					// could not be written: the round is not closed, and the
+					// verify-open deadline retires the task (refund, no fault).
 					return k.retireVerifierRowToFallbackDeadline(ctx, taskID, window, height, rowBytes)
 				}
 				if err != nil {
