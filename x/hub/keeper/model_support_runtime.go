@@ -704,6 +704,35 @@ func (k Keeper) WriteModelSupportIndexes(ctx context.Context, state types.ModelS
 // validation breaks - still propagate and still abort the batch.
 var errSupportRefreshNotApplicable = errors.New("daily support refresh conditions are not met")
 
+// refreshAuditOnlySupport extends the freshness of an audit-only support row.
+func (k Keeper) refreshAuditOnlySupport(
+	ctx context.Context,
+	oldSupport types.ModelSupportState,
+	capability types.ModelCapabilityState,
+	freshUntil, epoch, height uint64,
+) (types.ModelSupportState, bool, error) {
+	if oldSupport.SupportFreshUntilEpoch >= freshUntil {
+		return oldSupport, false, nil
+	}
+	newSupport := oldSupport
+	if newSupport.SupportVersion == math.MaxUint64 {
+		return types.ModelSupportState{}, false, fmt.Errorf("model support version overflow")
+	}
+	newSupport.SupportVersion++
+	newSupport.SupportFreshUntilEpoch = freshUntil
+	newSupport.LastRefreshHeight = height
+	newSupport.SupportActive = false
+	newSupport.ActiveSupportStakeSnapshot = 0
+	newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
+	if err := newSupport.Validate(); err != nil {
+		return types.ModelSupportState{}, false, err
+	}
+	if err := k.applyModelSupportMutation(ctx, &oldSupport, newSupport, capability, epoch, height); err != nil {
+		return types.ModelSupportState{}, false, err
+	}
+	return newSupport, true, nil
+}
+
 func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress string, modelID []byte, epoch, height uint64) (types.ModelSupportState, bool, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -723,14 +752,24 @@ func (k Keeper) refreshModelSupport(ctx context.Context, operatorAddress string,
 	if err != nil {
 		return types.ModelSupportState{}, false, fmt.Errorf("%w: %s", errSupportRefreshNotApplicable, err.Error())
 	}
+	freshUntil, err := checkedAdd(epoch, uint64(params.Support.SupportWindowEpochs))
+	if err != nil {
+		return types.ModelSupportState{}, false, err
+	}
+	if oldSupport.DeclaredSupport && types.IsAuditOnlyCapability(capability) {
+		// A row whose only capability is audit never serves a task, so it is never
+		// activated the way the rule below asks. Its daily confirmation is what
+		// keeps it fresh: the declaration stands, the scope check above has just
+		// confirmed the service key and the bond, and the capability is audit.
+		// Nothing but freshness moves. The row stays inactive and outside the
+		// model's support aggregates, and its audit waiting epoch is not served
+		// again.
+		return k.refreshAuditOnlySupport(ctx, oldSupport, capability, freshUntil, epoch, height)
+	}
 	if !oldSupport.DeclaredSupport || oldSupport.ActivationKind == types.ModelSupportActivationNone {
 		return types.ModelSupportState{}, false, fmt.Errorf(
 			"%w: support must be declared and activated before daily refresh", errSupportRefreshNotApplicable,
 		)
-	}
-	freshUntil, err := checkedAdd(epoch, uint64(params.Support.SupportWindowEpochs))
-	if err != nil {
-		return types.ModelSupportState{}, false, err
 	}
 	if oldSupport.SupportActive && oldSupport.SupportFreshUntilEpoch == freshUntil {
 		return oldSupport, false, nil
