@@ -1308,6 +1308,10 @@
     "hub.v1.ModelCapabilityState": {
       "description": "ModelCapabilityState is one operator/model declared capability row.",
       "properties": {
+        "audit_capability": {
+          "description": "The operator may be drawn for Verifier panels of this model.",
+          "type": "boolean"
+        },
         "capability_version": {
           "format": "uint64",
           "type": "string"
@@ -2320,6 +2324,46 @@
       },
       "type": "object"
     },
+    "hub.v1.QueryWorkerQuotaResponse": {
+      "description": "QueryWorkerQuotaResponse returns the period's quota and what is left of it.",
+      "properties": {
+        "dispatch_paused": {
+          "description": "Mirrors ServiceBondState: a paused Worker gets no orders whatever is left.",
+          "type": "boolean"
+        },
+        "enforced": {
+          "description": "Whether a quota is enforced at all.",
+          "type": "boolean"
+        },
+        "pause_reasons": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "period": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "quota": {
+          "description": "effective bond * worker_quota_period_value_bps_of_bond / 10000; zero when\nno quota is configured.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "remaining": {
+          "description": "quota - reserved_value - settled_value, floored at zero.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "reserved_value": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "settled_value": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "hub.v1.RewardBucket": {
       "default": "REWARD_BUCKET_UNSPECIFIED",
       "description": "RewardBucket is the independent order-value competition bucket.\n\n - REWARD_BUCKET_UNSPECIFIED: Unset; rejected.\nREWARD_BUCKET_UNSPECIFIED identifies the corresponding protocol value.\n - REWARD_BUCKET_P0: Order value bucket 0, the lowest band.\nREWARD_BUCKET_P0 identifies the corresponding protocol value.\n - REWARD_BUCKET_P1: Order value bucket 1.\nREWARD_BUCKET_P1 identifies the corresponding protocol value.\n - REWARD_BUCKET_P2: Order value bucket 2.\nREWARD_BUCKET_P2 identifies the corresponding protocol value.\n - REWARD_BUCKET_P3: Order value bucket 3.\nREWARD_BUCKET_P3 identifies the corresponding protocol value.\n - REWARD_BUCKET_P4: Order value bucket 4, the highest band.\nREWARD_BUCKET_P4 identifies the corresponding protocol value.",
@@ -2592,9 +2636,20 @@
           "format": "uint64",
           "type": "string"
         },
+        "bond_funder_addresses": {
+          "description": "Accounts that funded the bond: the signer of the first stake message and\nof later top-ups from other accounts, at most four. A Verifier whose bond\nshares a funder with a Worker's bond is not drawn to audit that Worker.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "bond_version": {
           "format": "uint64",
           "type": "string"
+        },
+        "dispatch_paused": {
+          "description": "The operator is not a Worker dispatch candidate while this is set. It may\nfinish tasks already assigned and may still be drawn as a Verifier.",
+          "type": "boolean"
         },
         "effective_active_bond": {
           "format": "uint64",
@@ -2622,6 +2677,11 @@
         },
         "operator_address": {
           "type": "string"
+        },
+        "pause_reasons": {
+          "description": "Why dispatch is paused, as a bit set: 1 = an anchor audit awaits a late\nsubmission, 2 = a service unbonding was requested, 4 = jailed.",
+          "format": "int64",
+          "type": "integer"
         },
         "pending_unbonding_total": {
           "format": "uint64",
@@ -2691,13 +2751,14 @@
     },
     "hub.v1.ServiceEndpointKind": {
       "default": "SERVICE_ENDPOINT_KIND_UNSPECIFIED",
-      "description": "ServiceEndpointKind is the closed descriptor endpoint kind; numbers are frozen by 9.6b.\n\n - SERVICE_ENDPOINT_KIND_UNSPECIFIED: Never written; rejects zero-value endpoints.\nSERVICE_ENDPOINT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_NEXUS_GRPC: Nexus gRPC endpoint.\nSERVICE_ENDPOINT_KIND_NEXUS_GRPC identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS: Object gateway HTTPS endpoint.\nSERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_HEALTH_HTTPS: Health probe HTTPS endpoint.\nSERVICE_ENDPOINT_KIND_HEALTH_HTTPS identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_ANCHOR_DA: Data-availability store a Worker serves its anchor audit material from\n(openings, proofs, epoch manifests). An http:// or https:// URL ending in\n\"/\"; it is used as a prefix of every location the Worker records for an\naudit sampled while this descriptor is current.\nSERVICE_ENDPOINT_KIND_ANCHOR_DA identifies the corresponding protocol value.",
+      "description": "ServiceEndpointKind is the closed descriptor endpoint kind; numbers are frozen by 9.6b.\n\n - SERVICE_ENDPOINT_KIND_UNSPECIFIED: Never written; rejects zero-value endpoints.\nSERVICE_ENDPOINT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_NEXUS_GRPC: Nexus gRPC endpoint.\nSERVICE_ENDPOINT_KIND_NEXUS_GRPC identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS: Object gateway HTTPS endpoint.\nSERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_HEALTH_HTTPS: Health probe HTTPS endpoint.\nSERVICE_ENDPOINT_KIND_HEALTH_HTTPS identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_ANCHOR_DA: Data-availability store a Worker serves its anchor audit material from\n(openings, proofs, epoch manifests). An http:// or https:// URL ending in\n\"/\"; it is used as a prefix of every location the Worker records for an\naudit sampled while this descriptor is current.\nSERVICE_ENDPOINT_KIND_ANCHOR_DA identifies the corresponding protocol value.\n - SERVICE_ENDPOINT_KIND_ANCHOR_RELAY: Where a panel Verifier serves audit material to the other Verifiers of\nthe same audit, by content hash. An http:// or https:// URL ending in \"/\".",
       "enum": [
         "SERVICE_ENDPOINT_KIND_UNSPECIFIED",
         "SERVICE_ENDPOINT_KIND_NEXUS_GRPC",
         "SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS",
         "SERVICE_ENDPOINT_KIND_HEALTH_HTTPS",
-        "SERVICE_ENDPOINT_KIND_ANCHOR_DA"
+        "SERVICE_ENDPOINT_KIND_ANCHOR_DA",
+        "SERVICE_ENDPOINT_KIND_ANCHOR_RELAY"
       ],
       "type": "string"
     },
@@ -2804,6 +2865,10 @@
         "min_task_liability": {
           "$ref": "#/definitions/shared.v1.Amount"
         },
+        "min_validator_separation": {
+          "description": "An account, service address or key that belongs to a bonded consensus\nvalidator may not declare audit capability nor be drawn for a panel.",
+          "type": "boolean"
+        },
         "objective_forgery_slash_bps": {
           "format": "int64",
           "type": "integer"
@@ -2820,6 +2885,10 @@
           "format": "uint64",
           "type": "string"
         },
+        "stop_dispatch_on_unbond_request": {
+          "description": "A service unbonding request pauses dispatch to the operator at once.",
+          "type": "boolean"
+        },
         "task_liability_order_coverage_bps": {
           "format": "int64",
           "type": "integer"
@@ -2828,6 +2897,10 @@
           "format": "int64",
           "type": "integer"
         },
+        "unbond_requires_no_open_tasks": {
+          "description": "An unbonding matures only when the operator has no task without a final\nverdict, no unsettled batch and no audit awaiting a late submission.",
+          "type": "boolean"
+        },
         "unbonding_receipt_retention_blocks": {
           "format": "uint64",
           "type": "string"
@@ -2835,6 +2908,24 @@
         "unbonding_slash_safety_margin_blocks": {
           "format": "uint64",
           "type": "string"
+        },
+        "worker_bond_floor_by_tier": {
+          "description": "Minimum effective bond of a Worker dispatch candidate per resource tier.",
+          "items": {
+            "$ref": "#/definitions/hub.v1.WorkerBondFloorV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "worker_bond_floor_revenue_periods": {
+          "description": "Documentation of how worker_bond_floor_by_tier was sized: the number of\nsettlement periods of full-load revenue the floor stands for.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "worker_quota_period_value_bps_of_bond": {
+          "description": "Order value a Worker may have reserved in one settlement period, in basis\npoints of its effective bond. Zero means no quota.",
+          "format": "int64",
+          "type": "integer"
         }
       },
       "type": "object"
@@ -3137,6 +3228,19 @@
       },
       "type": "object"
     },
+    "hub.v1.WorkerBondFloorV1": {
+      "description": "WorkerBondFloorV1 is the minimum effective bond of a Worker serving Profiles\nof one resource tier.",
+      "properties": {
+        "min_bond": {
+          "$ref": "#/definitions/shared.v1.Amount"
+        },
+        "resource_tier": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "shared.v1.Amount": {
       "description": "Amount is the public wire representation of a non-negative amount in the\nchain's single native settlement denomination.\nAmount defines the Amount wire type.",
       "properties": {
@@ -3283,7 +3387,7 @@
     },
     "shared.v1.FaultKind": {
       "default": "FAULT_KIND_UNSPECIFIED",
-      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.\n - FAULT_KIND_VERIFIER_VALUE_MISMATCH: Active bounded verifier value-evidence fault.\n - FAULT_KIND_WORKER_VALUES_INVALID: Active objectively invalid Worker value evidence.\n - FAULT_KIND_WORKER_DISPATCH_INELIGIBLE: Signed Worker dispatch cannot reserve its required liability.\n - FAULT_KIND_WORKER_DISPATCH_CONTRADICTION: Worker signs both reject and accept for the same ticket.",
+      "description": "FaultKind is the closed objective fault kind of one role fault receipt (9.6b).\n\n - FAULT_KIND_UNSPECIFIED: Never written; rejects zero-value receipts.\nFAULT_KIND_UNSPECIFIED identifies the corresponding protocol value.\n - FAULT_KIND_TIMEOUT: Assigned duty missed its deadline.\nFAULT_KIND_TIMEOUT identifies the corresponding protocol value.\n - FAULT_KIND_INVALID_RESULT: Submitted material was objectively invalid.\nFAULT_KIND_INVALID_RESULT identifies the corresponding protocol value.\n - FAULT_KIND_EQUIVOCATION: Two conflicting accepted submissions for one scope.\nFAULT_KIND_EQUIVOCATION identifies the corresponding protocol value.\n - FAULT_KIND_BUILDER_OBJECTIVE_FAULT: Builder objective evidence was accepted against the operator.\nFAULT_KIND_BUILDER_OBJECTIVE_FAULT identifies the corresponding protocol value.\n - FAULT_KIND_VERIFIER_VALUE_MISMATCH: Active bounded verifier value-evidence fault.\n - FAULT_KIND_WORKER_VALUES_INVALID: Active objectively invalid Worker value evidence.\n - FAULT_KIND_WORKER_DISPATCH_INELIGIBLE: Signed Worker dispatch cannot reserve its required liability.\n - FAULT_KIND_WORKER_DISPATCH_CONTRADICTION: Worker signs both reject and accept for the same ticket.\n - FAULT_KIND_ANCHOR_VERIFIER_MISSED: A panel Verifier missed its votes in too many settlement periods.\n - FAULT_KIND_ANCHOR_VERIFIER_WRONG_VOTE: A panel Verifier's PASS or REJECT is the opposite of the final verdict.",
       "enum": [
         "FAULT_KIND_UNSPECIFIED",
         "FAULT_KIND_TIMEOUT",
@@ -3293,7 +3397,9 @@
         "FAULT_KIND_VERIFIER_VALUE_MISMATCH",
         "FAULT_KIND_WORKER_VALUES_INVALID",
         "FAULT_KIND_WORKER_DISPATCH_INELIGIBLE",
-        "FAULT_KIND_WORKER_DISPATCH_CONTRADICTION"
+        "FAULT_KIND_WORKER_DISPATCH_CONTRADICTION",
+        "FAULT_KIND_ANCHOR_VERIFIER_MISSED",
+        "FAULT_KIND_ANCHOR_VERIFIER_WRONG_VOTE"
       ],
       "type": "string"
     },
@@ -3319,6 +3425,14 @@
         },
         "max_encoded_size_bytes": {
           "format": "uint64",
+          "type": "string"
+        },
+        "registration_hash": {
+          "description": "WORKER_ANCHOR_OPENING only, optional: sha256 of the canonical\nregistration.json of the verification registration (which binds the\nweight commitments and thresholds) this Profile version is audited\nagainst. An entry that leaves it empty is encoded and hashed exactly as\nbefore; an entry that sets it includes it in evidence_schema_hash.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
         }
       },
@@ -3695,6 +3809,11 @@
           "description": "audit_basis spells out R, D and the coin for audit.",
           "type": "string"
         },
+        "audit_mode": {
+          "description": "audit_mode is anchor_audit_mode as frozen into the task: 2 = Verifier panel.",
+          "format": "int64",
+          "type": "integer"
+        },
         "audit_rate_bps": {
           "description": "Audit probability of this task in basis points (ADR-0040 v5): derived at sampling\nfrom the order value R and the Worker's slashable bond D = active_bond * anchor_reject_slash_bps:\ns = k*R / (D + k*R), floored at anchor_audit_min_rate_bps. A larger bond buys a lower rate.",
           "format": "int64",
@@ -3715,6 +3834,19 @@
         "epoch_manifest_uri": {
           "description": "epoch_manifest_uri locates the epoch manifest in DA.",
           "type": "string"
+        },
+        "final_height": {
+          "description": "Height at which the verdict became final (after the publication period or\nthe re-audit); zero before.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "late_deadline_height": {
+          "description": "Last height at which a late opening or proof is accepted; fixed at the\nfirst timeout of the task.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "late_state": {
+          "$ref": "#/definitions/task.v1.AnchorLateStateV1"
         },
         "opening_deadline_height": {
           "description": "Height by which the Worker's opening must be recorded (ADR-0040 v6); later openings are refused.",
@@ -3741,6 +3873,19 @@
           "description": "Where the material can be fetched: an http:// or https:// URL.",
           "type": "string"
         },
+        "panel_round": {
+          "description": "panel_round is the number of the latest panel round opened for the task;\nzero while none was opened.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "panel_rounds": {
+          "description": "panel_rounds lists every round opened for the task, ascending.",
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPanelRoundState",
+            "type": "object"
+          },
+          "type": "array"
+        },
         "positions": {
           "description": "Sampled positions, strictly ascending, each in [0, rows).",
           "items": {
@@ -3761,6 +3906,29 @@
           "minLength": 66,
           "pattern": "^0x[0-9a-f]{64}$",
           "type": "string"
+        },
+        "provisional_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "provisional_verdict": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1",
+          "description": "provisional_verdict is PASS or REJECT once a round concluded; nothing is\npaid or slashed on it before final_height."
+        },
+        "publication_end_height": {
+          "description": "Until this height anyone may request one re-audit.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "reaudit_fee": {
+          "description": "Escrowed re-audit fee in fee-denom atomic units; empty when none.",
+          "type": "string"
+        },
+        "reaudit_opener": {
+          "type": "string"
+        },
+        "reaudit_requested": {
+          "type": "boolean"
         },
         "result_height": {
           "format": "uint64",
@@ -3801,6 +3969,11 @@
           },
           "type": "array"
         },
+        "settlement_period": {
+          "description": "Settlement period of the Worker batch the task belongs to.",
+          "format": "uint64",
+          "type": "string"
+        },
         "slashable_bond": {
           "description": "Slashable base D fixed at sampling: the Worker's effective active bond then (ADR-0040 v6).\nA REJECT or TIMEOUT slash is requested against D, so bond moved out after sampling\nis reached through the unbonding queue.",
           "format": "uint64",
@@ -3818,6 +3991,13 @@
         },
         "task_verdict": {
           "$ref": "#/definitions/task.v1.AnchorVerdictV1"
+        },
+        "timeout_reason": {
+          "$ref": "#/definitions/task.v1.AnchorTimeoutReasonV1"
+        },
+        "timeout_recorded_height": {
+          "format": "uint64",
+          "type": "string"
         },
         "verdict_deadline_height": {
           "description": "Height by which a final verdict must exist; settlement of a PASS round waits until\nthen (or until the validators finalize earlier). Zero on audits sampled before v4.",
@@ -3865,6 +4045,231 @@
       },
       "type": "object"
     },
+    "task.v1.AnchorBrakeState": {
+      "description": "AnchorBrakeState is the per-model, per-period REJECT statistic the brake is\ndecided on, and the effects withheld while it is tripped.",
+      "properties": {
+        "applied": {
+          "description": "Whether the release applied (true) or discarded (false) the pending effects.",
+          "type": "boolean"
+        },
+        "audited": {
+          "description": "Audits of the model finalised in the period.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "baseline_bps": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "cases": {
+          "description": "Of those, audits finalised REJECT.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "model_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "pending_effects": {
+          "description": "Number of slashes and forfeitures withheld while tripped.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "period": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "rate_bps": {
+          "description": "cases / audited of this period and the baseline it was compared with, in\nbasis points.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "released": {
+          "description": "Set by MsgReleaseAnchorBrake.",
+          "type": "boolean"
+        },
+        "released_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "tripped": {
+          "type": "boolean"
+        },
+        "tripped_height": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorLateStateV1": {
+      "default": "ANCHOR_LATE_STATE_V1_UNSPECIFIED",
+      "description": "AnchorLateStateV1 tracks a selected audit whose Worker timed out.\n\n - ANCHOR_LATE_STATE_V1_UNSPECIFIED: No timeout was recorded for the audit.\n - ANCHOR_LATE_STATE_V1_AWAITING_LATE: A timeout was recorded; the Worker may still submit until\nlate_deadline_height. Dispatch to the Worker is paused and its batch of the\ntask's period is suspended.\n - ANCHOR_LATE_STATE_V1_LATE_SUBMITTED: The Worker recorded its opening and proof after the timeout; a panel is\nauditing them.\n - ANCHOR_LATE_STATE_V1_LATE_EXPIRED: late_deadline_height passed without an accepted late submission.",
+      "enum": [
+        "ANCHOR_LATE_STATE_V1_UNSPECIFIED",
+        "ANCHOR_LATE_STATE_V1_AWAITING_LATE",
+        "ANCHOR_LATE_STATE_V1_LATE_SUBMITTED",
+        "ANCHOR_LATE_STATE_V1_LATE_EXPIRED"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorPanelAssignmentV1": {
+      "description": "AnchorPanelAssignmentV1 is what a drawn Verifier needs to audit one task.",
+      "properties": {
+        "assignment_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "audit": {
+          "$ref": "#/definitions/task.v1.AnchorAuditState",
+          "description": "The audit row as of the query height."
+        },
+        "kind": {
+          "$ref": "#/definitions/task.v1.AnchorPanelRoundKindV1"
+        },
+        "model_id": {
+          "description": "Model and Profile version of the task, so the Verifier can select the\nregistration it must verify against.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "panel_round": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "profile_version": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "registration_hash": {
+          "description": "anchor_registration_hash of the Profile version (zero when it sets none).",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "vote_deadline_height": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorPanelRoundKindV1": {
+      "default": "ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED",
+      "description": "AnchorPanelRoundKindV1 says why a panel round was opened.\n\n - ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED: ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_PANEL_ROUND_KIND_V1_INITIAL: First round of an attempt, opened when the Worker's proof is recorded.\n - ANCHOR_PANEL_ROUND_KIND_V1_RETRY: Automatic second round of the same attempt, opened when the first ended\nwithout two equal votes.\n - ANCHOR_PANEL_ROUND_KIND_V1_REAUDIT: Round paid for by MsgRequestAnchorReaudit during the publication period.",
+      "enum": [
+        "ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED",
+        "ANCHOR_PANEL_ROUND_KIND_V1_INITIAL",
+        "ANCHOR_PANEL_ROUND_KIND_V1_RETRY",
+        "ANCHOR_PANEL_ROUND_KIND_V1_REAUDIT"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorPanelRoundState": {
+      "description": "AnchorPanelRoundState is one round of three Verifiers drawn for a selected\naudit. panel_round increases by one with every round opened for the task and\nis never reused, so a hand-raise or a vote names exactly one round.",
+      "properties": {
+        "assignment_height": {
+          "description": "Height the members were drawn at; zero until drawn.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "attempt": {
+          "description": "0 for the on-time attempt, 1 for the attempt after a late submission.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "closed_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/task.v1.AnchorPanelRoundKindV1"
+        },
+        "members": {
+          "description": "Drawn operators in draw order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "open_height": {
+          "description": "Height the Verifier window of this round was opened at.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "panel_fee": {
+          "description": "Fee paid to the members of this round who voted, in fee-denom atomic units.",
+          "type": "string"
+        },
+        "panel_round": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "result": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1",
+          "description": "PASS, REJECT or UNAVAILABLE when two members agreed; NO_VERDICT when the\nround closed without two equal votes or without a full panel; UNSPECIFIED\nwhile the round is open."
+        },
+        "selected_verifiers_hash": {
+          "description": "Commitment over the drawn members, as VerifierAssignmentState carries it.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "vote_deadline_height": {
+          "description": "Last height at which a member's vote is accepted; zero until drawn.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "votes": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPanelVoteState",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.AnchorPanelVoteState": {
+      "description": "AnchorPanelVoteState is one panel member's vote in one round.",
+      "properties": {
+        "height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/task.v1.AnchorVerdictV1",
+          "description": "PASS, REJECT or UNAVAILABLE."
+        },
+        "verdicts": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPositionVerdictV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "verifier_operator_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.AnchorPositionVerdictV1": {
       "description": "AnchorPositionVerdictV1 is the auditor's verdict on one sampled position.\nAnchorPositionVerdictV1 defines the AnchorPositionVerdictV1 wire type.",
       "properties": {
@@ -3884,14 +4289,29 @@
     },
     "task.v1.AnchorResultSourceV1": {
       "default": "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
-      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).\n - ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE: verdict_deadline_height passed, PASS held at most 1/3 and REJECT together\nwith UNAVAILABLE held \u003e= 2/3 of the bonded voting power: the Worker\nrecorded an opening and a proof but did not keep sound material\nretrievable. Final REJECT, settled as the timeout fault (the smaller slash,\nno jail); the task is not paid.\nValue 5 is left to the content-track contract.",
+      "description": "AnchorResultSourceV1 names who finalized the anchor verdict of a task.\n\n - ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED: No final verdict yet.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER: A selected round-1 Verifier's MsgSubmitAnchorAuditResult (ADR-0040 v1; advisory since v4).\n - ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE: Consensus validators reached \u003e= 2/3 of the last bonded voting power on one verdict (v4).\n - ANCHOR_RESULT_SOURCE_V1_TIMEOUT: verdict_deadline_height passed without a final vote: REJECT when the Worker never\nopened or never proved, NO_VERDICT when the validators did not reach 2/3 on a proof.\n - ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT: The receipt's commitments could not be sampled (malformed token commitment);\nthe audit is final REJECT at sampling (ADR-0040 v6).\n - ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE: verdict_deadline_height passed, PASS held at most 1/3 and REJECT together\nwith UNAVAILABLE held \u003e= 2/3 of the bonded voting power: the Worker\nrecorded an opening and a proof but did not keep sound material\nretrievable. Final REJECT, settled as the timeout fault (the smaller slash,\nno jail); the task is not paid.\nValue 5 is left to the content-track contract.\n - ANCHOR_RESULT_SOURCE_V1_VERIFIER_PANEL: Verifier panel (anchor_audit_mode 2): two members of a panel round cast\nthe same PASS or REJECT vote and the publication period ended without a\nre-audit overturning it.\n - ANCHOR_RESULT_SOURCE_V1_REAUDIT: Verifier panel: a paid re-audit round overturned the provisional verdict.\n - ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED: Verifier panel: the Worker timed out and submitted nothing acceptable\nbefore late_deadline_height. Final REJECT, settled as the timeout fault\n(no jail); the Worker's batch of the period is forfeited.",
       "enum": [
         "ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED",
         "ANCHOR_RESULT_SOURCE_V1_VERIFIER",
         "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
         "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
         "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT",
-        "ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE"
+        "ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE",
+        "ANCHOR_RESULT_SOURCE_V1_VERIFIER_PANEL",
+        "ANCHOR_RESULT_SOURCE_V1_REAUDIT",
+        "ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED"
+      ],
+      "type": "string"
+    },
+    "task.v1.AnchorTimeoutReasonV1": {
+      "default": "ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED",
+      "description": "AnchorTimeoutReasonV1 names what made a selected audit a Worker timeout.\n\n - ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED: ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE: opening_deadline_height passed without a recorded opening.\n - ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE: proof_deadline_height passed without a recorded proof.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE: A panel round closed with two UNAVAILABLE votes.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE: The automatic retry round also closed without two equal votes.",
+      "enum": [
+        "ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED",
+        "ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE",
+        "ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE",
+        "ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE",
+        "ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE"
       ],
       "type": "string"
     },
@@ -4358,7 +4778,7 @@
     },
     "task.v1.DeadlineKindV1": {
       "default": "DEADLINE_KIND_V1_UNSPECIFIED",
-      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: Closes a Task's verifier value-evidence window; TaskDeadlineLocator, priority 30.\n - DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE: DISPATCH_CHALLENGE_RESPONSE is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL: DISPATCH_COMPENSATION_REBUTTAL is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_TAKEOVER_ACTIVATION: TAKEOVER_ACTIVATION is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_ANCHOR_VERDICT: Settlement is held until the anchor audit verdict is final (ADR-0040 v4);\nkind_priority 41. Values 14-17 belong to the Phase 1 dispatch contract.",
+      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: Closes a Task's verifier value-evidence window; TaskDeadlineLocator, priority 30.\n - DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE: DISPATCH_CHALLENGE_RESPONSE is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL: DISPATCH_COMPENSATION_REBUTTAL is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_TAKEOVER_ACTIVATION: TAKEOVER_ACTIVATION is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_ANCHOR_VERDICT: Settlement is held until the anchor audit verdict is final (ADR-0040 v4);\nkind_priority 41. Values 14-17 belong to the Phase 1 dispatch contract.\n - DEADLINE_KIND_V1_ANCHOR_PANEL_VOTE: Vote deadline of a Verifier-panel round (anchor_audit_mode 2).\n - DEADLINE_KIND_V1_ANCHOR_PUBLICATION: End of the publication period of a provisional anchor verdict.\n - DEADLINE_KIND_V1_ANCHOR_LATE_WINDOW: End of the late-submission window after a Worker anchor timeout.\n - DEADLINE_KIND_V1_BATCH_SETTLEMENT: Per-Worker batch settlement queue; EndBlock-only.",
       "enum": [
         "DEADLINE_KIND_V1_UNSPECIFIED",
         "DEADLINE_KIND_V1_TASK_FINALITY",
@@ -4376,7 +4796,11 @@
         "DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE",
         "DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL",
         "DEADLINE_KIND_V1_TAKEOVER_ACTIVATION",
-        "DEADLINE_KIND_V1_ANCHOR_VERDICT"
+        "DEADLINE_KIND_V1_ANCHOR_VERDICT",
+        "DEADLINE_KIND_V1_ANCHOR_PANEL_VOTE",
+        "DEADLINE_KIND_V1_ANCHOR_PUBLICATION",
+        "DEADLINE_KIND_V1_ANCHOR_LATE_WINDOW",
+        "DEADLINE_KIND_V1_BATCH_SETTLEMENT"
       ],
       "type": "string"
     },
@@ -5495,6 +5919,57 @@
       },
       "type": "object"
     },
+    "task.v1.QueryAnchorAuditsUnderReviewResponse": {
+      "description": "QueryAnchorAuditsUnderReviewResponse lists the audits by task id.",
+      "properties": {
+        "audits": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorAuditState",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "next": {
+          "description": "next is the start_after of the following page; empty at the end.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorBrakeResponse": {
+      "description": "QueryAnchorBrakeResponse returns the brake statistic of the model and period.",
+      "properties": {
+        "brake": {
+          "$ref": "#/definitions/task.v1.AnchorBrakeState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryAnchorPanelAssignmentsResponse": {
+      "description": "QueryAnchorPanelAssignmentsResponse lists the assignments by task id.",
+      "properties": {
+        "assignments": {
+          "items": {
+            "$ref": "#/definitions/task.v1.AnchorPanelAssignmentV1",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "next": {
+          "description": "next is the start_after of the following page; empty at the end.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.QueryAnchorVoteKeyResponse": {
       "description": "QueryAnchorVoteKeyResponse returns the validator's vote delegation.",
       "properties": {
@@ -5864,6 +6339,19 @@
       },
       "type": "object"
     },
+    "task.v1.QueryVerifierAuditStandingResponse": {
+      "description": "QueryVerifierAuditStandingResponse returns the Verifier's panel accounting\nand the allowance its current bond gives it.",
+      "properties": {
+        "allowance_limit": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "effective bond / anchor_verifier_bond_multiple: the value the operator may\nhave audited inside the allowance window."
+        },
+        "standing": {
+          "$ref": "#/definitions/task.v1.VerifierAuditStandingState"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.QueryVerifierCandidateWindowResponse": {
       "description": "QueryVerifierCandidateWindowResponse returns the authoritative header plus the\nbounded members in dense ascending rank_index order. SOURCE_FROZEN returns\nFailedPrecondition, READY returns exactly window_size members, PRUNED returns the\nheader with no members. The eligibility bitmap is never returned and the window is\nnever recomputed on the fly.\nQueryVerifierCandidateWindowResponse defines the QueryVerifierCandidateWindowResponse wire type.",
       "properties": {
@@ -5905,11 +6393,72 @@
       },
       "type": "object"
     },
+    "task.v1.QueryWorkerBatchResponse": {
+      "description": "QueryWorkerBatchResponse returns the batch.",
+      "properties": {
+        "batch": {
+          "$ref": "#/definitions/task.v1.WorkerBatchState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryWorkerBatchTasksResponse": {
+      "description": "QueryWorkerBatchTasksResponse lists the member tasks by task id.",
+      "properties": {
+        "next": {
+          "description": "next is the start_after of the following page; empty at the end.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "tasks": {
+          "items": {
+            "$ref": "#/definitions/task.v1.WorkerBatchTaskState",
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryWorkerBatchesResponse": {
+      "description": "QueryWorkerBatchesResponse lists the batches.",
+      "properties": {
+        "batches": {
+          "items": {
+            "$ref": "#/definitions/task.v1.WorkerBatchState",
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "next": {
+          "description": "next is the start_before of the following page; zero at the end.",
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.QueryWorkerEvidenceResponse": {
       "description": "QueryWorkerEvidenceResponse returns no raw signature or MMR proof material.",
       "properties": {
         "receipt": {
           "$ref": "#/definitions/task.v1.WorkerEvidenceReceiptState"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.QueryWorkerLateSubmissionsResponse": {
+      "description": "QueryWorkerLateSubmissionsResponse lists the Worker's audits in\nAWAITING_LATE or LATE_SUBMITTED, oldest deadline first.",
+      "properties": {
+        "submissions": {
+          "items": {
+            "$ref": "#/definitions/task.v1.WorkerLateSubmissionV1",
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -7956,13 +8505,50 @@
           "format": "int64",
           "type": "integer"
         },
+        "anchor_audit_mode": {
+          "description": "Who audits a selected anchor task, frozen into each task at acceptance:\n0 and 1 = consensus-validator vote, 2 = Verifier panel.",
+          "format": "int64",
+          "type": "integer"
+        },
         "anchor_audit_risk_margin_bps": {
           "description": "Risk margin k (basis points) in s = k*R / (D + k*R); 10000 = 1x.",
           "format": "int64",
           "type": "integer"
         },
+        "anchor_brake_baseline_periods": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_brake_min_cases": {
+          "description": "Per-model brake: tripped for a period with at least anchor_brake_min_cases\nREJECT verdicts whose rate is at least anchor_brake_multiple_x1000 / 1000\ntimes the mean rate of the previous anchor_brake_baseline_periods periods.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_brake_multiple_x1000": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_late_window_blocks": {
+          "description": "Blocks after a Worker timeout within which a late submission is accepted.",
+          "format": "uint64",
+          "type": "string"
+        },
         "anchor_open_window_blocks": {
           "description": "Blocks after sampling within which the Worker must record its opening. Must be \u003e 0.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_panel_size": {
+          "description": "Verifiers drawn per panel round and equal votes that decide it.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_panel_threshold": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_panel_vote_window_blocks": {
+          "description": "Blocks after the draw within which a panel member's vote is accepted.",
           "format": "uint64",
           "type": "string"
         },
@@ -7971,10 +8557,29 @@
           "format": "uint64",
           "type": "string"
         },
+        "anchor_publication_window_blocks": {
+          "description": "Publication period of a provisional verdict; a re-audit may be requested in it.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_reaudit_reward_bps": {
+          "description": "Share of a wrong voter's slash paid to the opener of the re-audit that\noverturned the verdict, in basis points of the slashable base.",
+          "format": "int64",
+          "type": "integer"
+        },
         "anchor_reject_slash_bps": {
           "description": "Basis points of the slashable bond D (fixed at sampling) taken when the\nvalidators REJECT the Worker's anchor proof (ADR-0040 v6). Zero disables it.",
           "format": "int64",
           "type": "integer"
+        },
+        "anchor_timeout_free_count": {
+          "description": "Settlement periods with a timeout inside the rolling window that are not\nslashed, and the length of that window.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_timeout_rolling_window_blocks": {
+          "format": "uint64",
+          "type": "string"
         },
         "anchor_timeout_slash_bps": {
           "description": "Basis points of D taken when the Worker never opened or never proved by the deadline.",
@@ -7986,7 +8591,61 @@
           "format": "uint64",
           "type": "string"
         },
+        "anchor_verifier_allowance_window_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_verifier_bond_multiple": {
+          "description": "A Verifier's effective bond must be at least this multiple of the order\nvalue it was drawn to audit inside anchor_verifier_allowance_window_blocks.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_verifier_miss_slash_bps": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_verifier_miss_slash_from_trigger": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_verifier_miss_trigger_count": {
+          "description": "Missed-vote rule: every anchor_verifier_miss_trigger_count missed periods\ninside anchor_verifier_miss_window_blocks suspend the Verifier for one\nperiod; from the anchor_verifier_miss_slash_from_trigger-th such trigger\nin the window it is also slashed anchor_verifier_miss_slash_bps.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "anchor_verifier_miss_window_blocks": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "anchor_verifier_wrong_vote_slash_bps": {
+          "description": "Slash of a panel member whose PASS or REJECT is the opposite of the final verdict.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "batch_settlement_max_workers_per_block": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "batch_settlement_period_blocks": {
+          "description": "Length of a settlement period; non-zero switches the Worker's net of every\ntask to per-period batch settlement. At most\nbatch_settlement_max_workers_per_block queued batches are paid per block.",
+          "format": "uint64",
+          "type": "string"
+        },
         "builder_fault_slash_bps": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "input_token_tolerance": {
+          "description": "Tolerance of the signed input token count: a receipt whose prompt token\ncount is below the attested count minus this value is refused. Zero means\nthe attestation is ignored.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "logprob_reject_slash_bps": {
+          "description": "Logprob-mode variant: slash of a Worker judged cheating and of a Verifier\nwhose result is the opposite of the final verdict. Zero keeps the\nexisting consequences.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "logprob_verifier_wrong_vote_slash_bps": {
           "format": "int64",
           "type": "integer"
         },
@@ -8242,6 +8901,45 @@
       },
       "type": "object"
     },
+    "task.v1.VerifierAuditStandingState": {
+      "description": "VerifierAuditStandingState is one Verifier's panel accounting: the value it\naudited in the allowance window, its missed periods and its suspension.",
+      "properties": {
+        "audited_value": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Sum of the order values of tasks on whose panels the operator was drawn\ninside anchor_verifier_allowance_window_blocks."
+        },
+        "deactivated": {
+          "description": "Set by a wrong vote: the operator's audit capability is switched off until\nit declares it again.",
+          "type": "boolean"
+        },
+        "miss_triggers_in_window": {
+          "description": "Number of times the missed-period count reached a multiple of\nanchor_verifier_miss_trigger_count inside the window.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "missed_periods": {
+          "description": "Settlement periods with at least one missed vote inside\nanchor_verifier_miss_window_blocks, ascending.",
+          "items": {
+            "format": "uint64",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "suspended_until_period": {
+          "description": "The operator is not drawn while the current period is below this value.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "updated_height": {
+          "format": "uint64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "task.v1.VerifierCandidateWindowMemberState": {
       "description": "VerifierCandidateWindowMemberState is one ranked window member keyed by\n(task_id, verify_round, rank_index). rank_index is dense from 0 and strictly\nbelow window_size; ranking uses verifier_window_rank ascending with slot\nascending as tie-break.\nVerifierCandidateWindowMemberState defines the VerifierCandidateWindowMemberState wire type.",
       "properties": {
@@ -8487,6 +9185,108 @@
       },
       "type": "object"
     },
+    "task.v1.WorkerBatchState": {
+      "description": "WorkerBatchState is the settlement batch of one Worker for one period: the\nWorker's net of every member task is credited here instead of being paid per\ntask, and paid once when every member task is final.",
+      "properties": {
+        "audited_count": {
+          "description": "Member tasks the beacon selected for an audit.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "awaiting_late_count": {
+          "description": "Member tasks awaiting a late submission.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "forfeited_amount": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Amount redirected to the treasury by a forfeiture."
+        },
+        "forfeiting_task_id": {
+          "description": "First member task that caused the forfeiture; zero otherwise.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "open_task_count": {
+          "description": "Member tasks without a final verdict (publication period and tasks\nawaiting a late submission included).",
+          "format": "int64",
+          "type": "integer"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "period": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "queued_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "settled_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/task.v1.WorkerBatchStatusV1"
+        },
+        "task_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "worker_due": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "Sum of the Worker net over member tasks that are final PASS so far."
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.WorkerBatchStatusV1": {
+      "default": "WORKER_BATCH_STATUS_V1_UNSPECIFIED",
+      "description": "WorkerBatchStatusV1 is the life cycle of one Worker's batch of one\nsettlement period.\n\n - WORKER_BATCH_STATUS_V1_UNSPECIFIED: WORKER_BATCH_STATUS_V1_UNSPECIFIED identifies the corresponding protocol value.\n - WORKER_BATCH_STATUS_V1_OPEN: The period is current; tasks are still being added.\n - WORKER_BATCH_STATUS_V1_CLOSING: The period ended; some member task has no final verdict yet.\n - WORKER_BATCH_STATUS_V1_SUSPENDED: A member task awaits a late submission.\n - WORKER_BATCH_STATUS_V1_QUEUED: Every member task is final; the batch waits in the settlement queue.\n - WORKER_BATCH_STATUS_V1_SETTLED: worker_due was paid.\n - WORKER_BATCH_STATUS_V1_FORFEITED_CHEAT: A member task ended with a final REJECT; the Worker is paid nothing for\nthe period.\n - WORKER_BATCH_STATUS_V1_FORFEITED_TIMEOUT: A member task ended LATE_EXPIRED; the Worker is paid nothing for the period.",
+      "enum": [
+        "WORKER_BATCH_STATUS_V1_UNSPECIFIED",
+        "WORKER_BATCH_STATUS_V1_OPEN",
+        "WORKER_BATCH_STATUS_V1_CLOSING",
+        "WORKER_BATCH_STATUS_V1_SUSPENDED",
+        "WORKER_BATCH_STATUS_V1_QUEUED",
+        "WORKER_BATCH_STATUS_V1_SETTLED",
+        "WORKER_BATCH_STATUS_V1_FORFEITED_CHEAT",
+        "WORKER_BATCH_STATUS_V1_FORFEITED_TIMEOUT"
+      ],
+      "type": "string"
+    },
+    "task.v1.WorkerBatchTaskState": {
+      "description": "WorkerBatchTaskState records that one task belongs to one Worker batch and\nwhat it contributes (key (operator_address, period, task_id)).",
+      "properties": {
+        "final": {
+          "description": "Whether the task has a final verdict.",
+          "type": "boolean"
+        },
+        "operator_address": {
+          "type": "string"
+        },
+        "period": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "worker_net": {
+          "$ref": "#/definitions/shared.v1.Amount",
+          "description": "The Worker net credited for the task once final PASS."
+        }
+      },
+      "type": "object"
+    },
     "task.v1.WorkerEvidenceKindV1": {
       "default": "WORKER_EVIDENCE_KIND_V1_UNSPECIFIED",
       "description": "WorkerEvidenceKindV1 is the closed set of objective Worker evidence.\n\n - WORKER_EVIDENCE_KIND_V1_UNSPECIFIED: Never written; rejects an unset evidence branch.\nWORKER_EVIDENCE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - WORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION: A valid signed output prefix conflicts with the accepted final MMR root.\nWORKER_EVIDENCE_KIND_V1_OUTPUT_CHUNK_EQUIVOCATION identifies the corresponding protocol value.",
@@ -8543,6 +9343,33 @@
           "type": "string"
         },
         "worker_operator_address": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "task.v1.WorkerLateSubmissionV1": {
+      "description": "WorkerLateSubmissionV1 is one audit of a Worker that awaits a late submission.",
+      "properties": {
+        "late_deadline_height": {
+          "format": "uint64",
+          "type": "string"
+        },
+        "late_state": {
+          "$ref": "#/definitions/task.v1.AnchorLateStateV1"
+        },
+        "task_id": {
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "timeout_reason": {
+          "$ref": "#/definitions/task.v1.AnchorTimeoutReasonV1"
+        },
+        "timeout_recorded_height": {
+          "format": "uint64",
           "type": "string"
         }
       },
@@ -9909,6 +10736,44 @@
         ]
       }
     },
+    "/TrueOpen/hub/v1/worker_quota/{operator_address}": {
+      "get": {
+        "operationId": "Query_WorkerQuota",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "uint64",
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/hub.v1.QueryWorkerQuotaResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "WorkerQuota returns the order quota of one Worker for the current settlement period.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
     "/TrueOpen/task/v1/anchor_audits/pending": {
       "get": {
         "operationId": "Query_AnchorAuditsPending",
@@ -9948,6 +10813,142 @@
           }
         },
         "summary": "AnchorAuditsPending pages over sampled, selected audits awaiting a final verdict (ADR-0040 v6).",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/anchor_audits/under_review": {
+      "get": {
+        "operationId": "Query_AnchorAuditsUnderReview",
+        "parameters": [
+          {
+            "description": "start_after resumes after this task id (exclusive); empty starts at the beginning.",
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "start_after",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "limit caps the page (default 100, maximum 500).",
+            "format": "int64",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorAuditsUnderReviewResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorAuditsUnderReview pages over selected panel-mode audits that are not final yet.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/anchor_brake/{model_id}": {
+      "get": {
+        "operationId": "Query_AnchorBrake",
+        "parameters": [
+          {
+            "format": "trueopen-hash32",
+            "in": "path",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "model_id",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "uint64",
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorBrakeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorBrake returns the per-model brake statistic of one period.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/anchor_panel_assignments/{verifier_operator_address}": {
+      "get": {
+        "operationId": "Query_AnchorPanelAssignments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "verifier_operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "start_after resumes after this task id (exclusive); empty starts at the beginning.",
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "start_after",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "limit caps the page (default 50, maximum 200).",
+            "format": "int64",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryAnchorPanelAssignmentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "AnchorPanelAssignments pages over the open panel rounds a Verifier must vote in.",
         "tags": [
           "Query"
         ]
@@ -11488,6 +12489,210 @@
           }
         },
         "summary": "WorkerEvidence returns one compact objective-evidence receipt.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/verifier/{operator_address}/audit_standing": {
+      "get": {
+        "operationId": "Query_VerifierAuditStanding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryVerifierAuditStandingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "VerifierAuditStanding returns a Verifier's panel allowance, missed periods and suspension.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/worker/{operator_address}/batch/{period}": {
+      "get": {
+        "operationId": "Query_WorkerBatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "uint64",
+            "in": "path",
+            "name": "period",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryWorkerBatchResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "WorkerBatch returns one Worker's settlement batch of one period.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/worker/{operator_address}/batch/{period}/tasks": {
+      "get": {
+        "operationId": "Query_WorkerBatchTasks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "format": "uint64",
+            "in": "path",
+            "name": "period",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "start_after resumes after this task id (exclusive); empty starts at the beginning.",
+            "format": "trueopen-hash32",
+            "in": "query",
+            "maxLength": 66,
+            "minLength": 66,
+            "name": "start_after",
+            "pattern": "^0x[0-9a-f]{64}$",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "limit caps the page (default 100, maximum 500).",
+            "format": "int64",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryWorkerBatchTasksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "WorkerBatchTasks pages over the member tasks of one batch.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/worker/{operator_address}/batches": {
+      "get": {
+        "operationId": "Query_WorkerBatches",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_address",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "start_before resumes below this period (exclusive); zero starts at the newest.",
+            "format": "uint64",
+            "in": "query",
+            "name": "start_before",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "description": "limit caps the page (default 30, maximum 200).",
+            "format": "int64",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryWorkerBatchesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "WorkerBatches pages over one Worker's settlement batches, newest first.",
+        "tags": [
+          "Query"
+        ]
+      }
+    },
+    "/TrueOpen/task/v1/worker/{worker_operator_address}/late_submissions": {
+      "get": {
+        "operationId": "Query_WorkerLateSubmissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_operator_address",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/task.v1.QueryWorkerLateSubmissionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/google.rpc.Status"
+            }
+          }
+        },
+        "summary": "WorkerLateSubmissions lists a Worker's audits that await or carry a late submission.",
         "tags": [
           "Query"
         ]
