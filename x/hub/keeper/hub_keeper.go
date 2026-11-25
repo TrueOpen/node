@@ -168,6 +168,7 @@ func (k Keeper) GetHubParams(ctx sdk.Context) types.HubParamsSnapshot {
 		MaxQueryResponseBytes:        params.QueryEvent.MaxQueryResponseBytes,
 		MaxEndblockVisitedItemsTotal: params.QueryEvent.MaxEndblockVisitedItemsTotal,
 		BusinessDenom:                params.Phase0.BusinessDenom,
+		MinValidatorSeparation:       params.Service.MinValidatorSeparation,
 	}
 }
 

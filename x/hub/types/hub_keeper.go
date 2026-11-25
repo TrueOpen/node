@@ -42,6 +42,8 @@ type HubParamsSnapshot struct {
 	MaxQueryResponseBytes                 uint64
 	MaxEndblockVisitedItemsTotal          uint32
 	BusinessDenom                         string
+	// MinValidatorSeparation keeps block-producer identities off Verifier panels.
+	MinValidatorSeparation bool
 }
 
 type EndBlockBudgetSnapshot struct {

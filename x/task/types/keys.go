@@ -147,10 +147,19 @@ var (
 	TaskBucketRefKey                  = MustVersionedStorePrefix("task_bucket_ref", CurrentStoreSchemaVersion)
 
 	// ---- Receipt, verifier window and verification ----
-	InferReceiptKey                        = MustVersionedStorePrefix("infer_receipt", CurrentStoreSchemaVersion)
-	AnchorAuditKey                         = MustVersionedStorePrefix("anchor_audit", CurrentStoreSchemaVersion)
-	AnchorValidatorVoteKey                 = MustVersionedStorePrefix("anchor_validator_vote", CurrentStoreSchemaVersion)
-	AnchorVoteDelegationKey                = MustVersionedStorePrefix("anchor_vote_key", CurrentStoreSchemaVersion)
+	InferReceiptKey         = MustVersionedStorePrefix("infer_receipt", CurrentStoreSchemaVersion)
+	AnchorAuditKey          = MustVersionedStorePrefix("anchor_audit", CurrentStoreSchemaVersion)
+	AnchorValidatorVoteKey  = MustVersionedStorePrefix("anchor_validator_vote", CurrentStoreSchemaVersion)
+	AnchorVoteDelegationKey = MustVersionedStorePrefix("anchor_vote_key", CurrentStoreSchemaVersion)
+	// Verifier-panel audit: the working selection state of an open panel round,
+	// the next height at which a task's panel audit must be advanced (index and
+	// its forward map), the open assignments per panel member, and the audits
+	// with a provisional verdict that is not final yet.
+	AnchorPanelSelectionKey                = MustVersionedStorePrefix("anchor_panel_selection", CurrentStoreSchemaVersion)
+	AnchorPanelDueIndexKey                 = MustVersionedStorePrefix("anchor_panel_due_index", CurrentStoreSchemaVersion)
+	AnchorPanelDueHeightKey                = MustVersionedStorePrefix("anchor_panel_due_height", CurrentStoreSchemaVersion)
+	AnchorPanelMemberIndexKey              = MustVersionedStorePrefix("anchor_panel_member_index", CurrentStoreSchemaVersion)
+	AnchorUnderReviewIndexKey              = MustVersionedStorePrefix("anchor_under_review_index", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowMemberKey       = MustVersionedStorePrefix("verifier_candidate_window_member", CurrentStoreSchemaVersion)
