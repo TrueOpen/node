@@ -84,8 +84,12 @@ func TestPanelVoteRules(t *testing.T) {
 		mutate func(*types.MsgSubmitAnchorPanelVote)
 		want   string
 	}{
-		"not a member":        {func(m *types.MsgSubmitAnchorPanelVote) { m.VerifierOperatorAddress, m.SubmitterAddress = outsider, outsider }, "not a member"},
-		"the Worker":          {func(m *types.MsgSubmitAnchorPanelVote) { m.VerifierOperatorAddress, m.SubmitterAddress = f.worker, f.worker }, "not a member"},
+		"not a member": {func(m *types.MsgSubmitAnchorPanelVote) {
+			m.VerifierOperatorAddress, m.SubmitterAddress = outsider, outsider
+		}, "not a member"},
+		"the Worker": {func(m *types.MsgSubmitAnchorPanelVote) {
+			m.VerifierOperatorAddress, m.SubmitterAddress = f.worker, f.worker
+		}, "not a member"},
 		"not its service":     {func(m *types.MsgSubmitAnchorPanelVote) { m.SubmitterAddress = f.builders[0] }, "current service"},
 		"another proof":       {func(m *types.MsgSubmitAnchorPanelVote) { m.ProofHash = bytes32(0xee) }, "different opening or proof"},
 		"another opening":     {func(m *types.MsgSubmitAnchorPanelVote) { m.OpeningHash = bytes32(0xee) }, "different opening or proof"},
@@ -482,8 +486,10 @@ func TestAnchorPanelParamsValidation(t *testing.T) {
 		"threshold too low":  func(v *types.VerificationParamsV1) { v.AnchorPanelThreshold = 1 },
 		"threshold too high": func(v *types.VerificationParamsV1) { v.AnchorPanelThreshold = 4 },
 		"no vote window":     func(v *types.VerificationParamsV1) { v.AnchorPanelVoteWindowBlocks = 0 },
-		"huge publication":   func(v *types.VerificationParamsV1) { v.AnchorPublicationWindowBlocks = types.AnchorWindowBlocksMaximum + 1 },
-		"bps over 100%":      func(v *types.VerificationParamsV1) { v.AnchorVerifierWrongVoteSlashBps = 10_001 },
+		"huge publication": func(v *types.VerificationParamsV1) {
+			v.AnchorPublicationWindowBlocks = types.AnchorWindowBlocksMaximum + 1
+		},
+		"bps over 100%": func(v *types.VerificationParamsV1) { v.AnchorVerifierWrongVoteSlashBps = 10_001 },
 	} {
 		require.Error(t, mutate(change), name)
 	}
