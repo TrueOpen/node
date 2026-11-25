@@ -44,6 +44,23 @@ const (
 	// The auditor could not judge the position (missing material, proof not
 	// established); attributable to the verifier, never to the Worker.
 	AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT AnchorVerdictV1 = 3
+	// Validator vote only; never the verdict of a position or of a task. The
+	// validator could not obtain the opening, proof or manifest the Worker
+	// recorded, from the location the Worker recorded, by the time it voted.
+	//
+	// The vote is accepted only in the second half of the verdict window (from
+	// proof_deadline_height + (verdict_deadline_height - proof_deadline_height) / 2)
+	// and a validator may replace it with PASS or REJECT while the window is
+	// open. It is tallied in unavailable_power and never closes an audit early.
+	// At verdict_deadline_height, on the votes as they then stand and at the
+	// validators' current power, an audit that neither PASS nor REJECT decided
+	// ends:
+	//   - NO_VERDICT if PASS holds more than 1/3 (someone obtained and verified
+	//     the material, so it was obtainable);
+	//   - otherwise REJECT with source MATERIAL_UNAVAILABLE if REJECT and
+	//     UNAVAILABLE together hold >= 2/3;
+	//   - otherwise NO_VERDICT.
+	AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE AnchorVerdictV1 = 4
 )
 
 var AnchorVerdictV1_name = map[int32]string{
@@ -51,6 +68,7 @@ var AnchorVerdictV1_name = map[int32]string{
 	1: "ANCHOR_VERDICT_V1_PASS",
 	2: "ANCHOR_VERDICT_V1_REJECT",
 	3: "ANCHOR_VERDICT_V1_NO_VERDICT",
+	4: "ANCHOR_VERDICT_V1_UNAVAILABLE",
 }
 
 var AnchorVerdictV1_value = map[string]int32{
@@ -58,6 +76,7 @@ var AnchorVerdictV1_value = map[string]int32{
 	"ANCHOR_VERDICT_V1_PASS":        1,
 	"ANCHOR_VERDICT_V1_REJECT":      2,
 	"ANCHOR_VERDICT_V1_NO_VERDICT":  3,
+	"ANCHOR_VERDICT_V1_UNAVAILABLE": 4,
 }
 
 func (x AnchorVerdictV1) String() string {
@@ -84,6 +103,23 @@ const (
 	// The receipt's commitments could not be sampled (malformed token commitment);
 	// the audit is final REJECT at sampling (ADR-0040 v6).
 	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT AnchorResultSourceV1 = 4
+	// verdict_deadline_height passed, PASS held at most 1/3 and REJECT together
+	// with UNAVAILABLE held >= 2/3 of the bonded voting power: the Worker
+	// recorded an opening and a proof but did not keep sound material
+	// retrievable. Final REJECT, settled as the timeout fault (the smaller slash,
+	// no jail); the task is not paid.
+	// Value 5 is left to the content-track contract.
+	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE AnchorResultSourceV1 = 6
+	// Verifier panel (anchor_audit_mode 2): two members of a panel round cast
+	// the same PASS or REJECT vote and the publication period ended without a
+	// re-audit overturning it.
+	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_VERIFIER_PANEL AnchorResultSourceV1 = 7
+	// Verifier panel: a paid re-audit round overturned the provisional verdict.
+	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_REAUDIT AnchorResultSourceV1 = 8
+	// Verifier panel: the Worker timed out and submitted nothing acceptable
+	// before late_deadline_height. Final REJECT, settled as the timeout fault
+	// (no jail); the Worker's batch of the period is forfeited.
+	AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED AnchorResultSourceV1 = 9
 )
 
 var AnchorResultSourceV1_name = map[int32]string{
@@ -92,14 +128,22 @@ var AnchorResultSourceV1_name = map[int32]string{
 	2: "ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE",
 	3: "ANCHOR_RESULT_SOURCE_V1_TIMEOUT",
 	4: "ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT",
+	6: "ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE",
+	7: "ANCHOR_RESULT_SOURCE_V1_VERIFIER_PANEL",
+	8: "ANCHOR_RESULT_SOURCE_V1_REAUDIT",
+	9: "ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED",
 }
 
 var AnchorResultSourceV1_value = map[string]int32{
-	"ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED":        0,
-	"ANCHOR_RESULT_SOURCE_V1_VERIFIER":           1,
-	"ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE":     2,
-	"ANCHOR_RESULT_SOURCE_V1_TIMEOUT":            3,
-	"ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT": 4,
+	"ANCHOR_RESULT_SOURCE_V1_UNSPECIFIED":          0,
+	"ANCHOR_RESULT_SOURCE_V1_VERIFIER":             1,
+	"ANCHOR_RESULT_SOURCE_V1_VALIDATOR_VOTE":       2,
+	"ANCHOR_RESULT_SOURCE_V1_TIMEOUT":              3,
+	"ANCHOR_RESULT_SOURCE_V1_INVALID_COMMITMENT":   4,
+	"ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE": 6,
+	"ANCHOR_RESULT_SOURCE_V1_VERIFIER_PANEL":       7,
+	"ANCHOR_RESULT_SOURCE_V1_REAUDIT":              8,
+	"ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED":         9,
 }
 
 func (x AnchorResultSourceV1) String() string {
@@ -108,6 +152,122 @@ func (x AnchorResultSourceV1) String() string {
 
 func (AnchorResultSourceV1) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_6c216b85fbaf0a05, []int{1}
+}
+
+// AnchorPanelRoundKindV1 says why a panel round was opened.
+type AnchorPanelRoundKindV1 int32
+
+const (
+	// ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.
+	AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED AnchorPanelRoundKindV1 = 0
+	// First round of an attempt, opened when the Worker's proof is recorded.
+	AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_INITIAL AnchorPanelRoundKindV1 = 1
+	// Automatic second round of the same attempt, opened when the first ended
+	// without two equal votes.
+	AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_RETRY AnchorPanelRoundKindV1 = 2
+	// Round paid for by MsgRequestAnchorReaudit during the publication period.
+	AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_REAUDIT AnchorPanelRoundKindV1 = 3
+)
+
+var AnchorPanelRoundKindV1_name = map[int32]string{
+	0: "ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED",
+	1: "ANCHOR_PANEL_ROUND_KIND_V1_INITIAL",
+	2: "ANCHOR_PANEL_ROUND_KIND_V1_RETRY",
+	3: "ANCHOR_PANEL_ROUND_KIND_V1_REAUDIT",
+}
+
+var AnchorPanelRoundKindV1_value = map[string]int32{
+	"ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED": 0,
+	"ANCHOR_PANEL_ROUND_KIND_V1_INITIAL":     1,
+	"ANCHOR_PANEL_ROUND_KIND_V1_RETRY":       2,
+	"ANCHOR_PANEL_ROUND_KIND_V1_REAUDIT":     3,
+}
+
+func (x AnchorPanelRoundKindV1) String() string {
+	return proto.EnumName(AnchorPanelRoundKindV1_name, int32(x))
+}
+
+func (AnchorPanelRoundKindV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{2}
+}
+
+// AnchorLateStateV1 tracks a selected audit whose Worker timed out.
+type AnchorLateStateV1 int32
+
+const (
+	// No timeout was recorded for the audit.
+	AnchorLateStateV1_ANCHOR_LATE_STATE_V1_UNSPECIFIED AnchorLateStateV1 = 0
+	// A timeout was recorded; the Worker may still submit until
+	// late_deadline_height. Dispatch to the Worker is paused and its batch of the
+	// task's period is suspended.
+	AnchorLateStateV1_ANCHOR_LATE_STATE_V1_AWAITING_LATE AnchorLateStateV1 = 1
+	// The Worker recorded its opening and proof after the timeout; a panel is
+	// auditing them.
+	AnchorLateStateV1_ANCHOR_LATE_STATE_V1_LATE_SUBMITTED AnchorLateStateV1 = 2
+	// late_deadline_height passed without an accepted late submission.
+	AnchorLateStateV1_ANCHOR_LATE_STATE_V1_LATE_EXPIRED AnchorLateStateV1 = 3
+)
+
+var AnchorLateStateV1_name = map[int32]string{
+	0: "ANCHOR_LATE_STATE_V1_UNSPECIFIED",
+	1: "ANCHOR_LATE_STATE_V1_AWAITING_LATE",
+	2: "ANCHOR_LATE_STATE_V1_LATE_SUBMITTED",
+	3: "ANCHOR_LATE_STATE_V1_LATE_EXPIRED",
+}
+
+var AnchorLateStateV1_value = map[string]int32{
+	"ANCHOR_LATE_STATE_V1_UNSPECIFIED":    0,
+	"ANCHOR_LATE_STATE_V1_AWAITING_LATE":  1,
+	"ANCHOR_LATE_STATE_V1_LATE_SUBMITTED": 2,
+	"ANCHOR_LATE_STATE_V1_LATE_EXPIRED":   3,
+}
+
+func (x AnchorLateStateV1) String() string {
+	return proto.EnumName(AnchorLateStateV1_name, int32(x))
+}
+
+func (AnchorLateStateV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{3}
+}
+
+// AnchorTimeoutReasonV1 names what made a selected audit a Worker timeout.
+type AnchorTimeoutReasonV1 int32
+
+const (
+	// ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED identifies the corresponding protocol value.
+	AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED AnchorTimeoutReasonV1 = 0
+	// opening_deadline_height passed without a recorded opening.
+	AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE AnchorTimeoutReasonV1 = 1
+	// proof_deadline_height passed without a recorded proof.
+	AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE AnchorTimeoutReasonV1 = 2
+	// A panel round closed with two UNAVAILABLE votes.
+	AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE AnchorTimeoutReasonV1 = 3
+	// The automatic retry round also closed without two equal votes.
+	AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE AnchorTimeoutReasonV1 = 4
+)
+
+var AnchorTimeoutReasonV1_name = map[int32]string{
+	0: "ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED",
+	1: "ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE",
+	2: "ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE",
+	3: "ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE",
+	4: "ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE",
+}
+
+var AnchorTimeoutReasonV1_value = map[string]int32{
+	"ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED":        0,
+	"ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE":   1,
+	"ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE":     2,
+	"ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE":  3,
+	"ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE": 4,
+}
+
+func (x AnchorTimeoutReasonV1) String() string {
+	return proto.EnumName(AnchorTimeoutReasonV1_name, int32(x))
+}
+
+func (AnchorTimeoutReasonV1) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{4}
 }
 
 // AnchorPositionVerdictV1 is the auditor's verdict on one sampled position.
@@ -186,6 +346,8 @@ type AnchorVoteTallyV1 struct {
 	TotalPower uint64 `protobuf:"varint,4,opt,name=total_power,json=totalPower,proto3" json:"total_power,omitempty"`
 	// vote_count is the number of recorded votes.
 	VoteCount uint32 `protobuf:"varint,5,opt,name=vote_count,json=voteCount,proto3" json:"vote_count,omitempty"`
+	// unavailable_power is the summed voting power of UNAVAILABLE votes.
+	UnavailablePower uint64 `protobuf:"varint,6,opt,name=unavailable_power,json=unavailablePower,proto3" json:"unavailable_power,omitempty"`
 }
 
 func (m *AnchorVoteTallyV1) Reset()         { *m = AnchorVoteTallyV1{} }
@@ -252,6 +414,13 @@ func (m *AnchorVoteTallyV1) GetTotalPower() uint64 {
 func (m *AnchorVoteTallyV1) GetVoteCount() uint32 {
 	if m != nil {
 		return m.VoteCount
+	}
+	return 0
+}
+
+func (m *AnchorVoteTallyV1) GetUnavailablePower() uint64 {
+	if m != nil {
+		return m.UnavailablePower
 	}
 	return 0
 }
@@ -357,6 +526,221 @@ func (m *AnchorValidatorVoteState) GetVerdicts() []AnchorPositionVerdictV1 {
 	return nil
 }
 
+// AnchorPanelVoteState is one panel member's vote in one round.
+type AnchorPanelVoteState struct {
+	VerifierOperatorAddress string `protobuf:"bytes,1,opt,name=verifier_operator_address,json=verifierOperatorAddress,proto3" json:"verifier_operator_address,omitempty"`
+	// PASS, REJECT or UNAVAILABLE.
+	Verdict  AnchorVerdictV1           `protobuf:"varint,2,opt,name=verdict,proto3,enum=task.v1.AnchorVerdictV1" json:"verdict,omitempty"`
+	Height   uint64                    `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	Verdicts []AnchorPositionVerdictV1 `protobuf:"bytes,4,rep,name=verdicts,proto3" json:"verdicts"`
+}
+
+func (m *AnchorPanelVoteState) Reset()         { *m = AnchorPanelVoteState{} }
+func (m *AnchorPanelVoteState) String() string { return proto.CompactTextString(m) }
+func (*AnchorPanelVoteState) ProtoMessage()    {}
+func (*AnchorPanelVoteState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{3}
+}
+func (m *AnchorPanelVoteState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AnchorPanelVoteState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AnchorPanelVoteState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AnchorPanelVoteState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AnchorPanelVoteState.Merge(m, src)
+}
+func (m *AnchorPanelVoteState) XXX_Size() int {
+	return m.Size()
+}
+func (m *AnchorPanelVoteState) XXX_DiscardUnknown() {
+	xxx_messageInfo_AnchorPanelVoteState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AnchorPanelVoteState proto.InternalMessageInfo
+
+func (m *AnchorPanelVoteState) GetVerifierOperatorAddress() string {
+	if m != nil {
+		return m.VerifierOperatorAddress
+	}
+	return ""
+}
+
+func (m *AnchorPanelVoteState) GetVerdict() AnchorVerdictV1 {
+	if m != nil {
+		return m.Verdict
+	}
+	return AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED
+}
+
+func (m *AnchorPanelVoteState) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func (m *AnchorPanelVoteState) GetVerdicts() []AnchorPositionVerdictV1 {
+	if m != nil {
+		return m.Verdicts
+	}
+	return nil
+}
+
+// AnchorPanelRoundState is one round of three Verifiers drawn for a selected
+// audit. panel_round increases by one with every round opened for the task and
+// is never reused, so a hand-raise or a vote names exactly one round.
+type AnchorPanelRoundState struct {
+	PanelRound uint32                 `protobuf:"varint,1,opt,name=panel_round,json=panelRound,proto3" json:"panel_round,omitempty"`
+	Kind       AnchorPanelRoundKindV1 `protobuf:"varint,2,opt,name=kind,proto3,enum=task.v1.AnchorPanelRoundKindV1" json:"kind,omitempty"`
+	// 0 for the on-time attempt, 1 for the attempt after a late submission.
+	Attempt uint32 `protobuf:"varint,3,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	// Height the Verifier window of this round was opened at.
+	OpenHeight uint64 `protobuf:"varint,4,opt,name=open_height,json=openHeight,proto3" json:"open_height,omitempty"`
+	// Height the members were drawn at; zero until drawn.
+	AssignmentHeight uint64 `protobuf:"varint,5,opt,name=assignment_height,json=assignmentHeight,proto3" json:"assignment_height,omitempty"`
+	// Last height at which a member's vote is accepted; zero until drawn.
+	VoteDeadlineHeight uint64 `protobuf:"varint,6,opt,name=vote_deadline_height,json=voteDeadlineHeight,proto3" json:"vote_deadline_height,omitempty"`
+	// Drawn operators in draw order.
+	Members []string               `protobuf:"bytes,7,rep,name=members,proto3" json:"members,omitempty"`
+	Votes   []AnchorPanelVoteState `protobuf:"bytes,8,rep,name=votes,proto3" json:"votes"`
+	// PASS, REJECT or UNAVAILABLE when two members agreed; NO_VERDICT when the
+	// round closed without two equal votes or without a full panel; UNSPECIFIED
+	// while the round is open.
+	Result       AnchorVerdictV1 `protobuf:"varint,9,opt,name=result,proto3,enum=task.v1.AnchorVerdictV1" json:"result,omitempty"`
+	ClosedHeight uint64          `protobuf:"varint,10,opt,name=closed_height,json=closedHeight,proto3" json:"closed_height,omitempty"`
+	// Commitment over the drawn members, as VerifierAssignmentState carries it.
+	SelectedVerifiersHash []byte `protobuf:"bytes,11,opt,name=selected_verifiers_hash,json=selectedVerifiersHash,proto3" json:"selected_verifiers_hash,omitempty"`
+	// Fee paid to the members of this round who voted, in fee-denom atomic units.
+	PanelFee string `protobuf:"bytes,12,opt,name=panel_fee,json=panelFee,proto3" json:"panel_fee,omitempty"`
+}
+
+func (m *AnchorPanelRoundState) Reset()         { *m = AnchorPanelRoundState{} }
+func (m *AnchorPanelRoundState) String() string { return proto.CompactTextString(m) }
+func (*AnchorPanelRoundState) ProtoMessage()    {}
+func (*AnchorPanelRoundState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6c216b85fbaf0a05, []int{4}
+}
+func (m *AnchorPanelRoundState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AnchorPanelRoundState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AnchorPanelRoundState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AnchorPanelRoundState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AnchorPanelRoundState.Merge(m, src)
+}
+func (m *AnchorPanelRoundState) XXX_Size() int {
+	return m.Size()
+}
+func (m *AnchorPanelRoundState) XXX_DiscardUnknown() {
+	xxx_messageInfo_AnchorPanelRoundState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AnchorPanelRoundState proto.InternalMessageInfo
+
+func (m *AnchorPanelRoundState) GetPanelRound() uint32 {
+	if m != nil {
+		return m.PanelRound
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetKind() AnchorPanelRoundKindV1 {
+	if m != nil {
+		return m.Kind
+	}
+	return AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_UNSPECIFIED
+}
+
+func (m *AnchorPanelRoundState) GetAttempt() uint32 {
+	if m != nil {
+		return m.Attempt
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetOpenHeight() uint64 {
+	if m != nil {
+		return m.OpenHeight
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetAssignmentHeight() uint64 {
+	if m != nil {
+		return m.AssignmentHeight
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetVoteDeadlineHeight() uint64 {
+	if m != nil {
+		return m.VoteDeadlineHeight
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetMembers() []string {
+	if m != nil {
+		return m.Members
+	}
+	return nil
+}
+
+func (m *AnchorPanelRoundState) GetVotes() []AnchorPanelVoteState {
+	if m != nil {
+		return m.Votes
+	}
+	return nil
+}
+
+func (m *AnchorPanelRoundState) GetResult() AnchorVerdictV1 {
+	if m != nil {
+		return m.Result
+	}
+	return AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED
+}
+
+func (m *AnchorPanelRoundState) GetClosedHeight() uint64 {
+	if m != nil {
+		return m.ClosedHeight
+	}
+	return 0
+}
+
+func (m *AnchorPanelRoundState) GetSelectedVerifiersHash() []byte {
+	if m != nil {
+		return m.SelectedVerifiersHash
+	}
+	return nil
+}
+
+func (m *AnchorPanelRoundState) GetPanelFee() string {
+	if m != nil {
+		return m.PanelFee
+	}
+	return ""
+}
+
 // AnchorAuditState is the per-task record of the anchor commitment audit
 // (ADR-0040, first slice): the positions the chain sampled from the beacon,
 // the Worker's opening hash and the auditor's verdicts. The anchor commitment
@@ -374,7 +758,7 @@ type AnchorAuditState struct {
 	// Opening material hash (sha256 of the exact bytes) once the Worker opened.
 	OpeningHash      []byte `protobuf:"bytes,6,opt,name=opening_hash,json=openingHash,proto3" json:"opening_hash,omitempty"`
 	OpeningSizeBytes uint64 `protobuf:"varint,7,opt,name=opening_size_bytes,json=openingSizeBytes,proto3" json:"opening_size_bytes,omitempty"`
-	// Where the material can be fetched; devnet accepts file:// and http(s)://.
+	// Where the material can be fetched: an http:// or https:// URL.
 	OpeningUri                    string                    `protobuf:"bytes,8,opt,name=opening_uri,json=openingUri,proto3" json:"opening_uri,omitempty"`
 	OpeningHeight                 uint64                    `protobuf:"varint,9,opt,name=opening_height,json=openingHeight,proto3" json:"opening_height,omitempty"`
 	ResultVerifierOperatorAddress string                    `protobuf:"bytes,10,opt,name=result_verifier_operator_address,json=resultVerifierOperatorAddress,proto3" json:"result_verifier_operator_address,omitempty"`
@@ -427,13 +811,49 @@ type AnchorAuditState struct {
 	EpochManifestHash []byte `protobuf:"bytes,33,opt,name=epoch_manifest_hash,json=epochManifestHash,proto3" json:"epoch_manifest_hash,omitempty"`
 	// epoch_manifest_uri locates the epoch manifest in DA.
 	EpochManifestUri string `protobuf:"bytes,34,opt,name=epoch_manifest_uri,json=epochManifestUri,proto3" json:"epoch_manifest_uri,omitempty"`
+	// da_uri_prefix is the Worker's data-availability location as its service
+	// descriptor published it (endpoint kind ANCHOR_DA) when the task was
+	// sampled; empty when the Worker had published none. When set, every
+	// location the Worker records for this audit must start with it, so a
+	// Worker cannot choose where its material lives after learning that it was
+	// sampled, and validators know in advance where a Worker's material is
+	// served from. Fields 35-59 are left to the content-track contract.
+	DaUriPrefix string `protobuf:"bytes,60,opt,name=da_uri_prefix,json=daUriPrefix,proto3" json:"da_uri_prefix,omitempty"`
+	// audit_mode is anchor_audit_mode as frozen into the task: 2 = Verifier panel.
+	AuditMode uint32 `protobuf:"varint,61,opt,name=audit_mode,json=auditMode,proto3" json:"audit_mode,omitempty"`
+	// panel_round is the number of the latest panel round opened for the task;
+	// zero while none was opened.
+	PanelRound uint32 `protobuf:"varint,62,opt,name=panel_round,json=panelRound,proto3" json:"panel_round,omitempty"`
+	// panel_rounds lists every round opened for the task, ascending.
+	PanelRounds []AnchorPanelRoundState `protobuf:"bytes,63,rep,name=panel_rounds,json=panelRounds,proto3" json:"panel_rounds"`
+	// provisional_verdict is PASS or REJECT once a round concluded; nothing is
+	// paid or slashed on it before final_height.
+	ProvisionalVerdict AnchorVerdictV1 `protobuf:"varint,64,opt,name=provisional_verdict,json=provisionalVerdict,proto3,enum=task.v1.AnchorVerdictV1" json:"provisional_verdict,omitempty"`
+	ProvisionalHeight  uint64          `protobuf:"varint,65,opt,name=provisional_height,json=provisionalHeight,proto3" json:"provisional_height,omitempty"`
+	// Until this height anyone may request one re-audit.
+	PublicationEndHeight uint64 `protobuf:"varint,66,opt,name=publication_end_height,json=publicationEndHeight,proto3" json:"publication_end_height,omitempty"`
+	ReauditRequested     bool   `protobuf:"varint,67,opt,name=reaudit_requested,json=reauditRequested,proto3" json:"reaudit_requested,omitempty"`
+	ReauditOpener        string `protobuf:"bytes,68,opt,name=reaudit_opener,json=reauditOpener,proto3" json:"reaudit_opener,omitempty"`
+	// Escrowed re-audit fee in fee-denom atomic units; empty when none.
+	ReauditFee string            `protobuf:"bytes,69,opt,name=reaudit_fee,json=reauditFee,proto3" json:"reaudit_fee,omitempty"`
+	LateState  AnchorLateStateV1 `protobuf:"varint,70,opt,name=late_state,json=lateState,proto3,enum=task.v1.AnchorLateStateV1" json:"late_state,omitempty"`
+	// Last height at which a late opening or proof is accepted; fixed at the
+	// first timeout of the task.
+	LateDeadlineHeight    uint64 `protobuf:"varint,71,opt,name=late_deadline_height,json=lateDeadlineHeight,proto3" json:"late_deadline_height,omitempty"`
+	TimeoutRecordedHeight uint64 `protobuf:"varint,72,opt,name=timeout_recorded_height,json=timeoutRecordedHeight,proto3" json:"timeout_recorded_height,omitempty"`
+	// Settlement period of the Worker batch the task belongs to.
+	SettlementPeriod uint64                `protobuf:"varint,73,opt,name=settlement_period,json=settlementPeriod,proto3" json:"settlement_period,omitempty"`
+	TimeoutReason    AnchorTimeoutReasonV1 `protobuf:"varint,74,opt,name=timeout_reason,json=timeoutReason,proto3,enum=task.v1.AnchorTimeoutReasonV1" json:"timeout_reason,omitempty"`
+	// Height at which the verdict became final (after the publication period or
+	// the re-audit); zero before.
+	FinalHeight uint64 `protobuf:"varint,75,opt,name=final_height,json=finalHeight,proto3" json:"final_height,omitempty"`
 }
 
 func (m *AnchorAuditState) Reset()         { *m = AnchorAuditState{} }
 func (m *AnchorAuditState) String() string { return proto.CompactTextString(m) }
 func (*AnchorAuditState) ProtoMessage()    {}
 func (*AnchorAuditState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{3}
+	return fileDescriptor_6c216b85fbaf0a05, []int{5}
 }
 func (m *AnchorAuditState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -700,6 +1120,118 @@ func (m *AnchorAuditState) GetEpochManifestUri() string {
 	return ""
 }
 
+func (m *AnchorAuditState) GetDaUriPrefix() string {
+	if m != nil {
+		return m.DaUriPrefix
+	}
+	return ""
+}
+
+func (m *AnchorAuditState) GetAuditMode() uint32 {
+	if m != nil {
+		return m.AuditMode
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetPanelRound() uint32 {
+	if m != nil {
+		return m.PanelRound
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetPanelRounds() []AnchorPanelRoundState {
+	if m != nil {
+		return m.PanelRounds
+	}
+	return nil
+}
+
+func (m *AnchorAuditState) GetProvisionalVerdict() AnchorVerdictV1 {
+	if m != nil {
+		return m.ProvisionalVerdict
+	}
+	return AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED
+}
+
+func (m *AnchorAuditState) GetProvisionalHeight() uint64 {
+	if m != nil {
+		return m.ProvisionalHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetPublicationEndHeight() uint64 {
+	if m != nil {
+		return m.PublicationEndHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetReauditRequested() bool {
+	if m != nil {
+		return m.ReauditRequested
+	}
+	return false
+}
+
+func (m *AnchorAuditState) GetReauditOpener() string {
+	if m != nil {
+		return m.ReauditOpener
+	}
+	return ""
+}
+
+func (m *AnchorAuditState) GetReauditFee() string {
+	if m != nil {
+		return m.ReauditFee
+	}
+	return ""
+}
+
+func (m *AnchorAuditState) GetLateState() AnchorLateStateV1 {
+	if m != nil {
+		return m.LateState
+	}
+	return AnchorLateStateV1_ANCHOR_LATE_STATE_V1_UNSPECIFIED
+}
+
+func (m *AnchorAuditState) GetLateDeadlineHeight() uint64 {
+	if m != nil {
+		return m.LateDeadlineHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetTimeoutRecordedHeight() uint64 {
+	if m != nil {
+		return m.TimeoutRecordedHeight
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetSettlementPeriod() uint64 {
+	if m != nil {
+		return m.SettlementPeriod
+	}
+	return 0
+}
+
+func (m *AnchorAuditState) GetTimeoutReason() AnchorTimeoutReasonV1 {
+	if m != nil {
+		return m.TimeoutReason
+	}
+	return AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED
+}
+
+func (m *AnchorAuditState) GetFinalHeight() uint64 {
+	if m != nil {
+		return m.FinalHeight
+	}
+	return 0
+}
+
 // AnchorVoteKeyState delegates anchor votes of one validator to a hot vote address,
 // so the operator key can stay offline (ADR-0040 v6).
 type AnchorVoteKeyState struct {
@@ -715,7 +1247,7 @@ func (m *AnchorVoteKeyState) Reset()         { *m = AnchorVoteKeyState{} }
 func (m *AnchorVoteKeyState) String() string { return proto.CompactTextString(m) }
 func (*AnchorVoteKeyState) ProtoMessage()    {}
 func (*AnchorVoteKeyState) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{4}
+	return fileDescriptor_6c216b85fbaf0a05, []int{6}
 }
 func (m *AnchorVoteKeyState) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -784,7 +1316,7 @@ func (m *MsgSubmitAnchorOpening) Reset()         { *m = MsgSubmitAnchorOpening{}
 func (m *MsgSubmitAnchorOpening) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorOpening) ProtoMessage()    {}
 func (*MsgSubmitAnchorOpening) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{5}
+	return fileDescriptor_6c216b85fbaf0a05, []int{7}
 }
 func (m *MsgSubmitAnchorOpening) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -871,7 +1403,7 @@ func (m *MsgSubmitAnchorOpeningResponse) Reset()         { *m = MsgSubmitAnchorO
 func (m *MsgSubmitAnchorOpeningResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorOpeningResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorOpeningResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{6}
+	return fileDescriptor_6c216b85fbaf0a05, []int{8}
 }
 func (m *MsgSubmitAnchorOpeningResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -928,7 +1460,7 @@ func (m *MsgSubmitAnchorProof) Reset()         { *m = MsgSubmitAnchorProof{} }
 func (m *MsgSubmitAnchorProof) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorProof) ProtoMessage()    {}
 func (*MsgSubmitAnchorProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{7}
+	return fileDescriptor_6c216b85fbaf0a05, []int{9}
 }
 func (m *MsgSubmitAnchorProof) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1022,7 +1554,7 @@ func (m *MsgSubmitAnchorProofResponse) Reset()         { *m = MsgSubmitAnchorPro
 func (m *MsgSubmitAnchorProofResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorProofResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorProofResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{8}
+	return fileDescriptor_6c216b85fbaf0a05, []int{10}
 }
 func (m *MsgSubmitAnchorProofResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1074,7 +1606,7 @@ func (m *MsgSubmitAnchorAuditResult) Reset()         { *m = MsgSubmitAnchorAudit
 func (m *MsgSubmitAnchorAuditResult) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorAuditResult) ProtoMessage()    {}
 func (*MsgSubmitAnchorAuditResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{9}
+	return fileDescriptor_6c216b85fbaf0a05, []int{11}
 }
 func (m *MsgSubmitAnchorAuditResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1148,7 +1680,7 @@ func (m *MsgSubmitAnchorAuditResultResponse) Reset()         { *m = MsgSubmitAnc
 func (m *MsgSubmitAnchorAuditResultResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorAuditResultResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorAuditResultResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{10}
+	return fileDescriptor_6c216b85fbaf0a05, []int{12}
 }
 func (m *MsgSubmitAnchorAuditResultResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1194,7 +1726,10 @@ func (m *MsgSubmitAnchorAuditResultResponse) GetStatus() types.MutationStatusV1 
 // MsgSubmitAnchorValidatorVote is a bonded consensus validator's verdict on the Worker's
 // recorded anchor proof (ADR-0040 v4). The signer must be the validator operator's account
 // or the vote address it registered with MsgRegisterAnchorVoteKey (v6).
-// The verdict is final once one side holds >= 2/3 of the last bonded voting power.
+// The verdict is final once PASS or REJECT holds >= 2/3 of the last bonded voting power.
+// UNAVAILABLE is accepted only in the second half of the verdict window, is only
+// counted at verdict_deadline_height (see ANCHOR_VERDICT_V1_UNAVAILABLE), and a
+// validator may replace its own UNAVAILABLE vote with PASS or REJECT before then.
 type MsgSubmitAnchorValidatorVote struct {
 	TaskId                   []byte                    `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	OpeningHash              []byte                    `protobuf:"bytes,2,opt,name=opening_hash,json=openingHash,proto3" json:"opening_hash,omitempty"`
@@ -1209,7 +1744,7 @@ func (m *MsgSubmitAnchorValidatorVote) Reset()         { *m = MsgSubmitAnchorVal
 func (m *MsgSubmitAnchorValidatorVote) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorValidatorVote) ProtoMessage()    {}
 func (*MsgSubmitAnchorValidatorVote) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{11}
+	return fileDescriptor_6c216b85fbaf0a05, []int{13}
 }
 func (m *MsgSubmitAnchorValidatorVote) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1303,7 +1838,7 @@ func (m *MsgSubmitAnchorValidatorVoteResponse) Reset()         { *m = MsgSubmitA
 func (m *MsgSubmitAnchorValidatorVoteResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgSubmitAnchorValidatorVoteResponse) ProtoMessage()    {}
 func (*MsgSubmitAnchorValidatorVoteResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{12}
+	return fileDescriptor_6c216b85fbaf0a05, []int{14}
 }
 func (m *MsgSubmitAnchorValidatorVoteResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1373,7 +1908,7 @@ func (m *MsgRegisterAnchorVoteKey) Reset()         { *m = MsgRegisterAnchorVoteK
 func (m *MsgRegisterAnchorVoteKey) String() string { return proto.CompactTextString(m) }
 func (*MsgRegisterAnchorVoteKey) ProtoMessage()    {}
 func (*MsgRegisterAnchorVoteKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{13}
+	return fileDescriptor_6c216b85fbaf0a05, []int{15}
 }
 func (m *MsgRegisterAnchorVoteKey) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1432,7 +1967,7 @@ func (m *MsgRegisterAnchorVoteKeyResponse) Reset()         { *m = MsgRegisterAnc
 func (m *MsgRegisterAnchorVoteKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgRegisterAnchorVoteKeyResponse) ProtoMessage()    {}
 func (*MsgRegisterAnchorVoteKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{14}
+	return fileDescriptor_6c216b85fbaf0a05, []int{16}
 }
 func (m *MsgRegisterAnchorVoteKeyResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1480,7 +2015,7 @@ func (m *QueryAnchorAuditsPendingRequest) Reset()         { *m = QueryAnchorAudi
 func (m *QueryAnchorAuditsPendingRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditsPendingRequest) ProtoMessage()    {}
 func (*QueryAnchorAuditsPendingRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{15}
+	return fileDescriptor_6c216b85fbaf0a05, []int{17}
 }
 func (m *QueryAnchorAuditsPendingRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1534,7 +2069,7 @@ func (m *QueryAnchorAuditsPendingResponse) Reset()         { *m = QueryAnchorAud
 func (m *QueryAnchorAuditsPendingResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditsPendingResponse) ProtoMessage()    {}
 func (*QueryAnchorAuditsPendingResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{16}
+	return fileDescriptor_6c216b85fbaf0a05, []int{18}
 }
 func (m *QueryAnchorAuditsPendingResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1586,7 +2121,7 @@ func (m *QueryAnchorVoteKeyRequest) Reset()         { *m = QueryAnchorVoteKeyReq
 func (m *QueryAnchorVoteKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVoteKeyRequest) ProtoMessage()    {}
 func (*QueryAnchorVoteKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{17}
+	return fileDescriptor_6c216b85fbaf0a05, []int{19}
 }
 func (m *QueryAnchorVoteKeyRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1631,7 +2166,7 @@ func (m *QueryAnchorVoteKeyResponse) Reset()         { *m = QueryAnchorVoteKeyRe
 func (m *QueryAnchorVoteKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVoteKeyResponse) ProtoMessage()    {}
 func (*QueryAnchorVoteKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{18}
+	return fileDescriptor_6c216b85fbaf0a05, []int{20}
 }
 func (m *QueryAnchorVoteKeyResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1676,7 +2211,7 @@ func (m *QueryAnchorVotesRequest) Reset()         { *m = QueryAnchorVotesRequest
 func (m *QueryAnchorVotesRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVotesRequest) ProtoMessage()    {}
 func (*QueryAnchorVotesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{19}
+	return fileDescriptor_6c216b85fbaf0a05, []int{21}
 }
 func (m *QueryAnchorVotesRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1722,7 +2257,7 @@ func (m *QueryAnchorVotesResponse) Reset()         { *m = QueryAnchorVotesRespon
 func (m *QueryAnchorVotesResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorVotesResponse) ProtoMessage()    {}
 func (*QueryAnchorVotesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{20}
+	return fileDescriptor_6c216b85fbaf0a05, []int{22}
 }
 func (m *QueryAnchorVotesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1774,7 +2309,7 @@ func (m *QueryAnchorAuditRequest) Reset()         { *m = QueryAnchorAuditRequest
 func (m *QueryAnchorAuditRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditRequest) ProtoMessage()    {}
 func (*QueryAnchorAuditRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{21}
+	return fileDescriptor_6c216b85fbaf0a05, []int{23}
 }
 func (m *QueryAnchorAuditRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1819,7 +2354,7 @@ func (m *QueryAnchorAuditResponse) Reset()         { *m = QueryAnchorAuditRespon
 func (m *QueryAnchorAuditResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryAnchorAuditResponse) ProtoMessage()    {}
 func (*QueryAnchorAuditResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6c216b85fbaf0a05, []int{22}
+	return fileDescriptor_6c216b85fbaf0a05, []int{24}
 }
 func (m *QueryAnchorAuditResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1858,9 +2393,14 @@ func (m *QueryAnchorAuditResponse) GetAudit() AnchorAuditState {
 func init() {
 	proto.RegisterEnum("task.v1.AnchorVerdictV1", AnchorVerdictV1_name, AnchorVerdictV1_value)
 	proto.RegisterEnum("task.v1.AnchorResultSourceV1", AnchorResultSourceV1_name, AnchorResultSourceV1_value)
+	proto.RegisterEnum("task.v1.AnchorPanelRoundKindV1", AnchorPanelRoundKindV1_name, AnchorPanelRoundKindV1_value)
+	proto.RegisterEnum("task.v1.AnchorLateStateV1", AnchorLateStateV1_name, AnchorLateStateV1_value)
+	proto.RegisterEnum("task.v1.AnchorTimeoutReasonV1", AnchorTimeoutReasonV1_name, AnchorTimeoutReasonV1_value)
 	proto.RegisterType((*AnchorPositionVerdictV1)(nil), "task.v1.AnchorPositionVerdictV1")
 	proto.RegisterType((*AnchorVoteTallyV1)(nil), "task.v1.AnchorVoteTallyV1")
 	proto.RegisterType((*AnchorValidatorVoteState)(nil), "task.v1.AnchorValidatorVoteState")
+	proto.RegisterType((*AnchorPanelVoteState)(nil), "task.v1.AnchorPanelVoteState")
+	proto.RegisterType((*AnchorPanelRoundState)(nil), "task.v1.AnchorPanelRoundState")
 	proto.RegisterType((*AnchorAuditState)(nil), "task.v1.AnchorAuditState")
 	proto.RegisterType((*AnchorVoteKeyState)(nil), "task.v1.AnchorVoteKeyState")
 	proto.RegisterType((*MsgSubmitAnchorOpening)(nil), "task.v1.MsgSubmitAnchorOpening")
@@ -1886,132 +2426,182 @@ func init() {
 func init() { proto.RegisterFile("task/v1/anchor.proto", fileDescriptor_6c216b85fbaf0a05) }
 
 var fileDescriptor_6c216b85fbaf0a05 = []byte{
-	// 1990 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x59, 0xcd, 0x6f, 0x1b, 0xc7,
-	0x15, 0xd7, 0xf2, 0x43, 0x12, 0x1f, 0x29, 0x99, 0x1a, 0xd3, 0xd2, 0x9a, 0x16, 0x25, 0x6a, 0x65,
-	0x27, 0xac, 0x60, 0x8b, 0x95, 0xd2, 0xa4, 0x85, 0xd3, 0x20, 0x20, 0x69, 0xa6, 0x66, 0x1b, 0x7d,
-	0x64, 0x49, 0x31, 0x40, 0x0e, 0x5d, 0xac, 0xb8, 0x23, 0x72, 0x6b, 0x72, 0x97, 0xdd, 0x59, 0xca,
-	0x91, 0xd1, 0x4b, 0xdb, 0x5b, 0x4f, 0xe9, 0xa5, 0x7f, 0x41, 0x4f, 0x3d, 0xe5, 0x10, 0xf4, 0xda,
-	0x4b, 0x0f, 0x46, 0x4f, 0x41, 0x4e, 0x05, 0x0a, 0x14, 0x85, 0x0d, 0xd4, 0xb7, 0x5e, 0xda, 0x3f,
-	0xa0, 0x98, 0x8f, 0x25, 0x97, 0xcb, 0xa5, 0x29, 0xd9, 0x6e, 0x91, 0x8b, 0xa1, 0x79, 0xef, 0x37,
-	0x6f, 0xde, 0xc7, 0x6f, 0xde, 0x9b, 0xa5, 0x21, 0xe3, 0xea, 0xe4, 0x51, 0xf1, 0x7c, 0xaf, 0xa8,
-	0x5b, 0xad, 0x8e, 0xed, 0xec, 0xf6, 0x1d, 0xdb, 0xb5, 0xd1, 0x02, 0x95, 0xee, 0x9e, 0xef, 0x65,
-	0x57, 0xf4, 0x9e, 0x69, 0xd9, 0x45, 0xf6, 0x2f, 0xd7, 0x65, 0xd7, 0x5a, 0x36, 0xe9, 0xd9, 0xa4,
-	0xd8, 0x23, 0x6d, 0xba, 0xaf, 0x47, 0xda, 0x42, 0x71, 0x93, 0x2b, 0x34, 0xb6, 0x2a, 0xf2, 0x85,
-	0x50, 0x65, 0xda, 0x76, 0xdb, 0xe6, 0x72, 0xfa, 0x97, 0x90, 0xae, 0x92, 0x8e, 0xee, 0x60, 0x83,
-	0x5a, 0x69, 0xd9, 0xbd, 0x9e, 0x6d, 0x09, 0x79, 0x6e, 0x24, 0x77, 0x30, 0x71, 0x35, 0x6c, 0xb5,
-	0x6c, 0xc3, 0xb4, 0xc4, 0x39, 0xca, 0x2f, 0x25, 0x58, 0x2b, 0x31, 0x6f, 0x8f, 0x6d, 0x62, 0xba,
-	0xa6, 0x6d, 0x35, 0xb1, 0x63, 0x98, 0x2d, 0xb7, 0xb9, 0x87, 0xb2, 0xb0, 0xd8, 0x17, 0x42, 0x59,
-	0xca, 0x4b, 0x85, 0x98, 0x3a, 0x5c, 0xa3, 0x7d, 0x58, 0x38, 0xe7, 0x40, 0x39, 0x92, 0x97, 0x0a,
-	0xcb, 0xfb, 0xf2, 0xae, 0x08, 0x73, 0x97, 0x9b, 0x1b, 0x9a, 0x51, 0x3d, 0x20, 0x5a, 0x85, 0x79,
-	0x07, 0xeb, 0xc4, 0xb6, 0xe4, 0x68, 0x5e, 0x2a, 0x24, 0x54, 0xb1, 0x52, 0xfe, 0x24, 0xc1, 0x8a,
-	0xd8, 0x64, 0xbb, 0xb8, 0xa1, 0x77, 0xbb, 0x17, 0xcd, 0x3d, 0x94, 0x03, 0xe8, 0xeb, 0x84, 0x68,
-	0x7d, 0xfb, 0x31, 0x76, 0xc4, 0xf9, 0x09, 0x2a, 0x39, 0xa6, 0x02, 0xb4, 0x05, 0x29, 0x07, 0xff,
-	0x0c, 0xb7, 0x5c, 0x01, 0x88, 0x30, 0x40, 0x92, 0xcb, 0x38, 0xa4, 0x00, 0x69, 0xcb, 0xd6, 0xc4,
-	0xe9, 0x02, 0x16, 0x65, 0xb0, 0x65, 0xcb, 0x16, 0xfe, 0x71, 0xe4, 0x26, 0x24, 0x5d, 0xdb, 0xd5,
-	0xbb, 0x02, 0x14, 0x63, 0x20, 0x60, 0x22, 0x0e, 0xc8, 0x01, 0x9c, 0xdb, 0x2e, 0xd6, 0x5a, 0xf6,
-	0xc0, 0x72, 0xe5, 0x78, 0x5e, 0x2a, 0x2c, 0xa9, 0x09, 0x2a, 0xa9, 0x50, 0x81, 0xf2, 0xfb, 0x28,
-	0xc8, 0x22, 0x02, 0xbd, 0x6b, 0x1a, 0xba, 0xcb, 0x43, 0xa9, 0xbb, 0xba, 0x8b, 0x51, 0x0e, 0x18,
-	0x03, 0x34, 0xd3, 0x60, 0x51, 0xa4, 0xca, 0xb1, 0xa7, 0xff, 0x96, 0x23, 0xea, 0x3c, 0x15, 0xd6,
-	0x0c, 0xa4, 0x41, 0xf6, 0xdc, 0xdb, 0xa4, 0xd9, 0x7d, 0xec, 0xb0, 0x3f, 0x74, 0xc3, 0x70, 0x30,
-	0x21, 0x2c, 0xac, 0x44, 0x79, 0xeb, 0x9b, 0xaf, 0xee, 0xe5, 0x04, 0x09, 0x86, 0x27, 0x94, 0x38,
-	0xa4, 0xee, 0x3a, 0xa6, 0xd5, 0x56, 0xe5, 0xa1, 0x91, 0x23, 0x61, 0x43, 0xe8, 0xd1, 0x07, 0xb0,
-	0x44, 0x3d, 0x1d, 0xd9, 0x64, 0xd9, 0x2f, 0xcb, 0xdf, 0x7c, 0x75, 0x2f, 0x23, 0x6c, 0x8e, 0x9b,
-	0x4a, 0x31, 0xb8, 0xb7, 0xdd, 0x57, 0xe9, 0xd8, 0x65, 0x2b, 0xbd, 0x0d, 0xd0, 0x77, 0x6c, 0xfb,
-	0x4c, 0xeb, 0xe8, 0xa4, 0xc3, 0xd2, 0xe5, 0x45, 0x9d, 0x60, 0xf2, 0x87, 0x3a, 0xe9, 0x50, 0x3a,
-	0x74, 0xb0, 0xd9, 0xee, 0xb8, 0xf2, 0x3c, 0xcb, 0xb7, 0x58, 0xa1, 0x0c, 0xc4, 0x79, 0x19, 0x16,
-	0x98, 0x98, 0x2f, 0x50, 0x19, 0x16, 0x85, 0x75, 0x22, 0x2f, 0xe6, 0xa3, 0x85, 0xe4, 0x7e, 0x3e,
-	0xe0, 0xc7, 0x04, 0x81, 0xcb, 0xb1, 0xa7, 0x7f, 0xdf, 0x9c, 0x53, 0x87, 0xfb, 0x94, 0x3f, 0xa4,
-	0x20, 0xcd, 0xb1, 0xa5, 0x81, 0x61, 0xba, 0x97, 0x2a, 0x8f, 0x0c, 0x0b, 0x44, 0xef, 0xf5, 0xbb,
-	0xd8, 0x60, 0xb5, 0x58, 0x54, 0xbd, 0x25, 0x5a, 0x87, 0x84, 0x77, 0x1d, 0x68, 0x4e, 0xa3, 0x8c,
-	0x9f, 0x9e, 0x00, 0x7d, 0x07, 0x96, 0x38, 0x50, 0x3b, 0xc5, 0x7a, 0xcb, 0xb6, 0x58, 0xf2, 0x3c,
-	0xe3, 0x29, 0xae, 0x2a, 0x33, 0x0d, 0xda, 0x1e, 0x42, 0x45, 0x3e, 0xe2, 0x2c, 0x70, 0x01, 0x7a,
-	0xc8, 0xb3, 0xf2, 0x36, 0xa4, 0xec, 0x3e, 0xb6, 0x4c, 0xab, 0xcd, 0x93, 0x3a, 0xef, 0x33, 0x97,
-	0x14, 0x1a, 0x96, 0xd6, 0xbb, 0x80, 0x3c, 0x20, 0x31, 0x9f, 0x60, 0xed, 0xf4, 0xc2, 0xc5, 0x44,
-	0xe4, 0x32, 0x2d, 0x34, 0x75, 0xf3, 0x09, 0x2e, 0x53, 0x39, 0x65, 0xbe, 0x87, 0x1e, 0x38, 0xa6,
-	0xbc, 0xc8, 0x2e, 0x26, 0x08, 0xd1, 0x89, 0x63, 0xa2, 0x3b, 0xb0, 0x3c, 0x3c, 0x97, 0x7b, 0x97,
-	0x60, 0xa6, 0x96, 0xbc, 0x33, 0xb9, 0x7b, 0x3a, 0xe4, 0x1d, 0x4c, 0x06, 0x5d, 0x97, 0xde, 0x37,
-	0xf3, 0xcc, 0xc4, 0x21, 0x5c, 0x86, 0x19, 0xbc, 0xcb, 0x71, 0x0b, 0x4d, 0x61, 0x20, 0xc8, 0x63,
-	0x3f, 0x03, 0x92, 0xaf, 0xc6, 0x80, 0x00, 0x31, 0x53, 0xe1, 0xc4, 0xdc, 0x86, 0x25, 0x11, 0x8b,
-	0x88, 0x78, 0x89, 0xd7, 0x83, 0x0b, 0x45, 0xc0, 0xef, 0x43, 0x8a, 0xd1, 0xc6, 0xbb, 0x1b, 0xcb,
-	0x33, 0xee, 0x46, 0x92, 0x2a, 0xc4, 0x12, 0x7d, 0x17, 0x56, 0x1e, 0xdb, 0xce, 0x23, 0xec, 0x68,
-	0x3e, 0x6f, 0xae, 0xf9, 0xbc, 0xb9, 0xc6, 0xd5, 0xc7, 0x43, 0x9f, 0xde, 0x85, 0xb5, 0xb1, 0x1d,
-	0xbe, 0xd2, 0xa6, 0x99, 0x77, 0x19, 0xdf, 0x8e, 0x51, 0x79, 0x0b, 0x90, 0x1e, 0xdb, 0x46, 0x6b,
-	0xbc, 0xc2, 0x6a, 0xbc, 0xec, 0xc3, 0xd3, 0x3a, 0xef, 0xc2, 0xf5, 0x71, 0x97, 0x78, 0xe8, 0x88,
-	0x19, 0x5f, 0xf1, 0xbb, 0xc3, 0xe3, 0xdf, 0x86, 0xa5, 0xc7, 0xa6, 0x65, 0x61, 0x47, 0xe3, 0x3a,
-	0xf9, 0x3a, 0x33, 0x9b, 0xe2, 0xc2, 0x4f, 0x99, 0x0c, 0xdd, 0x03, 0x44, 0x70, 0x17, 0xb7, 0x5c,
-	0x6c, 0x0c, 0x79, 0x41, 0xe4, 0x4c, 0x3e, 0x5a, 0x48, 0xa8, 0x2b, 0x9e, 0xc6, 0xab, 0x37, 0x41,
-	0xef, 0xc1, 0x9a, 0xd7, 0xad, 0x0d, 0xac, 0x1b, 0x5d, 0xd3, 0x1a, 0x5e, 0x89, 0x1b, 0xcc, 0x8f,
-	0x1b, 0x42, 0xfd, 0x40, 0x68, 0x85, 0x2f, 0xe5, 0x61, 0xc1, 0x88, 0x3d, 0x70, 0x5a, 0x58, 0x5e,
-	0x65, 0xc5, 0xc8, 0x05, 0x8a, 0xa1, 0x32, 0x4c, 0x9d, 0x41, 0x9a, 0x7b, 0x5e, 0x3d, 0xf9, 0x1a,
-	0xbd, 0x07, 0x71, 0x97, 0x4e, 0x1e, 0x79, 0x2d, 0x2f, 0x15, 0x92, 0xfb, 0xd9, 0x60, 0x21, 0x47,
-	0x93, 0x49, 0x90, 0x8a, 0xc3, 0x7d, 0x64, 0x11, 0xb3, 0x4d, 0xe6, 0x79, 0xe0, 0x42, 0x95, 0xc9,
-	0xd0, 0x5d, 0x10, 0x05, 0xd5, 0xce, 0x74, 0x0a, 0x35, 0x0d, 0xf9, 0xa6, 0xaf, 0xda, 0x4b, 0x5c,
-	0xf9, 0x11, 0xd5, 0xd5, 0x0c, 0x74, 0x1b, 0x96, 0x75, 0xda, 0x9f, 0x34, 0x47, 0x77, 0xb1, 0x76,
-	0xda, 0x27, 0x72, 0x96, 0x0d, 0x9c, 0x14, 0x93, 0xaa, 0xba, 0x8b, 0xcb, 0x7d, 0x42, 0xa7, 0xb3,
-	0x97, 0x41, 0xf9, 0x16, 0xeb, 0x4c, 0xc3, 0x35, 0xbd, 0xd5, 0xdc, 0xc2, 0xa9, 0x4e, 0x4c, 0x22,
-	0xaf, 0xf3, 0x5b, 0xcd, 0x44, 0x65, 0x2a, 0xa1, 0x99, 0xf6, 0x6e, 0x75, 0x30, 0xd3, 0x39, 0x9e,
-	0x69, 0xa1, 0x0e, 0x64, 0x7a, 0x1f, 0x6e, 0x70, 0x7a, 0x04, 0x77, 0x6d, 0xb0, 0x5d, 0xd7, 0x99,
-	0x32, 0xb0, 0xe7, 0x0e, 0x2c, 0x93, 0xae, 0x4e, 0x3a, 0xfa, 0x29, 0x6d, 0x86, 0xb6, 0x65, 0xc8,
-	0x9b, 0xbc, 0x83, 0x0c, 0xa5, 0x65, 0xdb, 0x32, 0xd0, 0x0e, 0xac, 0xf0, 0x67, 0x93, 0x46, 0xdf,
-	0x2f, 0xa6, 0xcb, 0xb8, 0x9a, 0x67, 0x9e, 0x5f, 0xe3, 0x8a, 0x0a, 0x93, 0x53, 0xb2, 0x7e, 0x0f,
-	0xae, 0xe3, 0xbe, 0xdd, 0xea, 0x68, 0x3d, 0xdd, 0x32, 0xcf, 0xe8, 0xb3, 0x86, 0xdd, 0xa0, 0x2d,
-	0x5f, 0x4e, 0x57, 0x18, 0xe0, 0x40, 0xe8, 0xbd, 0xce, 0x18, 0xd8, 0x45, 0x8f, 0x50, 0xd8, 0x11,
-	0xe9, 0x31, 0xf8, 0x89, 0x63, 0x2a, 0x7f, 0x91, 0x00, 0x8d, 0x6a, 0xff, 0x13, 0x7c, 0xc1, 0xc7,
-	0xc5, 0xcb, 0xc7, 0xb5, 0xf4, 0xfa, 0xe3, 0xfa, 0x7d, 0x60, 0xf3, 0x37, 0xf0, 0x02, 0x98, 0xde,
-	0x35, 0x93, 0x14, 0xed, 0x6d, 0x1e, 0xcd, 0xd4, 0xa8, 0x7f, 0xa6, 0x2a, 0xbf, 0x8e, 0xc2, 0xea,
-	0x01, 0x69, 0xd7, 0x07, 0xa7, 0x3d, 0xd3, 0xe5, 0x51, 0x1d, 0xf1, 0x02, 0xcf, 0x9a, 0x7f, 0x63,
-	0x53, 0x2e, 0x12, 0x9c, 0x72, 0xc1, 0xa9, 0x14, 0xbd, 0xda, 0x54, 0x8a, 0x5d, 0x6e, 0x2a, 0xc5,
-	0x27, 0xa6, 0x52, 0x15, 0x56, 0x08, 0x8b, 0xc5, 0xff, 0xae, 0x99, 0x9f, 0x91, 0xa9, 0xf4, 0x70,
-	0x8b, 0x97, 0xae, 0x50, 0xce, 0x2d, 0x84, 0x72, 0xee, 0x7e, 0xe9, 0x57, 0x2f, 0xbe, 0xdc, 0x99,
-	0x3c, 0xf5, 0x37, 0x2f, 0xbe, 0xdc, 0x79, 0xcb, 0x75, 0x06, 0x98, 0x7a, 0x57, 0xfc, 0xbc, 0xc8,
-	0x3e, 0x01, 0xc2, 0x53, 0xad, 0x9c, 0xc0, 0x46, 0xb8, 0x46, 0xc5, 0xa4, 0x6f, 0x5b, 0x04, 0xa3,
-	0x77, 0x60, 0x9e, 0xb8, 0xba, 0x3b, 0xe0, 0x4c, 0x5a, 0xde, 0xbf, 0xb5, 0xcb, 0x9f, 0xef, 0xb4,
-	0x11, 0x1d, 0x0c, 0x5c, 0x9d, 0x66, 0xbd, 0xce, 0x00, 0xcd, 0x3d, 0x55, 0x40, 0x95, 0x3f, 0x46,
-	0x21, 0x13, 0xb0, 0xcb, 0x3a, 0xf5, 0xac, 0xd2, 0x06, 0x8b, 0x17, 0x99, 0x56, 0xbc, 0xf1, 0xa9,
-	0x19, 0x0d, 0x9f, 0x9a, 0x05, 0x48, 0x4f, 0x8c, 0x26, 0x5e, 0xdf, 0xe5, 0xfe, 0xf8, 0x50, 0xba,
-	0x05, 0x89, 0xd1, 0x34, 0xe2, 0xb5, 0x5d, 0xec, 0x7b, 0x73, 0xe8, 0x0d, 0x55, 0x76, 0x4a, 0x87,
-	0x58, 0x78, 0x95, 0x0e, 0xb1, 0x18, 0xde, 0x21, 0xee, 0x7f, 0x38, 0x9d, 0x11, 0xb7, 0x67, 0x30,
-	0x82, 0xd5, 0x47, 0xa9, 0xc3, 0x7a, 0x98, 0xfc, 0xf5, 0xd8, 0xf0, 0xb7, 0x08, 0x64, 0x03, 0x56,
-	0xd9, 0x6b, 0x97, 0x4f, 0xbf, 0x37, 0xc6, 0x09, 0xff, 0x6b, 0x2c, 0xfa, 0x46, 0x5e, 0x63, 0xb1,
-	0x70, 0x5e, 0x85, 0x12, 0x22, 0x7e, 0x55, 0x42, 0xdc, 0xaf, 0x4e, 0x2f, 0xd6, 0xce, 0x8c, 0x62,
-	0xf9, 0xd2, 0xa7, 0xfc, 0x4e, 0x02, 0x65, 0xba, 0x7a, 0x58, 0xb9, 0xe0, 0xeb, 0x50, 0xba, 0xca,
-	0xeb, 0x70, 0x54, 0xf6, 0xc8, 0xe5, 0xcb, 0xfe, 0x9f, 0xe8, 0x04, 0x99, 0xc6, 0xbe, 0x45, 0xff,
-	0xbf, 0xcd, 0xe0, 0x55, 0x3e, 0x1a, 0xfd, 0x8c, 0x8a, 0xbf, 0x22, 0xa3, 0x5e, 0x3e, 0x9d, 0xe7,
-	0x5f, 0x7f, 0x3a, 0x87, 0xb2, 0x71, 0xe1, 0xca, 0x6c, 0xfc, 0xd1, 0x74, 0x36, 0xde, 0x9d, 0xc1,
-	0xc6, 0xb1, 0xaa, 0x2a, 0xff, 0x92, 0xe0, 0xf6, 0xcb, 0x00, 0x6f, 0x86, 0x91, 0xeb, 0x90, 0x38,
-	0x33, 0x2d, 0xbd, 0x6b, 0x3e, 0x19, 0x7e, 0x06, 0x8f, 0x04, 0xa3, 0xa7, 0x73, 0xf4, 0x6a, 0x4f,
-	0xe7, 0x11, 0xcf, 0x63, 0x97, 0xe7, 0xf9, 0x9f, 0x23, 0x20, 0x1f, 0x90, 0xb6, 0x8a, 0xdb, 0x26,
-	0xa1, 0x09, 0xf5, 0xbf, 0xd0, 0xbe, 0xe5, 0x8f, 0xb3, 0x50, 0xee, 0x44, 0xaf, 0xcc, 0x9d, 0xca,
-	0x74, 0xee, 0x14, 0x42, 0xb8, 0x13, 0x9a, 0x29, 0xe5, 0x53, 0xc8, 0x4f, 0xd3, 0xbd, 0xde, 0xf8,
-	0xf9, 0x29, 0x6c, 0x7e, 0x32, 0xc0, 0xce, 0x85, 0xaf, 0x37, 0x92, 0x63, 0x6c, 0x19, 0xec, 0x95,
-	0xf3, 0xf3, 0x01, 0x26, 0xf4, 0x83, 0x20, 0x49, 0x5c, 0xdd, 0x71, 0x35, 0xfd, 0xcc, 0x15, 0x3f,
-	0xed, 0x79, 0x2d, 0x04, 0x98, 0xa2, 0x44, 0xe5, 0x28, 0x03, 0xf1, 0xae, 0xd9, 0x33, 0xf9, 0x0f,
-	0x8c, 0x4b, 0x2a, 0x5f, 0x28, 0x03, 0xc8, 0x4f, 0xb7, 0x2f, 0x1c, 0xff, 0x3e, 0xcc, 0xb3, 0x6f,
-	0x1d, 0xea, 0x38, 0xed, 0x23, 0x37, 0x03, 0x8c, 0x1c, 0xfd, 0xfa, 0x23, 0x08, 0x29, 0xe0, 0x48,
-	0x86, 0x98, 0x85, 0x3f, 0x77, 0xc7, 0x9a, 0x1f, 0x93, 0x28, 0xbf, 0x80, 0x9b, 0xbe, 0x63, 0x87,
-	0x99, 0xe2, 0x01, 0xfd, 0xaf, 0x69, 0xa7, 0x7c, 0x06, 0xd9, 0xb0, 0xd3, 0x45, 0xb8, 0x3f, 0x84,
-	0x45, 0x46, 0xca, 0x47, 0xf8, 0x82, 0x1d, 0x96, 0xdc, 0xbf, 0x15, 0x72, 0x05, 0xbd, 0x2f, 0x18,
-	0x11, 0xf2, 0xc2, 0xb9, 0x60, 0xc2, 0x0f, 0x60, 0x2d, 0x60, 0x9b, 0x78, 0x71, 0xbd, 0x7c, 0x64,
-	0x28, 0xbf, 0x95, 0x40, 0x9e, 0xdc, 0x2a, 0x9c, 0xfa, 0x00, 0xe2, 0xf4, 0x04, 0xaf, 0x04, 0x5b,
-	0x41, 0x8f, 0x26, 0x7e, 0x27, 0xf5, 0x7a, 0x03, 0xdb, 0x35, 0xea, 0x29, 0x91, 0x2b, 0xf5, 0x94,
-	0x40, 0x34, 0x62, 0x34, 0x5f, 0x2a, 0x9a, 0x4f, 0xc6, 0x82, 0xf1, 0x86, 0x3a, 0x0f, 0xe6, 0x5d,
-	0x88, 0x33, 0x86, 0x88, 0xf4, 0xce, 0xe4, 0x13, 0x47, 0xef, 0x7c, 0x21, 0xc1, 0xb5, 0x40, 0x5f,
-	0x45, 0x5b, 0x90, 0x2b, 0x1d, 0x56, 0x1e, 0x1e, 0xa9, 0x5a, 0xb3, 0xaa, 0x3e, 0xa8, 0x55, 0x1a,
-	0x5a, 0x73, 0x4f, 0x3b, 0x39, 0xac, 0x1f, 0x57, 0x2b, 0xb5, 0x8f, 0x6a, 0xd5, 0x07, 0xe9, 0x39,
-	0x94, 0x85, 0xd5, 0x49, 0xc8, 0x71, 0xa9, 0x5e, 0x4f, 0x4b, 0x68, 0x1d, 0xe4, 0x49, 0x9d, 0x5a,
-	0xfd, 0x71, 0xb5, 0xd2, 0x48, 0x47, 0x50, 0x1e, 0xd6, 0x27, 0xb5, 0x87, 0x47, 0xde, 0x2a, 0x1d,
-	0xdd, 0xf9, 0xa7, 0x04, 0x99, 0xb0, 0x5f, 0x43, 0xd0, 0xdb, 0xb0, 0x2d, 0xb6, 0xaa, 0xd5, 0xfa,
-	0xc9, 0xc7, 0x0d, 0xad, 0x7e, 0x74, 0xa2, 0x56, 0xaa, 0x93, 0xde, 0xdd, 0x86, 0xfc, 0x34, 0x60,
-	0xb3, 0xaa, 0x52, 0x94, 0x9a, 0x96, 0xd0, 0x0e, 0xbc, 0x35, 0x15, 0x55, 0xfa, 0xb8, 0xf6, 0xa0,
-	0xd4, 0xa0, 0x4e, 0x1e, 0x35, 0xaa, 0xe9, 0x08, 0xda, 0x86, 0xcd, 0x69, 0xd8, 0x46, 0xed, 0xa0,
-	0x7a, 0x74, 0xd2, 0x48, 0x47, 0xd1, 0x2e, 0xec, 0x4c, 0x03, 0xd5, 0x0e, 0x99, 0x49, 0xad, 0x72,
-	0x74, 0x70, 0x50, 0x6b, 0x1c, 0x54, 0x0f, 0x1b, 0xe9, 0x58, 0xf9, 0xc3, 0xa7, 0xcf, 0x36, 0xa4,
-	0xaf, 0x9f, 0x6d, 0x48, 0xff, 0x78, 0xb6, 0x21, 0x7d, 0xf1, 0x7c, 0x63, 0xee, 0xeb, 0xe7, 0x1b,
-	0x73, 0x7f, 0x7d, 0xbe, 0x31, 0xf7, 0xd9, 0x9d, 0xb6, 0xe9, 0x76, 0x06, 0xa7, 0xbb, 0x2d, 0xbb,
-	0x57, 0x6c, 0x38, 0x03, 0x4c, 0xbf, 0xc1, 0x8a, 0x96, 0x6d, 0x60, 0xaf, 0x69, 0xba, 0x17, 0x7d,
-	0x4c, 0x4e, 0xe7, 0xd9, 0x7f, 0x90, 0xbc, 0xf3, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x5e,
-	0x05, 0x7a, 0xd5, 0x19, 0x00, 0x00,
+	// 2787 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x5a, 0xcd, 0x73, 0x1b, 0x49,
+	0x15, 0xcf, 0x48, 0xf2, 0xd7, 0x93, 0xe5, 0x8c, 0x3b, 0x8e, 0x3d, 0x71, 0x62, 0x5b, 0x51, 0x92,
+	0x5d, 0xaf, 0x93, 0xd8, 0xb1, 0xf7, 0x03, 0xf6, 0x8b, 0x20, 0xd9, 0x93, 0x64, 0x36, 0xb6, 0xe4,
+	0x1d, 0xc9, 0x5a, 0xd8, 0x03, 0x53, 0x63, 0x4d, 0x5b, 0x1e, 0x22, 0xcd, 0x88, 0xe9, 0x91, 0x77,
+	0xb3, 0xc5, 0x05, 0xb8, 0x71, 0x82, 0xa2, 0x8a, 0xbf, 0x80, 0x03, 0xc7, 0xa5, 0xd8, 0xe2, 0xc0,
+	0x99, 0xc3, 0x16, 0xa7, 0xad, 0x3d, 0x51, 0x45, 0x15, 0x45, 0x6d, 0x0e, 0x7b, 0xa1, 0xb8, 0xc0,
+	0x91, 0xa2, 0xa8, 0xfe, 0x92, 0x46, 0x23, 0xc9, 0x8a, 0x93, 0x40, 0x71, 0x49, 0xa5, 0xdf, 0xfb,
+	0xf5, 0xeb, 0x7e, 0xef, 0xfd, 0xfa, 0xf5, 0xeb, 0x91, 0x61, 0x2e, 0xb4, 0xc9, 0xa3, 0x8d, 0x93,
+	0xcd, 0x0d, 0xdb, 0xab, 0x1d, 0xfb, 0xc1, 0x7a, 0x2b, 0xf0, 0x43, 0x1f, 0x4d, 0x50, 0xe9, 0xfa,
+	0xc9, 0xe6, 0xe2, 0xac, 0xdd, 0x74, 0x3d, 0x7f, 0x83, 0xfd, 0xcb, 0x75, 0x8b, 0x0b, 0x35, 0x9f,
+	0x34, 0x7d, 0xb2, 0xd1, 0x24, 0x75, 0x3a, 0xaf, 0x49, 0xea, 0x42, 0x71, 0x89, 0x2b, 0x2c, 0x36,
+	0xda, 0xe0, 0x03, 0xa1, 0x9a, 0xab, 0xfb, 0x75, 0x9f, 0xcb, 0xe9, 0xff, 0x84, 0x74, 0x9e, 0x1c,
+	0xdb, 0x01, 0x76, 0xa8, 0x95, 0x9a, 0xdf, 0x6c, 0xfa, 0x9e, 0x90, 0x2f, 0x75, 0xe5, 0x01, 0x26,
+	0xa1, 0x85, 0xbd, 0x9a, 0xef, 0xb8, 0x9e, 0x58, 0x27, 0xf7, 0x23, 0x05, 0x16, 0xf2, 0x6c, 0xb7,
+	0xfb, 0x3e, 0x71, 0x43, 0xd7, 0xf7, 0xaa, 0x38, 0x70, 0xdc, 0x5a, 0x58, 0xdd, 0x44, 0x8b, 0x30,
+	0xd9, 0x12, 0x42, 0x4d, 0xc9, 0x2a, 0xab, 0x29, 0xb3, 0x33, 0x46, 0x5b, 0x30, 0x71, 0xc2, 0x81,
+	0x5a, 0x22, 0xab, 0xac, 0xce, 0x6c, 0x69, 0xeb, 0xc2, 0xcd, 0x75, 0x6e, 0xae, 0x63, 0xc6, 0x94,
+	0x40, 0x34, 0x0f, 0xe3, 0x01, 0xb6, 0x89, 0xef, 0x69, 0xc9, 0xac, 0xb2, 0x3a, 0x65, 0x8a, 0x51,
+	0xee, 0x6f, 0x0a, 0xcc, 0x8a, 0x49, 0x7e, 0x88, 0x2b, 0x76, 0xa3, 0xf1, 0xb8, 0xba, 0x89, 0x96,
+	0x00, 0x5a, 0x36, 0x21, 0x56, 0xcb, 0xff, 0x08, 0x07, 0x62, 0xfd, 0x29, 0x2a, 0xd9, 0xa7, 0x02,
+	0x74, 0x15, 0xa6, 0x03, 0xfc, 0x7d, 0x5c, 0x0b, 0x05, 0x20, 0xc1, 0x00, 0x69, 0x2e, 0xe3, 0x90,
+	0x55, 0x50, 0x3d, 0xdf, 0x12, 0xab, 0x0b, 0x58, 0x92, 0xc1, 0x66, 0x3c, 0x5f, 0xec, 0x8f, 0x23,
+	0x57, 0x20, 0x1d, 0xfa, 0xa1, 0xdd, 0x10, 0xa0, 0x14, 0x03, 0x01, 0x13, 0x71, 0xc0, 0x12, 0xc0,
+	0x89, 0x1f, 0x62, 0xab, 0xe6, 0xb7, 0xbd, 0x50, 0x1b, 0xcb, 0x2a, 0xab, 0x19, 0x73, 0x8a, 0x4a,
+	0xb6, 0xa9, 0x00, 0xdd, 0x84, 0xd9, 0xb6, 0x67, 0x9f, 0xd8, 0x6e, 0xc3, 0x3e, 0x6c, 0x60, 0x61,
+	0x65, 0x9c, 0x59, 0x51, 0x23, 0x0a, 0x66, 0x2b, 0xf7, 0xab, 0x24, 0x68, 0xc2, 0x5d, 0xbb, 0xe1,
+	0x3a, 0x76, 0xc8, 0xfd, 0x2e, 0x87, 0x76, 0x88, 0xd1, 0x12, 0x30, 0xba, 0x58, 0xae, 0xc3, 0x5c,
+	0x9e, 0x2e, 0xa4, 0x3e, 0xff, 0x87, 0x96, 0x30, 0xc7, 0xa9, 0xd0, 0x70, 0x90, 0x05, 0x8b, 0x27,
+	0x72, 0x92, 0xe5, 0xb7, 0x70, 0xc0, 0xfe, 0x63, 0x3b, 0x4e, 0x80, 0x09, 0x61, 0x31, 0x98, 0x2a,
+	0x5c, 0xfd, 0xf2, 0xb3, 0xdb, 0x4b, 0x82, 0x31, 0x9d, 0x15, 0xf2, 0x1c, 0x52, 0x0e, 0x03, 0xd7,
+	0xab, 0x9b, 0x5a, 0xc7, 0x48, 0x49, 0xd8, 0x10, 0x7a, 0xf4, 0x2e, 0x64, 0xa8, 0x5b, 0x5d, 0x9b,
+	0x2c, 0x55, 0x05, 0xed, 0xcb, 0xcf, 0x6e, 0xcf, 0x09, 0x9b, 0xbd, 0xa6, 0xa6, 0x19, 0x5c, 0x4e,
+	0x8f, 0xd0, 0x22, 0xf5, 0xb4, 0xb4, 0xb8, 0x06, 0xd0, 0x0a, 0x7c, 0xff, 0xc8, 0x3a, 0xb6, 0xc9,
+	0x31, 0x8b, 0xad, 0xf4, 0x7a, 0x8a, 0xc9, 0x1f, 0xd8, 0xe4, 0x98, 0x72, 0xe7, 0x18, 0xbb, 0xf5,
+	0xe3, 0x50, 0x84, 0x55, 0x8c, 0xd0, 0x1c, 0x8c, 0xf1, 0x68, 0x4f, 0x30, 0x31, 0x1f, 0xa0, 0x02,
+	0x4c, 0x0a, 0xeb, 0x44, 0x9b, 0xcc, 0x26, 0x57, 0xd3, 0x5b, 0xd9, 0xd8, 0x3e, 0xfa, 0xd8, 0x5e,
+	0x48, 0x7d, 0xfe, 0x97, 0x95, 0x73, 0x66, 0x67, 0x5e, 0xee, 0x5f, 0x0a, 0xcc, 0x09, 0xac, 0xed,
+	0xe1, 0x46, 0x37, 0x45, 0x15, 0xb8, 0x74, 0x82, 0x03, 0xf7, 0xc8, 0xc5, 0x03, 0x52, 0xa0, 0x8c,
+	0x08, 0xd7, 0x82, 0x9c, 0x1a, 0x0f, 0xfc, 0x33, 0x1e, 0x28, 0x11, 0x94, 0x64, 0x4f, 0x50, 0xa2,
+	0xee, 0xa7, 0x9e, 0xd1, 0xfd, 0x5f, 0xa7, 0xe0, 0x62, 0xc4, 0x7d, 0xd3, 0x6f, 0x7b, 0x0e, 0xf7,
+	0x7f, 0x05, 0xd2, 0x2d, 0x2a, 0xb2, 0x02, 0x2a, 0x63, 0x1e, 0x67, 0x4c, 0x68, 0x75, 0x50, 0xe8,
+	0x55, 0x48, 0x3d, 0x72, 0x3d, 0x47, 0xf8, 0xb1, 0x12, 0x5f, 0xba, 0x03, 0x7c, 0xe8, 0x7a, 0x4e,
+	0x75, 0xd3, 0x64, 0x60, 0xa4, 0xc1, 0x84, 0x1d, 0x86, 0xb8, 0xd9, 0xe2, 0xce, 0x64, 0x4c, 0x39,
+	0xa4, 0xeb, 0xf9, 0x2d, 0xec, 0x59, 0xc2, 0x55, 0x71, 0x38, 0xa9, 0xe8, 0x01, 0x77, 0xf7, 0x26,
+	0xcc, 0xda, 0x84, 0xb8, 0x75, 0xaf, 0x89, 0xbd, 0x50, 0xc2, 0xc6, 0xf8, 0xe9, 0xeb, 0x2a, 0x04,
+	0xf8, 0x0e, 0xcc, 0xb1, 0x93, 0xec, 0x60, 0xdb, 0x69, 0xb8, 0x1e, 0xb6, 0x7a, 0x68, 0x85, 0xa8,
+	0x6e, 0x47, 0xa8, 0xc4, 0x8c, 0x2d, 0x98, 0x68, 0xe2, 0xe6, 0x21, 0x0e, 0x88, 0x36, 0x91, 0x4d,
+	0x9e, 0x9a, 0x5d, 0x09, 0x44, 0x6f, 0xc2, 0x18, 0xb5, 0x24, 0xd9, 0xb7, 0x34, 0x28, 0x06, 0x1d,
+	0x46, 0x89, 0xd8, 0xf3, 0x19, 0xe8, 0x0e, 0xad, 0x92, 0xa4, 0xdd, 0x08, 0xb5, 0xa9, 0x11, 0x3c,
+	0x10, 0x38, 0x74, 0x0d, 0x32, 0xb5, 0x86, 0x4f, 0xb0, 0x23, 0x7d, 0x01, 0xe6, 0xcb, 0x34, 0x17,
+	0x0a, 0x2f, 0xde, 0x81, 0x05, 0x82, 0x1b, 0xb8, 0x16, 0x62, 0xc7, 0x92, 0x1c, 0x24, 0xfc, 0xc8,
+	0xa5, 0x23, 0x47, 0xee, 0xa2, 0x04, 0x55, 0x25, 0x86, 0x1d, 0xbf, 0xcb, 0x30, 0xc5, 0x73, 0x7e,
+	0x84, 0xb1, 0x36, 0xcd, 0xaa, 0xf7, 0x24, 0x13, 0xdc, 0xc3, 0x38, 0xf7, 0x25, 0x02, 0x95, 0xef,
+	0x2d, 0xdf, 0x76, 0xdc, 0xf0, 0xa9, 0x0a, 0x99, 0x06, 0x13, 0xc4, 0x6e, 0xb6, 0x1a, 0x98, 0xd3,
+	0x64, 0xd2, 0x94, 0x43, 0x74, 0x05, 0xa6, 0xe4, 0x2d, 0x43, 0xab, 0x4f, 0x92, 0x95, 0x7d, 0x29,
+	0x40, 0xaf, 0x40, 0x86, 0x03, 0xad, 0x43, 0x6c, 0xd7, 0x7c, 0x8f, 0xd1, 0x41, 0x1a, 0x9f, 0xe6,
+	0xaa, 0x02, 0xd3, 0xd0, 0xb0, 0x08, 0x68, 0x0f, 0x25, 0x04, 0x48, 0x84, 0xe5, 0x65, 0x98, 0xa6,
+	0x4c, 0x72, 0xbd, 0x3a, 0x8f, 0xc5, 0x78, 0xc4, 0x5c, 0x5a, 0x68, 0x58, 0x04, 0x6e, 0x01, 0x92,
+	0x40, 0xe2, 0x7e, 0x82, 0xad, 0xc3, 0xc7, 0x34, 0xbd, 0xbc, 0xea, 0xa8, 0x42, 0x53, 0x76, 0x3f,
+	0xc1, 0x05, 0x2a, 0x97, 0x9c, 0xa5, 0xe8, 0x76, 0xe0, 0x6a, 0x93, 0x2c, 0x62, 0x20, 0x44, 0x07,
+	0x81, 0x8b, 0x6e, 0xc0, 0x4c, 0x67, 0x5d, 0xbe, 0xbb, 0x29, 0x66, 0x2a, 0x23, 0xd7, 0xe4, 0xdb,
+	0xb3, 0x21, 0xcb, 0x93, 0x6c, 0x0d, 0x2f, 0x39, 0x30, 0xa2, 0xe4, 0x2c, 0x71, 0x0b, 0xd5, 0x21,
+	0x85, 0x27, 0x5a, 0x2c, 0xd2, 0xcf, 0x56, 0x2c, 0x62, 0x25, 0x7c, 0x7a, 0x70, 0x09, 0xbf, 0x06,
+	0x19, 0xe1, 0x8b, 0xf0, 0x38, 0xc3, 0xf3, 0xc1, 0x85, 0xc2, 0xe1, 0xb7, 0x61, 0x9a, 0xd1, 0x46,
+	0xd6, 0xc2, 0x99, 0x11, 0x67, 0x20, 0x4d, 0x15, 0x62, 0x88, 0xee, 0xc0, 0xec, 0x47, 0x7e, 0xf0,
+	0x08, 0x07, 0x56, 0x64, 0x37, 0xe7, 0x23, 0xbb, 0x39, 0xcf, 0xd5, 0xfb, 0x9d, 0x3d, 0xbd, 0x0e,
+	0x0b, 0x3d, 0x33, 0x22, 0xa9, 0x55, 0xd9, 0xee, 0xe6, 0x22, 0x33, 0xba, 0xe9, 0x5d, 0x05, 0xb5,
+	0x67, 0x1a, 0xcd, 0xf1, 0x2c, 0xcb, 0xf1, 0x4c, 0x04, 0x4f, 0xf3, 0xbc, 0x0e, 0x17, 0x7a, 0xb7,
+	0xc4, 0x5d, 0x47, 0xcc, 0xf8, 0x6c, 0x74, 0x3b, 0xdc, 0xff, 0x6b, 0x90, 0xf9, 0xc8, 0xf5, 0x3c,
+	0x1c, 0x58, 0x5c, 0xa7, 0x5d, 0x60, 0x66, 0xa7, 0xb9, 0xf0, 0x03, 0x26, 0x43, 0xb7, 0x01, 0xf5,
+	0x9f, 0x65, 0x6d, 0x8e, 0x16, 0x27, 0x73, 0xb6, 0xef, 0x00, 0xa3, 0x37, 0x60, 0x41, 0x36, 0x41,
+	0xf1, 0xaa, 0x77, 0x91, 0xed, 0xe3, 0xa2, 0x50, 0xc7, 0x0a, 0x5f, 0xa1, 0x93, 0x30, 0xe2, 0xb7,
+	0x83, 0x1a, 0xd6, 0xe6, 0x59, 0x32, 0xe2, 0xc5, 0xcc, 0x64, 0x98, 0x32, 0x83, 0x54, 0x37, 0x65,
+	0x3e, 0xf9, 0x18, 0xbd, 0x01, 0x63, 0x21, 0x6d, 0xe8, 0xb4, 0x85, 0xac, 0xb2, 0x9a, 0xde, 0x5a,
+	0x8c, 0x27, 0xb2, 0xdb, 0xf0, 0xc9, 0x2a, 0xc8, 0xe0, 0x11, 0xb2, 0x88, 0x96, 0x51, 0xe3, 0x71,
+	0xe0, 0x42, 0x93, 0xc9, 0xd0, 0x2d, 0x10, 0x09, 0xb5, 0x8e, 0x6c, 0x0a, 0x75, 0x1d, 0xed, 0x52,
+	0x24, 0xdb, 0x19, 0xae, 0xbc, 0x47, 0x75, 0x86, 0x83, 0xae, 0xc3, 0x8c, 0x4d, 0xeb, 0x93, 0x15,
+	0xd8, 0x21, 0xb6, 0x0e, 0x5b, 0x44, 0x5b, 0x64, 0x17, 0xcd, 0x34, 0x93, 0x9a, 0xb4, 0x10, 0xb7,
+	0x08, 0x6d, 0x7a, 0x65, 0x04, 0xb5, 0xcb, 0xac, 0x32, 0x75, 0xc6, 0xf4, 0x54, 0x73, 0x0b, 0x87,
+	0x36, 0x71, 0x89, 0x76, 0x85, 0x9f, 0x6a, 0x26, 0x2a, 0x50, 0x09, 0x8d, 0xb4, 0x3c, 0xd5, 0xf1,
+	0x48, 0x2f, 0xf1, 0x48, 0x0b, 0x75, 0xdf, 0x15, 0x73, 0x91, 0xd3, 0x23, 0x3e, 0x6b, 0x99, 0xcd,
+	0xba, 0xc0, 0x94, 0xb1, 0x39, 0x37, 0x60, 0x86, 0x34, 0x6c, 0x72, 0xcc, 0x3a, 0xce, 0x43, 0xdf,
+	0x73, 0xb4, 0x15, 0x5e, 0x41, 0x3a, 0xd2, 0x82, 0xef, 0x39, 0x68, 0x0d, 0x66, 0xf9, 0x6b, 0xc4,
+	0xa2, 0xcf, 0x02, 0x37, 0x64, 0x5c, 0xcd, 0xb2, 0x9d, 0x9f, 0xe7, 0x8a, 0x6d, 0x26, 0xa7, 0x64,
+	0x7d, 0x0d, 0x2e, 0xe0, 0x96, 0x5f, 0x3b, 0xb6, 0x9a, 0xb6, 0xe7, 0x1e, 0xd1, 0xd7, 0x02, 0x3b,
+	0x41, 0x57, 0x23, 0x31, 0x9d, 0x65, 0x80, 0x3d, 0xa1, 0x97, 0x95, 0x31, 0x36, 0x8b, 0x2e, 0x91,
+	0x63, 0x4b, 0xa8, 0x3d, 0x70, 0xba, 0x46, 0x0e, 0x32, 0x8e, 0x4d, 0x11, 0x56, 0x2b, 0xc0, 0x47,
+	0xee, 0xc7, 0xda, 0x3b, 0x0c, 0x98, 0x76, 0xec, 0x83, 0xc0, 0xdd, 0x67, 0x22, 0xda, 0x6d, 0xf3,
+	0x38, 0x37, 0x7d, 0x07, 0x6b, 0xef, 0xf2, 0x6e, 0x9b, 0x49, 0xf6, 0x7c, 0xa7, 0xaf, 0x01, 0xf9,
+	0x56, 0x5f, 0x03, 0x72, 0x1f, 0xa6, 0x23, 0x00, 0xa2, 0xdd, 0x65, 0x65, 0x6d, 0x79, 0x68, 0x23,
+	0x12, 0xbd, 0x85, 0xd3, 0x5d, 0x3b, 0x04, 0x19, 0x40, 0x43, 0x7f, 0xe2, 0x12, 0xd7, 0xf7, 0xec,
+	0x46, 0xa7, 0x28, 0x7d, 0x7b, 0x44, 0x51, 0x42, 0x91, 0x49, 0xb2, 0x36, 0xdd, 0x86, 0xa8, 0x54,
+	0xe6, 0x37, 0xcf, 0xeb, 0x40, 0x44, 0x23, 0xb2, 0xfb, 0x1a, 0xcc, 0xb7, 0xda, 0x87, 0x0d, 0xb7,
+	0x66, 0xd3, 0xca, 0x6b, 0x61, 0xaf, 0x73, 0xb9, 0x17, 0x78, 0x5d, 0x8a, 0x68, 0x75, 0xcf, 0xe9,
+	0x76, 0x42, 0x01, 0x16, 0x24, 0xc7, 0x3f, 0x68, 0x63, 0x42, 0x59, 0xbc, 0xcd, 0x58, 0xac, 0x0a,
+	0x85, 0x29, 0xe5, 0xe8, 0x2e, 0xcc, 0x48, 0x30, 0x65, 0x25, 0x0e, 0xb4, 0x9d, 0x11, 0x37, 0x49,
+	0x46, 0xe0, 0x4b, 0x0c, 0x4e, 0xf3, 0x20, 0x0d, 0xd0, 0xb6, 0x40, 0xe7, 0xc7, 0x41, 0x88, 0xee,
+	0x61, 0x8c, 0xde, 0x04, 0x68, 0xd0, 0xb3, 0x46, 0x68, 0x7c, 0xb5, 0x7b, 0x2c, 0x6a, 0xf1, 0x0a,
+	0xb0, 0x6b, 0x8b, 0x2e, 0xa8, 0xba, 0x69, 0x4e, 0x35, 0xe4, 0x80, 0xb6, 0x69, 0x6c, 0x6a, 0xfc,
+	0x40, 0xdc, 0xe7, 0x6d, 0x1a, 0xd5, 0xc5, 0xce, 0xc3, 0x1b, 0xb0, 0x10, 0xba, 0x4d, 0xec, 0xb7,
+	0xa9, 0xef, 0x35, 0x3f, 0x70, 0xba, 0xfd, 0xd0, 0x03, 0x7e, 0xf6, 0x84, 0xda, 0x14, 0xda, 0x6e,
+	0xcc, 0x08, 0x0e, 0xc3, 0x06, 0x66, 0xdd, 0x63, 0x0b, 0x07, 0xae, 0xef, 0x68, 0x06, 0xbf, 0xd7,
+	0xbb, 0x8a, 0x7d, 0x26, 0x47, 0x3a, 0xcc, 0x74, 0x17, 0x61, 0x75, 0xe9, 0x3d, 0xe6, 0x55, 0x9c,
+	0x5b, 0x15, 0xb9, 0x14, 0xc5, 0x54, 0x37, 0xcd, 0x4c, 0x18, 0x15, 0xd0, 0xc7, 0xeb, 0x91, 0x1b,
+	0xa1, 0xc1, 0x43, 0xfe, 0x78, 0x65, 0x32, 0xbe, 0xad, 0xdc, 0x1f, 0x15, 0x40, 0xdd, 0x1a, 0xf9,
+	0x10, 0x3f, 0xe6, 0x71, 0x39, 0xfd, 0x01, 0xa8, 0x3c, 0xff, 0x03, 0xf0, 0x6d, 0x60, 0x2f, 0xba,
+	0xd8, 0x9b, 0x72, 0x38, 0x27, 0xd2, 0x14, 0x2d, 0x27, 0x0f, 0x79, 0x90, 0xe4, 0x7e, 0x92, 0x84,
+	0xf9, 0x3d, 0x52, 0x2f, 0xb7, 0x0f, 0x9b, 0x6e, 0xc8, 0xbd, 0x2a, 0xf1, 0x42, 0x38, 0xaa, 0x4f,
+	0xec, 0xe9, 0x06, 0x13, 0xf1, 0x6e, 0x30, 0xde, 0xbd, 0x25, 0xcf, 0xd6, 0xbd, 0xa5, 0x9e, 0xae,
+	0x7b, 0x1b, 0xeb, 0xeb, 0xde, 0x74, 0x98, 0x25, 0xcc, 0x97, 0xe8, 0x4b, 0x79, 0x7c, 0x44, 0xa4,
+	0xd4, 0xce, 0x14, 0x19, 0xae, 0x81, 0xb5, 0x79, 0x62, 0x60, 0x6d, 0x7e, 0x2b, 0xff, 0xe3, 0xaf,
+	0x3f, 0x5d, 0xeb, 0x5f, 0xf5, 0xa7, 0x5f, 0x7f, 0xba, 0xf6, 0x52, 0x18, 0xb4, 0x31, 0xdd, 0xdd,
+	0xc6, 0xc7, 0x1b, 0xec, 0x0b, 0xd4, 0xe0, 0x50, 0xe7, 0x0e, 0x60, 0x79, 0xb0, 0xc6, 0xc4, 0xa4,
+	0xe5, 0x7b, 0x04, 0xa3, 0x57, 0x61, 0x9c, 0x9e, 0xd5, 0x36, 0x67, 0xd2, 0xcc, 0xd6, 0xe5, 0x75,
+	0xfe, 0xf5, 0x88, 0x12, 0x7b, 0xaf, 0x1d, 0xb2, 0x6a, 0x53, 0x66, 0x00, 0xfa, 0xfc, 0xe0, 0xd0,
+	0xdc, 0xef, 0x92, 0x30, 0x17, 0xb3, 0xcb, 0x3a, 0x9a, 0x51, 0xa9, 0x8d, 0x27, 0x2f, 0x31, 0x2c,
+	0x79, 0xbd, 0xdd, 0x65, 0x72, 0x70, 0x77, 0xb9, 0x0a, 0x6a, 0x5f, 0x0b, 0xc7, 0xf3, 0x3b, 0xd3,
+	0xea, 0x6d, 0xde, 0xe8, 0x5b, 0xa6, 0xd3, 0xb5, 0x8d, 0x89, 0xb7, 0x8c, 0xec, 0xd7, 0x5e, 0x50,
+	0x66, 0x87, 0xdc, 0xa4, 0x13, 0xcf, 0x72, 0x93, 0x4e, 0x0e, 0xbe, 0x49, 0xdf, 0xba, 0x3b, 0x9c,
+	0x11, 0xd7, 0x47, 0x30, 0x82, 0xe5, 0x27, 0x57, 0x86, 0x2b, 0x83, 0xe4, 0xcf, 0xc7, 0x86, 0x3f,
+	0x27, 0x60, 0x31, 0x66, 0x35, 0xcf, 0xef, 0x1d, 0xf6, 0x56, 0x7d, 0x51, 0x9c, 0x88, 0xbe, 0x5a,
+	0x92, 0x2f, 0xe4, 0xd5, 0x92, 0x1a, 0xcc, 0xab, 0x81, 0x84, 0x18, 0x3b, 0x2b, 0x21, 0xde, 0xd2,
+	0x87, 0x27, 0x6b, 0x6d, 0x44, 0xb2, 0x22, 0xe1, 0xcb, 0xfd, 0x52, 0x81, 0xdc, 0x70, 0x75, 0x27,
+	0x73, 0xf1, 0x57, 0x94, 0x72, 0x96, 0x57, 0x54, 0x37, 0xed, 0x89, 0xa7, 0x4f, 0xfb, 0x3f, 0x93,
+	0x7d, 0x64, 0xea, 0xf9, 0xba, 0xf9, 0xbf, 0x2d, 0x06, 0xcf, 0xf2, 0x19, 0x32, 0xca, 0xa8, 0xb1,
+	0x67, 0x64, 0xd4, 0xe9, 0xb7, 0xf3, 0xf8, 0xf3, 0xdf, 0xce, 0x03, 0xd9, 0x38, 0x71, 0x66, 0x36,
+	0xde, 0x1f, 0xce, 0xc6, 0x5b, 0x23, 0xd8, 0xd8, 0x93, 0xd5, 0xdc, 0xdf, 0x15, 0xb8, 0x7e, 0x1a,
+	0xe0, 0xc5, 0x30, 0xf2, 0x0a, 0x4c, 0xb1, 0xd6, 0xc8, 0xfd, 0xa4, 0xf3, 0xb9, 0xa8, 0x2b, 0xe8,
+	0x3e, 0x31, 0x93, 0x67, 0x7b, 0x62, 0x76, 0x79, 0x9e, 0x7a, 0x7a, 0x9e, 0xff, 0x21, 0x01, 0xda,
+	0x1e, 0xa9, 0x9b, 0xb8, 0xee, 0x12, 0x1a, 0xd0, 0x68, 0x87, 0xf6, 0x7f, 0xde, 0x9c, 0x0d, 0xe4,
+	0x4e, 0xf2, 0xcc, 0xdc, 0xd9, 0x1e, 0xce, 0x9d, 0xd5, 0x01, 0xdc, 0x19, 0x18, 0xa9, 0xdc, 0x07,
+	0x90, 0x1d, 0xa6, 0x7b, 0xbe, 0xeb, 0xe7, 0x7b, 0xb0, 0xf2, 0x7e, 0x1b, 0x07, 0x8f, 0x23, 0xb5,
+	0x91, 0xec, 0x63, 0xcf, 0x61, 0x5d, 0x0e, 0x7b, 0xf9, 0xa0, 0x1b, 0x90, 0x26, 0xa1, 0x1d, 0x84,
+	0x96, 0x7d, 0x14, 0x8a, 0x5f, 0x96, 0x64, 0x09, 0x01, 0xa6, 0xc8, 0x53, 0x39, 0x9a, 0x83, 0xb1,
+	0x86, 0xdb, 0x74, 0xf9, 0xe7, 0xf8, 0x8c, 0xc9, 0x07, 0xb9, 0x36, 0x64, 0x87, 0xdb, 0x17, 0x1b,
+	0xff, 0x06, 0x8c, 0xb3, 0x27, 0x10, 0xdd, 0x38, 0xad, 0x23, 0x97, 0x62, 0x8c, 0xec, 0x7e, 0x25,
+	0x15, 0x84, 0x14, 0x70, 0xa4, 0x41, 0xca, 0xc3, 0x1f, 0x87, 0x3d, 0xc5, 0x8f, 0x49, 0x72, 0x3f,
+	0x84, 0x4b, 0x91, 0x65, 0x3b, 0x91, 0xe2, 0x0e, 0xfd, 0xb7, 0x69, 0x97, 0xfb, 0x10, 0x16, 0x07,
+	0xad, 0x2e, 0xdc, 0x7d, 0x07, 0x26, 0x19, 0x29, 0x1f, 0xe1, 0xc7, 0x6c, 0xb1, 0xf4, 0xd6, 0xe5,
+	0x01, 0x47, 0x50, 0xbe, 0x60, 0x84, 0xcb, 0x13, 0x27, 0x82, 0x09, 0xdf, 0x84, 0x85, 0x98, 0x6d,
+	0x22, 0xfd, 0x3a, 0xfd, 0xca, 0xc8, 0xfd, 0x5c, 0x01, 0xad, 0x7f, 0xaa, 0xd8, 0xd4, 0xbb, 0xf2,
+	0x03, 0x3c, 0x4f, 0xc1, 0xd5, 0xf8, 0x8e, 0xfa, 0x7e, 0x79, 0xeb, 0xfd, 0x08, 0xdf, 0xa9, 0x29,
+	0x89, 0x33, 0xd5, 0x94, 0x98, 0x37, 0xf9, 0xc8, 0x83, 0x7b, 0x94, 0x37, 0xef, 0xf7, 0x38, 0x23,
+	0x2f, 0x75, 0xee, 0xcc, 0xeb, 0x30, 0xc6, 0x18, 0x22, 0xc2, 0x3b, 0x92, 0x4f, 0x1c, 0xbd, 0xf6,
+	0x5b, 0x05, 0xce, 0xc7, 0xea, 0x2a, 0xba, 0x0a, 0x4b, 0xf9, 0xe2, 0xf6, 0x83, 0x92, 0x69, 0x55,
+	0x75, 0x73, 0xc7, 0xd8, 0xae, 0x58, 0xd5, 0x4d, 0xeb, 0xa0, 0x58, 0xde, 0xd7, 0xb7, 0x8d, 0x7b,
+	0x86, 0xbe, 0xa3, 0x9e, 0x43, 0x8b, 0x30, 0xdf, 0x0f, 0xd9, 0xcf, 0x97, 0xcb, 0xaa, 0x82, 0xae,
+	0x80, 0xd6, 0xaf, 0x33, 0xf5, 0xf7, 0xf4, 0xed, 0x8a, 0x9a, 0x40, 0x59, 0xb8, 0xd2, 0xaf, 0x2d,
+	0x96, 0xe4, 0x48, 0x4d, 0x0e, 0x5b, 0x3e, 0x5f, 0xcd, 0x1b, 0xbb, 0xf9, 0xc2, 0xae, 0xae, 0xa6,
+	0xd6, 0x7e, 0x91, 0x94, 0xbf, 0xbb, 0xf5, 0x7e, 0x58, 0x44, 0x2f, 0xc3, 0x35, 0x31, 0xd7, 0xd4,
+	0xcb, 0x07, 0xbb, 0x15, 0xab, 0x5c, 0x3a, 0x30, 0xb7, 0xf5, 0x7e, 0x07, 0xae, 0x43, 0x76, 0x18,
+	0xb0, 0xaa, 0x9b, 0x14, 0x65, 0xaa, 0x0a, 0x5a, 0x83, 0x97, 0x86, 0xa2, 0xf2, 0xbb, 0xc6, 0x4e,
+	0xbe, 0x42, 0x77, 0x59, 0xaa, 0xe8, 0x6a, 0x02, 0x5d, 0x83, 0x95, 0x61, 0xd8, 0x8a, 0xb1, 0xa7,
+	0x97, 0x0e, 0xa8, 0x6f, 0xeb, 0xb0, 0x36, 0x0c, 0x64, 0x14, 0x99, 0x49, 0x6b, 0xbb, 0xb4, 0xb7,
+	0x67, 0x54, 0xf6, 0xf4, 0x62, 0x45, 0x4d, 0xa1, 0x3b, 0x70, 0x6b, 0x18, 0x7e, 0x2f, 0x5f, 0xd1,
+	0x4d, 0x23, 0xbf, 0xdb, 0x13, 0x9a, 0xf1, 0x53, 0xb7, 0x2c, 0x1c, 0xb3, 0xf6, 0xf3, 0x45, 0x7d,
+	0x57, 0x9d, 0x38, 0x6d, 0xcb, 0xa6, 0x9e, 0x3f, 0xd8, 0x31, 0x2a, 0xea, 0x24, 0x5a, 0x85, 0xeb,
+	0xc3, 0x40, 0xbb, 0xf9, 0x8a, 0x6e, 0xe9, 0xdf, 0xd9, 0x37, 0x4c, 0x7d, 0x47, 0x9d, 0x5a, 0xfb,
+	0xbd, 0x02, 0xf3, 0x83, 0x7f, 0xbf, 0x8b, 0xec, 0x8a, 0xad, 0x6d, 0x99, 0xa5, 0x83, 0xe2, 0x8e,
+	0xf5, 0xd0, 0x28, 0xee, 0xf4, 0xa7, 0xe6, 0x25, 0xc8, 0x9d, 0x82, 0x35, 0x8a, 0x46, 0xc5, 0xc8,
+	0xef, 0xaa, 0x4a, 0x24, 0x85, 0x83, 0x70, 0xa6, 0x5e, 0x31, 0xbf, 0xab, 0x26, 0x46, 0x58, 0x93,
+	0x6e, 0x26, 0xd7, 0x7e, 0xd3, 0xf9, 0x03, 0x83, 0xc8, 0xd7, 0xa6, 0xc8, 0x1a, 0xcc, 0xd7, 0x72,
+	0x85, 0xfe, 0x7b, 0xca, 0x8e, 0x7b, 0x51, 0xf9, 0x0f, 0xf2, 0x46, 0xc5, 0x28, 0xde, 0x67, 0x62,
+	0x55, 0x89, 0xb0, 0xb3, 0x17, 0xc7, 0x47, 0x07, 0x85, 0x3d, 0xa3, 0x52, 0xd1, 0x77, 0xd4, 0x04,
+	0xba, 0x01, 0x57, 0x87, 0x03, 0x65, 0xc0, 0x93, 0x6b, 0xff, 0x56, 0xe4, 0xef, 0xaf, 0xb1, 0x6f,
+	0x49, 0x91, 0xa4, 0x09, 0xee, 0x51, 0x4f, 0xcb, 0xa5, 0x62, 0xff, 0xde, 0x6f, 0xc3, 0x2b, 0x43,
+	0x91, 0xa5, 0x7d, 0xbd, 0x48, 0xb7, 0xbf, 0xa3, 0xe7, 0x77, 0x76, 0x8d, 0x22, 0x75, 0xe1, 0x26,
+	0xbc, 0x3c, 0x14, 0xbe, 0x6f, 0x96, 0x4a, 0xf7, 0xba, 0xe0, 0x44, 0x84, 0xed, 0x03, 0xc0, 0x2c,
+	0x1b, 0x51, 0xee, 0x26, 0xd1, 0x06, 0xdc, 0x1c, 0x81, 0x37, 0x8a, 0xdb, 0xa5, 0xe2, 0xf6, 0xee,
+	0x41, 0xd9, 0xa8, 0xea, 0x6a, 0xaa, 0x70, 0xf7, 0xf3, 0xaf, 0x96, 0x95, 0x2f, 0xbe, 0x5a, 0x56,
+	0xfe, 0xfa, 0xd5, 0xb2, 0xf2, 0xb3, 0x27, 0xcb, 0xe7, 0xbe, 0x78, 0xb2, 0x7c, 0xee, 0x4f, 0x4f,
+	0x96, 0xcf, 0x7d, 0x78, 0xa3, 0xee, 0x86, 0xc7, 0xed, 0xc3, 0xf5, 0x9a, 0xdf, 0xdc, 0xa8, 0x04,
+	0x6d, 0x5c, 0xa2, 0x1d, 0x87, 0xe7, 0x3b, 0x58, 0xb6, 0x1d, 0xe1, 0xe3, 0x16, 0x26, 0x87, 0xe3,
+	0xec, 0x2f, 0x5c, 0x5e, 0xfd, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x2f, 0x68, 0xe8, 0x60, 0x96,
+	0x23, 0x00, 0x00,
 }
 
 func (m *AnchorPositionVerdictV1) Marshal() (dAtA []byte, err error) {
@@ -2074,6 +2664,11 @@ func (m *AnchorVoteTallyV1) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.UnavailablePower != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.UnavailablePower))
+		i--
+		dAtA[i] = 0x30
+	}
 	if m.VoteCount != 0 {
 		i = encodeVarintAnchor(dAtA, i, uint64(m.VoteCount))
 		i--
@@ -2182,6 +2777,160 @@ func (m *AnchorValidatorVoteState) MarshalToSizedBuffer(dAtA []byte) (int, error
 	return len(dAtA) - i, nil
 }
 
+func (m *AnchorPanelVoteState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AnchorPanelVoteState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AnchorPanelVoteState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Verdicts) > 0 {
+		for iNdEx := len(m.Verdicts) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Verdicts[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintAnchor(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if m.Height != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Verdict != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Verdict))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.VerifierOperatorAddress) > 0 {
+		i -= len(m.VerifierOperatorAddress)
+		copy(dAtA[i:], m.VerifierOperatorAddress)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.VerifierOperatorAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AnchorPanelRoundState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AnchorPanelRoundState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AnchorPanelRoundState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.PanelFee) > 0 {
+		i -= len(m.PanelFee)
+		copy(dAtA[i:], m.PanelFee)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.PanelFee)))
+		i--
+		dAtA[i] = 0x62
+	}
+	if len(m.SelectedVerifiersHash) > 0 {
+		i -= len(m.SelectedVerifiersHash)
+		copy(dAtA[i:], m.SelectedVerifiersHash)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.SelectedVerifiersHash)))
+		i--
+		dAtA[i] = 0x5a
+	}
+	if m.ClosedHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.ClosedHeight))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.Result != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Result))
+		i--
+		dAtA[i] = 0x48
+	}
+	if len(m.Votes) > 0 {
+		for iNdEx := len(m.Votes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Votes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintAnchor(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x42
+		}
+	}
+	if len(m.Members) > 0 {
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Members[iNdEx])
+			copy(dAtA[i:], m.Members[iNdEx])
+			i = encodeVarintAnchor(dAtA, i, uint64(len(m.Members[iNdEx])))
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
+	if m.VoteDeadlineHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.VoteDeadlineHeight))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.AssignmentHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.AssignmentHeight))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.OpenHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.OpenHeight))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Attempt != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Attempt))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Kind != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.Kind))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.PanelRound != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.PanelRound))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *AnchorAuditState) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2202,6 +2951,138 @@ func (m *AnchorAuditState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.FinalHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.FinalHeight))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xd8
+	}
+	if m.TimeoutReason != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.TimeoutReason))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xd0
+	}
+	if m.SettlementPeriod != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.SettlementPeriod))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xc8
+	}
+	if m.TimeoutRecordedHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.TimeoutRecordedHeight))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xc0
+	}
+	if m.LateDeadlineHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.LateDeadlineHeight))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.LateState != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.LateState))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xb0
+	}
+	if len(m.ReauditFee) > 0 {
+		i -= len(m.ReauditFee)
+		copy(dAtA[i:], m.ReauditFee)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.ReauditFee)))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xaa
+	}
+	if len(m.ReauditOpener) > 0 {
+		i -= len(m.ReauditOpener)
+		copy(dAtA[i:], m.ReauditOpener)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.ReauditOpener)))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0xa2
+	}
+	if m.ReauditRequested {
+		i--
+		if m.ReauditRequested {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.PublicationEndHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.PublicationEndHeight))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0x90
+	}
+	if m.ProvisionalHeight != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.ProvisionalHeight))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0x88
+	}
+	if m.ProvisionalVerdict != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.ProvisionalVerdict))
+		i--
+		dAtA[i] = 0x4
+		i--
+		dAtA[i] = 0x80
+	}
+	if len(m.PanelRounds) > 0 {
+		for iNdEx := len(m.PanelRounds) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.PanelRounds[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintAnchor(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3
+			i--
+			dAtA[i] = 0xfa
+		}
+	}
+	if m.PanelRound != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.PanelRound))
+		i--
+		dAtA[i] = 0x3
+		i--
+		dAtA[i] = 0xf0
+	}
+	if m.AuditMode != 0 {
+		i = encodeVarintAnchor(dAtA, i, uint64(m.AuditMode))
+		i--
+		dAtA[i] = 0x3
+		i--
+		dAtA[i] = 0xe8
+	}
+	if len(m.DaUriPrefix) > 0 {
+		i -= len(m.DaUriPrefix)
+		copy(dAtA[i:], m.DaUriPrefix)
+		i = encodeVarintAnchor(dAtA, i, uint64(len(m.DaUriPrefix)))
+		i--
+		dAtA[i] = 0x3
+		i--
+		dAtA[i] = 0xe2
+	}
 	if len(m.EpochManifestUri) > 0 {
 		i -= len(m.EpochManifestUri)
 		copy(dAtA[i:], m.EpochManifestUri)
@@ -3373,6 +4254,9 @@ func (m *AnchorVoteTallyV1) Size() (n int) {
 	if m.VoteCount != 0 {
 		n += 1 + sovAnchor(uint64(m.VoteCount))
 	}
+	if m.UnavailablePower != 0 {
+		n += 1 + sovAnchor(uint64(m.UnavailablePower))
+	}
 	return n
 }
 
@@ -3412,6 +4296,84 @@ func (m *AnchorValidatorVoteState) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovAnchor(uint64(l))
 		}
+	}
+	return n
+}
+
+func (m *AnchorPanelVoteState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.VerifierOperatorAddress)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	if m.Verdict != 0 {
+		n += 1 + sovAnchor(uint64(m.Verdict))
+	}
+	if m.Height != 0 {
+		n += 1 + sovAnchor(uint64(m.Height))
+	}
+	if len(m.Verdicts) > 0 {
+		for _, e := range m.Verdicts {
+			l = e.Size()
+			n += 1 + l + sovAnchor(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *AnchorPanelRoundState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PanelRound != 0 {
+		n += 1 + sovAnchor(uint64(m.PanelRound))
+	}
+	if m.Kind != 0 {
+		n += 1 + sovAnchor(uint64(m.Kind))
+	}
+	if m.Attempt != 0 {
+		n += 1 + sovAnchor(uint64(m.Attempt))
+	}
+	if m.OpenHeight != 0 {
+		n += 1 + sovAnchor(uint64(m.OpenHeight))
+	}
+	if m.AssignmentHeight != 0 {
+		n += 1 + sovAnchor(uint64(m.AssignmentHeight))
+	}
+	if m.VoteDeadlineHeight != 0 {
+		n += 1 + sovAnchor(uint64(m.VoteDeadlineHeight))
+	}
+	if len(m.Members) > 0 {
+		for _, s := range m.Members {
+			l = len(s)
+			n += 1 + l + sovAnchor(uint64(l))
+		}
+	}
+	if len(m.Votes) > 0 {
+		for _, e := range m.Votes {
+			l = e.Size()
+			n += 1 + l + sovAnchor(uint64(l))
+		}
+	}
+	if m.Result != 0 {
+		n += 1 + sovAnchor(uint64(m.Result))
+	}
+	if m.ClosedHeight != 0 {
+		n += 1 + sovAnchor(uint64(m.ClosedHeight))
+	}
+	l = len(m.SelectedVerifiersHash)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.PanelFee)
+	if l > 0 {
+		n += 1 + l + sovAnchor(uint64(l))
 	}
 	return n
 }
@@ -3547,6 +4509,60 @@ func (m *AnchorAuditState) Size() (n int) {
 	l = len(m.EpochManifestUri)
 	if l > 0 {
 		n += 2 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.DaUriPrefix)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	if m.AuditMode != 0 {
+		n += 2 + sovAnchor(uint64(m.AuditMode))
+	}
+	if m.PanelRound != 0 {
+		n += 2 + sovAnchor(uint64(m.PanelRound))
+	}
+	if len(m.PanelRounds) > 0 {
+		for _, e := range m.PanelRounds {
+			l = e.Size()
+			n += 2 + l + sovAnchor(uint64(l))
+		}
+	}
+	if m.ProvisionalVerdict != 0 {
+		n += 2 + sovAnchor(uint64(m.ProvisionalVerdict))
+	}
+	if m.ProvisionalHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.ProvisionalHeight))
+	}
+	if m.PublicationEndHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.PublicationEndHeight))
+	}
+	if m.ReauditRequested {
+		n += 3
+	}
+	l = len(m.ReauditOpener)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	l = len(m.ReauditFee)
+	if l > 0 {
+		n += 2 + l + sovAnchor(uint64(l))
+	}
+	if m.LateState != 0 {
+		n += 2 + sovAnchor(uint64(m.LateState))
+	}
+	if m.LateDeadlineHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.LateDeadlineHeight))
+	}
+	if m.TimeoutRecordedHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.TimeoutRecordedHeight))
+	}
+	if m.SettlementPeriod != 0 {
+		n += 2 + sovAnchor(uint64(m.SettlementPeriod))
+	}
+	if m.TimeoutReason != 0 {
+		n += 2 + sovAnchor(uint64(m.TimeoutReason))
+	}
+	if m.FinalHeight != 0 {
+		n += 2 + sovAnchor(uint64(m.FinalHeight))
 	}
 	return n
 }
@@ -4174,6 +5190,25 @@ func (m *AnchorVoteTallyV1) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UnavailablePower", wireType)
+			}
+			m.UnavailablePower = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UnavailablePower |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAnchor(dAtA[iNdEx:])
@@ -4446,6 +5481,494 @@ func (m *AnchorValidatorVoteState) Unmarshal(dAtA []byte) error {
 			if err := m.Verdicts[len(m.Verdicts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AnchorPanelVoteState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AnchorPanelVoteState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AnchorPanelVoteState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierOperatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VerifierOperatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Verdict", wireType)
+			}
+			m.Verdict = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Verdict |= AnchorVerdictV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Verdicts", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Verdicts = append(m.Verdicts, AnchorPositionVerdictV1{})
+			if err := m.Verdicts[len(m.Verdicts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipAnchor(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AnchorPanelRoundState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowAnchor
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AnchorPanelRoundState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AnchorPanelRoundState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PanelRound", wireType)
+			}
+			m.PanelRound = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PanelRound |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			m.Kind = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Kind |= AnchorPanelRoundKindV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Attempt", wireType)
+			}
+			m.Attempt = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Attempt |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OpenHeight", wireType)
+			}
+			m.OpenHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.OpenHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AssignmentHeight", wireType)
+			}
+			m.AssignmentHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AssignmentHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteDeadlineHeight", wireType)
+			}
+			m.VoteDeadlineHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.VoteDeadlineHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Members", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Members = append(m.Members, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Votes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Votes = append(m.Votes, AnchorPanelVoteState{})
+			if err := m.Votes[len(m.Votes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Result", wireType)
+			}
+			m.Result = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Result |= AnchorVerdictV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClosedHeight", wireType)
+			}
+			m.ClosedHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ClosedHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SelectedVerifiersHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SelectedVerifiersHash = append(m.SelectedVerifiersHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.SelectedVerifiersHash == nil {
+				m.SelectedVerifiersHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PanelFee", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PanelFee = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -5453,6 +6976,365 @@ func (m *AnchorAuditState) Unmarshal(dAtA []byte) error {
 			}
 			m.EpochManifestUri = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 60:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DaUriPrefix", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DaUriPrefix = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 61:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AuditMode", wireType)
+			}
+			m.AuditMode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AuditMode |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 62:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PanelRound", wireType)
+			}
+			m.PanelRound = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PanelRound |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 63:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PanelRounds", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PanelRounds = append(m.PanelRounds, AnchorPanelRoundState{})
+			if err := m.PanelRounds[len(m.PanelRounds)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 64:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProvisionalVerdict", wireType)
+			}
+			m.ProvisionalVerdict = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ProvisionalVerdict |= AnchorVerdictV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 65:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProvisionalHeight", wireType)
+			}
+			m.ProvisionalHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ProvisionalHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 66:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PublicationEndHeight", wireType)
+			}
+			m.PublicationEndHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PublicationEndHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 67:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReauditRequested", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ReauditRequested = bool(v != 0)
+		case 68:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReauditOpener", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ReauditOpener = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 69:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReauditFee", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthAnchor
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ReauditFee = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 70:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LateState", wireType)
+			}
+			m.LateState = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LateState |= AnchorLateStateV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 71:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LateDeadlineHeight", wireType)
+			}
+			m.LateDeadlineHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LateDeadlineHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 72:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimeoutRecordedHeight", wireType)
+			}
+			m.TimeoutRecordedHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TimeoutRecordedHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 73:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SettlementPeriod", wireType)
+			}
+			m.SettlementPeriod = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SettlementPeriod |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 74:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimeoutReason", wireType)
+			}
+			m.TimeoutReason = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TimeoutReason |= AnchorTimeoutReasonV1(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 75:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FinalHeight", wireType)
+			}
+			m.FinalHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowAnchor
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FinalHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipAnchor(dAtA[iNdEx:])

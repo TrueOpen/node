@@ -1113,7 +1113,7 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 }
 
 // verificationParamsCanonicalFields frames VerificationParamsV1 for the params
-// hash: every field, in field-number order (7..13 are ADR-0040).
+// hash: every field, in field-number order.
 func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
 	return shared.RawCanonicalFieldsV1(
 		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
@@ -1126,5 +1126,30 @@ func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.Canonica
 		shared.Uint64BE(v.AnchorOpenWindowBlocks),
 		shared.Uint64BE(v.AnchorProofWindowBlocks),
 		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+		// 18..41: Verifier-panel audit, late submission, batch settlement.
+		shared.Uint32BE(v.AnchorAuditMode),
+		shared.Uint32BE(v.AnchorPanelSize),
+		shared.Uint32BE(v.AnchorPanelThreshold),
+		shared.Uint64BE(v.AnchorPanelVoteWindowBlocks),
+		shared.Uint64BE(v.AnchorPublicationWindowBlocks),
+		shared.Uint64BE(v.AnchorLateWindowBlocks),
+		shared.Uint32BE(v.AnchorTimeoutFreeCount),
+		shared.Uint64BE(v.AnchorTimeoutRollingWindowBlocks),
+		shared.Uint32BE(v.AnchorReauditRewardBps),
+		shared.Uint32BE(v.AnchorVerifierWrongVoteSlashBps),
+		shared.Uint32BE(v.AnchorVerifierMissTriggerCount),
+		shared.Uint64BE(v.AnchorVerifierMissWindowBlocks),
+		shared.Uint32BE(v.AnchorVerifierMissSlashFromTrigger),
+		shared.Uint32BE(v.AnchorVerifierMissSlashBps),
+		shared.Uint32BE(v.AnchorVerifierBondMultiple),
+		shared.Uint64BE(v.AnchorVerifierAllowanceWindowBlocks),
+		shared.Uint32BE(v.AnchorBrakeMinCases),
+		shared.Uint32BE(v.AnchorBrakeMultipleX1000),
+		shared.Uint32BE(v.AnchorBrakeBaselinePeriods),
+		shared.Uint64BE(v.BatchSettlementPeriodBlocks),
+		shared.Uint32BE(v.BatchSettlementMaxWorkersPerBlock),
+		shared.Uint32BE(v.LogprobRejectSlashBps),
+		shared.Uint32BE(v.LogprobVerifierWrongVoteSlashBps),
+		shared.Uint64BE(v.InputTokenTolerance),
 	)
 }
