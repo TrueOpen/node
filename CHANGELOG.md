@@ -13,10 +13,15 @@
   - The capability is usable from the epoch after the one that switched it on
     (a new declaration, a lapsed one made again, or the flag added to a live
     row). No served task is needed first.
-  - An audit-only row renews by repeating the same declaration while it is
-    fresh; freshness then runs `support_window_epochs` from that epoch and the
-    waiting epoch is not served again. Every other unchanged live declaration
-    stays a no-op, as before.
+  - An audit-only row is kept fresh by the daily support confirmation
+    (`MsgBatchConfirmModelSupport`, signed by the service key and relayed like
+    any other): while the declaration stands, the bond covers the minimum and
+    the capability is audit, a confirmation moves freshness to
+    `support_window_epochs` from its epoch. It never activates the row and the
+    waiting epoch is not served again. Repeating the declaration renews it as
+    well. The refresh rule for inference and verification support is
+    unchanged: a row that never served a task is still skipped, with or
+    without the audit flag next to it.
   - With the service parameter `min_validator_separation` set, a declaration
     with audit capability is refused when the operator account or its service
     address is the operator account of a bonded consensus validator or an

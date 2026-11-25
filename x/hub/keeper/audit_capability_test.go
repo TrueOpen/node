@@ -287,3 +287,134 @@ func TestAuditDeclarationWithoutSeparationRule(t *testing.T) {
 	_, err = unbound.keeper.DeclareModelSupport(unbound.ctx, operator2, modelID2, false, false, true, batchTestHeight)
 	require.NoError(t, err)
 }
+
+// confirmSupportAt sends one operator's daily support confirmation for the
+// epoch of height, as a relayer would, and returns how many rows it refreshed.
+func confirmSupportAt(t *testing.T, f *fixture, operator string, identity hubTestIdentity, height uint64, models ...[]byte) uint32 {
+	t.Helper()
+	epoch := height / testEpochLength
+	operatorBytes, err := sdk.AccAddressFromBech32(operator)
+	require.NoError(t, err)
+	node, err := f.keeper.GetCortexNodeState(f.ctx, operator)
+	require.NoError(t, err)
+	expiry := height + 100
+	signingBytes, err := types.CanonicalDailySupportConfirmationSigningBytesV1(
+		sdk.UnwrapSDKContext(f.ctx).ChainID(), operatorBytes, epoch, node.ServiceAuthorizationNonce, expiry, models,
+	)
+	require.NoError(t, err)
+	response, err := keeper.NewMsgServerImpl(f.keeper).BatchConfirmModelSupport(
+		sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(height)), &types.MsgBatchConfirmModelSupport{
+			EpochIndex: epoch, SubmitterAddress: hubAddress(t, 0x77),
+			Confirmations: []types.ModelSupportConfirmationV1{{
+				OperatorAddress: operator, SupportedModels: models,
+				ServiceAuthorizationNonce: node.ServiceAuthorizationNonce, ExpiryHeight: expiry,
+				ServiceSignature: hubSign(t, identity, signingBytes),
+			}},
+		},
+	)
+	require.NoError(t, err)
+	return response.RefreshedModelCount
+}
+
+// The daily support confirmation, signed by the service key and relayed like
+// any other, keeps an audit-only row fresh. The operator key is not needed
+// after the declaration.
+func TestDailyConfirmationRenewsAuditOnlySupport(t *testing.T) {
+	f, operator, modelID := auditFixture(t, consensusIdentityStub{})
+	identity := hubIdentity(t, 0x31)
+	declared, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, false, false, true, batchTestHeight)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), declared.Support.SupportFreshUntilEpoch)
+	before, err := f.keeper.GetModel(f.ctx, modelID)
+	require.NoError(t, err)
+
+	require.Zero(t, confirmSupportAt(t, f, operator, identity, batchTestHeight+1, modelID), "nothing to extend inside the declaration epoch")
+	height := testEpochLength + 7
+	require.Equal(t, uint32(1), confirmSupportAt(t, f, operator, identity, height, modelID))
+	renewed, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(3), renewed.SupportFreshUntilEpoch)
+	require.Equal(t, height, renewed.LastRefreshHeight)
+	require.Equal(t, declared.Support.SupportVersion+1, renewed.SupportVersion)
+	require.True(t, renewed.DeclaredSupport)
+	require.False(t, renewed.SupportActive, "a confirmation never activates an audit-only row")
+	require.Zero(t, renewed.ActiveSupportStakeSnapshot)
+	require.Equal(t, types.ModelSupportActivationNone, renewed.ActivationKind)
+
+	after, err := f.keeper.GetModel(f.ctx, modelID)
+	require.NoError(t, err)
+	require.Equal(t, before.ActiveSupportStake, after.ActiveSupportStake)
+	require.Equal(t, before.ActiveSupporterCount, after.ActiveSupporterCount)
+	snapshot, ok := auditSnapshot(t, f, operator, modelID)
+	require.True(t, ok)
+	require.Equal(t, uint64(1), snapshot.AuditEffectiveFromEpoch, "a confirmation does not restart the waiting epoch")
+	has, err := f.keeper.ModelSupportExpiryIndex.Has(f.ctx, types.NewModelSupportExpiryIndexKey(3, operator, modelID))
+	require.NoError(t, err)
+	require.True(t, has)
+	has, err = f.keeper.ModelSupportExpiryIndex.Has(f.ctx, types.NewModelSupportExpiryIndexKey(2, operator, modelID))
+	require.NoError(t, err)
+	require.False(t, has)
+	requireSupportInvariants(t, f)
+
+	// Explicit re-declaration still renews as well.
+	again, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, false, false, true, 2*testEpochLength+1)
+	require.NoError(t, err)
+	require.Equal(t, uint64(4), again.Support.SupportFreshUntilEpoch)
+}
+
+// Without a confirmation or a re-declaration the audit-only row lapses on its
+// schedule, like any support.
+func TestAuditOnlySupportLapsesWithoutConfirmation(t *testing.T) {
+	f, operator, modelID := auditFixture(t, consensusIdentityStub{})
+	_, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, false, false, true, batchTestHeight)
+	require.NoError(t, err)
+	row, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+	require.NoError(t, err)
+	capability, err := f.keeper.GetModelCapabilityState(f.ctx, operator, modelID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), row.SupportFreshUntilEpoch)
+	// The row a panel draw would read is stale from epoch 2 on.
+	require.Less(t, uint64(1), row.SupportFreshUntilEpoch)
+	require.GreaterOrEqual(t, uint64(2), row.SupportFreshUntilEpoch)
+	require.True(t, capability.AuditCapability)
+
+	_, err = f.keeper.DeactivateModelSupport(f.ctx, operator, modelID, "SUPPORT_EXPIRED", 2*testEpochLength+1)
+	require.NoError(t, err)
+	lapsed, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+	require.NoError(t, err)
+	require.False(t, lapsed.DeclaredSupport)
+	require.Zero(t, lapsed.SupportFreshUntilEpoch)
+	// A confirmation cannot bring a lapsed declaration back; only the operator can.
+	require.Zero(t, confirmSupportAt(t, f, operator, hubIdentity(t, 0x31), 2*testEpochLength+2, modelID))
+	still, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+	require.NoError(t, err)
+	require.Equal(t, lapsed, still)
+}
+
+// The refresh rule for inference and verification support is what it was: a
+// declared row that never served a task is skipped by the daily confirmation,
+// with or without the audit flag next to it.
+func TestDailyConfirmationRuleForOtherSupportIsUnchanged(t *testing.T) {
+	for name, audit := range map[string]bool{"inference and verification": false, "with the audit flag": true} {
+		t.Run(name, func(t *testing.T) {
+			f, operator, modelID := auditFixture(t, consensusIdentityStub{})
+			_, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, true, true, audit, batchTestHeight)
+			require.NoError(t, err)
+			before, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+			require.NoError(t, err)
+			require.Zero(t, confirmSupportAt(t, f, operator, hubIdentity(t, 0x31), testEpochLength+7, modelID))
+			after, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+			require.NoError(t, err)
+			require.Equal(t, before, after, "an unactivated row is untouched")
+
+			// Once activated it refreshes into active support, as before.
+			activateSupportForTest(t, f, operator, modelID, 1, name)
+			// One confirmation per operator and epoch, so this one is for the next epoch.
+			require.Equal(t, uint32(1), confirmSupportAt(t, f, operator, hubIdentity(t, 0x31), 2*testEpochLength-1+2, modelID))
+			active, err := f.keeper.GetModelSupportState(f.ctx, operator, modelID)
+			require.NoError(t, err)
+			require.True(t, active.SupportActive)
+			require.Equal(t, uint64(4), active.SupportFreshUntilEpoch)
+		})
+	}
+}
