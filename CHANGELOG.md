@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- The stock Genesis seeds change three Task and Hub values. They only affect a
+  chain started from them; a running chain keeps the parameters it has.
+  - `objective_forgery_slash_bps` from 300 to 30. A Worker or Verifier duty
+    reserves the largest of the minimum liability, the order value and
+    `effective_bond * bps`. With the seed bonds the last term decides, so each
+    duty reserves a tenth as much and one operator can hold about ten times as
+    many duties at once. The slash for a confirmed objective forgery is
+    `reserved * bps`, so for those bonds it falls by about a hundredfold.
+  - `challenge_open_bond` from 0 to 100000. A challenge round that agrees with
+    round 1 now forfeits the opener's bond; one that disagrees refunds it.
+  - `max_order_sequences_per_active_session` from 4096 to 65536.
 - **Consensus-breaking: anchor-only verification.** A Profile version that
   requires the Worker anchor commitment is now verified by the anchor audit
   alone. Its Tasks draw no Verifier: the chain samples each one from the beacon
