@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+- **Consensus-breaking: anchor audit, material the Worker does not keep
+  retrievable.** A validator that cannot obtain the opening, proof or manifest
+  a Worker recorded may vote `UNAVAILABLE`.
+  - The vote is accepted only in the second half of the verdict window (from
+    `proof_deadline_height + (verdict_deadline_height - proof_deadline_height) / 2`);
+    an earlier one is refused. It never closes an audit early, and the same
+    validator may replace it with PASS or REJECT while the window is open.
+  - PASS or REJECT at two thirds of the bonded voting power decide as before.
+    At the verdict deadline an undecided audit is read on the votes as they
+    stand, at current power: PASS above one third ends it NO_VERDICT (the
+    material was obtainable); otherwise REJECT and UNAVAILABLE together at two
+    thirds end it REJECT with source `MATERIAL_UNAVAILABLE`; otherwise
+    NO_VERDICT.
+  - `MATERIAL_UNAVAILABLE` settles as the existing timeout fault: the Task is
+    not paid, the smaller slash, no jail. Silent validators still end an audit
+    NO_VERDICT, which pays the Task and slashes nobody. Before this change a
+    Worker could record an opening and a proof, keep them out of reach, and be
+    paid in full.
+  - All validators must switch to the new binary at the same height. There is
+    no store migration and no parameter change. Audits in flight at the upgrade
+    accept the new vote value.
+- **A Worker publishes where it serves audit material from.** A Cortex
+  operator's service descriptor may carry an `ANCHOR_DA` endpoint (kind 4): an
+  `http://` or `https://` URL ending in `/`. When a Task is selected for audit,
+  the endpoint its Worker's descriptor carries at that height is frozen into
+  the audit as `da_uri_prefix`, and `MsgSubmitAnchorOpening` and
+  `MsgSubmitAnchorProof` are refused unless every location they record lies
+  under it. A Worker that has published none is not restricted, so Workers
+  already serving and audits in flight are unaffected until the operator
+  publishes one.
+- Recorded audit locations and the `ANCHOR_DA` endpoint must be `http://` or
+  `https://` URLs of printable ASCII with a host, an optional port in
+  1..65535, no userinfo and no fragment. `http://a:99999/x`, which one URL
+  parser accepts and another raises on, is refused.
+- A recorded proof may be at most 256 MiB. The opening size has only a sanity
+  ceiling (1 TiB): the bound an honest opening has to respect is a property of
+  the Profile's registration and is applied off chain.
+- A selection row left behind by a Task that the verify-open deadline already
+  failed and refunded is dropped as stale. It used to return an invariant error
+  out of EndBlock one block after the assignment deadline whenever the selection
+  beacon had stayed unavailable until then.
+- Hub: `beacon.vrf_required_from_height` can no longer be moved to a height the
+  chain has already reached.
 - **Consensus-breaking: value-evidence window.** A round closes as soon as every
   selected Verifier has revealed, which can be before its reveal deadline. The
   value-evidence window now runs `verifier_value_evidence_window_blocks` from
