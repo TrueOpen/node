@@ -155,11 +155,14 @@ var (
 	// the next height at which a task's panel audit must be advanced (index and
 	// its forward map), the open assignments per panel member, and the audits
 	// with a provisional verdict that is not final yet.
-	AnchorPanelSelectionKey                = MustVersionedStorePrefix("anchor_panel_selection", CurrentStoreSchemaVersion)
-	AnchorPanelDueIndexKey                 = MustVersionedStorePrefix("anchor_panel_due_index", CurrentStoreSchemaVersion)
-	AnchorPanelDueHeightKey                = MustVersionedStorePrefix("anchor_panel_due_height", CurrentStoreSchemaVersion)
-	AnchorPanelMemberIndexKey              = MustVersionedStorePrefix("anchor_panel_member_index", CurrentStoreSchemaVersion)
-	AnchorUnderReviewIndexKey              = MustVersionedStorePrefix("anchor_under_review_index", CurrentStoreSchemaVersion)
+	AnchorPanelSelectionKey   = MustVersionedStorePrefix("anchor_panel_selection", CurrentStoreSchemaVersion)
+	AnchorPanelDueIndexKey    = MustVersionedStorePrefix("anchor_panel_due_index", CurrentStoreSchemaVersion)
+	AnchorPanelDueHeightKey   = MustVersionedStorePrefix("anchor_panel_due_height", CurrentStoreSchemaVersion)
+	AnchorPanelMemberIndexKey = MustVersionedStorePrefix("anchor_panel_member_index", CurrentStoreSchemaVersion)
+	AnchorUnderReviewIndexKey = MustVersionedStorePrefix("anchor_under_review_index", CurrentStoreSchemaVersion)
+	// AnchorPanelLastScanHeightKey holds the last height at which EndBlock ran
+	// a candidate-pool scan for a panel round, so that it runs at most one per block.
+	AnchorPanelLastScanHeightKey           = MustVersionedStorePrefix("anchor_panel_last_scan_height", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowMemberKey       = MustVersionedStorePrefix("verifier_candidate_window_member", CurrentStoreSchemaVersion)

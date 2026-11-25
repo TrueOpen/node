@@ -35,7 +35,7 @@ import (
 
 const (
 	// anchorAuditModePanel is the audit mode in which a Verifier panel decides.
-	anchorAuditModePanel = uint32(2)
+	anchorAuditModePanel = types.AnchorAuditModePanel
 	// anchorPanelFirstRound is the number of an audit's first panel round.
 	// Round 1 is the task's own verification round.
 	anchorPanelFirstRound = types.ChallengeVerifyRoundV1

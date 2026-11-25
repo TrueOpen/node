@@ -687,6 +687,54 @@ func validateVerificationParams(p VerificationParamsV1) error {
 			return err
 		}
 	}
+	return p.validateAnchorPanel()
+}
+
+const (
+	// AnchorAuditModePanel is the audit mode in which a Verifier panel decides
+	// an anchor audit. Modes 0 and 1 are the consensus validators' vote.
+	AnchorAuditModePanel = uint32(2)
+	// AnchorPanelSizeMaximum bounds a panel; every member's vote is kept on
+	// the audit row.
+	AnchorPanelSizeMaximum = uint32(15)
+)
+
+// validateAnchorPanel checks the Verifier-panel parameters. The audit mode is
+// always bounded. The panel's own parameters are checked only when the panel
+// mode is on, so the zero values a chain without it carries stay valid.
+func (p VerificationParamsV1) validateAnchorPanel() error {
+	if p.AnchorAuditMode > AnchorAuditModePanel {
+		return fmt.Errorf("verification.anchor_audit_mode must be <= %d", AnchorAuditModePanel)
+	}
+	if p.AnchorReauditRewardBps > BasisPointsMaximum || p.AnchorVerifierWrongVoteSlashBps > BasisPointsMaximum ||
+		p.AnchorVerifierMissSlashBps > BasisPointsMaximum {
+		return fmt.Errorf("verification anchor panel basis points must be <= %d", BasisPointsMaximum)
+	}
+	for _, item := range []struct {
+		name  string
+		value uint64
+	}{
+		{"verification.anchor_panel_vote_window_blocks", p.AnchorPanelVoteWindowBlocks},
+		{"verification.anchor_publication_window_blocks", p.AnchorPublicationWindowBlocks},
+	} {
+		if item.value > AnchorWindowBlocksMaximum {
+			return fmt.Errorf("%s must be <= %d", item.name, AnchorWindowBlocksMaximum)
+		}
+	}
+	if p.AnchorAuditMode != AnchorAuditModePanel {
+		return nil
+	}
+	if p.AnchorPanelSize == 0 || p.AnchorPanelSize > AnchorPanelSizeMaximum {
+		return fmt.Errorf("verification.anchor_panel_size must be in [1, %d] in panel mode", AnchorPanelSizeMaximum)
+	}
+	// A threshold above half the panel is what makes two opposite decisions in
+	// one round impossible.
+	if p.AnchorPanelThreshold <= p.AnchorPanelSize/2 || p.AnchorPanelThreshold > p.AnchorPanelSize {
+		return fmt.Errorf("verification.anchor_panel_threshold must be more than half of anchor_panel_size and at most anchor_panel_size")
+	}
+	if p.AnchorPanelVoteWindowBlocks == 0 {
+		return fmt.Errorf("verification.anchor_panel_vote_window_blocks must be greater than 0 in panel mode")
+	}
 	return nil
 }
 

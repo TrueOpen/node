@@ -112,6 +112,13 @@ func (k Keeper) executeLoadedTaskSettlement(
 		// The load step derived the deadline verdict; record it before faults are framed on it.
 		state := *inputs.Anchor
 		state.ResultHeight = height
+		if isAnchorPanelAudit(state) {
+			// The verdict becomes final here; nothing of the panel work survives it.
+			state.FinalHeight = height
+			if err := k.retireAnchorPanelWork(cache, types.NewTaskKey(inputs.Core.TaskId), state); err != nil {
+				return nil, err
+			}
+		}
 		if err := k.AnchorAudit.Set(cache, types.NewTaskKey(inputs.Core.TaskId), state); err != nil {
 			return nil, err
 		}

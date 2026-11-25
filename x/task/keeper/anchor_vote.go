@@ -149,11 +149,32 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 	if state.ResultHeight != 0 {
 		return &state, nil
 	}
+	if isAnchorPanelAudit(state) {
+		// A published verdict whose publication window has ended is final even
+		// if the sweep has not recorded it yet.
+		if verdict, source, due := anchorPanelDueVerdict(state, height); due {
+			state.TaskVerdict, state.ResultSource = verdict, source
+			state.ResultReason = "publication window ended without a re-audit"
+			return &state, nil
+		}
+	}
 	if height < deadline {
 		if roundVerdict != types.TaskVerdict_TASK_VERDICT_PASS {
 			return nil, nil // the Worker is not paid either way: nothing to hold on
 		}
 		return nil, errorsmod.Wrapf(types.ErrInvalidTaskStatus, "anchor audit verdict is pending until height %d", deadline)
+	}
+	if isAnchorPanelAudit(state) {
+		// The whole panel schedule has passed without a final verdict. What the
+		// Worker itself left undone is its omission, as in every audit; anything
+		// else (panels that never formed or never concluded, a stalled sweep) is
+		// not, and ends without a verdict: the Worker is paid and not slashed.
+		state.TaskVerdict, state.ResultReason = anchorTimeoutVerdict(state)
+		state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT
+		if state.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT && len(state.Positions) != 0 {
+			state.ResultReason = "the Verifier panel audit did not conclude before the verdict deadline"
+		}
+		return &state, nil
 	}
 	state.TaskVerdict, state.ResultReason = anchorTimeoutVerdict(state)
 	state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT
@@ -346,6 +367,9 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 	}
 	if !anchorSelected(state) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "task was not selected for anchor audit")
+	}
+	if isAnchorPanelAudit(state) {
+		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "this audit is decided by a Verifier panel, not by validator votes")
 	}
 	if len(state.OpeningHash) != types.Hash32Len || !bytes.Equal(state.OpeningHash, req.OpeningHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "vote names a different opening than the chain recorded")
@@ -636,6 +660,13 @@ func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (
 			return 0, nil
 		}
 		return 0, err
+	}
+	if isAnchorPanelAudit(state) {
+		if has, err := k.anchorPanelHasWork(ctx, taskKey, state); err != nil {
+			return 0, err
+		} else if has {
+			return 1, k.retireAnchorPanelWork(ctx, taskKey, state)
+		}
 	}
 	if deleted, err := deleteFirstMapRow(ctx, k.AnchorValidatorVote,
 		collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey)); err != nil || deleted {

@@ -183,7 +183,16 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	v := params.Verification
 	openDeadline, o1 := checkedHeightAdd(assignment.SelectionRandomnessHeight, v.AnchorOpenWindowBlocks)
 	proofDeadline, o2 := checkedHeightAdd(openDeadline, v.AnchorProofWindowBlocks)
-	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, v.AnchorVerdictWindowBlocks)
+	// The audit mode is frozen with the task's parameters. A panel audit runs
+	// longer than a validator vote: up to two rounds, the publication window
+	// and a re-audit.
+	verdictWindow := v.AnchorVerdictWindowBlocks
+	if v.AnchorAuditMode == anchorAuditModePanel {
+		if window, ok := anchorPanelVerdictWindowBlocks(params); ok {
+			verdictWindow = window
+		}
+	}
+	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, verdictWindow)
 	if o1 || o2 || o3 {
 		sdk.UnwrapSDKContext(ctx).Logger().Error("anchor audit skipped: deadline overflows", "task", fmt.Sprintf("%x", assignment.TaskId))
 		return nil
@@ -206,6 +215,7 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		VerdictDeadlineHeight: verdictDeadline,
 		// ADR-0040 v5/v6: audit probability from the Worker's bond, coin from the beacon, slash base fixed now.
 		AuditRateBps: draw.rate, Selected: draw.selected, AuditBasis: draw.basis, SlashableBond: draw.bond,
+		AuditMode: v.AnchorAuditMode,
 	}
 	if state.Selected {
 		// Where this Worker serves its material from is fixed now, from what its
@@ -445,6 +455,20 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	state.WorkerProofHeight = height
 	state.EpochManifestHash = append([]byte(nil), req.EpochManifestHash...)
 	state.EpochManifestUri = req.EpochManifestUri
+	if isAnchorPanelAudit(state) {
+		// The recorded proof is what a panel judges: the first panel round opens
+		// with it. A round that cannot be formed ends without a conclusion; it
+		// never keeps the Worker's proof from being recorded.
+		if err := emitTypedEvent(ctx, &types.EventAnchorProofRecorded{
+			TaskId: append([]byte(nil), req.TaskId...), WorkerOperatorAddress: winner,
+			ProofHash: append([]byte(nil), req.ProofHash...), Height: height, AuditMode: state.AuditMode,
+		}); err != nil {
+			return nil, err
+		}
+		if err := m.k.openAnchorPanelRound(ctx, taskKey, &state, types.AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_INITIAL, height); err != nil {
+			return nil, err
+		}
+	}
 	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
 		return nil, err
 	}

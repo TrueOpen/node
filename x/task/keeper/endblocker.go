@@ -20,6 +20,10 @@ const (
 	endBlockPriorityVerifierWindowBuild endBlockQueuePriority = iota
 	endBlockPriorityVerifierHandraiseClose
 	endBlockPriorityVerifierSelectionRandomness
+	// Panel audits are advanced just before the settlement deadlines of the
+	// same height, so a verdict that becomes final at a height is recorded
+	// before a settlement at that height reads it.
+	endBlockPriorityAnchorPanel         endBlockQueuePriority = 39
 	endBlockPriorityDispatchClaim       endBlockQueuePriority = 1100
 	endBlockPriorityDispatchChallenge   endBlockQueuePriority = 1101
 	endBlockPriorityDispatchPrune       endBlockQueuePriority = 2100
@@ -68,11 +72,13 @@ type EndBlockSweepResult struct {
 	// SessionLifecycle is the session MARK_IDLE/CLOSE processor. It shares its
 	// executor with MsgSweepDeadline(SessionLifecycleLocator); V1 does not
 	// register a second MsgSessionSweep.
-	SessionLifecycle    uint64
-	SessionWithdraw     uint64
-	SessionKeyChange    uint64
-	OrderCancel         uint64
-	ValueEvidenceClose  uint64
+	SessionLifecycle   uint64
+	SessionWithdraw    uint64
+	SessionKeyChange   uint64
+	OrderCancel        uint64
+	ValueEvidenceClose uint64
+	// AnchorPanel counts visited Verifier-panel audits.
+	AnchorPanel         uint64
 	DispatchClaim       uint64
 	DispatchChallenge   uint64
 	DispatchPrune       uint64
@@ -750,6 +756,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL), taskHead(k.VerifyDeadlineIndex), recordedRun(k.processExpiredVerifyDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.VerifyDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE), taskHead(k.ChallengeWindowCloseIndex), recordedRun(k.processExpiredChallengeWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ChallengeWindowClose += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE), taskHead(k.ValueEvidenceWindowCloseIndex), recordedRun(k.processValueEvidenceWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ValueEvidenceClose += n }},
+		{endBlockPriorityAnchorPanel, taskHead(k.AnchorPanelDueIndex), conservativeRun(k.processAnchorPanelDue, anchorPanelSweepConservativeBytesV1), func(n uint64) { result.AnchorPanel += n }},
 		{endBlockQueuePriority(21), verifyRoundHead(k.RoundEconomicEffectApplyIndex), k.processRoundEconomicEffectApplyIndexWithBudget, func(n uint64) { result.RoundEconomicEffect += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT), taskHead(k.SettlementDeadlineIndex), recordedRun(k.processExpiredSettlementDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.Settlement += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP), taskHead(k.EvidenceCleanupIndex), conservativeRun(k.processEvidenceCleanupEndBlock, evidenceCleanupConservativeBytesV1), func(n uint64) { result.EvidenceCleanup += n }},

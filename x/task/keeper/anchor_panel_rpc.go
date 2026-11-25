@@ -9,7 +9,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// The RPCs of the Verifier-panel audit, late submission, batch settlement and
+// The RPCs of late submission, batch settlement and
 // the per-model brake. The wire contract carries them; this file answers each
 // with a plain refusal until the change that implements it replaces the method.
 // Nothing here reads or writes state, so a chain that never enables the panel
@@ -38,22 +38,6 @@ func (q queryServer) VerifierAuditStanding(context.Context, *types.QueryVerifier
 }
 
 func (q queryServer) AnchorBrake(context.Context, *types.QueryAnchorBrakeRequest) (*types.QueryAnchorBrakeResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (m msgServer) SubmitAnchorPanelVote(context.Context, *types.MsgSubmitAnchorPanelVote) (*types.MsgSubmitAnchorPanelVoteResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (m msgServer) RequestAnchorReaudit(context.Context, *types.MsgRequestAnchorReaudit) (*types.MsgRequestAnchorReauditResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (q queryServer) AnchorPanelAssignments(context.Context, *types.QueryAnchorPanelAssignmentsRequest) (*types.QueryAnchorPanelAssignmentsResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (q queryServer) AnchorAuditsUnderReview(context.Context, *types.QueryAnchorAuditsUnderReviewRequest) (*types.QueryAnchorAuditsUnderReviewResponse, error) {
 	return nil, errAnchorPanelNotAvailable
 }
 
