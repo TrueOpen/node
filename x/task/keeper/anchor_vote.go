@@ -101,8 +101,8 @@ func anchorQuorum(power, total uint64) bool {
 // anchorTimeoutVerdict is the verdict the deadline imposes on an audit that has
 // no final vote, from the audit row alone: the Worker's own omissions are
 // REJECT, anything else is NO_VERDICT (the Worker is paid, nothing is slashed).
-// anchorSettlementView then turns a NO_VERDICT into the material-unavailable
-// REJECT when two thirds of the validators voted UNAVAILABLE.
+// anchorSettlementView then applies the deadline rule to the votes
+// (anchorMaterialUnavailable).
 func anchorTimeoutVerdict(state types.AnchorAuditState) (types.AnchorVerdictV1, string) {
 	switch {
 	case len(state.Positions) == 0:
@@ -158,14 +158,10 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 	state.TaskVerdict, state.ResultReason = anchorTimeoutVerdict(state)
 	state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT
 	if state.TaskVerdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT && len(state.WorkerProofHash) == types.Hash32Len {
-		// The Worker recorded an opening and a proof and no PASS or REJECT side
-		// reached two thirds. Silent validators leave that at NO_VERDICT. But
-		// when validators holding two thirds of the current bonded power are on
-		// record that they could not obtain what the Worker recorded, the Worker
-		// did not meet its obligation: keeping the material retrievable is its
-		// duty exactly like opening in time, so the audit ends like a missed
-		// deadline (REJECT, timeout fault), not as a paid task.
-		unavailable, tally, err := k.anchorUnavailableQuorum(ctx, taskKey)
+		// The Worker recorded an opening and a proof and neither PASS nor REJECT
+		// reached two thirds while the window was open. Read the votes as they
+		// stand now, at current power.
+		unavailable, tally, err := k.anchorMaterialUnavailable(ctx, taskKey)
 		if err != nil {
 			return nil, err
 		}
@@ -173,19 +169,32 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 			state.Tally = tally
 			state.TaskVerdict = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT
 			state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE
-			state.ResultReason = fmt.Sprintf("validators could not obtain the recorded material: unavailable %d / pass %d / reject %d of %d power (%d votes)",
-				tally.UnavailablePower, tally.PassPower, tally.RejectPower, tally.TotalPower, tally.VoteCount)
+			state.ResultReason = fmt.Sprintf("validators could not obtain sound material: unavailable %d / reject %d / pass %d of %d power (%d votes)",
+				tally.UnavailablePower, tally.RejectPower, tally.PassPower, tally.TotalPower, tally.VoteCount)
 		}
 	}
 	return &state, nil
 }
 
-// anchorUnavailableQuorum recounts the stored votes at current power and
-// reports whether UNAVAILABLE holds two thirds of the bonded set. It is read at
-// the verdict deadline only: until then a validator may still replace its
-// UNAVAILABLE vote with PASS or REJECT. An unreadable total (no staking keeper,
-// no bonded power) is "no quorum", never an error that would hold settlement.
-func (k Keeper) anchorUnavailableQuorum(ctx context.Context, taskKey types.TaskKey) (bool, types.AnchorVoteTallyV1, error) {
+// anchorMaterialUnavailable applies the deadline rule to an audit that no side
+// decided, on the stored votes at the validators' current power:
+//
+//   - PASS above one third: somebody obtained the material and verified it, so
+//     it was obtainable and sound. No fault (NO_VERDICT, the Worker is paid). A
+//     cheater cannot collect PASS votes from honest validators, and a validator
+//     set split by its own network trouble cannot cost an honest Worker.
+//   - otherwise REJECT and UNAVAILABLE together at two thirds: those validators
+//     either obtained material that does not hold or could not obtain any. A
+//     Worker that serves bad material to some and nothing to the rest does not
+//     escape by keeping both counts under two thirds. Keeping sound material
+//     retrievable is the Worker's duty exactly like opening in time, so the
+//     audit ends like a missed deadline (REJECT, timeout fault).
+//   - otherwise nothing is established (NO_VERDICT).
+//
+// It is read at the verdict deadline only: until then a validator may replace
+// UNAVAILABLE with a judgement. An unreadable total (no staking keeper, no
+// bonded power) is "nothing established", never an error that holds settlement.
+func (k Keeper) anchorMaterialUnavailable(ctx context.Context, taskKey types.TaskKey) (bool, types.AnchorVoteTallyV1, error) {
 	if k.stakingKeeper == nil {
 		return false, types.AnchorVoteTallyV1{}, nil
 	}
@@ -196,7 +205,34 @@ func (k Keeper) anchorUnavailableQuorum(ctx context.Context, taskKey types.TaskK
 		}
 		return false, types.AnchorVoteTallyV1{}, err
 	}
-	return anchorQuorum(tally.UnavailablePower, tally.TotalPower), tally, nil
+	if anchorAboveOneThird(tally.PassPower, tally.TotalPower) {
+		return false, tally, nil
+	}
+	against, overflow := checkedAddUint64(tally.RejectPower, tally.UnavailablePower)
+	if overflow {
+		return false, tally, nil
+	}
+	return anchorQuorum(against, tally.TotalPower), tally, nil
+}
+
+// anchorAboveOneThird reports whether power is strictly more than one third of total.
+func anchorAboveOneThird(power, total uint64) bool {
+	if total == 0 {
+		return false
+	}
+	return sdkmath.NewIntFromUint64(power).MulRaw(3).GT(sdkmath.NewIntFromUint64(total))
+}
+
+// anchorUnavailableVoteOpenHeight is the first height at which an UNAVAILABLE
+// vote is accepted: the second half of the verdict window. Before it a
+// validator that cannot fetch keeps trying; the Worker has the whole proof
+// window and half the verdict window to make its store reachable. Zero means
+// the audit has no such span.
+func anchorUnavailableVoteOpenHeight(state types.AnchorAuditState) uint64 {
+	if state.ProofDeadlineHeight == 0 || state.VerdictDeadlineHeight <= state.ProofDeadlineHeight {
+		return 0
+	}
+	return state.ProofDeadlineHeight + (state.VerdictDeadlineHeight-state.ProofDeadlineHeight)/2
 }
 
 // anchorSettlementHoldHeight is the height a PASS round must wait for before it
@@ -326,6 +362,15 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 	if deadline := anchorVerdictDeadline(state); deadline != 0 && height >= deadline {
 		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor verdict deadline %d has passed", deadline)
 	}
+	if req.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE {
+		// Refused, not stored: an early UNAVAILABLE says nothing about whether
+		// the material will be there when the window closes.
+		opens := anchorUnavailableVoteOpenHeight(state)
+		if opens == 0 || height < opens {
+			return nil, errorsmod.Wrapf(types.ErrInvalidAssignment,
+				"an UNAVAILABLE vote is accepted from height %d, the second half of the verdict window", opens)
+		}
+	}
 	voteKey := collections.Join(taskKey, []byte(valAddr))
 	if existing, err := m.k.AnchorValidatorVote.Get(ctx, voteKey); err == nil {
 		if existing.Verdict == req.Verdict && bytes.Equal(existing.ProofHash, req.ProofHash) {
@@ -373,7 +418,7 @@ func (m msgServer) SubmitAnchorValidatorVote(ctx context.Context, req *types.Msg
 		final = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT // every bonded validator voted; no side reached two thirds
 	}
 	// UNAVAILABLE decides nothing here. It can still be replaced, so it is read
-	// once, at the verdict deadline (anchorSettlementView).
+	// once, at the verdict deadline (anchorMaterialUnavailable).
 	if final != types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED {
 		state.ResultHeight = height
 		state.TaskVerdict = final

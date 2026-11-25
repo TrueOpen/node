@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"cosmossdk.io/collections"
@@ -39,28 +38,61 @@ const (
 	// tokenIDsRawOverheadBytes is the two u32 counts of the A-level artifact
 	// pair (input_token_ids_raw and generated_token_ids_raw).
 	tokenIDsRawOverheadBytes = 8
-	// maxAnchorOpeningSizeBytes and maxAnchorProofSizeBytes bound the sizes a
-	// Worker may record. Validators fetch and parse these objects, so the bound
-	// has to be the same for all of them and known to the Worker before it
-	// records anything: a size only some validators accept would split the
-	// vote. 2 GiB is the largest opening the reference validator and DA store
-	// take; a proof is a few hundred kilobytes.
-	maxAnchorOpeningSizeBytes = uint64(2) << 30
-	maxAnchorProofSizeBytes   = uint64(256) << 20
+	// maxAnchorOpeningSizeBytes is a sanity ceiling, not the bound a Worker has
+	// to plan for. How large an honest opening can get depends on the model
+	// and on how many tokens a task may carry, which is a fact of the Profile's
+	// registration, and a Worker must be able to stay under its bound by
+	// refusing an order before it accepts it. A tight bound here would instead
+	// refuse the opening after the task was sampled, which ends in a timeout
+	// fault for an honest Worker. The ceiling only keeps absurd values out of
+	// state; the per-Profile bound is applied where the registration is known.
+	maxAnchorOpeningSizeBytes = uint64(1) << 40
+	// maxAnchorProofSizeBytes bounds the proof package. Its size is fixed by
+	// the proof system (a few hundred kilobytes), not by the task, so an honest
+	// Worker cannot come near it.
+	maxAnchorProofSizeBytes = uint64(256) << 20
 )
 
 // validAnchorMaterialURI reports whether uri is a location validators can be
-// expected to fetch from: an absolute http or https URL with a host, within the
-// recorded length bound. Anything else can only ever end in "no vote".
+// expected to fetch from: see shared.ValidateHTTPMaterialURL.
 func validAnchorMaterialURI(uri string) bool {
-	if uri == "" || len(uri) > maxAnchorOpeningURIBytes || strings.TrimSpace(uri) != uri {
-		return false
+	return shared.ValidateHTTPMaterialURL(uri, maxAnchorOpeningURIBytes)
+}
+
+// anchorDAEndpointProvider is implemented by the Hub keeper: the
+// data-availability endpoint a Cortex operator's service descriptor publishes.
+type anchorDAEndpointProvider interface {
+	GetAnchorDAEndpoint(ctx context.Context, operatorAddress string) string
+}
+
+// anchorDAPrefix returns the Worker's published data-availability endpoint at
+// this height, or "" when it has published none (or it is not a usable prefix).
+func (k Keeper) anchorDAPrefix(ctx context.Context, worker string) string {
+	provider, ok := k.hubKeeper.(anchorDAEndpointProvider)
+	if !ok {
+		return ""
 	}
-	parsed, err := url.Parse(uri)
-	if err != nil || parsed.Host == "" || parsed.User != nil {
-		return false
+	prefix := provider.GetAnchorDAEndpoint(ctx, worker)
+	if !shared.ValidateHTTPMaterialPrefix(prefix, maxAnchorOpeningURIBytes) {
+		return ""
 	}
-	return parsed.Scheme == "http" || parsed.Scheme == "https"
+	return prefix
+}
+
+// anchorLocationsUnderPrefix reports whether every location lies under the
+// audit's frozen data-availability prefix. An audit without one (the Worker
+// had published no endpoint when the task was sampled, or the audit predates
+// the field) is not restricted.
+func anchorLocationsUnderPrefix(state types.AnchorAuditState, locations ...string) bool {
+	if state.DaUriPrefix == "" {
+		return true
+	}
+	for _, location := range locations {
+		if !strings.HasPrefix(location, state.DaUriPrefix) || len(location) == len(state.DaUriPrefix) {
+			return false
+		}
+	}
+	return true
 }
 
 func anchorCommitmentOf(receipt types.InferReceiptState) (types.EvidenceCommitmentV1, bool) {
@@ -174,6 +206,11 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		VerdictDeadlineHeight: verdictDeadline,
 		// ADR-0040 v5/v6: audit probability from the Worker's bond, coin from the beacon, slash base fixed now.
 		AuditRateBps: draw.rate, Selected: draw.selected, AuditBasis: draw.basis, SlashableBond: draw.bond,
+	}
+	if state.Selected {
+		// Where this Worker serves its material from is fixed now, from what its
+		// descriptor published before the draw: it cannot be chosen afterwards.
+		state.DaUriPrefix = k.anchorDAPrefix(ctx, receipt.WinnerWorker)
 	}
 	rows, rowsErr := anchorRowsOf(receipt)
 	if rowsErr != nil {
@@ -305,6 +342,9 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
 	}
+	if !anchorLocationsUnderPrefix(state, req.OpeningUri, req.AnchorCommitUri) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening locations must lie under the Worker's published data-availability endpoint %s", state.DaUriPrefix)
+	}
 	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
 		return nil, err
@@ -379,6 +419,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if !bytes.Equal(state.OpeningHash, req.OpeningHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof names a different opening than the chain recorded")
+	}
+	if !anchorLocationsUnderPrefix(state, req.ProofUri, req.EpochManifestUri) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor proof locations must lie under the Worker's published data-availability endpoint %s", state.DaUriPrefix)
 	}
 	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {

@@ -139,6 +139,21 @@ func (s ServiceDescriptorState) Validate() error {
 // CanonicalServiceDescriptorEndpointFields is the single Msg/Genesis endpoint
 // validator and canonical field producer. HTTP remains allowed by the explicit
 // Node deployment decision; credentials, query and fragment never are.
+// MaxAnchorDAEndpointURIBytes bounds an ANCHOR_DA endpoint. It is half the
+// bound of a recorded audit location, so a prefix always leaves room for the
+// object name.
+const MaxAnchorDAEndpointURIBytes = 256
+
+// AnchorDAEndpointURI returns the ANCHOR_DA endpoint of a descriptor, or "".
+func AnchorDAEndpointURI(descriptor ServiceDescriptorState) string {
+	for _, endpoint := range descriptor.Endpoints {
+		if endpoint.EndpointKind == ServiceEndpointKind_SERVICE_ENDPOINT_KIND_ANCHOR_DA {
+			return endpoint.Uri
+		}
+	}
+	return ""
+}
+
 func CanonicalServiceDescriptorEndpointFields(endpoints []ServiceEndpointV1, params ServiceParamsV1) ([][]byte, error) {
 	if len(endpoints) == 0 || uint32(len(endpoints)) > params.MaxServiceDescriptorEndpoints {
 		return nil, fmt.Errorf("descriptor endpoint count must be between 1 and %d", params.MaxServiceDescriptorEndpoints)
@@ -164,6 +179,12 @@ func CanonicalServiceDescriptorEndpointFields(endpoints []ServiceEndpointV1, par
 		case "http", "https", "grpc", "grpcs":
 		default:
 			return nil, fmt.Errorf("descriptor endpoint %d uses an unsupported uri scheme", index)
+		}
+		if endpoint.EndpointKind == ServiceEndpointKind_SERVICE_ENDPOINT_KIND_ANCHOR_DA &&
+			!shared.ValidateHTTPMaterialPrefix(endpoint.Uri, MaxAnchorDAEndpointURIBytes) {
+			// The Task module uses this endpoint as the prefix of every location
+			// a Worker records for an anchor audit, and validators fetch from it.
+			return nil, fmt.Errorf("descriptor endpoint %d must be an http or https URL ending in \"/\", with a valid port, of at most %d bytes", index, MaxAnchorDAEndpointURIBytes)
 		}
 		if endpoint.ProtocolVersion == "" || endpoint.ProtocolVersion != strings.TrimSpace(endpoint.ProtocolVersion) ||
 			uint32(len([]byte(endpoint.ProtocolVersion))) > params.MaxServiceEndpointProtocolVersionBytes {
@@ -324,7 +345,8 @@ func isValidServiceEndpointKind(value ServiceEndpointKind) bool {
 	switch value {
 	case ServiceEndpointKind_SERVICE_ENDPOINT_KIND_NEXUS_GRPC,
 		ServiceEndpointKind_SERVICE_ENDPOINT_KIND_OBJECT_GATEWAY_HTTPS,
-		ServiceEndpointKind_SERVICE_ENDPOINT_KIND_HEALTH_HTTPS:
+		ServiceEndpointKind_SERVICE_ENDPOINT_KIND_HEALTH_HTTPS,
+		ServiceEndpointKind_SERVICE_ENDPOINT_KIND_ANCHOR_DA:
 		return true
 	default:
 		return false
