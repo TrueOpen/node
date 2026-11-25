@@ -27,7 +27,10 @@ func (k Keeper) ensureValueEvidenceWindows(ctx context.Context) error {
 	// window's row may sit later than its close height but never earlier.
 	floors := make(map[string]uint64)
 	for _, summary := range summaries {
-		var revealMax uint64
+		// revealMax is the latest reveal deadline. revealEnd is the latest height
+		// at which any round stopped taking reveals: the round's close when it
+		// closed before its reveal deadline, else the deadline itself.
+		var revealMax, revealEnd uint64
 		for _, round := range []uint32{types.VerifyRoundV1, types.ChallengeVerifyRoundV1} {
 			assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(summary.TaskId, round))
 			if errIsNotFound(err) {
@@ -36,7 +39,19 @@ func (k Keeper) ensureValueEvidenceWindows(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+			if assignment.RevealDeadlineHeight == 0 {
+				continue
+			}
+			end := assignment.RevealDeadlineHeight
+			closed, err := k.ReadVerificationRound(ctx, types.NewVerifyRoundKey(summary.TaskId, round))
+			if err != nil && !errIsNotFound(err) {
+				return err
+			}
+			if err == nil && closed.XClosedHeight != nil && closed.GetClosedHeight() < end {
+				end = closed.GetClosedHeight()
+			}
 			revealMax = max(revealMax, assignment.RevealDeadlineHeight)
+			revealEnd = max(revealEnd, end)
 		}
 		if revealMax == 0 {
 			if summary.XVerifierValueEvidenceCloseHeight != nil {
@@ -48,8 +63,15 @@ func (k Keeper) ensureValueEvidenceWindows(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		closeHeight, overflow := checkedHeightAdd(revealMax, params.Evidence.VerifierValueEvidenceWindowBlocks)
-		if overflow || summary.GetVerifierValueEvidenceCloseHeight() != closeHeight {
+		window := params.Evidence.VerifierValueEvidenceWindowBlocks
+		// Two shapes are valid. A window that ran to the reveal deadline is what
+		// every Task had before shortenValueEvidenceWindow, and what a Task keeps
+		// when its round closed on a missing reveal or before the rule existed. A
+		// window cut at an early round close is what the rule writes now.
+		fromDeadline, overflowDeadline := checkedHeightAdd(revealMax, window)
+		fromClose, overflowClose := checkedHeightAdd(revealEnd, window)
+		closeHeight := summary.GetVerifierValueEvidenceCloseHeight()
+		if overflowDeadline || overflowClose || (closeHeight != fromDeadline && closeHeight != fromClose) {
 			return fmt.Errorf("value window differs from its frozen reveal deadline")
 		}
 		if summary.XVerifierValueEvidenceWindowClosedHeight != nil {

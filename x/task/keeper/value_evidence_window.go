@@ -42,6 +42,61 @@ func (k Keeper) extendValueEvidenceWindow(ctx context.Context, taskID types.Task
 	return addDeadlineIndex(ctx, k.ValueEvidenceWindowCloseIndex, taskID, closeHeight)
 }
 
+// shortenValueEvidenceWindow ends the window earlier when a round closes before
+// its reveal deadline. A round closes early only once every selected Verifier
+// has an accepted result, so no value can be revealed after that height and the
+// window need not run on to the reveal deadline: it runs
+// verifier_value_evidence_window_blocks from the close, which is the full
+// admission period for the last reveal. Without this a Task whose Verifiers all
+// revealed within a few blocks still waited out the unused rest of the reveal
+// window before it could settle.
+//
+// It only ever moves the close height earlier, and only while the window is
+// open. A round that never entered revealing, or that closed at or after its
+// reveal deadline (a missing reveal), keeps the window extendValueEvidenceWindow
+// froze. A later round extends the window again as before, so the close of the
+// round that revealed last decides it. A Task whose round closed before this
+// rule existed keeps its longer window; ensureValueEvidenceWindows accepts both.
+func (k Keeper) shortenValueEvidenceWindow(ctx context.Context, taskID types.TaskKey, verifyRound uint32, closedHeight uint64) error {
+	assignment, err := k.ReadVerifierAssignment(ctx, types.NewVerifyRoundKey(taskID, verifyRound))
+	if err != nil {
+		return err
+	}
+	if assignment.RevealDeadlineHeight == 0 || closedHeight >= assignment.RevealDeadlineHeight {
+		return nil
+	}
+	summary, err := k.TaskRoundSummary.Get(ctx, taskID)
+	if errIsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if summary.XVerifierValueEvidenceCloseHeight == nil || summary.XVerifierValueEvidenceWindowClosedHeight != nil || summary.XRoundsClosedHeight != nil {
+		return nil
+	}
+	oldClose := summary.GetVerifierValueEvidenceCloseHeight()
+	params, err := k.ParamsForTask(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	closeHeight, overflow := checkedHeightAdd(closedHeight, params.Evidence.VerifierValueEvidenceWindowBlocks)
+	if overflow {
+		return fmt.Errorf("value evidence deadline overflows")
+	}
+	if closeHeight >= oldClose {
+		return nil
+	}
+	if err = k.ValueEvidenceWindowCloseIndex.Remove(ctx, types.NewDeadlineIndexKey(oldClose, taskID)); err != nil {
+		return err
+	}
+	summary.XVerifierValueEvidenceCloseHeight = &types.TaskRoundSummaryState_VerifierValueEvidenceCloseHeight{VerifierValueEvidenceCloseHeight: closeHeight}
+	if err = k.TaskRoundSummary.Set(ctx, taskID, summary); err != nil {
+		return err
+	}
+	return addDeadlineIndex(ctx, k.ValueEvidenceWindowCloseIndex, taskID, closeHeight)
+}
+
 func (k Keeper) closeValueEvidenceWindow(ctx context.Context, taskID types.TaskKey, deadline, height uint64) error {
 	summary, err := k.TaskRoundSummary.Get(ctx, taskID)
 	if err != nil {
