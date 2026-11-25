@@ -84,6 +84,9 @@ func (k Keeper) closeRoundOnce(
 	if err := k.removeVerifierActiveJobs(ctx, taskKey, verifyRound); err != nil {
 		return types.VerificationRoundState{}, false, err
 	}
+	if err := k.shortenValueEvidenceWindow(ctx, taskKey, verifyRound, closedHeight); err != nil {
+		return types.VerificationRoundState{}, false, err
+	}
 	if verifyRound == types.VerifyRoundV1 {
 		if err := k.closeRoundOneSummary(ctx, taskKey, closed, result, isExplicitRoundVerdict(result.Verdict)); err != nil {
 			return types.VerificationRoundState{}, false, err

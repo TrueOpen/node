@@ -14,8 +14,8 @@ import (
 
 // A challenge round that closes UNAVAILABLE never had an assignment, so closing
 // the value-evidence window must resolve its funding without replaying one. The
-// bond-free case matters because every shipped seed sets challenge_open_bond to
-// zero, which leaves the round with nothing to refund or slash.
+// bond-free case matters because challenge_open_bond may be zero, which leaves
+// the round with nothing to refund or slash.
 func TestValueEvidenceCloseResolvesUnavailableChallengeRound(t *testing.T) {
 	for _, bond := range []uint64{100, 0} {
 		t.Run(fmt.Sprintf("bond_%d", bond), func(t *testing.T) {

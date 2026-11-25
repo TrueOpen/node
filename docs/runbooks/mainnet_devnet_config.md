@@ -18,16 +18,9 @@ choosing its payload. That is why the freeze checklist carries it.
 
 ## Phase 1 integration seed clocks
 
-Both development seeds use the same clocks, measured in committed blocks:
-
-| Clock | Blocks | Purpose |
-| --- | ---: | --- |
-| Dispatch record deadline | 40 | Allows a short service interruption; valid recording advances immediately. |
-| Compensation claim / rebuttal | 120 / 60 | Allows diagnosis and resubmission before the bounded compensation outcome. |
-| Dispatch challenge / response | 120 / 60 | Preserves time to retrieve evidence and respond. |
-| Session withdrawal / key change / cancellation | 60 | Exceeds the 40-block record deadline, preserving in-flight recording. |
-| Verify Open deadline | 120 | Allows recovery or self-rescue when a Builder is unavailable. |
-| Epoch | 120 | Exercises pool publication and rotation regularly. |
+Both development seeds use the same clocks, measured in committed blocks, except
+for the epoch length. [phase1_network_windows.md](phase1_network_windows.md)
+lists each clock with its nominal duration.
 
 Successful commits and results advance as soon as every selected verifier has
 submitted; these deadlines do not introduce a timer before accepting them.
@@ -35,9 +28,10 @@ Verifier proposal, evidence and model challenge windows still impose their
 protocol waits. The published model manifest fixes its 100-block challenge
 window and bootstrap timeouts (inference 100, commit 20, verification 50);
 changing those requires a matching model profile, not an isolated seed edit.
-Dispatch retention remains 1440 blocks; Session history retention is 60480,
-covering the record, claim and rebuttal interval. These are integration settings,
-not production calibration. Wall-clock duration depends on actual block time.
+Dispatch records are retained for 28800 blocks and Session history for 60480,
+each covering the record, claim and rebuttal interval. These are integration
+settings, not production calibration. Wall-clock duration depends on actual
+block time.
 
 ## Required overrides
 
