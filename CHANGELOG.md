@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **Consensus-breaking: audit capability for Verifier panels.** A Cortex
+  operator may declare `audit_capability` for a model in
+  `MsgDeclareModelSupport`, alone or together with inference or verification
+  capability. Nothing draws on it yet; the panel audit that does follows.
+  - An operator that declares only audit capability needs a service bond at or
+    above the model's `support_min_stake`, as for any support. Its support row
+    is declared and fresh but never active: it carries no support vote weight
+    and does not count towards a model's active support.
+  - The capability is usable from the epoch after the one that switched it on
+    (a new declaration, a lapsed one made again, or the flag added to a live
+    row). No served task is needed first.
+  - An audit-only row renews by repeating the same declaration while it is
+    fresh; freshness then runs `support_window_epochs` from that epoch and the
+    waiting epoch is not served again. Every other unchanged live declaration
+    stays a no-op, as before.
+  - With the service parameter `min_validator_separation` set, a declaration
+    with audit capability is refused when the operator account or its service
+    address is the operator account of a bonded consensus validator or an
+    address registered to cast a validator's audit vote, or when the service
+    key is a bonded validator's consensus key. The parameter is unset by
+    default; a network that turns panel audit on should set it.
+  - New store prefix `audit_capability_declared_epoch`. It is not part of the
+    exported genesis: after an export and import a capability declared in the
+    export epoch is usable at once instead of one epoch later.
+  - Declarations without audit capability behave exactly as before.
 - **Consensus-breaking: anchor audit, material the Worker does not keep
   retrievable.** A validator that cannot obtain the opening, proof or manifest
   a Worker recorded may vote `UNAVAILABLE`.

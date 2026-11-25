@@ -63,6 +63,10 @@ type ModelCapabilitySnapshot struct {
 	InferenceCapability    bool
 	VerificationCapability bool
 	CapabilityVersion      uint64
+	// AuditCapability is the declared Verifier-panel capability. It is usable
+	// from AuditEffectiveFromEpoch on; zero means no waiting epoch is recorded.
+	AuditCapability         bool
+	AuditEffectiveFromEpoch uint64
 }
 
 type ModelSupportSnapshot struct {

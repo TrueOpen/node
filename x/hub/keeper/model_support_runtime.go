@@ -26,14 +26,14 @@ func (k Keeper) DeclareModelSupport(
 	ctx context.Context,
 	operatorAddress string,
 	modelID []byte,
-	inferenceCapability, verificationCapability bool,
+	inferenceCapability, verificationCapability, auditCapability bool,
 	height uint64,
 ) (DeclareModelSupportResult, error) {
 	_, operatorAddress, err := k.requireCanonicalAddress("operator_address", operatorAddress)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
-	if len(modelID) != shared.Hash32KeySize || (!inferenceCapability && !verificationCapability) {
+	if len(modelID) != shared.Hash32KeySize || (!inferenceCapability && !verificationCapability && !auditCapability) {
 		return DeclareModelSupportResult{}, fmt.Errorf("model_id and at least one capability are required")
 	}
 	if height == 0 {
@@ -48,6 +48,12 @@ func (k Keeper) DeclareModelSupport(
 	model, err := k.requireSupportScope(ctx, operatorAddress, modelID, currentEpoch)
 	if err != nil {
 		return DeclareModelSupportResult{}, err
+	}
+
+	if auditCapability {
+		if err := k.requireSeparateFromConsensus(ctx, operatorAddress, params.Service.MinValidatorSeparation); err != nil {
+			return DeclareModelSupportResult{}, err
+		}
 	}
 
 	capability, capabilityExists, err := k.loadModelCapability(ctx, operatorAddress, modelID)
@@ -105,22 +111,43 @@ func (k Keeper) DeclareModelSupport(
 	}
 	capabilityChanged := !capabilityExists ||
 		capability.InferenceCapability != inferenceCapability ||
-		capability.VerificationCapability != verificationCapability
+		capability.VerificationCapability != verificationCapability ||
+		capability.AuditCapability != auditCapability
 	supportLive := supportExists && oldSupport.DeclaredSupport && currentEpoch < oldSupport.SupportFreshUntilEpoch
-	if supportLive && !capabilityChanged {
-		return DeclareModelSupportResult{
-			Capability: capability,
-			Support:    oldSupport,
-			Status:     shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP,
-		}, nil
-	}
+	// A row whose only capability is audit never serves a task, so no completed
+	// duty refreshes it. Repeating the same declaration while it is live is its
+	// renewal: freshness moves forward and the audit effective epoch is kept.
+	// Every other unchanged live declaration stays a no-op.
+	auditRenewal := false
 	freshUntil := oldSupport.SupportFreshUntilEpoch
+	if supportLive && !capabilityChanged {
+		renewed := freshUntil
+		if types.IsAuditOnlyCapability(capability) {
+			renewed, err = checkedAdd(currentEpoch, uint64(params.Support.SupportWindowEpochs))
+			if err != nil {
+				return DeclareModelSupportResult{}, err
+			}
+		}
+		if renewed <= freshUntil {
+			return DeclareModelSupportResult{
+				Capability: capability,
+				Support:    oldSupport,
+				Status:     shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP,
+			}, nil
+		}
+		auditRenewal = true
+		freshUntil = renewed
+	}
 	if !supportLive {
 		freshUntil, err = checkedAdd(currentEpoch, uint64(params.Support.SupportWindowEpochs))
 		if err != nil {
 			return DeclareModelSupportResult{}, err
 		}
 	}
+	// The audit capability becomes drawable in the epoch after the one that
+	// switched it on. Switching on covers a new row, a lapsed declaration and a
+	// flag added to a live row; a renewal keeps the recorded epoch.
+	auditSwitchedOn := auditCapability && !(supportLive && capabilityExists && capability.AuditCapability)
 	if capabilityChanged {
 		if capability.CapabilityVersion == math.MaxUint64 {
 			return DeclareModelSupportResult{}, fmt.Errorf("model capability version overflow")
@@ -128,6 +155,7 @@ func (k Keeper) DeclareModelSupport(
 		capability.CapabilityVersion++
 		capability.InferenceCapability = inferenceCapability
 		capability.VerificationCapability = verificationCapability
+		capability.AuditCapability = auditCapability
 	}
 	if err := capability.Validate(); err != nil {
 		return DeclareModelSupportResult{}, err
@@ -146,7 +174,7 @@ func (k Keeper) DeclareModelSupport(
 		return DeclareModelSupportResult{}, fmt.Errorf("model support version overflow")
 	}
 	newSupport.DeclaredSupport = true
-	if !supportLive {
+	if !supportLive || auditRenewal {
 		newSupport.SupportFreshUntilEpoch = freshUntil
 		newSupport.LastRefreshHeight = height
 		newSupport.LastRefreshTaskId = nil
@@ -157,7 +185,14 @@ func (k Keeper) DeclareModelSupport(
 	if err != nil {
 		return DeclareModelSupportResult{}, err
 	}
-	if eligible {
+	if types.IsAuditOnlyCapability(capability) {
+		// An audit-only row carries no support vote weight and is never
+		// activated, so it stays outside the model's support aggregates. Panel
+		// eligibility is evaluated from the live rows at draw time, not from the
+		// suspend reason.
+		newSupport.SupportActive = false
+		newSupport.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_NONE
+	} else if eligible {
 		if newSupport.ActivationKind != types.ModelSupportActivationNone {
 			newSupport.SupportActive = true
 			newSupport.ActiveSupportStakeSnapshot = eligibleWeight
@@ -177,6 +212,16 @@ func (k Keeper) DeclareModelSupport(
 	}
 	if err := k.applyModelSupportMutation(ctx, optionalSupport(oldSupport, supportExists), newSupport, capability, currentEpoch, height); err != nil {
 		return DeclareModelSupportResult{}, err
+	}
+	auditKey := types.NewModelCapabilityKey(operatorAddress, modelID)
+	if !auditCapability {
+		if err := k.AuditCapabilityDeclaredEpoch.Remove(ctx, auditKey); err != nil && !errors.Is(err, collections.ErrNotFound) {
+			return DeclareModelSupportResult{}, err
+		}
+	} else if auditSwitchedOn {
+		if err := k.AuditCapabilityDeclaredEpoch.Set(ctx, auditKey, currentEpoch); err != nil {
+			return DeclareModelSupportResult{}, err
+		}
 	}
 	if err := k.syncLiveServiceBondStatus(ctx, operatorAddress); err != nil {
 		return DeclareModelSupportResult{}, err
