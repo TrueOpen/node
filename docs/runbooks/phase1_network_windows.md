@@ -31,6 +31,12 @@ plane; seed validation alone cannot establish that service-level result.
 | Epoch (localnet) | 600 | 5 minutes |
 | Epoch (testnet) | 14400 | 2 hours |
 
+The value-evidence window runs from the last reveal deadline. When every
+selected Verifier of a round reveals, the round closes early and the window runs
+from that close instead, so a Task whose Verifiers all revealed within a few
+blocks settles about one reveal window sooner than the deadline would allow. A
+round closed on a missing reveal keeps the deadline.
+
 Normal recording consumes the sequence immediately; the next order does not
 wait for the previous Task's finality. Selected-verifier commit completion can
 advance to reveal early. Legal sampling and proof windows retain their fixed
