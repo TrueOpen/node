@@ -314,7 +314,7 @@ func TestDeclareModelSupportResetsStaleJailMarkerOnNeverActivatedSupport(t *test
 	support.SuspendReason = types.ModelSupportSuspendReason_MODEL_SUPPORT_SUSPEND_REASON_JAIL
 	require.NoError(t, f.keeper.ModelSupport.Set(f.ctx, types.NewModelSupportKey(identity.Address, req.ModelID), support))
 
-	_, err = f.keeper.DeclareModelSupport(f.ctx, identity.Address, req.ModelID, true, false, 7)
+	_, err = f.keeper.DeclareModelSupport(f.ctx, identity.Address, req.ModelID, true, false, false, 7)
 	require.NoError(t, err)
 
 	support, err = f.keeper.GetModelSupportState(f.ctx, identity.Address, req.ModelID)

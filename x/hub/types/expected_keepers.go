@@ -113,6 +113,15 @@ type WorkerCandidateWeightProvider interface {
 	GetWorkerCandidateWeightPolicy(context.Context, uint64) (shared.WorkerCandidateWeightPolicy, error)
 }
 
+// ConsensusIdentityChecker reports whether an account, a service address or a
+// service public key belongs to block production: a bonded consensus
+// validator's operator account, a validator consensus key, or an address
+// registered to cast a validator's audit vote. Panel audit must stay separate
+// from those identities.
+type ConsensusIdentityChecker interface {
+	IsConsensusIdentity(ctx context.Context, operator, service sdk.AccAddress, servicePubkey []byte) (bool, error)
+}
+
 type TaskSafetyWindows struct {
 	ChallengeResolveWindowBlocks uint64
 	EvidenceResponseWindowBlocks uint64
@@ -127,4 +136,7 @@ type MsgServerDependencies struct {
 	TaskSafetyWindowProvider      TaskSafetyWindowProvider
 	RoleFaultConsumerGate         RoleFaultConsumerGate
 	WorkerCandidateWeightProvider WorkerCandidateWeightProvider
+	// ConsensusIdentityChecker is optional: a chain without it refuses audit
+	// capability declarations and is otherwise unchanged.
+	ConsensusIdentityChecker ConsensusIdentityChecker
 }

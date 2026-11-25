@@ -25,7 +25,7 @@ func TestEpochWeightInputsIncludeChangesBeforeReferenceAndFreezeAfterIt(t *testi
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *genesis))
 	registerTestModelProfile(t, f, "reference-weights", 1, testServiceBondMinInitial, 1)
 	modelID := testModelID(candidatePoolTestChainID, hubAddress(t, 250), "reference-weights")
-	_, err := f.keeper.DeclareModelSupport(f.ctx, identity.Address, modelID, true, true, 1)
+	_, err := f.keeper.DeclareModelSupport(f.ctx, identity.Address, modelID, true, true, false, 1)
 	require.NoError(t, err)
 	_, err = f.keeper.ProcessDirtyCandidatePools(f.ctx, 1, 8)
 	require.NoError(t, err)

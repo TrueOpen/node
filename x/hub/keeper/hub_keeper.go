@@ -1,8 +1,11 @@
 package keeper
 
 import (
+	"errors"
+	"math"
 	"strings"
 
+	"cosmossdk.io/collections"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -58,7 +61,19 @@ func (k Keeper) GetModelCapability(ctx sdk.Context, provider sdk.AccAddress, mod
 	if err != nil || !modelCapabilityKeyMatches(state, provider.String(), modelID) || state.Validate() != nil {
 		return types.ModelCapabilitySnapshot{}, false
 	}
-	return modelCapabilitySnapshot(state), true
+	snapshot := modelCapabilitySnapshot(state)
+	if state.AuditCapability {
+		declared, err := k.AuditCapabilityDeclaredEpoch.Get(ctx, types.NewModelCapabilityKey(provider.String(), modelID))
+		switch {
+		case err == nil && declared < math.MaxUint64:
+			snapshot.AuditEffectiveFromEpoch = declared + 1
+		case err == nil:
+			return types.ModelCapabilitySnapshot{}, false
+		case !errors.Is(err, collections.ErrNotFound):
+			return types.ModelCapabilitySnapshot{}, false
+		}
+	}
+	return snapshot, true
 }
 
 func (k Keeper) GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (types.ModelSupportSnapshot, bool) {
@@ -260,7 +275,7 @@ func modelCapabilitySnapshot(state types.ModelCapabilityState) types.ModelCapabi
 	return types.ModelCapabilitySnapshot{
 		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId,
 		InferenceCapability: state.InferenceCapability, VerificationCapability: state.VerificationCapability,
-		CapabilityVersion: state.CapabilityVersion,
+		CapabilityVersion: state.CapabilityVersion, AuditCapability: state.AuditCapability,
 	}
 }
 
