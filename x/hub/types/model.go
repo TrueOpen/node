@@ -111,8 +111,8 @@ func (s ProfileState) Validate() error {
 	// ADR-0040 (first slice): a profile may additionally require the Worker's
 	// anchor commitment; the two Phase 0 kinds and their order are unchanged.
 	if len(requirements) == 3 && (requirements[2].EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING ||
-		requirements[2].CommitmentSchemaVersion != shared.WorkerAnchorCommitmentSchemaVersionV1) {
-		return fmt.Errorf("the third required Worker evidence must be the anchor commitment V1 (ADR-0040)")
+		!shared.IsWorkerAnchorCommitmentSchemaVersion(requirements[2].CommitmentSchemaVersion)) {
+		return fmt.Errorf("the third required Worker evidence must be the anchor commitment V1 or V2 (ADR-0040)")
 	}
 	if strings.TrimSpace(s.RuntimeClass) != s.RuntimeClass || s.RuntimeClass == "" {
 		return fmt.Errorf("profile runtime_class must be canonical and non-empty")

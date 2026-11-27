@@ -105,6 +105,14 @@ func anchorQuorum(power, total uint64) bool {
 // (anchorMaterialUnavailable).
 func anchorTimeoutVerdict(state types.AnchorAuditState) (types.AnchorVerdictV1, string) {
 	switch {
+	case isAnchorTwoStep(state) && !anchorListRecorded(state):
+		// Two-step sampling: the selected Worker recorded no commitment list.
+		// The same omission as a missing opening, settled as the same fault.
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT, anchorListMissingReason
+	case isAnchorTwoStep(state) && len(state.Positions) == 0:
+		// The list is recorded and the chain drew no positions: the chain's
+		// omission, never the Worker's fault.
+		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT, anchorPositionsMissingReson
 	case len(state.Positions) == 0:
 		// Nothing was sampled, so there was nothing to open: never the Worker's fault.
 		return types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT, "no rows were sampled for this audit"
@@ -147,6 +155,15 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 	}
 	deadline := anchorVerdictDeadline(state)
 	if state.ResultHeight != 0 {
+		return &state, nil
+	}
+	if anchorListDeadlinePassed(state, height) {
+		// Two-step sampling: no list was accepted and none can be any more. The
+		// EndBlock queue records this outcome one block after the list deadline;
+		// settlement reads the same outcome here when that visit has not happened
+		// yet, so it never depends on the queue.
+		state.TaskVerdict, state.ResultReason = anchorTimeoutVerdict(state)
+		state.ResultSource = types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT
 		return &state, nil
 	}
 	if height < deadline {
@@ -640,6 +657,12 @@ func (k Keeper) cleanupAnchorAudit(ctx context.Context, taskKey types.TaskKey) (
 	if deleted, err := deleteFirstMapRow(ctx, k.AnchorValidatorVote,
 		collections.NewPrefixedPairRange[types.TaskKey, []byte](taskKey)); err != nil || deleted {
 		return boolCount(deleted), err
+	}
+	// The sampling queue row of a two-step audit goes with the audit.
+	if queued, err := k.AnchorSamplingDueHeight.Has(ctx, taskKey); err != nil {
+		return 0, err
+	} else if queued {
+		return 1, k.clearAnchorSamplingDue(ctx, taskKey)
 	}
 	if len(state.WorkerFaultId) != types.Hash32Len {
 		if err := k.AnchorAudit.Remove(ctx, taskKey); err != nil {

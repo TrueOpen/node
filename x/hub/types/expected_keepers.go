@@ -43,6 +43,14 @@ type RoleFaultConsumerGate interface {
 	RoleFaultConsumersClosed(ctx context.Context, taskID, evidenceDigest, faultID []byte) (bool, error)
 }
 
+// AnchorTwoStepParamsGate is the Task-owned fact the Hub needs before it
+// admits a Profile version whose anchor audit uses two-step sampling: whether
+// the current Task parameters carry the list window and the beacon count that
+// flow runs on. The Task keeper implements it.
+type AnchorTwoStepParamsGate interface {
+	AnchorTwoStepSamplingConfigured(ctx context.Context) (bool, error)
+}
+
 type FreezeSignalFailureScanRequest struct {
 	ModelID               []byte
 	ProfileVersion        uint32

@@ -33,6 +33,10 @@ const (
 	endBlockPriorityTaskSummaryPrune    endBlockQueuePriority = 200
 	endBlockPrioritySessionHistoryPrune endBlockQueuePriority = 201
 	endBlockPrioritySessionSummaryPrune endBlockQueuePriority = 202
+	// Two-step anchor sampling: list deadlines and position draws. It sorts
+	// directly after the Verifier selection queue, ahead of every task deadline
+	// of the same height, so a draw is not delayed behind settlement work.
+	endBlockPriorityAnchorSampling endBlockQueuePriority = 3
 )
 
 const (
@@ -82,6 +86,7 @@ type EndBlockSweepResult struct {
 	TaskSummaryPrune    uint64
 	SessionHistoryPrune uint64
 	SessionSummaryPrune uint64
+	AnchorSampling      uint64
 	Total               uint64
 }
 
@@ -743,6 +748,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{endBlockPriorityVerifierWindowBuild, verifyRoundHead(k.VerifierWindowBuildIndex), k.processVerifierWindowBuildIndexWithBudget, func(n uint64) { result.VerifierWindowBuild += n }},
 		{endBlockPriorityVerifierHandraiseClose, verifyRoundHead(k.VerifierHandraiseCloseIndex), k.processVerifierHandraiseCloseIndexWithBudget, func(n uint64) { result.VerifierHandraiseClose += n }},
 		{endBlockPriorityVerifierSelectionRandomness, verifyRoundHead(k.VerifierSelectionRandomnessIndex), k.processVerifierSelectionRandomnessIndexWithBudget, func(n uint64) { result.VerifierSelectionRandomness += n }},
+		{endBlockPriorityAnchorSampling, taskHead(k.AnchorSamplingDueIndex), conservativeRun(k.processAnchorSamplingDue, anchorSamplingSweepConservativeBytesV1), func(n uint64) { result.AnchorSampling += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_WORKER_INFER), taskHead(k.InferDeadlineIndex), recordedRun(k.processExpiredInferDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.InferDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_OPEN), taskHead(k.VerifyOpenDeadlineIndex), recordedRun(k.processExpiredVerifyOpenDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.VerifyOpenDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_COMMIT), taskHead(k.CommitDeadlineIndex), recordedRun(k.processExpiredCommitDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.CommitDeadline += n }},

@@ -125,10 +125,15 @@ type Keeper struct {
 	// with a frozen fixed-length eligibility bitmap plus dense rank members.
 	// Commit / ResultReceipt / FullResultReveal are keyed by the commit_key,
 	// which is the only registered derivation and the only one that binds chain_id.
-	InferReceipt                        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
-	AnchorAudit                         collections.Map[types.TaskKey, types.AnchorAuditState]
-	AnchorValidatorVote                 collections.Map[collections.Pair[types.TaskKey, []byte], types.AnchorValidatorVoteState]
-	AnchorVoteKey                       collections.Map[[]byte, types.AnchorVoteKeyState]
+	InferReceipt        collections.Map[types.TaskKey, internaltypes.InferReceiptStoreState]
+	AnchorAudit         collections.Map[types.TaskKey, types.AnchorAuditState]
+	AnchorValidatorVote collections.Map[collections.Pair[types.TaskKey, []byte], types.AnchorValidatorVoteState]
+	AnchorVoteKey       collections.Map[[]byte, types.AnchorVoteKeyState]
+	// AnchorSamplingDueIndex is the EndBlock queue of two-step anchor audits
+	// (one row per open audit: its list deadline, then its position draw);
+	// AnchorSamplingDueHeight names that row by task.
+	AnchorSamplingDueIndex              collections.KeySet[types.DeadlineIndexKey]
+	AnchorSamplingDueHeight             collections.Map[types.TaskKey, uint64]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
 	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
@@ -313,6 +318,8 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		AnchorAudit:                         collections.NewMap(sb, types.AnchorAuditKey, "anchor_audit", types.Hash32KeyCodec, codec.CollValue[types.AnchorAuditState](cdc)),
 		AnchorValidatorVote:                 collections.NewMap(sb, types.AnchorValidatorVoteKey, "anchor_validator_vote", collections.PairKeyCodec(types.Hash32KeyCodec, collections.BytesKey), codec.CollValue[types.AnchorValidatorVoteState](cdc)),
 		AnchorVoteKey:                       collections.NewMap(sb, types.AnchorVoteDelegationKey, "anchor_vote_key", collections.BytesKey, codec.CollValue[types.AnchorVoteKeyState](cdc)),
+		AnchorSamplingDueIndex:              collections.NewKeySet(sb, types.AnchorSamplingDueIndexKey, "anchor_sampling_due_index", deadlineKeyCodec),
+		AnchorSamplingDueHeight:             collections.NewMap(sb, types.AnchorSamplingDueHeightKey, "anchor_sampling_due_height", types.Hash32KeyCodec, collections.Uint64Value),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
 		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),

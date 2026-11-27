@@ -339,6 +339,11 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Record the winner Worker's proof package over its anchor opening (ADR-0040 v2)",
 				},
 				{
+					RpcMethod: "SubmitAnchorCommitmentList",
+					Use:       "submit-anchor-commitment-list",
+					Short:     "Record the winner Worker's commitment-list hash for a task selected by two-step anchor sampling",
+				},
+				{
 					RpcMethod: "SubmitAnchorAuditResult",
 					Use:       "submit-anchor-audit-result",
 					Short:     "Record a selected Verifier's advisory anchor audit verdicts (ADR-0040 v1)",

@@ -57,6 +57,11 @@ func (m msgServer) RegisterModelProfile(ctx context.Context, req *types.MsgRegis
 	if replay {
 		return registrationResponse(profile, digest, true), nil
 	}
+	// Checked after the replay answer, like the stake clamp: an accepted
+	// registration stays reachable whatever the parameters are today.
+	if err := m.k.requireAnchorTwoStepReady(cache, req.Profile.VerificationProfile.EvidenceSchema, sdkContextHeight(cacheCtx)); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidModel, err.Error())
+	}
 	coins := sdk.NewCoins(sdk.NewCoin(params.Phase0.BusinessDenom, sdkmath.NewIntFromUint64(fee)))
 	if err := m.k.bankKeeper.SendCoinsFromAccountToModule(cache, sdk.AccAddress(proposerBytes), types.TreasuryModuleName, coins); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidModel, err.Error())

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- **Two-step sampling of the anchor audit (off by default).** A Profile
+  version whose anchor evidence requirement carries
+  `commitment_schema_version = 2` is audited in two steps: the first beacon
+  only selects the task; the selected Worker records the hash of its per-row
+  commitment list with `MsgSubmitAnchorCommitmentList`; the positions are then
+  drawn in EndBlock from the aggregated proposer-VRF beacons of the
+  `anchor_position_beacon_blocks` heights after the block that included the
+  list. Opening and proof deadlines count from the draw.
+  - The first accepted list is final: the same hash and size again is a NOOP,
+    any other content is refused for the rest of the audit, and the message is
+    refused after `list_deadline_height`.
+  - No list by the deadline ends the audit REJECT with source `TIMEOUT`, settled
+    as the existing timeout fault (the fault of a missing opening: the smaller
+    slash, no jail, Task not paid). Everything the chain owes the audit can only
+    delay it or end it NO_VERDICT: a contributing beacon that is missing or is
+    not a proposer-VRF value restarts the window with fresh heights, and a draw
+    that could no longer leave the full opening, proof and verdict windows is
+    not made.
+  - New parameters `verification.anchor_list_window_blocks` and
+    `verification.anchor_position_beacon_blocks`, both zero by default
+    (recommended 1,800 and 8). No `Default*` value changes. Registering a
+    version-2 Profile is refused unless both are set and
+    `beacon.vrf_required_from_height` is set and reached.
+  - Profiles of schema version 1, unselected tasks and audits in flight are
+    unchanged: a one-step audit row is byte for byte the previous one. The Task
+    parameter commitment changes because it frames every field. Two new store
+    prefixes inside the Task store (the sampling queue); no store key change.
 - **Consensus-breaking: anchor audit, material the Worker does not keep
   retrievable.** A validator that cannot obtain the opening, proof or manifest
   a Worker recorded may vote `UNAVAILABLE`.

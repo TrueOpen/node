@@ -24,6 +24,37 @@ import (
 type anchorHubStub struct {
 	*verificationHubStub
 	bond uint64
+	// anchorSchema, when non-zero, is the commitment schema version of the
+	// anchor evidence requirement the stubbed Profile carries. A receipt with
+	// an anchor commitment is only ever admitted against a Profile that requires
+	// it, and sampling reads the sampling mode from that requirement.
+	anchorSchema uint32
+}
+
+// withAnchorRequirement returns profile with the anchor evidence requirement
+// of the given schema version appended (replaced when one is present).
+func withAnchorRequirement(profile hubtypes.ProfileStateSnapshot, version uint32) hubtypes.ProfileStateSnapshot {
+	schema := profile.ExecutionSnapshot.VerificationProfile.EvidenceSchema
+	kept := make([]shared.InferEvidenceRequirementV1, 0, len(schema.RequiredInferEvidence)+1)
+	for _, requirement := range schema.RequiredInferEvidence {
+		if requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING {
+			kept = append(kept, requirement)
+		}
+	}
+	schema.RequiredInferEvidence = append(kept, shared.InferEvidenceRequirementV1{
+		EvidenceKind:            shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING,
+		CommitmentSchemaVersion: version, MaxEncodedSizeBytes: 16 << 20,
+	})
+	profile.ExecutionSnapshot.VerificationProfile.EvidenceSchema = schema
+	return profile
+}
+
+func (s anchorHubStub) GetProfileState(ctx sdk.Context, modelID []byte, version uint32) (hubtypes.ProfileStateSnapshot, bool) {
+	profile, found := s.verificationHubStub.GetProfileState(ctx, modelID, version)
+	if !found || s.anchorSchema == 0 {
+		return profile, found
+	}
+	return withAnchorRequirement(profile, s.anchorSchema), true
 }
 
 func (s anchorHubStub) GetServiceBondFacts(sdk.Context, string) hubtypes.ServiceBondFacts {
@@ -72,7 +103,7 @@ type anchorFixture struct {
 func newAnchorFixture(t *testing.T, bond uint64, tokenSize uint64) *anchorFixture {
 	t.Helper()
 	vf := newVerificationFixture(t)
-	vf.keeper.hubKeeper = anchorHubStub{verificationHubStub: vf.hub, bond: bond}
+	vf.keeper.hubKeeper = anchorHubStub{verificationHubStub: vf.hub, bond: bond, anchorSchema: shared.WorkerAnchorCommitmentSchemaVersionV1}
 	valCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
 	staking := anchorStakingStub{codec: valCodec, powers: map[string]int64{}}
 	f := &anchorFixture{verificationFixture: vf, staking: staking, worker: vf.operators[0],

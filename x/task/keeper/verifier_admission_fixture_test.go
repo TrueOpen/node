@@ -30,6 +30,9 @@ type verifierAdmissionHubStub struct {
 	responsibilities          *[]hubtypes.ServiceKeyResponsibilityState
 	responsibilityReleases    *[]string
 	pendingStageDuties        *int
+	// anchorSchema, when non-zero, makes the stubbed Profile require the
+	// anchor commitment at that schema version.
+	anchorSchema uint32
 }
 
 func (s verifierAdmissionHubStub) GetCortexNode(_ sdk.Context, address sdk.AccAddress) (hubtypes.CortexNodeSnapshot, bool) {
@@ -48,10 +51,14 @@ func (s verifierAdmissionHubStub) GetProfileState(sdk.Context, []byte, uint32) (
 	if minStake == 0 {
 		minStake = 1_000_000
 	}
-	return hubtypes.ProfileStateSnapshot{
+	profile := hubtypes.ProfileStateSnapshot{
 		Status: hubtypes.ModelStatusActive, MinStake: minStake,
 		ExecutionSnapshotHash: append([]byte(nil), s.profileHash...),
-	}, true
+	}
+	if s.anchorSchema != 0 {
+		profile = withAnchorRequirement(profile, s.anchorSchema)
+	}
+	return profile, true
 }
 
 func (verifierAdmissionHubStub) IsProfileFrozen(sdk.Context, []byte, uint32) bool { return false }

@@ -73,11 +73,11 @@ func TestAnchorOnlyPendingTaskSurvivesGenesisRoundTrip(t *testing.T) {
 	require.True(t, proto.Equal(exported, again))
 }
 
-// An export taken while a sampled anchor-only task is held for its verdict
-// imports back with the zero-Verifier round and the settlement hold in place.
-func TestAnchorOnlyHeldTaskSurvivesGenesisRoundTrip(t *testing.T) {
-	f := initFixture(t)
-	chainID := genesisChainID(f)
+// anchorOnlyHeldGenesisV1 is the genesis of a sampled, selected anchor-only
+// task whose round 1 is closed and whose settlement is held for the anchor
+// verdict. It returns the genesis and the audit's verdict deadline.
+func anchorOnlyHeldGenesisV1(t *testing.T, chainID string) (*tasktypes.GenesisState, uint64) {
+	t.Helper()
 	input := anchorOnlyPendingGenesisV1(t, chainID)
 	core := &input.TaskCores[0]
 	window := input.VerifierCandidateWindows[0]
@@ -129,6 +129,17 @@ func TestAnchorOnlyHeldTaskSurvivesGenesisRoundTrip(t *testing.T) {
 	core.TaskPhase = tasktypes.TaskPhase_TASK_PHASE_SETTLING
 	core.VerificationStatus = tasktypes.VerificationStatus_VERIFICATION_STATUS_VERIFICATION_PASSED
 	core.EffectiveVerifyRound = tasktypes.VerifyRoundV1
+	return input, verdictDeadline
+}
+
+// An export taken while a sampled anchor-only task is held for its verdict
+// imports back with the zero-Verifier round and the settlement hold in place.
+func TestAnchorOnlyHeldTaskSurvivesGenesisRoundTrip(t *testing.T) {
+	f := initFixture(t)
+	input, verdictDeadline := anchorOnlyHeldGenesisV1(t, genesisChainID(f))
+	core := &input.TaskCores[0]
+	window := input.VerifierCandidateWindows[0]
+	sampledAt := window.SelectionRandomnessHeight
 	require.NoError(t, input.Validate())
 	require.NoError(t, f.keeper.InitGenesis(f.ctx, *input))
 
@@ -157,4 +168,55 @@ func TestAnchorOnlyHeldTaskSurvivesGenesisRoundTrip(t *testing.T) {
 	exported, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(input, exported))
+}
+
+// A two-step audit survives a full export and import in each waiting stage:
+// the new fields travel inside anchor_audits, the settlement hold is rebuilt on
+// the verdict deadline although the audit has no positions yet, and the
+// sampling queue row is rebuilt from the row.
+func TestTwoStepAuditSurvivesGenesisRoundTrip(t *testing.T) {
+	for name, stage := range map[string]func(audit *tasktypes.AnchorAuditState, sampledAt uint64) uint64{
+		"awaiting the list": func(audit *tasktypes.AnchorAuditState, sampledAt uint64) uint64 {
+			return audit.ListDeadlineHeight + 1
+		},
+		"awaiting the draw": func(audit *tasktypes.AnchorAuditState, sampledAt uint64) uint64 {
+			audit.CommitmentListHash, audit.CommitmentListSizeBytes = repeatByte(0x1a), 32*5
+			audit.CommitmentListUri, audit.CommitmentListHeight = "https://da.example/list", sampledAt+3
+			audit.PositionBeaconFirstHeight, audit.PositionBeaconLastHeight = sampledAt+4, sampledAt+11
+			return audit.PositionBeaconLastHeight
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := initFixture(t)
+			input, verdictDeadline := anchorOnlyHeldGenesisV1(t, genesisChainID(f))
+			sampledAt := input.VerifierCandidateWindows[0].SelectionRandomnessHeight
+			audit := &input.AnchorAudits[0]
+			audit.SamplingMode, audit.Positions = 1, nil
+			audit.OpeningDeadlineHeight, audit.ProofDeadlineHeight = 0, 0
+			audit.ListDeadlineHeight = sampledAt + 1_800
+			wantDue := stage(audit, sampledAt)
+			require.NoError(t, input.Validate())
+			require.NoError(t, f.keeper.InitGenesis(f.ctx, *input))
+
+			taskKey := tasktypes.NewTaskKey(input.TaskCores[0].TaskId)
+			held, err := f.keeper.SettlementDeadlineIndex.Has(f.ctx, tasktypes.NewDeadlineIndexKey(verdictDeadline+1, taskKey))
+			require.NoError(t, err)
+			require.True(t, held, "a two-step audit without positions still holds settlement after an import")
+			queued, err := f.keeper.AnchorSamplingDueIndex.Has(f.ctx, tasktypes.NewDeadlineIndexKey(wantDue, taskKey))
+			require.NoError(t, err)
+			require.True(t, queued, "the sampling queue row is rebuilt")
+			due, err := f.keeper.AnchorSamplingDueHeight.Get(f.ctx, taskKey)
+			require.NoError(t, err)
+			require.Equal(t, wantDue, due)
+
+			exported, err := f.keeper.ExportGenesis(f.ctx)
+			require.NoError(t, err)
+			require.True(t, proto.Equal(input, exported), "the queue is derived state and is not exported")
+			restarted := initFixture(t)
+			require.NoError(t, restarted.keeper.InitGenesis(restarted.ctx, *exported))
+			again, err := restarted.keeper.ExportGenesis(restarted.ctx)
+			require.NoError(t, err)
+			require.True(t, proto.Equal(exported, again))
+		})
+	}
 }

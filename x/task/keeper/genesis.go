@@ -1287,6 +1287,11 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 		if err := k.AnchorAudit.Set(ctx, taskID, state); err != nil {
 			return err
 		}
+		// The sampling queue is derived state: an imported two-step audit that
+		// still waits for its list or its draw gets its row back.
+		if err := k.rebuildAnchorSamplingDue(ctx, taskID, state); err != nil {
+			return err
+		}
 	}
 	if (len(genesis.AnchorValidatorVotes) > 0 || len(genesis.AnchorVoteKeys) > 0) && k.stakingKeeper == nil {
 		return fmt.Errorf("anchor validator votes require the staking keeper")
