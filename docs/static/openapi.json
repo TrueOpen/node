@@ -3417,6 +3417,7 @@
       "description": "InferEvidenceRequirementV1 freezes one evidence kind required from the\nselected Worker at InferReceipt admission.\nInferEvidenceRequirementV1 defines the InferEvidenceRequirementV1 wire type.",
       "properties": {
         "commitment_schema_version": {
+          "description": "For WORKER_ANCHOR_OPENING: 1 = one-step sampling; 2 = per-row commitment\nlist recorded after selection and two-step sampling\n(docs/ANCHOR_TWO_STEP_SAMPLING_V1.md). The value is part of\nevidence_schema_hash, so a version-2 Profile is always a new Profile version.",
           "format": "int64",
           "type": "integer"
         },
@@ -3819,6 +3820,28 @@
           "format": "int64",
           "type": "integer"
         },
+        "commitment_list_hash": {
+          "description": "Hash of the Worker's commitment list (docs/ANCHOR_TWO_STEP_SAMPLING_V1.md).\nEmpty until recorded; the first accepted value is final.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "commitment_list_height": {
+          "description": "Height of the block that included the accepted list message.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "commitment_list_size_bytes": {
+          "description": "Size of the list in bytes: 32 x rows, rows being the chain's own row\ncount of the task (prompt + generated - 1).",
+          "format": "uint64",
+          "type": "string"
+        },
+        "commitment_list_uri": {
+          "description": "Where the list can be fetched: an http:// or https:// URL under da_uri_prefix.",
+          "type": "string"
+        },
         "da_uri_prefix": {
           "description": "da_uri_prefix is the Worker's data-availability location as its service\ndescriptor published it (endpoint kind ANCHOR_DA) when the task was\nsampled; empty when the Worker had published none. When set, every\nlocation the Worker records for this audit must start with it, so a\nWorker cannot choose where its material lives after learning that it was\nsampled, and validators know in advance where a Worker's material is\nserved from. Fields 35-59 are left to the content-track contract.",
           "type": "string"
@@ -3847,6 +3870,11 @@
         },
         "late_state": {
           "$ref": "#/definitions/task.v1.AnchorLateStateV1"
+        },
+        "list_deadline_height": {
+          "description": "Last height at which MsgSubmitAnchorCommitmentList is accepted: the height\nof the block that recorded the selection plus anchor_list_window_blocks.\nZero in sampling_mode 0 and on an unselected task.",
+          "format": "uint64",
+          "type": "string"
         },
         "opening_deadline_height": {
           "description": "Height by which the Worker's opening must be recorded (ADR-0040 v6); later openings are refused.",
@@ -3886,6 +3914,23 @@
           },
           "type": "array"
         },
+        "position_beacon": {
+          "description": "The aggregated beacon the positions were drawn from; empty until the draw.",
+          "format": "trueopen-hash32",
+          "maxLength": 66,
+          "minLength": 66,
+          "pattern": "^0x[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "position_beacon_first_height": {
+          "description": "First and last height whose beacons are aggregated into position_beacon.\nBoth lie strictly after commitment_list_height. They move forward\ntogether, by a whole window, only when a beacon of the current window is\nmissing or is not a verified proposer-VRF value.",
+          "format": "uint64",
+          "type": "string"
+        },
+        "position_beacon_last_height": {
+          "format": "uint64",
+          "type": "string"
+        },
         "positions": {
           "description": "Sampled positions, strictly ascending, each in [0, rows).",
           "items": {
@@ -3893,6 +3938,11 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "positions_height": {
+          "description": "Height at which positions were written. opening_deadline_height and\nproof_deadline_height count from it.",
+          "format": "uint64",
+          "type": "string"
         },
         "proof_deadline_height": {
           "description": "Height by which the Worker's proof must be recorded (ADR-0040 v6); later proofs are refused.",
@@ -3958,6 +4008,11 @@
         "sampled": {
           "description": "Whether the beacon selected this task for an opening.",
           "type": "boolean"
+        },
+        "sampling_mode": {
+          "description": "sampling_mode is written at the first beacon from the task's Profile:\n0 = one step (the first beacon draws the coin and the positions);\n1 = two steps (the first beacon draws the coin only; the Worker of a\nselected task then records the hash of its per-row commitment list, and\nthe positions are drawn from beacons produced strictly after that record).\nAn unselected task carries the mode and nothing else of the flow.",
+          "format": "int64",
+          "type": "integer"
         },
         "selected": {
           "description": "selected is the beacon coin at audit_rate_bps: only selected tasks open, prove, vote and\nhold settlement; an unselected task settles on the round-1 verdict alone.",
@@ -4305,13 +4360,14 @@
     },
     "task.v1.AnchorTimeoutReasonV1": {
       "default": "ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED",
-      "description": "AnchorTimeoutReasonV1 names what made a selected audit a Worker timeout.\n\n - ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED: ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE: opening_deadline_height passed without a recorded opening.\n - ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE: proof_deadline_height passed without a recorded proof.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE: A panel round closed with two UNAVAILABLE votes.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE: The automatic retry round also closed without two equal votes.",
+      "description": "AnchorTimeoutReasonV1 names what made a selected audit a Worker timeout.\n\n - ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED: ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED identifies the corresponding protocol value.\n - ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE: opening_deadline_height passed without a recorded opening.\n - ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE: proof_deadline_height passed without a recorded proof.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE: A panel round closed with two UNAVAILABLE votes.\n - ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE: The automatic retry round also closed without two equal votes.\n - ANCHOR_TIMEOUT_REASON_V1_LIST_DEADLINE: Two-step sampling (sampling_mode 1): list_deadline_height passed without\na recorded commitment list.",
       "enum": [
         "ANCHOR_TIMEOUT_REASON_V1_UNSPECIFIED",
         "ANCHOR_TIMEOUT_REASON_V1_OPENING_DEADLINE",
         "ANCHOR_TIMEOUT_REASON_V1_PROOF_DEADLINE",
         "ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE",
-        "ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE"
+        "ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE",
+        "ANCHOR_TIMEOUT_REASON_V1_LIST_DEADLINE"
       ],
       "type": "string"
     },
@@ -4778,7 +4834,7 @@
     },
     "task.v1.DeadlineKindV1": {
       "default": "DEADLINE_KIND_V1_UNSPECIFIED",
-      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: Closes a Task's verifier value-evidence window; TaskDeadlineLocator, priority 30.\n - DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE: DISPATCH_CHALLENGE_RESPONSE is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL: DISPATCH_COMPENSATION_REBUTTAL is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_TAKEOVER_ACTIVATION: TAKEOVER_ACTIVATION is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_ANCHOR_VERDICT: Settlement is held until the anchor audit verdict is final (ADR-0040 v4);\nkind_priority 41. Values 14-17 belong to the Phase 1 dispatch contract.\n - DEADLINE_KIND_V1_ANCHOR_PANEL_VOTE: Vote deadline of a Verifier-panel round (anchor_audit_mode 2).\n - DEADLINE_KIND_V1_ANCHOR_PUBLICATION: End of the publication period of a provisional anchor verdict.\n - DEADLINE_KIND_V1_ANCHOR_LATE_WINDOW: End of the late-submission window after a Worker anchor timeout.\n - DEADLINE_KIND_V1_BATCH_SETTLEMENT: Per-Worker batch settlement queue; EndBlock-only.",
+      "description": "DeadlineKindV1 selects which deadline of a primary object is being swept.\n\nthe wire API is the ONLY numeric definition of this enum in the\nwhole contract: the sweep locator, the Query projection\nTaskStageViewV1.next_deadline_kind and event code 20 `deadline_swept`\nall share these numbers. The values are bound column-by-column to the locator\ntype and the same-height kind_priority of that table and are copied verbatim.\n\nDeadlineKindV1 defines the DeadlineKindV1 wire type.\n\n - DEADLINE_KIND_V1_UNSPECIFIED: Never written; rejects zero-value rows and locators.\nDEADLINE_KIND_V1_UNSPECIFIED identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_FINALITY: Optimistic finality window of one task; kind_priority 30.\nDEADLINE_KIND_V1_TASK_FINALITY identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_TASK_SETTLEMENT: Settlement deadline of one task; kind_priority 40.\nDEADLINE_KIND_V1_TASK_SETTLEMENT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_ROUND_CLOSE: Verification-round close deadline; kind_priority 20.\nDEADLINE_KIND_V1_VERIFY_ROUND_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_REVEAL: Verifier result reveal deadline; kind_priority 50.\nDEADLINE_KIND_V1_VERIFY_REVEAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_COMMIT: Verifier commit deadline; kind_priority 60.\nDEADLINE_KIND_V1_VERIFY_COMMIT identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_OPEN: Open Verify handraise window deadline; kind_priority 70.\nDEADLINE_KIND_V1_VERIFY_OPEN identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_WORKER_INFER: Winner worker inference deadline; kind_priority 80.\nDEADLINE_KIND_V1_WORKER_INFER identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_SESSION_LIFECYCLE: Session idle / close lifecycle sweep; kind_priority 100.\nDEADLINE_KIND_V1_SESSION_LIFECYCLE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFY_FINAL: Final verification deadline; kind_priority 45.\nDEADLINE_KIND_V1_VERIFY_FINAL identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE: Window in which the funded second verification round may be opened.\nDEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_EVIDENCE_CLEANUP: EvidenceCleanupIndex bounded cursor; kind_priority 110.\nDEADLINE_KIND_V1_EVIDENCE_CLEANUP identifies the corresponding protocol value.\n - DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE: Closes a Task's verifier value-evidence window; TaskDeadlineLocator, priority 30.\n - DEADLINE_KIND_V1_DISPATCH_CHALLENGE_RESPONSE: DISPATCH_CHALLENGE_RESPONSE is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_DISPATCH_COMPENSATION_REBUTTAL: DISPATCH_COMPENSATION_REBUTTAL is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_TAKEOVER_ACTIVATION: TAKEOVER_ACTIVATION is an EndBlock-only deadline.\n - DEADLINE_KIND_V1_ANCHOR_VERDICT: Settlement is held until the anchor audit verdict is final (ADR-0040 v4);\nkind_priority 41. Values 14-17 belong to the Phase 1 dispatch contract.\n - DEADLINE_KIND_V1_ANCHOR_PANEL_VOTE: Vote deadline of a Verifier-panel round (anchor_audit_mode 2).\n - DEADLINE_KIND_V1_ANCHOR_PUBLICATION: End of the publication period of a provisional anchor verdict.\n - DEADLINE_KIND_V1_ANCHOR_LATE_WINDOW: End of the late-submission window after a Worker anchor timeout.\n - DEADLINE_KIND_V1_BATCH_SETTLEMENT: Per-Worker batch settlement queue; EndBlock-only.\n - DEADLINE_KIND_V1_ANCHOR_LIST: Two-step anchor sampling: the commitment-list deadline of a selected task\nand, once the list is recorded, the height of its position draw.\nEndBlock-only.",
       "enum": [
         "DEADLINE_KIND_V1_UNSPECIFIED",
         "DEADLINE_KIND_V1_TASK_FINALITY",
@@ -4800,7 +4856,8 @@
         "DEADLINE_KIND_V1_ANCHOR_PANEL_VOTE",
         "DEADLINE_KIND_V1_ANCHOR_PUBLICATION",
         "DEADLINE_KIND_V1_ANCHOR_LATE_WINDOW",
-        "DEADLINE_KIND_V1_BATCH_SETTLEMENT"
+        "DEADLINE_KIND_V1_BATCH_SETTLEMENT",
+        "DEADLINE_KIND_V1_ANCHOR_LIST"
       ],
       "type": "string"
     },
@@ -8533,6 +8590,11 @@
           "format": "uint64",
           "type": "string"
         },
+        "anchor_list_window_blocks": {
+          "description": "Blocks after the block that records the selection within which a selected\nWorker must record its commitment list.",
+          "format": "uint64",
+          "type": "string"
+        },
         "anchor_open_window_blocks": {
           "description": "Blocks after sampling within which the Worker must record its opening. Must be \u003e 0.",
           "format": "uint64",
@@ -8551,6 +8613,11 @@
           "description": "Blocks after the draw within which a panel member's vote is accepted.",
           "format": "uint64",
           "type": "string"
+        },
+        "anchor_position_beacon_blocks": {
+          "description": "Number of consecutive block beacons, all produced after the list was\nrecorded, that are aggregated for the position draw. At least 2 whenever\nanchor_list_window_blocks is set; at most 256.",
+          "format": "int64",
+          "type": "integer"
         },
         "anchor_proof_window_blocks": {
           "description": "Blocks after the opening deadline within which the Worker must record its proof. Must be \u003e 0.",

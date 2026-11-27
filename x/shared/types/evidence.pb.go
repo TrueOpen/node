@@ -80,9 +80,13 @@ func (EvidenceKind) EnumDescriptor() ([]byte, []int) {
 // selected Worker at InferReceipt admission.
 // InferEvidenceRequirementV1 defines the InferEvidenceRequirementV1 wire type.
 type InferEvidenceRequirementV1 struct {
-	EvidenceKind            EvidenceKind `protobuf:"varint,1,opt,name=evidence_kind,json=evidenceKind,proto3,enum=shared.v1.EvidenceKind" json:"evidence_kind,omitempty"`
-	CommitmentSchemaVersion uint32       `protobuf:"varint,2,opt,name=commitment_schema_version,json=commitmentSchemaVersion,proto3" json:"commitment_schema_version,omitempty"`
-	MaxEncodedSizeBytes     uint64       `protobuf:"varint,3,opt,name=max_encoded_size_bytes,json=maxEncodedSizeBytes,proto3" json:"max_encoded_size_bytes,omitempty"`
+	EvidenceKind EvidenceKind `protobuf:"varint,1,opt,name=evidence_kind,json=evidenceKind,proto3,enum=shared.v1.EvidenceKind" json:"evidence_kind,omitempty"`
+	// For WORKER_ANCHOR_OPENING: 1 = one-step sampling; 2 = per-row commitment
+	// list recorded after selection and two-step sampling
+	// (docs/ANCHOR_TWO_STEP_SAMPLING_V1.md). The value is part of
+	// evidence_schema_hash, so a version-2 Profile is always a new Profile version.
+	CommitmentSchemaVersion uint32 `protobuf:"varint,2,opt,name=commitment_schema_version,json=commitmentSchemaVersion,proto3" json:"commitment_schema_version,omitempty"`
+	MaxEncodedSizeBytes     uint64 `protobuf:"varint,3,opt,name=max_encoded_size_bytes,json=maxEncodedSizeBytes,proto3" json:"max_encoded_size_bytes,omitempty"`
 	// WORKER_ANCHOR_OPENING only, optional: sha256 of the canonical
 	// registration.json of the verification registration (which binds the
 	// weight commitments and thresholds) this Profile version is audited
