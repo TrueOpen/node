@@ -165,14 +165,19 @@ func (k Keeper) prepareSettlementFaults(
 		inputs.Assignment.WinnerWorker != "" {
 		// ADR-0040 v6: the validators rejected the Worker's anchor proof, or its
 		// commitment could not be sampled (anchor_reject, jailed); or the Worker
-		// never opened / proved by the deadline (anchor_timeout, smaller slash).
+		// never opened / proved by the deadline, or did not keep its recorded
+		// material retrievable (anchor_timeout, smaller slash).
 		// Both take bps of the bond fixed at sampling, through the full waterfall.
 		params, err := k.ParamsForTask(ctx, types.NewTaskKey(inputs.Core.TaskId))
 		if err != nil {
 			return inputs, err
 		}
 		faultType, bps := hubtypes.FaultTypeAnchorReject, params.Verification.AnchorRejectSlashBps
-		if inputs.Anchor.ResultSource == types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT {
+		switch inputs.Anchor.ResultSource {
+		case types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT,
+			types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE:
+			// Not opening, not proving, and not keeping what was recorded
+			// retrievable are the same kind of omission: the smaller slash, no jail.
 			faultType, bps = hubtypes.FaultTypeAnchorTimeout, params.Verification.AnchorTimeoutSlashBps
 		}
 		applied, err := k.hubKeeper.ApplyTaskRoleFault(ctx, hubtypes.TaskRoleFaultFact{

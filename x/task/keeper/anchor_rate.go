@@ -45,13 +45,18 @@ func anchorSelected(state types.AnchorAuditState) bool {
 // verdict of an audit: it was sampled and selected, it has a verdict deadline
 // (audits recorded before validator votes existed have none and are advisory),
 // and it either is final already or names the rows the Worker must open. An
-// open audit without sampled rows gives the Worker nothing it could open, so it
-// never holds a round and never times out against the Worker.
+// open one-step audit without sampled rows gives the Worker nothing it could
+// open, so it never holds a round and never times out against the Worker.
+//
+// A two-step audit binds from the moment it is selected: between selection and
+// the position draw it has no rows yet, and that is exactly the span in which
+// the Worker owes its commitment list. Without this a selected Worker would be
+// paid by never posting the list.
 func anchorAuditBinds(state types.AnchorAuditState) bool {
 	if !state.Sampled || !anchorSelected(state) || anchorVerdictDeadline(state) == 0 {
 		return false
 	}
-	return state.ResultHeight != 0 || len(state.Positions) > 0
+	return state.ResultHeight != 0 || len(state.Positions) > 0 || isAnchorTwoStep(state)
 }
 
 // anchorAuditRateBps computes s in basis points from R, the active bond, the

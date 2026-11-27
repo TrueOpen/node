@@ -8,6 +8,11 @@ const (
 	WorkerTokenCommitmentSchemaVersionV1 = uint32(1)
 	// WorkerAnchorCommitmentSchemaVersionV1 is the first anchor-commitment schema (ADR-0040).
 	WorkerAnchorCommitmentSchemaVersionV1 = uint32(1)
+	// WorkerAnchorCommitmentSchemaVersionV2 marks a Profile whose anchor audit
+	// uses two-step sampling: the selected Worker records the hash of its
+	// per-row commitment list before the positions are drawn. The receipt
+	// commitment itself is encoded as in V1.
+	WorkerAnchorCommitmentSchemaVersionV2 = uint32(2)
 	MaxEvidenceEncodedSizeBytesV1         = uint64(1 << 40)
 )
 
@@ -132,4 +137,23 @@ func CanonicalEvidenceSchemaTypedFrameV1(schema EvidenceSchemaV1) CanonicalFrame
 		Raw(Uint32BE(schema.SchemaVersion)).
 		Nested(CanonicalRepeatedFramesV1(elements)).
 		Build()
+}
+
+// IsWorkerAnchorCommitmentSchemaVersion reports whether version is an anchor
+// commitment schema this chain admits.
+func IsWorkerAnchorCommitmentSchemaVersion(version uint32) bool {
+	return version == WorkerAnchorCommitmentSchemaVersionV1 || version == WorkerAnchorCommitmentSchemaVersionV2
+}
+
+// AnchorTwoStepSamplingRequired reports whether an evidence schema asks for
+// two-step sampling of the anchor audit: its anchor requirement carries
+// commitment schema version 2. found is false when the schema has no anchor
+// requirement at all.
+func AnchorTwoStepSamplingRequired(schema EvidenceSchemaV1) (twoStep bool, found bool) {
+	for _, requirement := range schema.RequiredInferEvidence {
+		if requirement.EvidenceKind == EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING {
+			return requirement.CommitmentSchemaVersion == WorkerAnchorCommitmentSchemaVersionV2, true
+		}
+	}
+	return false, false
 }

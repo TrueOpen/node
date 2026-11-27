@@ -403,7 +403,7 @@ func validateLockedProfileEvidenceCommitments(
 			requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_VALUE_OPENING) ||
 			index == 1 && (requirement.CommitmentSchemaVersion != shared.WorkerTokenCommitmentSchemaVersionV1 ||
 				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_TOKEN_OPENING) ||
-			index == 2 && (requirement.CommitmentSchemaVersion != shared.WorkerAnchorCommitmentSchemaVersionV1 ||
+			index == 2 && (!shared.IsWorkerAnchorCommitmentSchemaVersion(requirement.CommitmentSchemaVersion) ||
 				requirement.EvidenceKind != shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING) {
 			return fmt.Errorf("required_evidence_commitments[%d] uses an unsupported commitment schema", index)
 		}

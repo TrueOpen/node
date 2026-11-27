@@ -151,6 +151,8 @@ var (
 	AnchorAuditKey                         = MustVersionedStorePrefix("anchor_audit", CurrentStoreSchemaVersion)
 	AnchorValidatorVoteKey                 = MustVersionedStorePrefix("anchor_validator_vote", CurrentStoreSchemaVersion)
 	AnchorVoteDelegationKey                = MustVersionedStorePrefix("anchor_vote_key", CurrentStoreSchemaVersion)
+	AnchorSamplingDueIndexKey              = MustVersionedStorePrefix("anchor_sampling_due_index", CurrentStoreSchemaVersion)
+	AnchorSamplingDueHeightKey             = MustVersionedStorePrefix("anchor_sampling_due_height", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowMemberKey       = MustVersionedStorePrefix("verifier_candidate_window_member", CurrentStoreSchemaVersion)

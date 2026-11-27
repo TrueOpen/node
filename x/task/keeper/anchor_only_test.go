@@ -88,6 +88,13 @@ const (
 // two-commitment Profile) and has it ready for a receipt and for settlement.
 func newAnchorOnlyFixture(t *testing.T, bond uint64, anchorSchema bool) *anchorOnlyFixture {
 	t.Helper()
+	return newAnchorOnlyFixtureWithSchema(t, bond, anchorSchema, shared.WorkerAnchorCommitmentSchemaVersionV1)
+}
+
+// newAnchorOnlyFixtureWithSchema is newAnchorOnlyFixture with the commitment
+// schema version of the Profile's anchor requirement chosen by the caller.
+func newAnchorOnlyFixtureWithSchema(t *testing.T, bond uint64, anchorSchema bool, anchorSchemaVersion uint32) *anchorOnlyFixture {
+	t.Helper()
 	af := newAnchorFixture(t, bond, anchorGoodTokenSize)
 	faults := &[]hubtypes.TaskRoleFaultFact{}
 	credits := &[]hubtypes.TaskEarningsCredit{}
@@ -106,7 +113,7 @@ func newAnchorOnlyFixture(t *testing.T, bond uint64, anchorSchema bool) *anchorO
 	if anchorSchema {
 		schema.RequiredInferEvidence = append(schema.RequiredInferEvidence, shared.InferEvidenceRequirementV1{
 			EvidenceKind:            shared.EvidenceKind_EVIDENCE_KIND_WORKER_ANCHOR_OPENING,
-			CommitmentSchemaVersion: shared.WorkerAnchorCommitmentSchemaVersionV1, MaxEncodedSizeBytes: 16 << 20,
+			CommitmentSchemaVersion: anchorSchemaVersion, MaxEncodedSizeBytes: 16 << 20,
 		})
 	}
 	verification := profile.ExecutionSnapshot.VerificationProfile
@@ -969,6 +976,8 @@ func TestInFlightVerifierTaskWithAnAnchorReceiptKeepsTheVerifierPath(t *testing.
 		selectionBeacon: hubtypes.BeaconSnapshot{Height: 30, Randomness: bytes.Repeat([]byte{0x52}, types.Hash32Len)},
 		reservations:    &reservations, reservationAttempts: &attempts,
 		responsibilities: &responsibilities, responsibilityReleases: &releases,
+		// The Profile this receipt was admitted against requires the anchor commitment.
+		anchorSchema: shared.WorkerAnchorCommitmentSchemaVersionV1,
 	}}
 
 	// The EndBlock selection sweep is where the two modes part.

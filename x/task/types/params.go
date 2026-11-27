@@ -122,6 +122,29 @@ const (
 	RecommendedAnchorOpenWindowBlocks    = RecommendedAnchorOpenWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 	RecommendedAnchorProofWindowBlocks   = RecommendedAnchorProofWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
 	RecommendedAnchorVerdictWindowBlocks = RecommendedAnchorVerdictWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	// Two-step anchor sampling. There is no Default* value for either
+	// parameter: both are zero unless a network sets them, and zero leaves every
+	// Profile on one-step sampling. The Recommended* values are what a network
+	// that enables the flow should start from, and what the chain itself falls
+	// back to for a task of a two-step Profile whose frozen parameters carry
+	// none (it never falls back to one-step sampling for such a task).
+	//
+	// RecommendedAnchorListWindowSeconds is the time a selected Worker has to
+	// record its commitment list: the same as the opening window. The position
+	// draw follows the list message, not the end of the window, so a long window
+	// costs a Worker that records its list nothing.
+	RecommendedAnchorListWindowSeconds = uint64(900)
+	RecommendedAnchorListWindowBlocks  = RecommendedAnchorListWindowSeconds * 1000 / AnchorWindowReferenceBlockMillis
+	// RecommendedAnchorPositionBeaconBlocks is the number of consecutive block
+	// beacons aggregated for the position draw. It is a starting value for a
+	// small validator set, not a derived bound: it must exceed the longest run of
+	// consecutive proposer slots a group below the fault threshold can hold.
+	RecommendedAnchorPositionBeaconBlocks = uint32(8)
+	// AnchorPositionBeaconBlocksMinimum and Maximum bound that number whenever
+	// two-step sampling is configured. Two is the least that makes the value
+	// unknown to the proposer of the block that includes the list.
+	AnchorPositionBeaconBlocksMinimum = uint32(2)
+	AnchorPositionBeaconBlocksMaximum = uint32(256)
 	// ADR-0040 v5: floor of the per-task audit probability (5%). The floor must
 	// be positive: with a floor of zero a task whose order is worth nothing to
 	// cheat on would never be audited.
@@ -687,7 +710,45 @@ func validateVerificationParams(p VerificationParamsV1) error {
 			return err
 		}
 	}
+	return validateAnchorTwoStepParams(p)
+}
+
+// validateAnchorTwoStepParams checks the two parameters of two-step anchor
+// sampling. They are set together or not at all: a list window without a
+// beacon count could not draw, and a beacon count without a window is a
+// configuration that does nothing.
+func validateAnchorTwoStepParams(p VerificationParamsV1) error {
+	if p.AnchorListWindowBlocks == 0 && p.AnchorPositionBeaconBlocks == 0 {
+		return nil
+	}
+	if p.AnchorListWindowBlocks == 0 {
+		return fmt.Errorf("verification.anchor_list_window_blocks must be set when verification.anchor_position_beacon_blocks is")
+	}
+	if p.AnchorListWindowBlocks > AnchorWindowBlocksMaximum {
+		return fmt.Errorf("verification.anchor_list_window_blocks must be <= %d", AnchorWindowBlocksMaximum)
+	}
+	if p.AnchorPositionBeaconBlocks < AnchorPositionBeaconBlocksMinimum || p.AnchorPositionBeaconBlocks > AnchorPositionBeaconBlocksMaximum {
+		return fmt.Errorf("verification.anchor_position_beacon_blocks must be in %d..%d when verification.anchor_list_window_blocks is set",
+			AnchorPositionBeaconBlocksMinimum, AnchorPositionBeaconBlocksMaximum)
+	}
 	return nil
+}
+
+// AnchorTwoStepConfigured reports whether the body carries the parameters of
+// two-step anchor sampling.
+func (v VerificationParamsV1) AnchorTwoStepConfigured() bool {
+	return v.AnchorListWindowBlocks != 0 && v.AnchorPositionBeaconBlocks >= AnchorPositionBeaconBlocksMinimum
+}
+
+// AnchorTwoStepWindows returns the list window and the beacon count a task of
+// a two-step Profile runs with: the frozen parameters when they are set, the
+// Recommended* values otherwise. The fallback exists so that such a task is
+// never sampled in one step.
+func (v VerificationParamsV1) AnchorTwoStepWindows() (listWindow uint64, beaconBlocks uint64) {
+	if v.AnchorTwoStepConfigured() {
+		return v.AnchorListWindowBlocks, uint64(v.AnchorPositionBeaconBlocks)
+	}
+	return RecommendedAnchorListWindowBlocks, uint64(RecommendedAnchorPositionBeaconBlocks)
 }
 
 // AnchorWindowBlocksMaximum caps each anchor window (ADR-0040 v6) so deadline
@@ -695,8 +756,14 @@ func validateVerificationParams(p VerificationParamsV1) error {
 const AnchorWindowBlocksMaximum = uint64(1_000_000)
 
 // AnchorTotalWindowBlocks is how long after sampling an audit may stay open.
+// With two-step sampling configured it includes the list window and the
+// beacon blocks of the position draw.
 func (v VerificationParamsV1) AnchorTotalWindowBlocks() uint64 {
-	return v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks
+	total := v.AnchorOpenWindowBlocks + v.AnchorProofWindowBlocks + v.AnchorVerdictWindowBlocks
+	if v.AnchorTwoStepConfigured() {
+		total += v.AnchorListWindowBlocks + uint64(v.AnchorPositionBeaconBlocks)
+	}
+	return total
 }
 
 // AnchorAuditRiskMarginMaximum caps the risk margin k at 100x (ADR-0040 v5).
@@ -1113,7 +1180,7 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 }
 
 // verificationParamsCanonicalFields frames VerificationParamsV1 for the params
-// hash: every field, in field-number order (7..13 are ADR-0040).
+// hash: every field, in field-number order.
 func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
 	return shared.RawCanonicalFieldsV1(
 		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
@@ -1126,5 +1193,33 @@ func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.Canonica
 		shared.Uint64BE(v.AnchorOpenWindowBlocks),
 		shared.Uint64BE(v.AnchorProofWindowBlocks),
 		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+		// 18..41: Verifier-panel audit, late submission, batch settlement.
+		shared.Uint32BE(v.AnchorAuditMode),
+		shared.Uint32BE(v.AnchorPanelSize),
+		shared.Uint32BE(v.AnchorPanelThreshold),
+		shared.Uint64BE(v.AnchorPanelVoteWindowBlocks),
+		shared.Uint64BE(v.AnchorPublicationWindowBlocks),
+		shared.Uint64BE(v.AnchorLateWindowBlocks),
+		shared.Uint32BE(v.AnchorTimeoutFreeCount),
+		shared.Uint64BE(v.AnchorTimeoutRollingWindowBlocks),
+		shared.Uint32BE(v.AnchorReauditRewardBps),
+		shared.Uint32BE(v.AnchorVerifierWrongVoteSlashBps),
+		shared.Uint32BE(v.AnchorVerifierMissTriggerCount),
+		shared.Uint64BE(v.AnchorVerifierMissWindowBlocks),
+		shared.Uint32BE(v.AnchorVerifierMissSlashFromTrigger),
+		shared.Uint32BE(v.AnchorVerifierMissSlashBps),
+		shared.Uint32BE(v.AnchorVerifierBondMultiple),
+		shared.Uint64BE(v.AnchorVerifierAllowanceWindowBlocks),
+		shared.Uint32BE(v.AnchorBrakeMinCases),
+		shared.Uint32BE(v.AnchorBrakeMultipleX1000),
+		shared.Uint32BE(v.AnchorBrakeBaselinePeriods),
+		shared.Uint64BE(v.BatchSettlementPeriodBlocks),
+		shared.Uint32BE(v.BatchSettlementMaxWorkersPerBlock),
+		shared.Uint32BE(v.LogprobRejectSlashBps),
+		shared.Uint32BE(v.LogprobVerifierWrongVoteSlashBps),
+		shared.Uint64BE(v.InputTokenTolerance),
+		// 42..43: two-step anchor sampling.
+		shared.Uint64BE(v.AnchorListWindowBlocks),
+		shared.Uint32BE(v.AnchorPositionBeaconBlocks),
 	)
 }

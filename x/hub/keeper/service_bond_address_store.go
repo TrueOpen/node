@@ -15,7 +15,18 @@ func (k Keeper) serviceBondToStore(state types.ServiceBondState) (internaltypes.
 	if err != nil {
 		return internaltypes.ServiceBondStoreState{}, err
 	}
+	funders := make([][]byte, 0, len(state.BondFunderAddresses))
+	for _, funder := range state.BondFunderAddresses {
+		stored, err := k.accountAddressToStore("service bond funder", funder, false)
+		if err != nil {
+			return internaltypes.ServiceBondStoreState{}, err
+		}
+		funders = append(funders, stored)
+	}
 	return internaltypes.ServiceBondStoreState{
+		BondFunderAddresses:        funders,
+		DispatchPaused:             state.DispatchPaused,
+		PauseReasons:               state.PauseReasons,
 		OperatorAddress:            address,
 		ActiveBond:                 state.ActiveBond,
 		EffectiveActiveBond:        state.EffectiveActiveBond,
@@ -36,7 +47,18 @@ func (k Keeper) ProjectServiceBondStore(stored internaltypes.ServiceBondStoreSta
 	if err != nil {
 		return types.ServiceBondState{}, err
 	}
+	var funders []string
+	for _, funder := range stored.BondFunderAddresses {
+		text, err := k.accountAddressFromStore("service bond funder", funder, false)
+		if err != nil {
+			return types.ServiceBondState{}, err
+		}
+		funders = append(funders, text)
+	}
 	return types.ServiceBondState{
+		BondFunderAddresses:        funders,
+		DispatchPaused:             stored.DispatchPaused,
+		PauseReasons:               stored.PauseReasons,
 		OperatorAddress:            address,
 		ActiveBond:                 stored.ActiveBond,
 		EffectiveActiveBond:        stored.EffectiveActiveBond,

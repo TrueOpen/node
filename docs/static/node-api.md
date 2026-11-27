@@ -2,7 +2,7 @@
 
 > Generated from the current branch protobuf FileDescriptorSet by `scripts/generate_node_api_doc.go`. The descriptor is the authority for registered Msg and Query methods; blocked or internal-only methods are intentionally absent.
 
-> Scope: 129 registered `hub.v1` and `task.v1` Msg/Query RPCs.
+> Scope: 142 registered `hub.v1` and `task.v1` Msg/Query RPCs.
 
 ## 1. Client contract
 
@@ -82,6 +82,7 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `hub` | `Query` | [`Treasury`](#rpc-hub-treasury) | `/TrueOpen/hub/v1/treasury` |
 | `hub` | `Query` | [`ValidatorBridgeSigner`](#rpc-hub-validatorbridgesigner) | `/TrueOpen/hub/v1/bridge/validator_signer/{operator_address}` |
 | `hub` | `Query` | [`VrfKey`](#rpc-hub-vrfkey) | `/TrueOpen/hub/v1/vrf_key/{operator_address}` |
+| `hub` | `Query` | [`WorkerQuota`](#rpc-hub-workerquota) | `/TrueOpen/hub/v1/worker_quota/{operator_address}` |
 | `task` | `Msg` | [`BatchSubmitVerifyCommit`](#rpc-task-batchsubmitverifycommit) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`BatchSubmitVerifyResult`](#rpc-task-batchsubmitverifyresult) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`CancelOrder`](#rpc-task-cancelorder) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
@@ -96,12 +97,16 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `task` | `Msg` | [`RebutDispatchCompensation`](#rpc-task-rebutdispatchcompensation) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`RecordDispatch`](#rpc-task-recorddispatch) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`RegisterAnchorVoteKey`](#rpc-task-registeranchorvotekey) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
+| `task` | `Msg` | [`ReleaseAnchorBrake`](#rpc-task-releaseanchorbrake) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`ReportDataUnavailable`](#rpc-task-reportdataunavailable) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`ReportDispatchRosterUnavailable`](#rpc-task-reportdispatchrosterunavailable) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
+| `task` | `Msg` | [`RequestAnchorReaudit`](#rpc-task-requestanchorreaudit) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`RespondDispatchChallenge`](#rpc-task-responddispatchchallenge) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SettleTask`](#rpc-task-settletask) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitAnchorAuditResult`](#rpc-task-submitanchorauditresult) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
+| `task` | `Msg` | [`SubmitAnchorCommitmentList`](#rpc-task-submitanchorcommitmentlist) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitAnchorOpening`](#rpc-task-submitanchoropening) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
+| `task` | `Msg` | [`SubmitAnchorPanelVote`](#rpc-task-submitanchorpanelvote) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitAnchorProof`](#rpc-task-submitanchorproof) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitAnchorValidatorVote`](#rpc-task-submitanchorvalidatorvote) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Msg` | [`SubmitBuilderEvidence`](#rpc-task-submitbuilderevidence) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
@@ -117,6 +122,9 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `task` | `Msg` | [`WithdrawSession`](#rpc-task-withdrawsession) | Broadcast a signed transaction through `/cosmos/tx/v1beta1/txs` |
 | `task` | `Query` | [`AnchorAudit`](#rpc-task-anchoraudit) | `/TrueOpen/task/v1/task/{task_id}/anchor_audit` |
 | `task` | `Query` | [`AnchorAuditsPending`](#rpc-task-anchorauditspending) | `/TrueOpen/task/v1/anchor_audits/pending` |
+| `task` | `Query` | [`AnchorAuditsUnderReview`](#rpc-task-anchorauditsunderreview) | `/TrueOpen/task/v1/anchor_audits/under_review` |
+| `task` | `Query` | [`AnchorBrake`](#rpc-task-anchorbrake) | `/TrueOpen/task/v1/anchor_brake/{model_id}` |
+| `task` | `Query` | [`AnchorPanelAssignments`](#rpc-task-anchorpanelassignments) | `/TrueOpen/task/v1/anchor_panel_assignments/{verifier_operator_address}` |
 | `task` | `Query` | [`AnchorVoteKey`](#rpc-task-anchorvotekey) | `/TrueOpen/task/v1/anchor_vote_key/{validator_operator_address}` |
 | `task` | `Query` | [`AnchorVotes`](#rpc-task-anchorvotes) | `/TrueOpen/task/v1/task/{task_id}/anchor_votes` |
 | `task` | `Query` | [`BuilderDataUnavailable`](#rpc-task-builderdataunavailable) | `/TrueOpen/task/v1/task/{task_id}/builder_data_unavailable/{verify_round}/{builder_operator_address}` |
@@ -150,10 +158,15 @@ The table below lists every custom module RPC in this version. Msg methods are b
 | `task` | `Query` | [`TaskStage`](#rpc-task-taskstage) | `/TrueOpen/task/v1/task/{task_id}/stage` |
 | `task` | `Query` | [`VerificationRound`](#rpc-task-verificationround) | `/TrueOpen/task/v1/task/{task_id}/verification_round/{verify_round}` |
 | `task` | `Query` | [`VerifierAssignment`](#rpc-task-verifierassignment) | `/TrueOpen/task/v1/task/{task_id}/verifier_assignment/{verify_round}` |
+| `task` | `Query` | [`VerifierAuditStanding`](#rpc-task-verifierauditstanding) | `/TrueOpen/task/v1/verifier/{operator_address}/audit_standing` |
 | `task` | `Query` | [`VerifierCandidateWindow`](#rpc-task-verifiercandidatewindow) | `/TrueOpen/task/v1/task/{task_id}/verifier_window/{verify_round}` |
 | `task` | `Query` | [`VerifierValueEvidence`](#rpc-task-verifiervalueevidence) | `/TrueOpen/task/v1/task/{task_id}/verifier_value_evidence/{verify_round}/{target_operator_address}` |
 | `task` | `Query` | [`VerifyCommit`](#rpc-task-verifycommit) | `/TrueOpen/task/v1/task/{task_id}/commit/{verify_round}/{verifier_operator_address}` |
+| `task` | `Query` | [`WorkerBatch`](#rpc-task-workerbatch) | `/TrueOpen/task/v1/worker/{operator_address}/batch/{period}` |
+| `task` | `Query` | [`WorkerBatchTasks`](#rpc-task-workerbatchtasks) | `/TrueOpen/task/v1/worker/{operator_address}/batch/{period}/tasks` |
+| `task` | `Query` | [`WorkerBatches`](#rpc-task-workerbatches) | `/TrueOpen/task/v1/worker/{operator_address}/batches` |
 | `task` | `Query` | [`WorkerEvidence`](#rpc-task-workerevidence) | `/TrueOpen/task/v1/task/{task_id}/worker_evidence/{worker_operator_address}/{seq}` |
+| `task` | `Query` | [`WorkerLateSubmissions`](#rpc-task-workerlatesubmissions) | `/TrueOpen/task/v1/worker/{worker_operator_address}/late_submissions` |
 
 ### <a id="rpc-hub-batchconfirmmodelsupport"></a> `hub.BatchConfirmModelSupport`
 
@@ -253,6 +266,7 @@ Request parameters:
 | `model_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The canonical identifier of a model registered with the Hub. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
 | `inference_capability` | `bool` | inference capability; this field is part of the protocol state or of the request. | Set by the caller as an explicit business choice; do not infer state from the field's default value. | Checked together with the current lifecycle and the Integration Profile; it cannot bypass permissions or frozen parameters. |
 | `verification_capability` | `bool` | verification capability; this field is part of the protocol state or of the request. | Set by the caller as an explicit business choice; do not infer state from the field's default value. | Checked together with the current lifecycle and the Integration Profile; it cannot bypass permissions or frozen parameters. |
+| `audit_capability` | `bool` | The operator audits anchor proofs of this model on a Verifier panel. It needs neither a GPU nor verification_capability. Refused for an account, service address or key of a bonded consensus validator when min_validator_separation is set. | Set by the caller as an explicit business choice; do not infer state from the field's default value. | Checked together with the current lifecycle and the Integration Profile; it cannot bypass permissions or frozen parameters. |
 
 Response fields:
 
@@ -1511,6 +1525,7 @@ Response fields:
 | `capability.inference_capability` | `bool` | inference capability; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `capability.verification_capability` | `bool` | verification capability; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `capability.capability_version` | `uint64` / JSON decimal string | capability version; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `capability.audit_capability` | `bool` | The operator may be drawn for Verifier panels of this model. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-hub-modelsupport"></a> `hub.ModelSupport`
 
@@ -1761,6 +1776,9 @@ Response fields:
 | `bond.normal_action_count_since_jail` | `uint32` | normal action count since jail; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `bond.last_stake_height` | `uint64` / JSON decimal string | last stake height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `bond.last_unstake_height` | `uint64` / JSON decimal string | last unstake height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `bond.bond_funder_addresses` | array<`string`> | Accounts that funded the bond: the signer of the first stake message and of later top-ups from other accounts, at most four. A Verifier whose bond shares a funder with a Worker's bond is not drawn to audit that Worker. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `bond.dispatch_paused` | `bool` | The operator is not a Worker dispatch candidate while this is set. It may finish tasks already assigned and may still be drawn as a Verifier. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `bond.pause_reasons` | `uint32` | Why dispatch is paused, as a bit set: 1 = an anchor audit awaits a late submission, 2 = a service unbonding was requested, 4 = jailed. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-hub-servicedescriptor"></a> `hub.ServiceDescriptor`
 
@@ -1947,6 +1965,35 @@ Response fields:
 | `pending_vrf_pubkey` | `bytes` / base64 string | pending vrf pubkey; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | An absent value must be omitted; a present value must satisfy the bytes encoding and width the descriptor declares, and null or empty bytes must not be used to stand in for absence. |
 | `pending_from_epoch` | `uint64` / JSON decimal string | pending from epoch; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `vrf_authorization_nonce` | `uint64` / JSON decimal string | vrf authorization nonce; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-hub-workerquota"></a> `hub.WorkerQuota`
+
+- gRPC: `/hub.v1.Query/WorkerQuota`
+- REST: `GET /TrueOpen/hub/v1/worker_quota/{operator_address}`
+- Request/response: `hub.v1.QueryWorkerQuotaRequest` -> `hub.v1.QueryWorkerQuotaResponse`
+- Purpose: Reads the authoritative on-chain state behind `WorkerQuota`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Taken from the Cortex Node identity or from the on-chain ModelCapability/ModelSupport state. | Must be a canonical Bech32 address whose node has a valid model and profile capability/support status. |
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `quota` | `uint64` / JSON decimal string | effective bond * worker_quota_period_value_bps_of_bond / 10000; zero when no quota is configured. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `reserved_value` | `uint64` / JSON decimal string | reserved value; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `settled_value` | `uint64` / JSON decimal string | settled value; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `remaining` | `uint64` / JSON decimal string | quota - reserved_value - settled_value, floored at zero. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `enforced` | `bool` | Whether a quota is enforced at all. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `dispatch_paused` | `bool` | Mirrors ServiceBondState: a paused Worker gets no orders whatever is left. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `pause_reasons` | `uint32` | pause reasons; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-batchsubmitverifycommit"></a> `task.BatchSubmitVerifyCommit`
 
@@ -2474,6 +2521,7 @@ Request parameters:
 |---|---|---|---|---|
 | `entries` | array<`task.v1.DispatchRecordEntryV1` object> | entries list; the semantics of an element are given by its message/enum definition. | Built from a preceding Query / frozen set or from the local batch queue; deduplicate and fix the ordering before submitting. | Bounded by the on-chain maximum count and the transaction size; validated item by item, with batch endpoints failing atomically or in isolation as their implementation defines. |
 | `submitter_address` | `string` | submitter address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+| `input_tokens_attestations` | array<`task.v1.OrderInputTokensAttestationV1` object> | Optional user statements of the input token count of orders recorded by this message, matched to an entry by order_digest. They are outside the signed dispatch record: a record is valid without them, and a statement that names no entry of this message, or whose signature does not verify under the order's key, is refused. Used only when the task's frozen input_token_tolerance is non-zero. | Built from a preceding Query / frozen set or from the local batch queue; deduplicate and fix the ordering before submitting. | Bounded by the on-chain maximum count and the transaction size; validated item by item, with batch endpoints failing atomically or in isolation as their implementation defines. |
 
 Response fields:
 
@@ -2503,6 +2551,31 @@ Response fields:
 
 | Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
 |---|---|---|---|---|
+| `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-releaseanchorbrake"></a> `task.ReleaseAnchorBrake`
+
+- gRPC: `/task.v1.Msg/ReleaseAnchorBrake`
+- Transport: build the corresponding Msg and sign and broadcast it through `/cosmos/tx/v1beta1/txs` or the node CLI; a successful transaction only means execution succeeded at this height.
+- Request/response: `task.v1.MsgReleaseAnchorBrake` -> `task.v1.MsgReleaseAnchorBrakeResponse`
+- Purpose: Performs the `ReleaseAnchorBrake` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `authority` | `string` | authority; this field is part of the protocol state or of the request. | Read the authority address from the on-chain governance module configuration; an ordinary account cannot choose its own. | Must be exactly the module authority, otherwise the governance parameter or state update is rejected. |
+| `model_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The canonical identifier of a model registered with the Hub. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `apply` | `bool` | true applies the pending effects, false discards them. | Set by the caller as an explicit business choice; do not infer state from the field's default value. | Checked together with the current lifecycle and the Integration Profile; it cannot bypass permissions or frozen parameters. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `resolved_effects` | `uint32` | resolved effects; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-reportdataunavailable"></a> `task.ReportDataUnavailable`
@@ -2569,6 +2642,33 @@ Response fields:
 | `challenge.fault_id` | optional `Hash32` / omitted when absent; 0x-prefixed lowercase 64-hex client value when present (raw 32-byte protobuf) | fault id; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | An absent value must be omitted; a present value must satisfy the bytes encoding and width the descriptor declares, and null or empty bytes must not be used to stand in for absence. |
 | `challenge.opened_height` | `uint64` / JSON decimal string | opened height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `challenge.resolved_height` | `uint64` / JSON decimal string | resolved height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-requestanchorreaudit"></a> `task.RequestAnchorReaudit`
+
+- gRPC: `/task.v1.Msg/RequestAnchorReaudit`
+- Transport: build the corresponding Msg and sign and broadcast it through `/cosmos/tx/v1beta1/txs` or the node CLI; a successful transaction only means execution succeeded at this height.
+- Request/response: `task.v1.MsgRequestAnchorReaudit` -> `task.v1.MsgRequestAnchorReauditResponse`
+- Purpose: Performs the `RequestAnchorReaudit` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `task_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The task identifier within a session; together with session_id it forms the task primary key. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `opener_address` | `string` | opener address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+| `max_fee` | `shared.v1.Amount` object | The ceiling on the total task fee the user authorized. | Computed from on-chain parameters, from the quote/order, or from the local balance budget; integers travel as decimal strings in JSON. | Must be a legal non-negative Coin/uint64 with a consistent denom and no overflow, and must satisfy the minimum bond, the available balance, the outstanding liabilities and the module budget limits. |
+| `max_fee.atomic_units` | `string` | atomic units; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `panel_round` | `uint32` | panel round; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `fee` | `shared.v1.Amount` object | fee; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `fee.atomic_units` | `string` | atomic units; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-responddispatchchallenge"></a> `task.RespondDispatchChallenge`
@@ -2681,6 +2781,33 @@ Response fields:
 | `task_verdict` | `task.v1.AnchorVerdictV1` enum | task verdict; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
+### <a id="rpc-task-submitanchorcommitmentlist"></a> `task.SubmitAnchorCommitmentList`
+
+- gRPC: `/task.v1.Msg/SubmitAnchorCommitmentList`
+- Transport: build the corresponding Msg and sign and broadcast it through `/cosmos/tx/v1beta1/txs` or the node CLI; a successful transaction only means execution succeeded at this height.
+- Request/response: `task.v1.MsgSubmitAnchorCommitmentList` -> `task.v1.MsgSubmitAnchorCommitmentListResponse`
+- Purpose: Performs the `SubmitAnchorCommitmentList` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
+- Stage: Stage2: inference receipt, verification commit/result/reveal.
+- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `task_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The task identifier within a session; together with session_id it forms the task primary key. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `list_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | list_hash is defined in docs/ANCHOR_TWO_STEP_SAMPLING_V1.md. The chain stores it as an opaque 32-byte value and never reads the list. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `list_size_bytes` | `uint64` / JSON decimal string | list_size_bytes must equal 32 x the chain's row count of the task. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `list_uri` | `string` | list_uri locates the list; it must lie under the audit's da_uri_prefix. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `submitter_address` | `string` | submitter address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `position_beacon_first_height` | `uint64` / JSON decimal string | position beacon first height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `position_beacon_last_height` | `uint64` / JSON decimal string | position beacon last height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
 ### <a id="rpc-task-submitanchoropening"></a> `task.SubmitAnchorOpening`
 
 - gRPC: `/task.v1.Msg/SubmitAnchorOpening`
@@ -2706,6 +2833,36 @@ Response fields:
 
 | Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
 |---|---|---|---|---|
+| `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-submitanchorpanelvote"></a> `task.SubmitAnchorPanelVote`
+
+- gRPC: `/task.v1.Msg/SubmitAnchorPanelVote`
+- Transport: build the corresponding Msg and sign and broadcast it through `/cosmos/tx/v1beta1/txs` or the node CLI; a successful transaction only means execution succeeded at this height.
+- Request/response: `task.v1.MsgSubmitAnchorPanelVote` -> `task.v1.MsgSubmitAnchorPanelVoteResponse`
+- Purpose: Performs the `SubmitAnchorPanelVote` state transition. The current state must be read before calling; a retry must not be treated as naturally idempotent.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: First validates the signer, the input format, the referenced state and the permitted state transition, then atomically writes Keeper state and emits events; any error rolls the message back.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `task_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The task identifier within a session; together with session_id it forms the task primary key. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `panel_round` | `uint32` | panel round; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `opening_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | Must equal the recorded opening hash. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `proof_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | Must equal the recorded Worker proof hash. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `verdict` | `task.v1.AnchorVerdictV1` enum | verdict; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `verdicts` | array<`task.v1.AnchorPositionVerdictV1` object> | PASS and REJECT list exactly the sampled positions; empty for UNAVAILABLE. | Built from a preceding Query / frozen set or from the local batch queue; deduplicate and fix the ordering before submitting. | Bounded by the on-chain maximum count and the transaction size; validated item by item, with batch endpoints failing atomically or in isolation as their implementation defines. |
+| `verifier_operator_address` | `string` | verifier operator address; this field is part of the protocol state or of the request. | Taken from the frozen verifier set of VerifierAssignment/ChallengeAssignment; the submitter cannot name an arbitrary payee. | Must be a canonical Bech32 address belonging to the formal verifier set of the corresponding round; duplicate addresses are rejected. |
+| `submitter_address` | `string` | submitter address; this field is part of the protocol state or of the request. | Read from the corresponding account, from Assignment/VerifierAssignment/BuilderSelection, or from Hub registration state. | Must be a canonical Bech32 address, identical to the owner/role/operator in the referenced state. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `round_result` | `task.v1.AnchorVerdictV1` enum | Result of the round; UNSPECIFIED while it is open. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `round_closed` | `bool` | round closed; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-submitanchorproof"></a> `task.SubmitAnchorProof`
@@ -2769,6 +2926,7 @@ Response fields:
 | `tally.no_verdict_power` | `uint64` / JSON decimal string | no_verdict_power is the summed voting power of NO_VERDICT votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `tally.total_power` | `uint64` / JSON decimal string | total_power is the last total bonded voting power at the latest vote. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `tally.vote_count` | `uint32` | vote_count is the number of recorded votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `tally.unavailable_power` | `uint64` / JSON decimal string | unavailable_power is the summed voting power of UNAVAILABLE votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `status` | `shared.v1.MutationStatusV1` enum | status reports whether the vote changed state. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-submitbuilderevidence"></a> `task.SubmitBuilderEvidence`
@@ -3154,7 +3312,7 @@ Response fields:
 | `audit.sample_height` | `uint64` / JSON decimal string | sample height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.opening_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | Opening material hash (sha256 of the exact bytes) once the Worker opened. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.opening_size_bytes` | `uint64` / JSON decimal string | opening size bytes; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
-| `audit.opening_uri` | `string` | Where the material can be fetched; devnet accepts file:// and http(s)://. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.opening_uri` | `string` | Where the material can be fetched: an http:// or https:// URL. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.opening_height` | `uint64` / JSON decimal string | opening height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.result_verifier_operator_address` | `string` | result verifier operator address; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.verdicts` | array<`task.v1.AnchorPositionVerdictV1` object> | verdicts list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
@@ -3181,6 +3339,32 @@ Response fields:
 | `audit.anchor_commit_uri` | `string` | anchor_commit_uri locates the Worker's anchor_commit artifact in DA; its digest is the receipt's WORKER_ANCHOR_OPENING commitment. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.epoch_manifest_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | epoch_manifest_hash is sha256 of the canonical epoch manifest the Worker's proof covers. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `audit.epoch_manifest_uri` | `string` | epoch_manifest_uri locates the epoch manifest in DA. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.da_uri_prefix` | `string` | da_uri_prefix is the Worker's data-availability location as its service descriptor published it (endpoint kind ANCHOR_DA) when the task was sampled; empty when the Worker had published none. When set, every location the Worker records for this audit must start with it, so a Worker cannot choose where its material lives after learning that it was sampled, and validators know in advance where a Worker's material is served from. Fields 35-59 are left to the content-track contract. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.audit_mode` | `uint32` | audit_mode is anchor_audit_mode as frozen into the task: 2 = Verifier panel. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.panel_round` | `uint32` | panel_round is the number of the latest panel round opened for the task; zero while none was opened. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.panel_rounds` | array<`task.v1.AnchorPanelRoundState` object> | panel_rounds lists every round opened for the task, ascending. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `audit.provisional_verdict` | `task.v1.AnchorVerdictV1` enum | provisional_verdict is PASS or REJECT once a round concluded; nothing is paid or slashed on it before final_height. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.provisional_height` | `uint64` / JSON decimal string | provisional height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.publication_end_height` | `uint64` / JSON decimal string | Until this height anyone may request one re-audit. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.reaudit_requested` | `bool` | reaudit requested; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.reaudit_opener` | `string` | reaudit opener; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.reaudit_fee` | `string` | Escrowed re-audit fee in fee-denom atomic units; empty when none. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.late_state` | `task.v1.AnchorLateStateV1` enum | late state; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.late_deadline_height` | `uint64` / JSON decimal string | Last height at which a late opening or proof is accepted; fixed at the first timeout of the task. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.timeout_recorded_height` | `uint64` / JSON decimal string | timeout recorded height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.settlement_period` | `uint64` / JSON decimal string | Settlement period of the Worker batch the task belongs to. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.timeout_reason` | `task.v1.AnchorTimeoutReasonV1` enum | timeout reason; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.final_height` | `uint64` / JSON decimal string | Height at which the verdict became final (after the publication period or the re-audit); zero before. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.sampling_mode` | `uint32` | sampling_mode is written at the first beacon from the task's Profile: 0 = one step (the first beacon draws the coin and the positions); 1 = two steps (the first beacon draws the coin only; the Worker of a selected task then records the hash of its per-row commitment list, and the positions are drawn from beacons produced strictly after that record). An unselected task carries the mode and nothing else of the flow. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.list_deadline_height` | `uint64` / JSON decimal string | Last height at which MsgSubmitAnchorCommitmentList is accepted: the height of the block that recorded the selection plus anchor_list_window_blocks. Zero in sampling_mode 0 and on an unselected task. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.commitment_list_hash` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | Hash of the Worker's commitment list (docs/ANCHOR_TWO_STEP_SAMPLING_V1.md). Empty until recorded; the first accepted value is final. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.commitment_list_size_bytes` | `uint64` / JSON decimal string | Size of the list in bytes: 32 x rows, rows being the chain's own row count of the task (prompt + generated - 1). | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.commitment_list_uri` | `string` | Where the list can be fetched: an http:// or https:// URL under da_uri_prefix. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.commitment_list_height` | `uint64` / JSON decimal string | Height of the block that included the accepted list message. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.position_beacon_first_height` | `uint64` / JSON decimal string | First and last height whose beacons are aggregated into position_beacon. Both lie strictly after commitment_list_height. They move forward together, by a whole window, only when a beacon of the current window is missing or is not a verified proposer-VRF value. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.position_beacon_last_height` | `uint64` / JSON decimal string | position beacon last height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.position_beacon` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The aggregated beacon the positions were drawn from; empty until the draw. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `audit.positions_height` | `uint64` / JSON decimal string | Height at which positions were written. opening_deadline_height and proof_deadline_height count from it. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-anchorauditspending"></a> `task.AnchorAuditsPending`
 
@@ -3203,6 +3387,87 @@ Response fields:
 | Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
 |---|---|---|---|---|
 | `audits` | array<`task.v1.AnchorAuditState` object> | audits list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `next` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | next is the start_after of the following page; empty at the end. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-anchorauditsunderreview"></a> `task.AnchorAuditsUnderReview`
+
+- gRPC: `/task.v1.Query/AnchorAuditsUnderReview`
+- REST: `GET /TrueOpen/task/v1/anchor_audits/under_review`
+- Request/response: `task.v1.QueryAnchorAuditsUnderReviewRequest` -> `task.v1.QueryAnchorAuditsUnderReviewResponse`
+- Purpose: Reads the authoritative on-chain state behind `AnchorAuditsUnderReview`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `start_after` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | start_after resumes after this task id (exclusive); empty starts at the beginning. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `limit` | `uint32` | The ceiling on a single query/processing pass, which prevents unbounded gas and responses. | Taken from the Query Params / operational batch configuration; choose a positive integer no larger than the on-chain hard ceiling. | Must be within the permitted range; Node additionally takes the smaller of the parameter ceiling and the requested value, and neither zero nor an oversized value may be used to trigger a full scan. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `audits` | array<`task.v1.AnchorAuditState` object> | audits list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `next` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | next is the start_after of the following page; empty at the end. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-anchorbrake"></a> `task.AnchorBrake`
+
+- gRPC: `/task.v1.Query/AnchorBrake`
+- REST: `GET /TrueOpen/task/v1/anchor_brake/{model_id}`
+- Request/response: `task.v1.QueryAnchorBrakeRequest` -> `task.v1.QueryAnchorBrakeResponse`
+- Purpose: Reads the authoritative on-chain state behind `AnchorBrake`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `model_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The canonical identifier of a model registered with the Hub. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `brake` | `task.v1.AnchorBrakeState` object | brake; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `brake.model_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | The canonical identifier of a model registered with the Hub. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.audited` | `uint32` | Audits of the model finalised in the period. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.cases` | `uint32` | Of those, audits finalised REJECT. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.tripped` | `bool` | tripped; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.tripped_height` | `uint64` / JSON decimal string | tripped height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.rate_bps` | `uint32` | cases / audited of this period and the baseline it was compared with, in basis points. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.baseline_bps` | `uint32` | baseline bps; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.pending_effects` | `uint32` | Number of slashes and forfeitures withheld while tripped. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.released` | `bool` | Set by MsgReleaseAnchorBrake. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.applied` | `bool` | Whether the release applied (true) or discarded (false) the pending effects. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `brake.released_height` | `uint64` / JSON decimal string | released height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-anchorpanelassignments"></a> `task.AnchorPanelAssignments`
+
+- gRPC: `/task.v1.Query/AnchorPanelAssignments`
+- REST: `GET /TrueOpen/task/v1/anchor_panel_assignments/{verifier_operator_address}`
+- Request/response: `task.v1.QueryAnchorPanelAssignmentsRequest` -> `task.v1.QueryAnchorPanelAssignmentsResponse`
+- Purpose: Reads the authoritative on-chain state behind `AnchorPanelAssignments`, for building the next stage's request, for auditing, or for recovery.
+- Stage: Stage1: task assignment and budget freezing.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `verifier_operator_address` | `string` | verifier operator address; this field is part of the protocol state or of the request. | Taken from the frozen verifier set of VerifierAssignment/ChallengeAssignment; the submitter cannot name an arbitrary payee. | Must be a canonical Bech32 address belonging to the formal verifier set of the corresponding round; duplicate addresses are rejected. |
+| `start_after` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | start_after resumes after this task id (exclusive); empty starts at the beginning. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `limit` | `uint32` | The ceiling on a single query/processing pass, which prevents unbounded gas and responses. | Taken from the Query Params / operational batch configuration; choose a positive integer no larger than the on-chain hard ceiling. | Must be within the permitted range; Node additionally takes the smaller of the parameter ceiling and the requested value, and neither zero nor an oversized value may be used to trigger a full scan. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `assignments` | array<`task.v1.AnchorPanelAssignmentV1` object> | assignments list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
 | `next` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | next is the start_after of the following page; empty at the end. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-anchorvotekey"></a> `task.AnchorVoteKey`
@@ -3255,6 +3520,7 @@ Response fields:
 | `tally.no_verdict_power` | `uint64` / JSON decimal string | no_verdict_power is the summed voting power of NO_VERDICT votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `tally.total_power` | `uint64` / JSON decimal string | total_power is the last total bonded voting power at the latest vote. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `tally.vote_count` | `uint32` | vote_count is the number of recorded votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `tally.unavailable_power` | `uint64` / JSON decimal string | unavailable_power is the summed voting power of UNAVAILABLE votes. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
 ### <a id="rpc-task-builderdataunavailable"></a> `task.BuilderDataUnavailable`
 
@@ -4358,6 +4624,36 @@ Response fields:
 | `assignment.reveal_deadline_height` | `uint64` / JSON decimal string | reveal deadline height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `assignment.verify_deadline_height` | `uint64` / JSON decimal string | verify deadline height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 
+### <a id="rpc-task-verifierauditstanding"></a> `task.VerifierAuditStanding`
+
+- gRPC: `/task.v1.Query/VerifierAuditStanding`
+- REST: `GET /TrueOpen/task/v1/verifier/{operator_address}/audit_standing`
+- Request/response: `task.v1.QueryVerifierAuditStandingRequest` -> `task.v1.QueryVerifierAuditStandingResponse`
+- Purpose: Reads the authoritative on-chain state behind `VerifierAuditStanding`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Taken from the Cortex Node identity or from the on-chain ModelCapability/ModelSupport state. | Must be a canonical Bech32 address whose node has a valid model and profile capability/support status. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `standing` | `task.v1.VerifierAuditStandingState` object | standing; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `standing.operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `standing.audited_value` | `shared.v1.Amount` object | Sum of the order values of tasks on whose panels the operator was drawn inside anchor_verifier_allowance_window_blocks. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `standing.missed_periods` | array<`uint64` / JSON decimal string> | Settlement periods with at least one missed vote inside anchor_verifier_miss_window_blocks, ascending. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `standing.miss_triggers_in_window` | `uint32` | Number of times the missed-period count reached a multiple of anchor_verifier_miss_trigger_count inside the window. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `standing.suspended_until_period` | `uint64` / JSON decimal string | The operator is not drawn while the current period is below this value. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `standing.deactivated` | `bool` | Set by a wrong vote: the operator's audit capability is switched off until it declares it again. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `standing.updated_height` | `uint64` / JSON decimal string | updated height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `allowance_limit` | `shared.v1.Amount` object | effective bond / anchor_verifier_bond_multiple: the value the operator may have audited inside the allowance window. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `allowance_limit.atomic_units` | `string` | atomic units; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
 ### <a id="rpc-task-verifiercandidatewindow"></a> `task.VerifierCandidateWindow`
 
 - gRPC: `/task.v1.Query/VerifierCandidateWindow`
@@ -4462,6 +4758,89 @@ Response fields:
 | `commit.status` | `task.v1.CommitStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `commit.verifier_value_root` | optional `Hash32` / omitted when absent; 0x-prefixed lowercase 64-hex client value when present (raw 32-byte protobuf) | Filled when the accepted result opens the V3 commit; absent beforehand. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | An absent value must be omitted; a present value must satisfy the bytes encoding and width the descriptor declares, and null or empty bytes must not be used to stand in for absence. |
 
+### <a id="rpc-task-workerbatch"></a> `task.WorkerBatch`
+
+- gRPC: `/task.v1.Query/WorkerBatch`
+- REST: `GET /TrueOpen/task/v1/worker/{operator_address}/batch/{period}`
+- Request/response: `task.v1.QueryWorkerBatchRequest` -> `task.v1.QueryWorkerBatchResponse`
+- Purpose: Reads the authoritative on-chain state behind `WorkerBatch`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Taken from the Cortex Node identity or from the on-chain ModelCapability/ModelSupport state. | Must be a canonical Bech32 address whose node has a valid model and profile capability/support status. |
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `batch` | `task.v1.WorkerBatchState` object | batch; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `batch.operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.task_count` | `uint32` | task count; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.open_task_count` | `uint32` | Member tasks without a final verdict (publication period and tasks awaiting a late submission included). | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.audited_count` | `uint32` | Member tasks the beacon selected for an audit. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.status` | `task.v1.WorkerBatchStatusV1` enum | status; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.worker_due` | `shared.v1.Amount` object | Sum of the Worker net over member tasks that are final PASS so far. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+| `batch.queued_height` | `uint64` / JSON decimal string | queued height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.settled_height` | `uint64` / JSON decimal string | settled height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.forfeiting_task_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | First member task that caused the forfeiture; zero otherwise. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.awaiting_late_count` | `uint32` | Member tasks awaiting a late submission. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+| `batch.forfeited_amount` | `shared.v1.Amount` object | Amount redirected to the treasury by a forfeiture. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Object existence is decided by found or by gRPC NotFound semantics; the inner version/height is the authoritative snapshot of the commit it came from. |
+
+### <a id="rpc-task-workerbatchtasks"></a> `task.WorkerBatchTasks`
+
+- gRPC: `/task.v1.Query/WorkerBatchTasks`
+- REST: `GET /TrueOpen/task/v1/worker/{operator_address}/batch/{period}/tasks`
+- Request/response: `task.v1.QueryWorkerBatchTasksRequest` -> `task.v1.QueryWorkerBatchTasksResponse`
+- Purpose: Reads the authoritative on-chain state behind `WorkerBatchTasks`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Taken from the Cortex Node identity or from the on-chain ModelCapability/ModelSupport state. | Must be a canonical Bech32 address whose node has a valid model and profile capability/support status. |
+| `period` | `uint64` / JSON decimal string | period; this field is part of the protocol state or of the request. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `start_after` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | start_after resumes after this task id (exclusive); empty starts at the beginning. | Read the canonical 0x-prefixed lowercase 64-hex value from the preceding Node REST response, Nexus response, event projection, or SDK Hash32 value; Msg/SDK and native gRPC adapters decode it to raw32. | Client REST/DTO values require a 0x prefix followed by exactly 64 lowercase hex characters, with no whitespace. The decoded value must be exactly 32 bytes; protobuf transactions, Keeper, Store, and hash preimages use those raw bytes. |
+| `limit` | `uint32` | The ceiling on a single query/processing pass, which prevents unbounded gas and responses. | Taken from the Query Params / operational batch configuration; choose a positive integer no larger than the on-chain hard ceiling. | Must be within the permitted range; Node additionally takes the smaller of the parameter ceiling and the requested value, and neither zero nor an oversized value may be used to trigger a full scan. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `tasks` | array<`task.v1.WorkerBatchTaskState` object> | tasks list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `next` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | next is the start_after of the following page; empty at the end. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-workerbatches"></a> `task.WorkerBatches`
+
+- gRPC: `/task.v1.Query/WorkerBatches`
+- REST: `GET /TrueOpen/task/v1/worker/{operator_address}/batches`
+- Request/response: `task.v1.QueryWorkerBatchesRequest` -> `task.v1.QueryWorkerBatchesResponse`
+- Purpose: Reads the authoritative on-chain state behind `WorkerBatches`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `operator_address` | `string` | operator address; this field is part of the protocol state or of the request. | Taken from the Cortex Node identity or from the on-chain ModelCapability/ModelSupport state. | Must be a canonical Bech32 address whose node has a valid model and profile capability/support status. |
+| `start_before` | `uint64` / JSON decimal string | start_before resumes below this period (exclusive); zero starts at the newest. | Built by the caller from the business context; values forwarded by other participants must not be trusted blindly. | Decoded according to the protobuf type, then checked for business state, uniqueness and lifecycle by the corresponding Msg/Query Keeper. |
+| `limit` | `uint32` | The ceiling on a single query/processing pass, which prevents unbounded gas and responses. | Taken from the Query Params / operational batch configuration; choose a positive integer no larger than the on-chain hard ceiling. | Must be within the permitted range; Node additionally takes the smaller of the parameter ceiling and the requested value, and neither zero nor an oversized value may be used to trigger a full scan. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `batches` | array<`task.v1.WorkerBatchState` object> | batches list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |
+| `next` | `uint64` / JSON decimal string | next is the start_before of the following page; zero at the end. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
 ### <a id="rpc-task-workerevidence"></a> `task.WorkerEvidence`
 
 - gRPC: `/task.v1.Query/WorkerEvidence`
@@ -4493,3 +4872,24 @@ Response fields:
 | `receipt.evidence_digest` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | evidence digest; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `receipt.fault_id` | `Hash32` / 0x-prefixed lowercase 64-hex client value (raw 32-byte protobuf) | fault id; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
 | `receipt.accepted_height` | `uint64` / JSON decimal string | accepted height; this field is part of the protocol state or of the request. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | Returns the authoritative value at the committed height; uint64/int64 are still decimal strings in JSON. |
+
+### <a id="rpc-task-workerlatesubmissions"></a> `task.WorkerLateSubmissions`
+
+- gRPC: `/task.v1.Query/WorkerLateSubmissions`
+- REST: `GET /TrueOpen/task/v1/worker/{worker_operator_address}/late_submissions`
+- Request/response: `task.v1.QueryWorkerLateSubmissionsRequest` -> `task.v1.QueryWorkerLateSubmissionsResponse`
+- Purpose: Reads the authoritative on-chain state behind `WorkerLateSubmissions`, for building the next stage's request, for auditing, or for recovery.
+- Stage: The governance, registry or protocol operations stage.
+- Keeper behaviour: Reads KV state by primary key/index; absence is expressed through `found` or a gRPC error, paginated queries must be bounded by limit, and no state change is triggered.
+
+Request parameters:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `worker_operator_address` | `string` | worker operator address; this field is part of the protocol state or of the request. | Taken from the Worker identity frozen in the Assignment/InferReceipt. | Must agree with the task's accepted Worker and must satisfy the Worker duty service key signature check. |
+
+Response fields:
+
+| Parameter | protobuf / JSON type | Meaning | How to obtain or build it | Node validation/return constraints |
+|---|---|---|---|---|
+| `submissions` | array<`task.v1.WorkerLateSubmissionV1` object> | submissions list; the semantics of an element are given by its message/enum definition. | Read by the Node Query Keeper from the currently committed state; a Msg response is produced by this successful transaction. | The list order is decided by the Keeper index; clients need pagination / stable-key deduplication and must not assume the whole set comes back at once. |

@@ -93,6 +93,53 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Pages over sampled, selected anchor audits awaiting a final verdict (ADR-0040 v6)",
 				},
 				{
+					RpcMethod:      "AnchorPanelAssignments",
+					Use:            "anchor-panel-assignments [verifier-operator-address]",
+					Short:          "Pages over the open panel rounds a Verifier is a member of and has not voted in",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "verifier_operator_address"}},
+				},
+				{
+					RpcMethod: "AnchorAuditsUnderReview",
+					Use:       "anchor-audits-under-review",
+					Short:     "Pages over anchor audits with a provisional verdict that is not final yet",
+				},
+				{
+					RpcMethod:      "WorkerLateSubmissions",
+					Use:            "worker-late-submissions [worker-operator-address]",
+					Short:          "Lists a Worker's audits that wait for a late opening or proof",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "worker_operator_address"}},
+				},
+				{
+					RpcMethod:      "WorkerBatch",
+					Use:            "worker-batch [operator-address] [period]",
+					Short:          "Shows a Worker's settlement batch of one period",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "period"}},
+				},
+				{
+					RpcMethod:      "WorkerBatches",
+					Use:            "worker-batches [operator-address]",
+					Short:          "Pages over a Worker's settlement batches",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}},
+				},
+				{
+					RpcMethod:      "WorkerBatchTasks",
+					Use:            "worker-batch-tasks [operator-address] [period]",
+					Short:          "Pages over the tasks of one settlement batch",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}, {ProtoField: "period"}},
+				},
+				{
+					RpcMethod:      "VerifierAuditStanding",
+					Use:            "verifier-audit-standing [operator-address]",
+					Short:          "Shows a Verifier's audit allowance, missed periods and suspension",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}},
+				},
+				{
+					RpcMethod:      "AnchorBrake",
+					Use:            "anchor-brake [model-id]",
+					Short:          "Shows the per-model audit brake of the current period",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "model_id"}},
+				},
+				{
 					RpcMethod:      "AnchorVoteKey",
 					Use:            "anchor-vote-key [validator-operator-address]",
 					Short:          "Shows a validator's anchor vote delegation (ADR-0040 v6)",
@@ -292,6 +339,11 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Record the winner Worker's proof package over its anchor opening (ADR-0040 v2)",
 				},
 				{
+					RpcMethod: "SubmitAnchorCommitmentList",
+					Use:       "submit-anchor-commitment-list",
+					Short:     "Record the winner Worker's commitment-list hash for a task selected by two-step anchor sampling",
+				},
+				{
 					RpcMethod: "SubmitAnchorAuditResult",
 					Use:       "submit-anchor-audit-result",
 					Short:     "Record a selected Verifier's advisory anchor audit verdicts (ADR-0040 v1)",
@@ -305,6 +357,21 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "RegisterAnchorVoteKey",
 					Use:       "register-anchor-vote-key",
 					Short:     "Delegate a validator's anchor votes to a hot vote address; signed by the operator account (ADR-0040 v6)",
+				},
+				{
+					RpcMethod: "SubmitAnchorPanelVote",
+					Use:       "submit-anchor-panel-vote",
+					Short:     "Record a panel Verifier's vote on a Worker's anchor proof: holds, does not hold, or cannot download",
+				},
+				{
+					RpcMethod: "RequestAnchorReaudit",
+					Use:       "request-anchor-reaudit",
+					Short:     "Pay for one re-audit of a provisional anchor verdict by three other Verifiers",
+				},
+				{
+					RpcMethod: "ReleaseAnchorBrake",
+					Use:       "release-anchor-brake",
+					Short:     "Apply or discard the effects a tripped per-model audit brake withheld; signed by the governance authority",
 				},
 				{
 					RpcMethod:      "SubmitBuilderEvidence",

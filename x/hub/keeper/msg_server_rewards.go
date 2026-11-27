@@ -56,6 +56,9 @@ func (m msgServer) UpdateHubParams(ctx context.Context, req *types.MsgUpdateHubP
 		}
 		return nil, errorsmod.Wrap(types.ErrHubParamsGenesisOnly, field.Name)
 	}
+	if err := validateVrfActivationHeight(current, req.Params, sdkContextHeight(sdk.UnwrapSDKContext(ctx))); err != nil {
+		return nil, err
+	}
 	if err := m.validateCrossModuleSafetyWindows(ctx, req.Params); err != nil {
 		return nil, err
 	}
@@ -116,6 +119,20 @@ func (k Keeper) GetHubParamsMeta(ctx context.Context) (types.HubParamsMetaState,
 		return types.HubParamsMetaState{}, err
 	}
 	return meta, nil
+}
+
+// validateVrfActivationHeight refuses to move beacon.vrf_required_from_height
+// to a height the chain has already reached. From that height on no placeholder
+// beacon is readable, and the blocks between it and the update carry only
+// placeholders: every consumer whose randomness height falls in that gap would
+// find no beacon at all.
+func validateVrfActivationHeight(current, next types.HubParamsV2, height uint64) error {
+	required := next.Beacon.VrfRequiredFromHeight
+	if required == current.Beacon.VrfRequiredFromHeight || required == 0 || required > height {
+		return nil
+	}
+	return errorsmod.Wrapf(types.ErrInvalidBeacon,
+		"beacon.vrf_required_from_height %d must be above the current height %d", required, height)
 }
 
 func (m msgServer) validateCrossModuleSafetyWindows(ctx context.Context, params types.HubParamsV2) error {
