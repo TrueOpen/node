@@ -136,6 +136,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "participant_type"}, {ProtoField: "operator_address"}},
 				},
 				{
+					RpcMethod:      "WorkerQuota",
+					Use:            "worker-quota [operator-address]",
+					Short:          "Shows a Worker's order quota and pause flags for a settlement period",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "operator_address"}},
+				},
+				{
 					RpcMethod:      "ServiceLifecycle",
 					Use:            "service-lifecycle [operator-address]",
 					Short:          "Shows one operator's identity and bond lifecycle",

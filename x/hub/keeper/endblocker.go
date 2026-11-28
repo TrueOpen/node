@@ -516,6 +516,10 @@ func (k Keeper) ProcessModelSupportPrunes(ctx context.Context, currentEpoch, vis
 					visited, consumed := budget.result()
 					return visited, consumed, err
 				}
+				if err := k.AuditCapabilityDeclaredEpoch.Remove(cache, types.NewModelCapabilityKey(state.OperatorAddress, state.ModelId)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+					visited, consumed := budget.result()
+					return visited, consumed, err
+				}
 				if err := k.ModelSupportByModelIndex.Remove(cache, types.NewModelSupportByModelIndexKey(state.ModelId, state.OperatorAddress)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 					visited, consumed := budget.result()
 					return visited, consumed, err
@@ -530,6 +534,10 @@ func (k Keeper) ProcessModelSupportPrunes(ctx context.Context, currentEpoch, vis
 			// projections are orphans and can deterministically self-heal here.
 			operator, modelID := supportKey.K1(), supportKey.K2()
 			if err := k.ModelCapability.Remove(cache, types.NewModelCapabilityKey(operator, modelID)); err != nil && !errors.Is(err, collections.ErrNotFound) {
+				visited, consumed := budget.result()
+				return visited, consumed, err
+			}
+			if err := k.AuditCapabilityDeclaredEpoch.Remove(cache, types.NewModelCapabilityKey(operator, modelID)); err != nil && !errors.Is(err, collections.ErrNotFound) {
 				visited, consumed := budget.result()
 				return visited, consumed, err
 			}

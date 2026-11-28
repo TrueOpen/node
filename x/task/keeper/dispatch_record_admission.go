@@ -227,6 +227,9 @@ func (k Keeper) applyDispatchRecord(ctx context.Context, admission dispatchOrder
 	if err := k.WriteTaskAssignment(ctx, taskKey, admission.assignment); err != nil {
 		return err
 	}
+	if err := k.joinWorkerBatch(ctx, taskKey, admission.assignment.WinnerWorker, height, params); err != nil {
+		return err
+	}
 	if err := k.StoreTaskBuilderSelection(ctx, taskKey, admission.selection); err != nil {
 		return err
 	}

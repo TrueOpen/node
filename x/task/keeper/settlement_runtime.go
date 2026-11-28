@@ -41,6 +41,9 @@ type settlementInputs struct {
 	Anchor *types.AnchorAuditState
 	// AnchorWorkerFaultID is the Worker role fault applied for a REJECT verdict.
 	AnchorWorkerFaultID []byte
+	// BatchHeldWorkerNet is the Worker's net of this settlement that is held
+	// for its batch instead of being credited now. Zero outside batch settlement.
+	BatchHeldWorkerNet uint64
 	// AnchorOnly marks a task verified by the anchor audit alone: its
 	// round 1 has no Verifier, so the verify share of the price is the Worker's.
 	AnchorOnly bool
@@ -193,7 +196,9 @@ func (k Keeper) BuildSettlementPlan(
 	if facts.Verdict == types.TaskVerdict_TASK_VERDICT_PASS && !inputs.isDisqualified(inputs.Assignment.WinnerWorker) {
 		workerPayableGross = workerGross
 	}
-	if inputs.AnchorOnly && workerPayableGross > 0 {
+	// The panel rounds that judged this task are paid from the verify share.
+	panelRounds := anchorPanelPaidRounds(inputs.Anchor)
+	if inputs.AnchorOnly && len(panelRounds) == 0 && workerPayableGross > 0 {
 		// Anchor-only: no Verifier is paid, and the Worker carries the
 		// whole verification duty (commitment, opening and proof), so the share
 		// of the price a Verifier round would have taken is paid to the Worker.
@@ -277,6 +282,20 @@ func (k Keeper) BuildSettlementPlan(
 		if !ok {
 			return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("gas reimbursement total overflows")
 		}
+	}
+
+	if inputs.AnchorOnly && len(panelRounds) > 0 {
+		roundFee, ok := mulDivFloorRound(workerGross, uint64(inputs.Budget.VerifyRatioBpsSnapshot), uint64(types.BasisPointsMaximum))
+		if !ok {
+			return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, fmt.Errorf("panel fee overflows")
+		}
+		var slot uint64
+		payouts, slot, totalNet, totalMaintenance, err = appendAnchorPanelPayouts(
+			payouts, panelRounds, roundFee, maintenanceBps, totalNet, totalMaintenance, totalGas, applyStartReserved)
+		if err != nil {
+			return types.SettlementPlanV1{}, types.TaskSettlementBillV1{}, err
+		}
+		verifierSlotGross = slot
 	}
 
 	spent, ok := checkedAddU64(totalNet, totalMaintenance)

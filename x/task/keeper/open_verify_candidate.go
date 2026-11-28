@@ -193,6 +193,25 @@ func (k Keeper) deriveVerifierEligibilityCandidates(
 	assignment types.TaskAssignmentState,
 	hubParams hubtypes.HubParamsSnapshot,
 ) (uint32, uint32, []verifierWindowCandidate, error) {
+	return k.deriveEligibilityCandidates(ctx, core, assignment, hubParams,
+		func(operatorBytes []byte, operator string) bool {
+			_, err := k.loadVerifierEligibilityFacts(ctx, core, assignment, operatorBytes, operator, hubParams)
+			return err == nil
+		})
+}
+
+// deriveEligibilityCandidates is the pool scan behind every candidate window:
+// it walks the Task-locked CandidatePool body once, checks each active slot's
+// immutable binding, leaves out the winner Worker and keeps the operators the
+// caller's predicate admits. The predicate is the only part that differs
+// between a Verifier window and a Verifier-panel window.
+func (k Keeper) deriveEligibilityCandidates(
+	ctx context.Context,
+	core types.TaskCoreState,
+	assignment types.TaskAssignmentState,
+	hubParams hubtypes.HubParamsSnapshot,
+	eligibleOperator func(operatorBytes []byte, operator string) bool,
+) (uint32, uint32, []verifierWindowCandidate, error) {
 	if len(core.TaskId) != types.Hash32Len || len(assignment.CandidatePoolSnapshotId) != types.Hash32Len ||
 		len(assignment.CandidatePoolHash) != types.Hash32Len || assignment.CandidatePoolRefReleased {
 		return 0, 0, nil, fmt.Errorf("Task-locked candidate pool commitment is unavailable")
@@ -259,7 +278,7 @@ func (k Keeper) deriveVerifierEligibilityCandidates(
 		if operator == assignment.WinnerWorker {
 			continue
 		}
-		if _, err := k.loadVerifierEligibilityFacts(ctx, core, assignment, operatorBytes, operator, hubParams); err != nil {
+		if !eligibleOperator(operatorBytes, operator) {
 			continue
 		}
 		eligible = append(eligible, verifierWindowCandidate{
@@ -451,7 +470,7 @@ func freezeVerifierEligibilitySource(
 ) (types.VerifierCandidateWindowState, []types.VerifierCandidateEligibilitySegmentState, error) {
 	if chainID == "" || len(header.TaskId) != types.Hash32Len || len(header.InferReceiptHash) != types.Hash32Len ||
 		len(header.CandidatePoolSnapshotId) != types.Hash32Len || len(header.CandidatePoolHash) != types.Hash32Len ||
-		header.SchemaVersion != 1 || !isPhase0VerifyRound(header.VerifyRound) || header.EligibilityFrozenHeight == 0 {
+		header.SchemaVersion != 1 || !isSelectableVerifyRound(header.VerifyRound) || header.EligibilityFrozenHeight == 0 {
 		return types.VerifierCandidateWindowState{}, nil, fmt.Errorf("verifier eligibility scope is incomplete")
 	}
 	segmentCount, err := bitmapSegmentCount(slotCapacity, segmentBytes)
@@ -908,7 +927,7 @@ func selectedVerifiersHash(
 	selected []weightedDrawResult,
 ) ([32]byte, []types.SelectedVerifierV1, error) {
 	var zero [32]byte
-	if chainID == "" || len(taskID) != types.Hash32Len || !isPhase0VerifyRound(verifyRound) || len(legalSetHash) != types.Hash32Len ||
+	if chainID == "" || len(taskID) != types.Hash32Len || !isSelectableVerifyRound(verifyRound) || len(legalSetHash) != types.Hash32Len ||
 		len(randomness) != types.Hash32Len || len(selected) == 0 {
 		return zero, nil, fmt.Errorf("selected verifier scope is incomplete")
 	}
@@ -936,7 +955,7 @@ func SelectedVerifierRefsHash(
 	randomness []byte,
 	selected []types.SelectedVerifierV1,
 ) ([]byte, error) {
-	if chainID == "" || len(taskID) != types.Hash32Len || !isPhase0VerifyRound(verifyRound) || len(legalSetHash) != types.Hash32Len ||
+	if chainID == "" || len(taskID) != types.Hash32Len || !isSelectableVerifyRound(verifyRound) || len(legalSetHash) != types.Hash32Len ||
 		randomnessHeight == 0 || len(randomness) != types.Hash32Len || len(selected) == 0 {
 		return nil, fmt.Errorf("selected verifier scope is incomplete")
 	}

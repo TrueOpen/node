@@ -690,6 +690,7 @@ var wirePublishedDomainVectorCoverage = map[string]string{
 	"TRUEOPEN_VERIFIER_VALUE_EVIDENCE_V1":      "Wire testdata/v1/task/value_evidence_v1.json; Node uses the pinned shared digest and tests funded attribution separately",
 
 	shared.DomainBridgeDeploymentManifestV1:    "Wire testdata/v1/hub/bridge_vrf_v1.json; TestBridgeProducersMatchPinnedWire executes the public producer",
+	shared.DomainOrderInputTokensV1:            "Wire testdata/v1/task/order_input_tokens_v1.json; the SDK produces it, the Task consumer rule arrives with the input-token change",
 	"TRUEOPEN_BUILDER_STORAGE_CONFIRMATION_V2": "Wire testdata/v1/task/builder_confirmation_v1.json",
 	shared.DomainModelIDV1:                     "Wire testdata/v1/hub/model_id_v1.json, bound to DeriveModelIDV1 by TestModelIDMatchesWireVectors",
 	"TRUEOPEN_OUTPUT_STREAM_HEADER_V1":         "Wire testdata/v1/task/output_stream_header_v1.json",

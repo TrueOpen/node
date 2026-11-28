@@ -119,3 +119,15 @@ func (k Keeper) exportServiceDescriptors(ctx context.Context) ([]types.ServiceDe
 	}
 	return states, nil
 }
+
+// GetAnchorDAEndpoint returns the data-availability endpoint the Cortex
+// operator's current service descriptor publishes (endpoint kind ANCHOR_DA), or
+// "" when it publishes none. The Task module freezes it into an anchor audit
+// when the task is sampled.
+func (k Keeper) GetAnchorDAEndpoint(ctx context.Context, operatorAddress string) string {
+	descriptor, err := k.GetServiceDescriptor(ctx, types.NewParticipantKey(shared.ParticipantType_PARTICIPANT_TYPE_CORTEX, operatorAddress))
+	if err != nil {
+		return ""
+	}
+	return types.AnchorDAEndpointURI(descriptor)
+}
