@@ -93,6 +93,11 @@ func (k Keeper) WriteServiceBondValue(ctx context.Context, key string, state typ
 	if key != state.OperatorAddress {
 		return fmt.Errorf("service bond key/address mismatch")
 	}
+	if state.PauseReasons&types.WorkerPauseReasonUnbonding != 0 && state.PendingUnbondingTotal == 0 {
+		// Single clearing point of the unbonding pause: every path that ends
+		// the last outstanding unbonding entry writes the bond through here.
+		state.SetPauseReason(types.WorkerPauseReasonUnbonding, false)
+	}
 	stored, err := k.serviceBondToStore(state)
 	if err != nil {
 		return err

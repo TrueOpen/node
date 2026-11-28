@@ -739,6 +739,13 @@ func (k Keeper) applySettlementPlan(
 	if err := k.releaseTaskLiabilitiesForSettlement(ctx, inputs, height); err != nil {
 		return types.TaskSettlementState{}, err
 	}
+	settledValue, err := settledOrderValue(plan, inputs.Budget)
+	if err != nil {
+		return types.TaskSettlementState{}, err
+	}
+	if err := k.settleWorkerQuota(ctx, inputs.Core, inputs.Assignment.WinnerWorker, settledValue, height); err != nil {
+		return types.TaskSettlementState{}, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+	}
 
 	core := inputs.Core
 	if facts.Verdict == types.TaskVerdict_TASK_VERDICT_PASS {

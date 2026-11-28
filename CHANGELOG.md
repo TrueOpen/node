@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- **Consensus-breaking: Worker bond floor, order quota and unbonding
+  conditions.** Four Hub service parameters that were carried but not read are
+  now applied. Each is off at its zero default, and a chain that sets none of
+  them stores and answers exactly what it did before.
+  - `worker_bond_floor_by_tier`: a dispatch record whose winner has an
+    effective bond below the floor of the Profile's resource tier is refused.
+    Tiers are listed once, in increasing order, within 1 to 5, with a non-zero
+    amount.
+  - `worker_quota_period_value_bps_of_bond` together with the Task parameter
+    `batch_settlement_period_blocks`: the order value a Worker has reserved and
+    settled in one settlement period may not exceed
+    `effective_bond * bps / 10000`. The period of a task is
+    `record_height / batch_settlement_period_blocks` under the task's own
+    frozen parameters. A dispatch record reserves the task's order value; the
+    record that does not fit is refused. At finality the reservation is
+    replaced by the order value of the tokens the settlement billed (zero for
+    a task that fails before verification). The coefficient is bounded at
+    100000. Without a settlement period there is no quota.
+  - A dispatch record is also refused while the winner's bond has
+    `dispatch_paused` set.
+  - These three refusals reject the new record with `WINNER_NOT_ELIGIBLE` and
+    do nothing else: no ineligibility receipt, no fault, no change to any task
+    already recorded. The existing ineligibility outcomes (tombstoned, fully
+    unbonding, bond below the Profile minimum, liability not covered) are
+    evaluated first and are unchanged.
+  - `stop_dispatch_on_unbond_request`: a service unbonding request sets the
+    pause reason `UNBONDING` (bit 2) on the bond; it is cleared when the
+    operator's pending unbonding total returns to zero.
+  - `unbond_requires_no_open_tasks`: a matured unbonding is not withdrawn
+    while the operator is the Worker of a task that is not final.
+  - `hub.v1.Query/WorkerQuota` answers the period (0 in the request is the
+    current one), the quota at the current effective bond, the reserved and
+    settled value, what is left, and `enforced` (true when both the
+    coefficient and a settlement period are set).
+  - Quota rows are exported and imported in Hub genesis field `worker_quotas`
+    and deleted once they hold no reservation and lie 16 periods behind the
+    operator's newest record. New store prefix `worker_quota`.
+  - Suggested values are published as `RecommendedWorkerQuotaPeriodValueBpsOfBond`
+    (1428), `RecommendedWorkerBondFloorRevenuePeriods` (7) and
+    `RecommendedServiceUnbondingPeriodBlocks` (1209600). No default changed.
+  - A task's terminal transition (settlement, or failure before verification)
+    now reads the task's frozen parameters to find its settlement period. On a
+    chain without a settlement period this is the only difference: one more
+    read in those transactions, no state change.
 - **Consensus-breaking: audit capability for Verifier panels.** A Cortex
   operator may declare `audit_capability` for a model in
   `MsgDeclareModelSupport`, alone or together with inference or verification

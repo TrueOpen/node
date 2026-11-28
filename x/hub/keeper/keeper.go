@@ -28,6 +28,7 @@ type Keeper struct {
 	roleFaultConsumers            types.RoleFaultConsumerGate
 	workerCandidateWeights        types.WorkerCandidateWeightProvider
 	consensusIdentities           types.ConsensusIdentityChecker
+	workerSettlement              types.WorkerSettlementView
 	governanceActionReplayChecker *governanceActionReplayCheckerHolder
 	bridgeUpstream                *bridgeUpstreamHolder
 	vrfPoPVerifier                VrfPoPVerifier
@@ -39,16 +40,19 @@ type Keeper struct {
 	EndBlockBudgetRemainingItems collections.Item[uint64]
 	EndBlockBudgetRemainingBytes collections.Item[uint64]
 
-	Model                               collections.Map[shared.Hash32Key, types.ModelState]
-	Profile                             collections.Map[types.ProfileStateKeyPair, types.ProfileState]
-	RegistrationReceipt                 collections.Map[shared.Hash32Key, types.RegistrationReceipt]
-	CortexNode                          collections.Map[string, internaltypes.CortexNodeStoreState]
-	ServiceBond                         collections.Map[string, internaltypes.ServiceBondStoreState]
-	Unbonding                           collections.Map[types.UnbondingKeyPair, internaltypes.UnbondingStoreState]
-	UnbondingMaturityIndex              collections.KeySet[types.UnbondingMaturityIndexKeyTriple]
-	UnbondingByOperatorStatusIndex      collections.KeySet[types.UnbondingByOperatorStatusKey]
-	UnbondingReceipt                    collections.Map[shared.Hash32Key, internaltypes.UnbondingReceiptStoreState]
-	UnbondingReceiptPruneIndex          collections.KeySet[types.UnbondingReceiptPruneKey]
+	Model                          collections.Map[shared.Hash32Key, types.ModelState]
+	Profile                        collections.Map[types.ProfileStateKeyPair, types.ProfileState]
+	RegistrationReceipt            collections.Map[shared.Hash32Key, types.RegistrationReceipt]
+	CortexNode                     collections.Map[string, internaltypes.CortexNodeStoreState]
+	ServiceBond                    collections.Map[string, internaltypes.ServiceBondStoreState]
+	Unbonding                      collections.Map[types.UnbondingKeyPair, internaltypes.UnbondingStoreState]
+	UnbondingMaturityIndex         collections.KeySet[types.UnbondingMaturityIndexKeyTriple]
+	UnbondingByOperatorStatusIndex collections.KeySet[types.UnbondingByOperatorStatusKey]
+	UnbondingReceipt               collections.Map[shared.Hash32Key, internaltypes.UnbondingReceiptStoreState]
+	UnbondingReceiptPruneIndex     collections.KeySet[types.UnbondingReceiptPruneKey]
+	// WorkerQuota holds, per operator and settlement period, the order value
+	// reserved by tasks that are not final and the value of the final ones.
+	WorkerQuota                         collections.Map[types.WorkerQuotaKeyPair, internaltypes.WorkerQuotaUsage]
 	ServiceDescriptor                   collections.Map[types.ParticipantKeyPair, internaltypes.ServiceDescriptorStoreState]
 	CurrentServiceAddressIndex          collections.Map[types.CurrentServiceAddressIndexKeyPair, internaltypes.CurrentServiceAddressIndexStoreState]
 	TaskLiabilityReservation            collections.Map[types.TaskLiabilityReservationKeyTriple, internaltypes.TaskLiabilityStoreState]
@@ -368,6 +372,7 @@ func NewKeeper(
 		UnbondingByOperatorStatusIndex:      collections.NewKeySet(sb, types.UnbondingByOperatorStatusIndexKey, "unbonding_by_operator_status", collections.QuadKeyCodec(addressStringKeyCodec, collections.Int32Key, collections.Uint64Key, shared.Hash32KeyCodec)),
 		UnbondingReceipt:                    collections.NewMap(sb, types.UnbondingReceiptKey, "unbonding_receipt", shared.Hash32KeyCodec, codec.CollValue[internaltypes.UnbondingReceiptStoreState](cdc)),
 		UnbondingReceiptPruneIndex:          collections.NewKeySet(sb, types.UnbondingReceiptPruneIndexKey, "unbonding_receipt_prune", collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)),
+		WorkerQuota:                         collections.NewMap(sb, types.WorkerQuotaKey, "worker_quota", collections.PairKeyCodec(addressStringKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.WorkerQuotaUsage](cdc)),
 		ServiceDescriptor:                   collections.NewMap(sb, types.ServiceDescriptorKey, "service_descriptor", participantKeyCodec, codec.CollValue[internaltypes.ServiceDescriptorStoreState](cdc)),
 		CurrentServiceAddressIndex:          collections.NewMap(sb, types.CurrentServiceAddressIndexKey, "current_service_address", participantKeyCodec, codec.CollValue[internaltypes.CurrentServiceAddressIndexStoreState](cdc)),
 		TaskLiabilityReservation:            collections.NewMap(sb, types.TaskLiabilityReservationKey, "task_liability", liabilityKeyCodec, codec.CollValue[internaltypes.TaskLiabilityStoreState](cdc)),

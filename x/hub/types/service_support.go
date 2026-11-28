@@ -52,6 +52,9 @@ func (s ServiceBondState) Validate() error {
 	if s.EffectiveActiveBond > s.ActiveBond {
 		return fmt.Errorf("service bond effective_active_bond exceeds active_bond")
 	}
+	if err := validateDispatchPause(s); err != nil {
+		return err
+	}
 	// reserved_liability is deliberately NOT bounded here. A layer-1
 	// slash reduces active_bond without subtracting reserved_liability,
 	// so "reserved_liability > effective_active_bond" is a reachable, legal state

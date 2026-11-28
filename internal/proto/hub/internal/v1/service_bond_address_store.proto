@@ -45,3 +45,12 @@ message UnbondingReceiptStoreState {
   uint64 terminal_height = 7;
   bytes receipt_hash = 8;
 }
+
+// WorkerQuotaUsage is one Worker's order-value usage in one settlement
+// period. It is not a twin of hub.v1.WorkerQuotaState: the operator and the
+// period are the row key.
+message WorkerQuotaUsage {
+  uint64 reserved_value = 1;
+  uint64 settled_value = 2;
+  uint64 updated_height = 3;
+}

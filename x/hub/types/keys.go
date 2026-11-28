@@ -129,6 +129,7 @@ var (
 	UnbondingByOperatorStatusIndexKey      = MustVersionedStorePrefix("unbonding_by_operator_status", CurrentStoreSchemaVersion)
 	UnbondingReceiptKey                    = MustVersionedStorePrefix("unbonding_receipt", CurrentStoreSchemaVersion)
 	UnbondingReceiptPruneIndexKey          = MustVersionedStorePrefix("unbonding_receipt_prune", CurrentStoreSchemaVersion)
+	WorkerQuotaKey                         = MustVersionedStorePrefix("worker_quota", CurrentStoreSchemaVersion)
 	ServiceDescriptorKey                   = MustVersionedStorePrefix("service_descriptor", CurrentStoreSchemaVersion)
 	CurrentServiceAddressIndexKey          = MustVersionedStorePrefix("current_service_address", CurrentStoreSchemaVersion)
 	TaskLiabilityReservationKey            = MustVersionedStorePrefix("task_liability", CurrentStoreSchemaVersion)

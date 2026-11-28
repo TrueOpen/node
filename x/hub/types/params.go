@@ -256,6 +256,9 @@ func (p HubParamsV2) Validate() error {
 		p.Service.MinStakeGracePeriodBlocks == 0 {
 		return fmt.Errorf("service parameters are invalid")
 	}
+	if err := validateWorkerBondParams(p.Service); err != nil {
+		return err
+	}
 	if p.Builder.BuilderSetCap == 0 ||
 		p.Builder.BuilderSetUpdateLeadBlocks == 0 ||
 		p.Builder.OpenVerifyBuilderProposalWindowBlocks == 0 || p.Builder.SettlementBuilderGraceBlocks == 0 ||

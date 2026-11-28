@@ -109,6 +109,9 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	if err := k.EnsureServiceBondEffectiveIndexInvariant(ctx); err != nil {
 		return fmt.Errorf("service bond effective index: %w", err)
 	}
+	if err := k.importWorkerQuotas(ctx, genState.WorkerQuotas); err != nil {
+		return err
+	}
 	for _, state := range genState.ServiceUnbondings {
 		id := shared.Hash32Key(state.UnbondingId)
 		if err := k.WriteUnbondingValue(ctx, types.NewUnbondingKey(state.OperatorAddress, id), state); err != nil {
@@ -635,6 +638,10 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, fmt.Errorf("service bond effective index: %w", err)
 	}
 	genesis.ServiceUnbondings, err = k.exportUnbondings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	genesis.WorkerQuotas, err = k.exportWorkerQuotas(ctx)
 	if err != nil {
 		return nil, err
 	}

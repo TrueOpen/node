@@ -328,6 +328,9 @@ func (k Keeper) applyPreVerificationFailure(
 	if err := k.releaseFailedTaskResponsibilities(ctx, core, currentHeight); err != nil {
 		return preVerificationFailureResult{}, err
 	}
+	if err := k.settleWorkerQuota(ctx, core, assignment.WinnerWorker, 0, currentHeight); err != nil {
+		return preVerificationFailureResult{}, err
+	}
 	if err := k.RemoveRoleActiveTaskIndexes(ctx, core.TaskId); err != nil {
 		return preVerificationFailureResult{}, err
 	}

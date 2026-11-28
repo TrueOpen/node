@@ -61,6 +61,9 @@ func (gs GenesisState) Validate() error {
 	if err := validateTaskLiabilityCandidateOwnership(gs, nodes); err != nil {
 		return err
 	}
+	if err := ValidateWorkerQuotaGenesis(gs.WorkerQuotas); err != nil {
+		return err
+	}
 	if err := validateIdentityGenesis(gs, nodes, bonds); err != nil {
 		return err
 	}

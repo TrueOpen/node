@@ -168,6 +168,10 @@ func (k Keeper) GetHubParams(ctx sdk.Context) types.HubParamsSnapshot {
 		MaxQueryResponseBytes:        params.QueryEvent.MaxQueryResponseBytes,
 		MaxEndblockVisitedItemsTotal: params.QueryEvent.MaxEndblockVisitedItemsTotal,
 		BusinessDenom:                params.Phase0.BusinessDenom,
+		WorkerQuota: types.WorkerQuotaTerms{
+			PeriodValueBpsOfBond: params.Service.WorkerQuotaPeriodValueBpsOfBond,
+			BondFloorByTier:      params.Service.WorkerBondFloorByTier,
+		},
 	}
 }
 
@@ -210,6 +214,7 @@ func (k Keeper) GetServiceBond(ctx sdk.Context, cortexNode sdk.AccAddress, order
 		RequiredTaskLiability: requiredLiability,
 		ReservedLiability:     state.ReservedLiability, BondVersion: state.BondVersion,
 		EffectiveEpoch: state.EffectiveBondEpoch, PendingUnbonding: state.PendingUnbondingTotal,
+		DispatchPaused: state.DispatchPaused, PauseReasons: state.PauseReasons,
 	}, true
 }
 

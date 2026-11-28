@@ -122,6 +122,15 @@ type ConsensusIdentityChecker interface {
 	IsConsensusIdentity(ctx context.Context, operator, service sdk.AccAddress, servicePubkey []byte) (bool, error)
 }
 
+// WorkerSettlementView exposes the Task-owned facts the Worker bond rules
+// need: the length of a settlement period (zero when batches are off) and
+// whether an operator still has a task without a final verdict, an unsettled
+// batch or an audit waiting for a late submission.
+type WorkerSettlementView interface {
+	WorkerQuotaPeriodBlocks(ctx context.Context) (uint64, error)
+	WorkerHasOpenObligations(ctx context.Context, operatorAddress string) (bool, error)
+}
+
 type TaskSafetyWindows struct {
 	ChallengeResolveWindowBlocks uint64
 	EvidenceResponseWindowBlocks uint64
@@ -139,4 +148,7 @@ type MsgServerDependencies struct {
 	// ConsensusIdentityChecker is optional: a chain without it refuses audit
 	// capability declarations and is otherwise unchanged.
 	ConsensusIdentityChecker ConsensusIdentityChecker
+	// WorkerSettlementView is optional: without it the quota query reports no
+	// period and unbonding withdrawals keep today's conditions.
+	WorkerSettlementView WorkerSettlementView
 }

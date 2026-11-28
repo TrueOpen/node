@@ -11,9 +11,10 @@ import (
 	"github.com/TrueOpen/node/x/hub/types"
 )
 
-// WorkerQuota reports a Worker's order quota for a settlement period. No quota
-// is enforced by this chain version, so the answer carries the bond's pause
-// flags and enforced = false.
+// WorkerQuota reports a Worker's order quota for a settlement period: the
+// quota at the current effective bond, what the period's tasks have reserved
+// and settled, and what is left. enforced is false when no coefficient or no
+// settlement period is configured; the pause flags mirror the bond.
 func (q queryServer) WorkerQuota(ctx context.Context, req *types.QueryWorkerQuotaRequest) (*types.QueryWorkerQuotaResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
@@ -22,12 +23,12 @@ func (q queryServer) WorkerQuota(ctx context.Context, req *types.QueryWorkerQuot
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	bond, err := q.k.ReadServiceBondValue(ctx, operatorAddress)
+	answer, err := q.k.workerQuotaAnswer(ctx, operatorAddress, req.Period)
 	if errors.Is(err, collections.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "service bond not found")
 	}
 	if err != nil {
-		return nil, status.Error(codes.Internal, "service bond unavailable")
+		return nil, status.Error(codes.Internal, "worker quota unavailable")
 	}
-	return &types.QueryWorkerQuotaResponse{Period: req.Period, DispatchPaused: bond.DispatchPaused, PauseReasons: bond.PauseReasons}, nil
+	return answer, nil
 }

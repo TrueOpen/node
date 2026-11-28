@@ -23,6 +23,7 @@ func NewMsgServerImpl(k Keeper, dependencies ...types.MsgServerDependencies) typ
 		server.k = k.WithRuntimeDependencies(dependencies[0].FreezeTaskValidator, dependencies[0].ValidatorSnapshotProvider, dependencies[0].RoleFaultConsumerGate)
 		server.k = server.k.WithWorkerCandidateWeights(dependencies[0].WorkerCandidateWeightProvider)
 		server.k = server.k.WithConsensusIdentityChecker(dependencies[0].ConsensusIdentityChecker)
+		server.k = server.k.WithWorkerSettlementView(dependencies[0].WorkerSettlementView)
 		server.freezeTaskValidator = dependencies[0].FreezeTaskValidator
 		server.validatorSnapshots = dependencies[0].ValidatorSnapshotProvider
 		server.taskSafetyWindows = dependencies[0].TaskSafetyWindowProvider
