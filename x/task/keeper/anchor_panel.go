@@ -196,6 +196,9 @@ func (k Keeper) retireAnchorPanelWork(ctx context.Context, taskKey types.TaskKey
 	if err := k.retireAnchorLateWork(ctx, taskKey, state); err != nil {
 		return err
 	}
+	if err := k.noteAnchorPanelWrongVotes(ctx, taskKey, state); err != nil {
+		return err
+	}
 	return k.AnchorUnderReviewIndex.Remove(ctx, taskKey)
 }
 
@@ -275,6 +278,11 @@ func (k Keeper) closeAnchorPanelRound(
 	}
 	if err := k.setAnchorPanelMemberIndex(ctx, taskKey, round.Members, false); err != nil {
 		return err
+	}
+	if params, err := k.ParamsForTask(ctx, taskKey); err == nil {
+		if err := k.noteAnchorPanelMisses(ctx, *round, height, params); err != nil {
+			return err
+		}
 	}
 	if err := emitTypedEvent(ctx, &types.EventAnchorPanelRoundClosed{
 		TaskId: append([]byte(nil), audit.TaskId...), PanelRound: round.PanelRound, Result: result,
@@ -471,6 +479,9 @@ func (k Keeper) advanceAnchorPanel(ctx context.Context, taskKey types.TaskKey, h
 				break
 			}
 			if err = k.setAnchorPanelMemberIndex(ctx, taskKey, members, true); err != nil {
+				break
+			}
+			if err = k.noteAnchorPanelDrawn(ctx, taskKey, members, height, params); err != nil {
 				break
 			}
 			if err = emitTypedEvent(ctx, &types.EventAnchorPanelAssigned{

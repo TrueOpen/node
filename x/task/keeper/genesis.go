@@ -1087,6 +1087,9 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.WorkerTimeoutLedgers, err = collectMapValues(ctx, k.WorkerTimeoutLedger); err != nil {
 		return nil, err
 	}
+	if genesis.VerifierAuditStandings, err = collectMapValues(ctx, k.VerifierAuditStanding); err != nil {
+		return nil, err
+	}
 	if genesis.WorkerBatches, err = collectMapValues(ctx, k.WorkerBatch); err != nil {
 		return nil, err
 	}
@@ -1302,6 +1305,23 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 	}
 	if err := k.rebuildWorkerBatchIndexes(ctx, genesis); err != nil {
 		return err
+	}
+	for _, standing := range genesis.VerifierAuditStandings {
+		raw, err := k.sessionAddressToStore("verifier audit standing operator_address", standing.OperatorAddress)
+		if err != nil {
+			return err
+		}
+		if _, err := shared.ParseAmount(standing.AuditedValue); err != nil {
+			return fmt.Errorf("verifier audit standing of %s has no canonical audited value", standing.OperatorAddress)
+		}
+		if has, err := k.VerifierAuditStanding.Has(ctx, raw); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate verifier audit standing")
+		}
+		if err := k.VerifierAuditStanding.Set(ctx, raw, standing); err != nil {
+			return err
+		}
 	}
 	for _, ledger := range genesis.WorkerTimeoutLedgers {
 		raw, err := k.sessionAddressToStore("worker timeout ledger operator_address", ledger.OperatorAddress)

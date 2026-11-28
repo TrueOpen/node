@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- **Consensus-breaking: audit standing of panel Verifiers.** The chain keeps a
+  standing per operator that sits on Verifier panels and applies three rules
+  to panel eligibility. Each is off while its task parameters are zero (the
+  default).
+  - Allowance (`anchor_verifier_bond_multiple`,
+    `anchor_verifier_allowance_window_blocks`): the value of the tasks an
+    operator was drawn for inside the current allowance window plus the task
+    at hand, times the multiple, must not exceed its effective bond. Windows
+    are consecutive spans of the window length.
+  - Missed votes (`anchor_verifier_miss_trigger_count`,
+    `anchor_verifier_miss_window_blocks`, counted per
+    `batch_settlement_period_blocks`): a member that cast no vote in a round
+    that ran to its vote deadline, or cast UNAVAILABLE while every other
+    member judged the material, missed. A period with a miss counts once. Each
+    time the periods with a miss inside the window reach another multiple of
+    the trigger count the operator is ineligible for the whole next
+    settlement period. A member that had not voted when the other members
+    decided the round early is not counted.
+  - Wrong votes (`anchor_verifier_wrong_vote_slash_bps` set): a member whose
+    PASS or REJECT is the opposite of a final verdict decided by a panel or a
+    re-audit is deactivated and drawn for no further panel. UNAVAILABLE is
+    never a wrong vote, and a verdict that comes from a missed deadline, an
+    expired late window, unavailable material or no conclusion makes nobody
+    wrong.
+  - No slash is applied by this change for a missed or a wrong vote, and the
+    re-audit opener receives no reward yet.
+  - Query `VerifierAuditStanding` (`audited_value` of the current window,
+    missed periods, `suspended_until_period`, `deactivated`,
+    `allowance_limit`). New task store prefix `verifier_audit_standing`,
+    exported as `verifier_audit_standings`.
 - **Consensus-breaking: per-Worker, per-period batch settlement
   (`batch_settlement_period_blocks`) and panel fees.**
   - With the task parameter set (default 0 = off), a task joins the batch of

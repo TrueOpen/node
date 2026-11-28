@@ -137,6 +137,7 @@ type Keeper struct {
 	AnchorPanelLastScanHeight           collections.Item[uint64]
 	WorkerTimeoutLedger                 collections.Map[types.AddrKey, types.WorkerTimeoutLedgerState]
 	WorkerLateIndex                     collections.KeySet[types.RoleActiveTaskKey]
+	VerifierAuditStanding               collections.Map[types.AddrKey, types.VerifierAuditStandingState]
 	WorkerBatch                         collections.Map[collections.Pair[types.AddrKey, uint64], types.WorkerBatchState]
 	WorkerBatchTask                     collections.Map[types.TaskKey, types.WorkerBatchTaskState]
 	WorkerBatchTaskIndex                collections.KeySet[collections.Triple[types.AddrKey, uint64, types.TaskKey]]
@@ -334,6 +335,7 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		AnchorPanelLastScanHeight:           collections.NewItem(sb, types.AnchorPanelLastScanHeightKey, "anchor_panel_last_scan_height", collections.Uint64Value),
 		WorkerTimeoutLedger:                 collections.NewMap(sb, types.WorkerTimeoutLedgerKey, "worker_timeout_ledger", types.AddrKeyCodec, codec.CollValue[types.WorkerTimeoutLedgerState](cdc)),
 		WorkerLateIndex:                     collections.NewKeySet(sb, types.WorkerLateIndexKey, "worker_late_index", roleActiveTaskKeyCodec),
+		VerifierAuditStanding:               collections.NewMap(sb, types.VerifierAuditStandingKey, "verifier_audit_standing", types.AddrKeyCodec, codec.CollValue[types.VerifierAuditStandingState](cdc)),
 		WorkerBatch:                         collections.NewMap(sb, types.WorkerBatchKey, "worker_batch", collections.PairKeyCodec(types.AddrKeyCodec, collections.Uint64Key), codec.CollValue[types.WorkerBatchState](cdc)),
 		WorkerBatchTask:                     collections.NewMap(sb, types.WorkerBatchTaskKey, "worker_batch_task", types.Hash32KeyCodec, codec.CollValue[types.WorkerBatchTaskState](cdc)),
 		WorkerBatchTaskIndex:                collections.NewKeySet(sb, types.WorkerBatchTaskIndexKey, "worker_batch_task_index", collections.TripleKeyCodec(types.AddrKeyCodec, collections.Uint64Key, types.Hash32KeyCodec)),

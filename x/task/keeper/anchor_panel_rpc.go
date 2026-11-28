@@ -21,10 +21,6 @@ func (m msgServer) ReleaseAnchorBrake(context.Context, *types.MsgReleaseAnchorBr
 	return nil, errAnchorPanelNotAvailable
 }
 
-func (q queryServer) VerifierAuditStanding(context.Context, *types.QueryVerifierAuditStandingRequest) (*types.QueryVerifierAuditStandingResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
 func (q queryServer) AnchorBrake(context.Context, *types.QueryAnchorBrakeRequest) (*types.QueryAnchorBrakeResponse, error) {
 	return nil, errAnchorPanelNotAvailable
 }

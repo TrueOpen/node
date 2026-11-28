@@ -298,6 +298,10 @@ func (k Keeper) loadAnchorPanelEligibilityFacts(
 	if jailFactor == 0 {
 		return zero, fmt.Errorf("panel member is hard-invalidated")
 	}
+	if params, err := k.ParamsForTask(ctx, types.NewTaskKey(core.TaskId)); err != nil ||
+		!k.anchorVerifierStandingAllows(ctx, operator, orderValue, bond.EffectiveActiveBond, uint64(sdkCtx.BlockHeight()), params) {
+		return zero, fmt.Errorf("panel member's audit standing does not admit it")
+	}
 	if hubParams.MinValidatorSeparation {
 		var service sdk.AccAddress
 		if serviceKey.ServiceAddress != "" {

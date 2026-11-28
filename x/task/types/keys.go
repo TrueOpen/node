@@ -166,6 +166,8 @@ var (
 	// Late submission: a Worker's rolling ledger of settlement periods with a
 	// timeout of its own, and its audits that timed out and are not final.
 	WorkerTimeoutLedgerKey = MustVersionedStorePrefix("worker_timeout_ledger", CurrentStoreSchemaVersion)
+	// VerifierAuditStandingKey holds a panel Verifier's audit standing.
+	VerifierAuditStandingKey = MustVersionedStorePrefix("verifier_audit_standing", CurrentStoreSchemaVersion)
 	// Batch settlement: a Worker's batch per settlement period, the member row
 	// of each task, the member listing, the batches whose period end is due and
 	// the batches queued for payment.
