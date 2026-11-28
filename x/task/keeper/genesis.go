@@ -1084,6 +1084,9 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.AnchorValidatorVotes, err = collectMapValues(ctx, k.AnchorValidatorVote); err != nil {
 		return nil, err
 	}
+	if genesis.WorkerTimeoutLedgers, err = collectMapValues(ctx, k.WorkerTimeoutLedger); err != nil {
+		return nil, err
+	}
 	if genesis.AnchorVoteKeys, err = collectMapValues(ctx, k.AnchorVoteKey); err != nil {
 		return nil, err
 	}
@@ -1288,6 +1291,23 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 			return err
 		}
 		if err := k.rebuildAnchorPanelIndexes(ctx, taskID, state); err != nil {
+			return err
+		}
+	}
+	for _, ledger := range genesis.WorkerTimeoutLedgers {
+		raw, err := k.sessionAddressToStore("worker timeout ledger operator_address", ledger.OperatorAddress)
+		if err != nil {
+			return err
+		}
+		if len(ledger.Periods) != len(ledger.Heights) || len(ledger.SlashedPeriods) > len(ledger.Periods) {
+			return fmt.Errorf("worker timeout ledger of %s is malformed", ledger.OperatorAddress)
+		}
+		if has, err := k.WorkerTimeoutLedger.Has(ctx, raw); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate worker timeout ledger")
+		}
+		if err := k.WorkerTimeoutLedger.Set(ctx, raw, ledger); err != nil {
 			return err
 		}
 	}

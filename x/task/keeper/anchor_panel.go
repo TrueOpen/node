@@ -52,7 +52,7 @@ func anchorPanelRetryPending(state types.AnchorAuditState) bool {
 		return false
 	}
 	round := state.PanelRounds[0]
-	if round.ClosedHeight == 0 {
+	if round.ClosedHeight == 0 || round.Attempt != 0 {
 		return false
 	}
 	step, _ := anchorPanelStepAfter(round.Kind, round.Result)
@@ -91,7 +91,12 @@ func anchorPanelVerdictWindowBlocks(params types.TaskParamsV1) (uint64, bool) {
 		return 0, false
 	}
 	total := params.Verification.AnchorVerdictWindowBlocks
-	for _, add := range []uint64{span, span, span, params.Verification.AnchorPublicationWindowBlocks} {
+	parts := []uint64{span, span, span, params.Verification.AnchorPublicationWindowBlocks}
+	if late := params.Verification.AnchorLateWindowBlocks; late != 0 {
+		// The late window and the panel round a late submission opens.
+		parts = append(parts, late, span)
+	}
+	for _, add := range parts {
 		next, overflow := checkedHeightAdd(total, add)
 		if overflow {
 			return 0, false
@@ -188,6 +193,9 @@ func (k Keeper) retireAnchorPanelWork(ctx context.Context, taskKey types.TaskKey
 			return err
 		}
 	}
+	if err := k.retireAnchorLateWork(ctx, taskKey, state); err != nil {
+		return err
+	}
 	return k.AnchorUnderReviewIndex.Remove(ctx, taskKey)
 }
 
@@ -206,6 +214,9 @@ func (k Keeper) openAnchorPanelRound(
 	round := types.AnchorPanelRoundState{
 		PanelRound: panelRound, Kind: kind, OpenHeight: height,
 		PanelFee: strconv.FormatUint(k.anchorPanelFee(ctx, taskKey), 10),
+	}
+	if audit.LateState != lateStateNone {
+		round.Attempt = 1
 	}
 	audit.PanelRound = panelRound
 	audit.PanelRounds = append(audit.PanelRounds, round)
@@ -272,6 +283,10 @@ func (k Keeper) closeAnchorPanelRound(
 		return err
 	}
 	step, reason := anchorPanelStepAfter(round.Kind, result)
+	if round.Attempt != 0 && step == anchorPanelStepRetry {
+		// A round on a late submission is not re-assigned.
+		step, reason = anchorPanelStepWorkerTimeout, types.AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_PANEL_INCONCLUSIVE
+	}
 	switch step {
 	case anchorPanelStepProvisional:
 		params, err := k.ParamsForTask(ctx, taskKey)
@@ -300,6 +315,9 @@ func (k Keeper) closeAnchorPanelRound(
 		// most one scan per block.
 		return k.setAnchorPanelDue(ctx, taskKey, height)
 	case anchorPanelStepWorkerTimeout:
+		if handled, err := k.recordAnchorWorkerTimeout(ctx, taskKey, audit, reason, height); err != nil || handled {
+			return err
+		}
 		audit.TimeoutReason = reason
 		if reason == types.AnchorTimeoutReasonV1_ANCHOR_TIMEOUT_REASON_V1_PANEL_UNAVAILABLE {
 			return k.finalizeAnchorPanelAudit(ctx, taskKey, audit, types.AnchorVerdictV1_ANCHOR_VERDICT_V1_REJECT,
@@ -474,6 +492,10 @@ func (k Keeper) advanceAnchorPanel(ctx context.Context, taskKey types.TaskKey, h
 		} else {
 			err = k.setAnchorPanelDue(ctx, taskKey, round.VoteDeadlineHeight+1)
 		}
+	case audit.LateState == lateStateAwaiting:
+		err = k.expireAnchorLate(ctx, taskKey, &audit, height)
+	case len(audit.PanelRounds) == 0:
+		err = k.advanceAnchorWorkerDeadlines(ctx, taskKey, &audit, height)
 	case anchorPanelRetryPending(audit):
 		if !inSweep {
 			err = k.setAnchorPanelDue(ctx, taskKey, height)
@@ -571,8 +593,13 @@ func (k Keeper) anchorPanelHasWork(ctx context.Context, taskKey types.TaskKey, s
 // part of the exported state; such a round is closed by that first visit with
 // no conclusion and the audit goes on from there.
 func (k Keeper) rebuildAnchorPanelIndexes(ctx context.Context, taskKey types.TaskKey, state types.AnchorAuditState) error {
-	if !isAnchorPanelAudit(state) || state.ResultHeight != 0 || len(state.PanelRounds) == 0 {
+	if !isAnchorPanelAudit(state) || state.ResultHeight != 0 || !state.Selected {
 		return nil
+	}
+	if state.LateState == lateStateAwaiting || state.LateState == lateStateSubmitted {
+		if err := k.setWorkerLateIndex(ctx, state.WinnerWorker, taskKey, true); err != nil {
+			return err
+		}
 	}
 	if index, open := anchorPanelOpenRound(state); open {
 		if err := k.setAnchorPanelMemberIndex(ctx, taskKey, state.PanelRounds[index].Members, true); err != nil {

@@ -9,7 +9,7 @@ import (
 	"github.com/TrueOpen/node/x/task/types"
 )
 
-// The RPCs of late submission, batch settlement and
+// The RPCs of batch settlement and
 // the per-model brake. The wire contract carries them; this file answers each
 // with a plain refusal until the change that implements it replaces the method.
 // Nothing here reads or writes state, so a chain that never enables the panel
@@ -38,9 +38,5 @@ func (q queryServer) VerifierAuditStanding(context.Context, *types.QueryVerifier
 }
 
 func (q queryServer) AnchorBrake(context.Context, *types.QueryAnchorBrakeRequest) (*types.QueryAnchorBrakeResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (q queryServer) WorkerLateSubmissions(context.Context, *types.QueryWorkerLateSubmissionsRequest) (*types.QueryWorkerLateSubmissionsResponse, error) {
 	return nil, errAnchorPanelNotAvailable
 }

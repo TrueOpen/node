@@ -30,6 +30,8 @@ type panelHubState struct {
 	noBeacon   map[int64]bool
 	separation bool
 	badSig     map[string]bool
+	// paused holds the dispatch pause reasons per operator.
+	paused map[string]uint32
 }
 
 // panelHubStub adds a populated candidate pool and audit-capable operators to
@@ -54,6 +56,16 @@ func (s panelHubStub) AcquireBeaconConsumerRef(_ context.Context, height uint64,
 func (s panelHubStub) ReleaseBeaconConsumerRef(_ context.Context, height uint64, _ hubtypes.BeaconConsumerKind, _ string) error {
 	s.state.beaconRefs[height]--
 	return nil
+}
+
+func (s panelHubStub) SetWorkerDispatchPause(_ context.Context, operator string, reason uint32, paused bool) (uint32, bool, error) {
+	before := s.state.paused[operator]
+	after := before &^ reason
+	if paused {
+		after = before | reason
+	}
+	s.state.paused[operator] = after
+	return after, after != before, nil
 }
 
 func (s panelHubStub) AcquirePendingStageDuty(_ context.Context, operator string) error {
@@ -173,11 +185,18 @@ func newAnchorPanelFixture(t *testing.T, bond uint64, candidates int) *anchorPan
 
 func newAnchorPanelFixtureBeforeProof(t *testing.T, bond uint64, candidates int) *anchorPanelFixture {
 	t.Helper()
+	return newTunedAnchorPanelFixture(t, bond, candidates, func(*types.TaskParamsV1) {})
+}
+
+// newTunedAnchorPanelFixture is newAnchorPanelFixtureBeforeProof with the
+// task's parameters adjusted by tune before the task freezes them.
+func newTunedAnchorPanelFixture(t *testing.T, bond uint64, candidates int, tune func(*types.TaskParamsV1)) *anchorPanelFixture {
+	t.Helper()
 	base := newAnchorOnlyFixture(t, bond, true)
 	state := &panelHubState{
 		slots: map[uint32]string{0: base.worker}, notAudit: map[string]bool{}, stale: map[string]bool{}, lowBond: map[string]bool{},
 		waiting: map[string]bool{}, tombstoned: map[string]bool{}, score: map[string]uint64{}, duties: map[string]int{},
-		beaconRefs: map[uint64]int{}, noBeacon: map[int64]bool{}, badSig: map[string]bool{},
+		beaconRefs: map[uint64]int{}, noBeacon: map[int64]bool{}, badSig: map[string]bool{}, paused: map[string]uint32{},
 	}
 	f := &anchorPanelFixture{anchorOnlyFixture: base, hubState: state}
 	base.hub.pool.SlotCapacity = 16
@@ -199,6 +218,7 @@ func newAnchorPanelFixtureBeforeProof(t *testing.T, bond uint64, candidates int)
 	base.params.Verification.AnchorPanelThreshold = 2
 	base.params.Verification.AnchorPanelVoteWindowBlocks = panelVoteWindow
 	base.params.Verification.AnchorPublicationWindowBlocks = panelPublication
+	tune(&base.params)
 	require.NoError(t, base.params.Validate())
 	require.NoError(t, base.keeper.Params.Set(base.ctx, base.params))
 

@@ -157,6 +157,16 @@ func (k Keeper) anchorSettlementView(ctx context.Context, taskKey types.TaskKey,
 			state.ResultReason = "publication window ended without a re-audit"
 			return &state, nil
 		}
+		// So is an audit whose late deadline has passed.
+		if verdict, source, reason, due := anchorLateDueVerdict(state, height); due {
+			state.TaskVerdict, state.ResultSource, state.ResultReason = verdict, source, reason
+			return &state, nil
+		}
+		if state.LateState == lateStateAwaiting && deadline <= state.LateDeadlineHeight {
+			// A late window that outlasts the verdict deadline is still the
+			// Worker's to use.
+			deadline = state.LateDeadlineHeight
+		}
 	}
 	if height < deadline {
 		if roundVerdict != types.TaskVerdict_TASK_VERDICT_PASS {

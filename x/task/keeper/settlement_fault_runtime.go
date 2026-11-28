@@ -175,7 +175,8 @@ func (k Keeper) prepareSettlementFaults(
 		faultType, bps := hubtypes.FaultTypeAnchorReject, params.Verification.AnchorRejectSlashBps
 		switch inputs.Anchor.ResultSource {
 		case types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_TIMEOUT,
-			types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE:
+			types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_MATERIAL_UNAVAILABLE,
+			types.AnchorResultSourceV1_ANCHOR_RESULT_SOURCE_V1_LATE_EXPIRED:
 			// Not opening, not proving, and not keeping what was recorded
 			// retrievable are the same kind of omission: the smaller slash, no jail.
 			faultType, bps = hubtypes.FaultTypeAnchorTimeout, params.Verification.AnchorTimeoutSlashBps

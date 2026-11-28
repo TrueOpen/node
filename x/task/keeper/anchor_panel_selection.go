@@ -40,8 +40,9 @@ const (
 	// Round 1 is the task's own verification round.
 	anchorPanelFirstRound = types.ChallengeVerifyRoundV1
 	// anchorPanelMaxRounds bounds the panel rounds of one audit: the first
-	// round, one automatic re-assignment and one re-audit.
-	anchorPanelMaxRounds = uint32(3)
+	// round, one automatic re-assignment, one round on a late submission and
+	// one re-audit.
+	anchorPanelMaxRounds = uint32(4)
 )
 
 // isAnchorPanelRound reports a verify-round number a panel round may carry.

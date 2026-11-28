@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- **Consensus-breaking: Worker timeout and late submission in panel audits
+  (`anchor_late_window_blocks`).** With the task parameter set (default 0 =
+  off; it applies to audits with `anchor_audit_mode = 2` only), a timeout no
+  longer ends an audit.
+  - A timeout is recorded when the opening or the proof deadline passes, when
+    the threshold of a panel casts UNAVAILABLE, or when the re-assigned panel
+    round also reaches no conclusion. The audit then waits for a late
+    submission until `late_deadline_height` (the recording height plus the late
+    window), fixed at the task's first timeout.
+  - While it waits, `MsgSubmitAnchorOpening` and `MsgSubmitAnchorProof` are
+    accepted past their deadlines. Recording the proof (again, for a panel
+    timeout; the same proof or another over the same opening, new locations
+    allowed) is the late submission. It opens one more panel round, which is
+    not re-assigned. A task has one late attempt.
+  - Opening deadline, proof deadline and cast-UNAVAILABLE timeouts are the
+    Worker's own: its service bond is marked `dispatch_paused` (reason bit 1)
+    until its late submission or the end of the audit, the timeout is counted
+    in its rolling ledger, and without a late submission by the late deadline
+    the audit ends as `LATE_EXPIRED`: the task fails and its settlement
+    applies the `anchor_timeout` fault (no jail).
+  - Panel rounds that reach no conclusion are never the Worker's: no pause, no
+    ledger entry, no fault. The Worker may record its proof again to have one
+    more panel drawn; if it does not, or that panel reaches no conclusion or
+    cannot be formed, the audit ends without a verdict and the Worker is paid.
+  - Rolling ledger: one entry per settlement period
+    (`batch_settlement_period_blocks`) with a timeout of the Worker's own,
+    kept for `anchor_timeout_rolling_window_blocks`. The timeout that makes the
+    count exceed `anchor_timeout_free_count`, once per period, is not open to
+    late submission: it ends at once as a missed deadline with the
+    `anchor_timeout` fault. With either parameter at 0 nothing is counted.
+  - With `anchor_late_window_blocks = 0` the outcomes of the previous entry
+    stand unchanged; an audit keeps the rule of the parameters its task was
+    accepted under.
+  - The verdict deadline of an audit with late submission also covers the late
+    window and one more panel round. A panel audit may now have four rounds
+    (numbers 2 to 5).
+  - Query `WorkerLateSubmissions`; events `EventAnchorWorkerTimeout`,
+    `EventAnchorLateSubmitted`, `EventAnchorLateExpired`,
+    `EventWorkerDispatchPaused`, `EventWorkerDispatchResumed`.
+  - New task store prefixes `worker_timeout_ledger` (exported as
+    `worker_timeout_ledgers`) and `worker_late_index` (rebuilt on import).
+  - The pause flag is set, cleared and reported (`Query/WorkerQuota`) by this
+    change; it does not yet refuse a dispatch record that names a paused
+    Worker.
 - **Consensus-breaking: Verifier-panel anchor audit (`anchor_audit_mode = 2`).**
   With the task parameter `anchor_audit_mode` set to 2, the audit of a sampled
   anchor task is decided by a panel of Verifiers instead of the validator

@@ -243,6 +243,12 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	}
 	if state.Selected {
 		state.Positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
+		if isAnchorPanelAudit(state) && v.AnchorLateWindowBlocks != 0 {
+			// With late submission the sweep watches the Worker's deadlines.
+			if err := k.setAnchorPanelDue(ctx, taskKey, openDeadline+1); err != nil {
+				return err
+			}
+		}
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
 }
@@ -346,7 +352,8 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if state.ResultHeight != 0 {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
 	}
-	if state.OpeningDeadlineHeight != 0 && height > state.OpeningDeadlineHeight {
+	late := anchorLateSubmissionOpen(state, height)
+	if state.OpeningDeadlineHeight != 0 && height > state.OpeningDeadlineHeight && !late {
 		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening deadline %d has passed", state.OpeningDeadlineHeight)
 	}
 	if !positionsEqual(state.Positions, req.Positions) {
@@ -365,10 +372,15 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
 	if len(state.OpeningHash) == types.Hash32Len {
-		if bytes.Equal(state.OpeningHash, req.OpeningHash) && state.OpeningSizeBytes == req.OpeningSizeBytes {
+		same := bytes.Equal(state.OpeningHash, req.OpeningHash) && state.OpeningSizeBytes == req.OpeningSizeBytes
+		if !same {
+			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening already recorded with a different hash")
+		}
+		// The opening itself never changes. Waiting for a late submission, the
+		// Worker may name new locations for it.
+		if !late || (state.OpeningUri == req.OpeningUri && state.AnchorCommitUri == req.AnchorCommitUri) {
 			return &types.MsgSubmitAnchorOpeningResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 		}
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening already recorded with a different hash")
 	}
 	state.OpeningHash = append([]byte(nil), req.OpeningHash...)
 	state.OpeningSizeBytes = req.OpeningSizeBytes
@@ -421,7 +433,8 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if state.ResultHeight != 0 {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
 	}
-	if state.ProofDeadlineHeight != 0 && height > state.ProofDeadlineHeight {
+	late := anchorLateSubmissionOpen(state, height)
+	if state.ProofDeadlineHeight != 0 && height > state.ProofDeadlineHeight && !late {
 		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor proof deadline %d has passed", state.ProofDeadlineHeight)
 	}
 	if len(state.OpeningHash) != types.Hash32Len {
@@ -442,7 +455,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if err := m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, winner, req.SubmitterAddress); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
-	if len(state.WorkerProofHash) == types.Hash32Len {
+	// Waiting for a late submission, the Worker records its proof again, the
+	// same one or another over the same opening: that is the late submission.
+	if len(state.WorkerProofHash) == types.Hash32Len && !late {
 		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes &&
 			bytes.Equal(state.EpochManifestHash, req.EpochManifestHash) {
 			return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
@@ -464,6 +479,11 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 			ProofHash: append([]byte(nil), req.ProofHash...), Height: height, AuditMode: state.AuditMode,
 		}); err != nil {
 			return nil, err
+		}
+		if late {
+			if err := m.k.acceptAnchorLateProof(ctx, taskKey, &state, height); err != nil {
+				return nil, err
+			}
 		}
 		if err := m.k.openAnchorPanelRound(ctx, taskKey, &state, types.AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_INITIAL, height); err != nil {
 			return nil, err

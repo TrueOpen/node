@@ -135,6 +135,8 @@ type Keeper struct {
 	AnchorPanelMemberIndex              collections.KeySet[types.RoleActiveTaskKey]
 	AnchorUnderReviewIndex              collections.KeySet[types.TaskKey]
 	AnchorPanelLastScanHeight           collections.Item[uint64]
+	WorkerTimeoutLedger                 collections.Map[types.AddrKey, types.WorkerTimeoutLedgerState]
+	WorkerLateIndex                     collections.KeySet[types.RoleActiveTaskKey]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
 	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
@@ -325,6 +327,8 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		AnchorPanelMemberIndex:              collections.NewKeySet(sb, types.AnchorPanelMemberIndexKey, "anchor_panel_member_index", roleActiveTaskKeyCodec),
 		AnchorUnderReviewIndex:              collections.NewKeySet(sb, types.AnchorUnderReviewIndexKey, "anchor_under_review_index", types.Hash32KeyCodec),
 		AnchorPanelLastScanHeight:           collections.NewItem(sb, types.AnchorPanelLastScanHeightKey, "anchor_panel_last_scan_height", collections.Uint64Value),
+		WorkerTimeoutLedger:                 collections.NewMap(sb, types.WorkerTimeoutLedgerKey, "worker_timeout_ledger", types.AddrKeyCodec, codec.CollValue[types.WorkerTimeoutLedgerState](cdc)),
+		WorkerLateIndex:                     collections.NewKeySet(sb, types.WorkerLateIndexKey, "worker_late_index", roleActiveTaskKeyCodec),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
 		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),

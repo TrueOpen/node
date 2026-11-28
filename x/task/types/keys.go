@@ -162,7 +162,11 @@ var (
 	AnchorUnderReviewIndexKey = MustVersionedStorePrefix("anchor_under_review_index", CurrentStoreSchemaVersion)
 	// AnchorPanelLastScanHeightKey holds the last height at which EndBlock ran
 	// a candidate-pool scan for a panel round, so that it runs at most one per block.
-	AnchorPanelLastScanHeightKey           = MustVersionedStorePrefix("anchor_panel_last_scan_height", CurrentStoreSchemaVersion)
+	AnchorPanelLastScanHeightKey = MustVersionedStorePrefix("anchor_panel_last_scan_height", CurrentStoreSchemaVersion)
+	// Late submission: a Worker's rolling ledger of settlement periods with a
+	// timeout of its own, and its audits that timed out and are not final.
+	WorkerTimeoutLedgerKey                 = MustVersionedStorePrefix("worker_timeout_ledger", CurrentStoreSchemaVersion)
+	WorkerLateIndexKey                     = MustVersionedStorePrefix("worker_late_index", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowMemberKey       = MustVersionedStorePrefix("verifier_candidate_window_member", CurrentStoreSchemaVersion)

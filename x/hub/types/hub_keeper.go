@@ -88,6 +88,17 @@ type ModelSupportSnapshot struct {
 	SupportVersion             uint64
 }
 
+// Reasons a Worker's dispatch is paused, as bits of
+// ServiceBondState.pause_reasons.
+const (
+	// WorkerPauseReasonLateSubmission: an anchor audit of the Worker waits for
+	// its late submission.
+	WorkerPauseReasonLateSubmission = uint32(1)
+	// WorkerPauseReasonsMask covers every defined reason (late submission,
+	// unbonding, jailed).
+	WorkerPauseReasonsMask = uint32(1 | 2 | 4)
+)
+
 type ServiceBondSnapshot struct {
 	OperatorAddress       string
 	Status                ServiceBondStatus
@@ -291,6 +302,10 @@ type HubKeeper interface {
 	AcquireBusObjectiveEvidenceResponsibility(ctx context.Context, locator shared.BusObjectiveEvidenceResponsibilityV1) (shared.BusObjectiveEvidenceResponsibilityReceiptV1, error)
 	ReleaseBusObjectiveEvidenceResponsibility(ctx context.Context, locator shared.BusObjectiveEvidenceResponsibilityV1) (shared.BusObjectiveEvidenceResponsibilityReceiptV1, error)
 	AcquirePendingStageDuty(ctx context.Context, operatorAddress string) error
+	// SetWorkerDispatchPause sets or clears one pause reason on the operator's
+	// service bond; it reports the reasons standing afterwards and whether
+	// anything changed.
+	SetWorkerDispatchPause(ctx context.Context, operatorAddress string, reason uint32, paused bool) (uint32, bool, error)
 	ReleasePendingStageDuty(ctx context.Context, operatorAddress string) error
 	VerifyCurrentCortexServiceDigest(ctx context.Context, operatorAddress string, signature, signingDigest []byte, height uint64) error
 
