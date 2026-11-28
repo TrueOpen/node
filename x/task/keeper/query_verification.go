@@ -48,8 +48,15 @@ func (q *queryServer) VerifierCandidateWindow(ctx context.Context, req *types.Qu
 	if err != nil {
 		return nil, err
 	}
+	if isAnchorPanelRound(req.VerifyRound) {
+		// A Verifier-panel round of an audited task keeps its window in the
+		// round's working row; it is served in the same shape.
+		if response, found, err := q.anchorPanelCandidateWindow(ctx, taskKey, req.VerifyRound); err != nil || found {
+			return response, err
+		}
+	}
 	if !isPhase0VerifyRound(req.VerifyRound) {
-		return nil, status.Error(codes.InvalidArgument, "verify_round must be 1 or 2")
+		return nil, status.Error(codes.InvalidArgument, "verify_round must be 1 or 2, or an open Verifier-panel round")
 	}
 	window, err := q.k.VerifierCandidateWindow.Get(ctx, types.NewVerifyRoundKey(taskKey, req.VerifyRound))
 	if err != nil {

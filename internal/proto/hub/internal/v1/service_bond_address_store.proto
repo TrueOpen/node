@@ -17,6 +17,10 @@ message ServiceBondStoreState {
   uint32 normal_action_count_since_jail = 10;
   uint64 last_stake_height = 11;
   uint64 last_unstake_height = 12;
+  // Accounts that funded this bond, as codec bytes, in first-seen order.
+  repeated bytes bond_funder_addresses = 13;
+  bool dispatch_paused = 14;
+  uint32 pause_reasons = 15;
 }
 
 // UnbondingStoreState stores the operator as codec bytes.

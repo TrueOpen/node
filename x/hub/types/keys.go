@@ -138,6 +138,7 @@ var (
 	ServiceKeyResponsibilityByTaskIndexKey = MustVersionedStorePrefix("service_key_responsibility_by_task", CurrentStoreSchemaVersion)
 	ModelCapabilityKey                     = MustVersionedStorePrefix("model_capability", CurrentStoreSchemaVersion)
 	ModelSupportKey                        = MustVersionedStorePrefix("model_support", CurrentStoreSchemaVersion)
+	AuditCapabilityDeclaredEpochKey        = MustVersionedStorePrefix("audit_capability_declared_epoch", CurrentStoreSchemaVersion)
 	ModelSupportExpiryIndexKey             = MustVersionedStorePrefix("model_support_expiry", CurrentStoreSchemaVersion)
 	ModelSupportPruneIndexKey              = MustVersionedStorePrefix("model_support_prune", CurrentStoreSchemaVersion)
 	ModelSupportByModelIndexKey            = MustVersionedStorePrefix("model_support_by_model", CurrentStoreSchemaVersion)

@@ -452,6 +452,15 @@ func isPhase0VerifyRound(round uint32) bool {
 	return round == types.VerifyRoundV1 || round == types.ChallengeVerifyRoundV1
 }
 
+// isSelectableVerifyRound is the round domain of the shared selection
+// commitments (eligibility source, legal set, selected-set hash): the two
+// verification rounds and the Verifier-panel rounds of an anchor audit, which
+// are numbered after them. Everything that stores or executes a verification
+// round keeps using isPhase0VerifyRound.
+func isSelectableVerifyRound(round uint32) bool {
+	return isPhase0VerifyRound(round) || isAnchorPanelRound(round)
+}
+
 func isZeroHash32(value []byte) bool {
 	if len(value) != types.Hash32Len {
 		return false

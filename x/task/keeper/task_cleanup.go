@@ -154,6 +154,13 @@ func (k Keeper) taskCleanupBlocked(ctx context.Context, taskKey types.TaskKey) (
 	if count, err := k.pendingDispatchCount(ctx, taskKey); err != nil || count != 0 {
 		return count != 0, err
 	}
+	// A member of a Worker batch keeps its rows, the audit among them, until
+	// the batch is paid or forfeited.
+	if _, batch, _, found, err := k.workerBatchOfTask(ctx, taskKey); err != nil {
+		return false, err
+	} else if found && !workerBatchEnded(batch.Status) {
+		return true, nil
+	}
 	// Finalized Tasks still own proof authority until their frozen challenge
 	// window closes. A cleanup timer alone cannot retire those consumers.
 	if record, err := k.readDispatchRecord(ctx, taskKey); err == nil {
@@ -446,6 +453,11 @@ func (k Keeper) cleanupReceiptDetails(ctx context.Context, taskKey types.TaskKey
 		return taskCleanupStepResult{}, err
 	}
 	if visited, err := k.cleanupAnchorAudit(ctx, taskKey); err != nil {
+		return taskCleanupStepResult{}, err
+	} else if visited > 0 {
+		return taskCleanupStepResult{visited: visited}, nil
+	}
+	if visited, err := k.cleanupWorkerBatchTask(ctx, taskKey); err != nil {
 		return taskCleanupStepResult{}, err
 	} else if visited > 0 {
 		return taskCleanupStepResult{visited: visited}, nil

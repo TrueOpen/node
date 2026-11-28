@@ -1699,7 +1699,6 @@ type TaskCandidateFinalizeCursorState struct {
 	MaterializedCount uint32             `protobuf:"varint,6,opt,name=materialized_count,json=materializedCount,proto3" json:"materialized_count,omitempty"`
 	RunningCommitment []byte             `protobuf:"bytes,7,opt,name=running_commitment,json=runningCommitment,proto3" json:"running_commitment,omitempty"`
 	// Types that are valid to be assigned to XRandomnessHeight:
-	//
 	//	*TaskCandidateFinalizeCursorState_RandomnessHeight
 	XRandomnessHeight isTaskCandidateFinalizeCursorState_XRandomnessHeight `protobuf_oneof:"_randomness_height"`
 	Status            FinalizeCursorStatusV1                               `protobuf:"varint,9,opt,name=status,proto3,enum=task.v1.FinalizeCursorStatusV1" json:"status,omitempty"`

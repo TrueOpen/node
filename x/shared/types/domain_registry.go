@@ -114,6 +114,7 @@ const (
 	DomainOutputChunkEquivocationV1       = "TRUEOPEN_OUTPUT_CHUNK_EQUIVOCATION_V1"
 	DomainOutputChunkV1                   = "TRUEOPEN_OUTPUT_CHUNK_V1"
 	DomainOutputMMRV1                     = "TRUEOPEN_OUTPUT_MMR_V1"
+	DomainOrderInputTokensV1              = "TRUEOPEN_ORDER_INPUT_TOKENS_V1"
 	DomainOrderOpeningV2                  = "TRUEOPEN_ORDER_OPENING_V2"
 	DomainPaidRolesV1                     = "TRUEOPEN_PAID_ROLES_V1"
 	DomainParameterBucketV1               = "TRUEOPEN_PARAMETER_BUCKET_V1"

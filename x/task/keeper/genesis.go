@@ -1084,6 +1084,18 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.AnchorValidatorVotes, err = collectMapValues(ctx, k.AnchorValidatorVote); err != nil {
 		return nil, err
 	}
+	if genesis.WorkerTimeoutLedgers, err = collectMapValues(ctx, k.WorkerTimeoutLedger); err != nil {
+		return nil, err
+	}
+	if genesis.VerifierAuditStandings, err = collectMapValues(ctx, k.VerifierAuditStanding); err != nil {
+		return nil, err
+	}
+	if genesis.WorkerBatches, err = collectMapValues(ctx, k.WorkerBatch); err != nil {
+		return nil, err
+	}
+	if genesis.WorkerBatchTasks, err = collectMapValues(ctx, k.WorkerBatchTask); err != nil {
+		return nil, err
+	}
 	if genesis.AnchorVoteKeys, err = collectMapValues(ctx, k.AnchorVoteKey); err != nil {
 		return nil, err
 	}
@@ -1285,6 +1297,46 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 			return fmt.Errorf("duplicate anchor audit")
 		}
 		if err := k.AnchorAudit.Set(ctx, taskID, state); err != nil {
+			return err
+		}
+		if err := k.rebuildAnchorPanelIndexes(ctx, taskID, state); err != nil {
+			return err
+		}
+	}
+	if err := k.rebuildWorkerBatchIndexes(ctx, genesis); err != nil {
+		return err
+	}
+	for _, standing := range genesis.VerifierAuditStandings {
+		raw, err := k.sessionAddressToStore("verifier audit standing operator_address", standing.OperatorAddress)
+		if err != nil {
+			return err
+		}
+		if _, err := shared.ParseAmount(standing.AuditedValue); err != nil {
+			return fmt.Errorf("verifier audit standing of %s has no canonical audited value", standing.OperatorAddress)
+		}
+		if has, err := k.VerifierAuditStanding.Has(ctx, raw); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate verifier audit standing")
+		}
+		if err := k.VerifierAuditStanding.Set(ctx, raw, standing); err != nil {
+			return err
+		}
+	}
+	for _, ledger := range genesis.WorkerTimeoutLedgers {
+		raw, err := k.sessionAddressToStore("worker timeout ledger operator_address", ledger.OperatorAddress)
+		if err != nil {
+			return err
+		}
+		if len(ledger.Periods) != len(ledger.Heights) || len(ledger.SlashedPeriods) > len(ledger.Periods) {
+			return fmt.Errorf("worker timeout ledger of %s is malformed", ledger.OperatorAddress)
+		}
+		if has, err := k.WorkerTimeoutLedger.Has(ctx, raw); err != nil {
+			return err
+		} else if has {
+			return fmt.Errorf("duplicate worker timeout ledger")
+		}
+		if err := k.WorkerTimeoutLedger.Set(ctx, raw, ledger); err != nil {
 			return err
 		}
 	}
