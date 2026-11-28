@@ -79,6 +79,22 @@ func (m msgServer) SubmitVerifierHandraises(ctx context.Context, msg *types.MsgS
 		handraiseDigests[index] = candidateSigningDigest{Slot: handraise.Member.Slot, Digest: digest[:]}
 	}
 
+	if scope.VerifyRound != types.VerifyRoundV1 {
+		// A round after the first is either the challenge round of a verified
+		// task or a Verifier-panel round of an audited one. A panel round keeps
+		// its own working row, which is what tells the two apart.
+		selection, found, err := m.k.loadAnchorPanelSelection(ctx, types.NewTaskKey(msg.TaskId))
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
+		}
+		if found && selection.PanelRound == scope.VerifyRound {
+			return m.submitAnchorPanelHandraises(ctx, msg, selection, handraiseDigests, currentHeight)
+		}
+		if !isPhase0VerifyRound(scope.VerifyRound) {
+			return nil, errorsmod.Wrap(types.ErrInvalidOpenVerify, "verifier handraise envelope is invalid")
+		}
+	}
+
 	cacheCtx, write := sdkCtx.CacheContext()
 	cache := sdk.WrapSDKContext(cacheCtx)
 	taskKey := types.NewTaskKey(msg.TaskId)
@@ -574,7 +590,7 @@ func (k Keeper) loadTaskUnionSegments(
 
 func validateVerifierHandraiseEnvelope(chainID string, taskID []byte, currentHeight uint64, handraise *types.VerifierHandraiseV1) error {
 	if handraise == nil || handraise.SchemaVersion != types.VerifierHandraiseSchemaVersionV1 ||
-		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !isPhase0VerifyRound(handraise.VerifyRound) ||
+		handraise.ChainId != chainID || !bytes.Equal(handraise.TaskId, taskID) || !isSelectableVerifyRound(handraise.VerifyRound) ||
 		len(handraise.InferReceiptHash) != types.Hash32Len || len(handraise.OutputHash) != types.Hash32Len ||
 		len(handraise.ModelId) != types.Hash32Len || handraise.ProfileVersion == 0 ||
 		len(handraise.Member.CandidatePoolSnapshotId) != types.Hash32Len || handraise.Member.SlotVersion == 0 ||

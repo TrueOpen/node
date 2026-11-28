@@ -10,6 +10,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	shared "github.com/TrueOpen/node/x/shared/types"
 	"github.com/TrueOpen/node/x/task/types"
 )
 
@@ -19,6 +20,10 @@ const (
 	endBlockPriorityVerifierWindowBuild endBlockQueuePriority = iota
 	endBlockPriorityVerifierHandraiseClose
 	endBlockPriorityVerifierSelectionRandomness
+	// Panel audits are advanced just before the settlement deadlines of the
+	// same height, so a verdict that becomes final at a height is recorded
+	// before a settlement at that height reads it.
+	endBlockPriorityAnchorPanel         endBlockQueuePriority = 39
 	endBlockPriorityDispatchClaim       endBlockQueuePriority = 1100
 	endBlockPriorityDispatchChallenge   endBlockQueuePriority = 1101
 	endBlockPriorityDispatchPrune       endBlockQueuePriority = 2100
@@ -67,11 +72,13 @@ type EndBlockSweepResult struct {
 	// SessionLifecycle is the session MARK_IDLE/CLOSE processor. It shares its
 	// executor with MsgSweepDeadline(SessionLifecycleLocator); V1 does not
 	// register a second MsgSessionSweep.
-	SessionLifecycle    uint64
-	SessionWithdraw     uint64
-	SessionKeyChange    uint64
-	OrderCancel         uint64
-	ValueEvidenceClose  uint64
+	SessionLifecycle   uint64
+	SessionWithdraw    uint64
+	SessionKeyChange   uint64
+	OrderCancel        uint64
+	ValueEvidenceClose uint64
+	// AnchorPanel counts visited Verifier-panel audits.
+	AnchorPanel         uint64
 	DispatchClaim       uint64
 	DispatchChallenge   uint64
 	DispatchPrune       uint64
@@ -350,11 +357,41 @@ func (k Keeper) retireVerifierRowToFallbackDeadline(
 	if err != nil {
 		return deadlineSweepPending, rowBytes, err
 	}
+	if !scheduled {
+		// The terminal key is gone because it already fired: the verify-open
+		// deadline failed and refunded the task in an earlier block, and that
+		// transition leaves the round-index rows behind. The row has nothing
+		// left to do. (Reachable when the selection beacon stays unavailable
+		// through the assignment deadline.)
+		retired, err := k.verifierRowTaskRetired(ctx, taskID)
+		if err != nil {
+			return deadlineSweepPending, rowBytes, err
+		}
+		if retired {
+			return deadlineSweepStale, rowBytes, nil
+		}
+	}
 	if window.AssignmentDeadlineHeight <= height || !scheduled {
 		return deadlineSweepPending, rowBytes, errorsmod.Wrap(types.ErrInvariantBroken,
 			"verifier window has no later verify-open deadline")
 	}
 	return deadlineSweepStale, rowBytes, nil
+}
+
+// verifierRowTaskRetired reports whether the task of a round-index row has
+// already reached a terminal state, so no verifier queue row of it can still
+// advance it.
+func (k Keeper) verifierRowTaskRetired(ctx context.Context, taskID types.TaskKey) (bool, error) {
+	core, err := k.TaskCore.Get(ctx, taskID)
+	if err != nil {
+		if errIsNotFound(err) {
+			// No primary to judge by: leave the row to the existing checks.
+			return false, nil
+		}
+		return false, err
+	}
+	return core.FinalityStatus == shared.TaskFinalityStatusV1_TASK_FINALITY_STATUS_V1_FINAL ||
+		core.VerificationStatus == types.VerificationStatus_VERIFICATION_STATUS_VERIFY_FAILED, nil
 }
 
 func (k Keeper) processVerifierHandraiseCloseIndexWithBudget(ctx context.Context, currentHeight, maxItems, maxBytes uint64) (deadlineSweepUsage, error) {
@@ -493,6 +530,13 @@ func (k Keeper) processVerifierSelectionRandomnessIndexWithBudget(ctx context.Co
 			if assigned, err := k.VerifierAssignment.Has(ctx, types.NewVerifyRoundKey(taskID, round)); err != nil {
 				return deadlineSweepPending, 0, err
 			} else if assigned {
+				return deadlineSweepStale, 0, nil
+			}
+			if retired, err := k.verifierRowTaskRetired(ctx, taskID); err != nil {
+				return deadlineSweepPending, 0, err
+			} else if retired {
+				// The verify-open deadline already failed and refunded the task
+				// (the beacon never arrived): nothing is left to select for.
 				return deadlineSweepStale, 0, nil
 			}
 			window, found, rowBytes, err := loadVerifierWindowForRoundIndex(ctx, k, taskID, round)
@@ -712,6 +756,7 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFY_FINAL), taskHead(k.VerifyDeadlineIndex), recordedRun(k.processExpiredVerifyDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.VerifyDeadline += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE), taskHead(k.ChallengeWindowCloseIndex), recordedRun(k.processExpiredChallengeWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ChallengeWindowClose += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE), taskHead(k.ValueEvidenceWindowCloseIndex), recordedRun(k.processValueEvidenceWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ValueEvidenceClose += n }},
+		{endBlockPriorityAnchorPanel, taskHead(k.AnchorPanelDueIndex), conservativeRun(k.processAnchorPanelDue, anchorPanelSweepConservativeBytesV1), func(n uint64) { result.AnchorPanel += n }},
 		{endBlockQueuePriority(21), verifyRoundHead(k.RoundEconomicEffectApplyIndex), k.processRoundEconomicEffectApplyIndexWithBudget, func(n uint64) { result.RoundEconomicEffect += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT), taskHead(k.SettlementDeadlineIndex), recordedRun(k.processExpiredSettlementDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.Settlement += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP), taskHead(k.EvidenceCleanupIndex), conservativeRun(k.processEvidenceCleanupEndBlock, evidenceCleanupConservativeBytesV1), func(n uint64) { result.EvidenceCleanup += n }},

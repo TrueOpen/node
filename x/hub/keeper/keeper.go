@@ -27,6 +27,7 @@ type Keeper struct {
 	validatorSnapshots            types.ValidatorSnapshotProvider
 	roleFaultConsumers            types.RoleFaultConsumerGate
 	workerCandidateWeights        types.WorkerCandidateWeightProvider
+	consensusIdentities           types.ConsensusIdentityChecker
 	governanceActionReplayChecker *governanceActionReplayCheckerHolder
 	bridgeUpstream                *bridgeUpstreamHolder
 	vrfPoPVerifier                VrfPoPVerifier
@@ -63,16 +64,21 @@ type Keeper struct {
 	DispatchFault                       collections.Map[types.DispatchFaultKeyPair, internaltypes.DispatchFaultStoreState]
 	DispatchFaultPruneIndex             collections.KeySet[types.DispatchFaultPruneKeyTriple]
 	ModelCapability                     collections.Map[types.ModelCapabilityKeyPair, types.ModelCapabilityState]
-	ModelSupport                        collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
-	ModelSupportExpiryIndex             collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
-	ModelSupportByModelIndex            collections.KeySet[types.ModelSupportByModelIndexKeyPair]
-	ModelSupportByOperatorIndex         collections.KeySet[types.ModelSupportByOperatorIndexKeyPair]
-	ModelSupportPruneIndex              collections.KeySet[types.ModelSupportPruneIndexKeyPair]
-	ModelSupportRecheckIndex            collections.KeySet[types.ModelSupportRecheckIndexKeyPair]
-	ModelSupportRecheckCursor           collections.Map[shared.Hash32Key, types.ModelSupportRecheckCursorState]
-	ModelSupportDeactivateCursor        collections.Map[shared.Hash32Key, types.ModelSupportDeactivateCursorState]
-	DailySupport                        collections.Map[types.DailySupportKey, types.DailySupportState]
-	DailySupportExpiryIndex             collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
+	// AuditCapabilityDeclaredEpoch holds, per capability row, the epoch in which
+	// its audit capability was last switched on. A row is drawable for panels
+	// only in a later epoch. A missing entry means the capability predates any
+	// retained declaration and is effective.
+	AuditCapabilityDeclaredEpoch collections.Map[types.ModelCapabilityKeyPair, uint64]
+	ModelSupport                 collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
+	ModelSupportExpiryIndex      collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
+	ModelSupportByModelIndex     collections.KeySet[types.ModelSupportByModelIndexKeyPair]
+	ModelSupportByOperatorIndex  collections.KeySet[types.ModelSupportByOperatorIndexKeyPair]
+	ModelSupportPruneIndex       collections.KeySet[types.ModelSupportPruneIndexKeyPair]
+	ModelSupportRecheckIndex     collections.KeySet[types.ModelSupportRecheckIndexKeyPair]
+	ModelSupportRecheckCursor    collections.Map[shared.Hash32Key, types.ModelSupportRecheckCursorState]
+	ModelSupportDeactivateCursor collections.Map[shared.Hash32Key, types.ModelSupportDeactivateCursorState]
+	DailySupport                 collections.Map[types.DailySupportKey, types.DailySupportState]
+	DailySupportExpiryIndex      collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
 
 	// ---- Global epoch stable-slot CandidatePool ----
 	//
@@ -377,6 +383,7 @@ func NewKeeper(
 		DispatchFault:                       collections.NewMap(sb, types.DispatchFaultKey, "dispatch_fault", addressHash32KeyCodec, codec.CollValue[internaltypes.DispatchFaultStoreState](cdc)),
 		DispatchFaultPruneIndex:             collections.NewKeySet(sb, types.DispatchFaultPruneIndexKey, "dispatch_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)),
 		ModelCapability:                     collections.NewMap(sb, types.ModelCapabilityKey, "model_capability", modelSupportKeyCodec, modelCapabilityValueCodec),
+		AuditCapabilityDeclaredEpoch:        collections.NewMap(sb, types.AuditCapabilityDeclaredEpochKey, "audit_capability_declared_epoch", modelSupportKeyCodec, collections.Uint64Value),
 		ModelSupport:                        collections.NewMap(sb, types.ModelSupportKey, "model_support", modelSupportKeyCodec, modelSupportValueCodec),
 		ModelSupportExpiryIndex:             collections.NewKeySet(sb, types.ModelSupportExpiryIndexKey, "model_support_expiry", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
 		ModelSupportPruneIndex:              collections.NewKeySet(sb, types.ModelSupportPruneIndexKey, "model_support_prune", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
@@ -508,6 +515,14 @@ func (k Keeper) WithRuntimeDependencies(taskValidator types.FreezeSignalTaskVali
 // WithWorkerCandidateWeights supplies Task-owned policy without a keeper construction cycle.
 func (k Keeper) WithWorkerCandidateWeights(provider types.WorkerCandidateWeightProvider) Keeper {
 	k.workerCandidateWeights = provider
+	return k
+}
+
+// WithConsensusIdentityChecker supplies the block-producer identity lookup that
+// keeps panel audit separate from consensus. Without it every audit capability
+// declaration is refused.
+func (k Keeper) WithConsensusIdentityChecker(checker types.ConsensusIdentityChecker) Keeper {
+	k.consensusIdentities = checker
 	return k
 }
 

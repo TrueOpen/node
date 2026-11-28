@@ -687,6 +687,54 @@ func validateVerificationParams(p VerificationParamsV1) error {
 			return err
 		}
 	}
+	return p.validateAnchorPanel()
+}
+
+const (
+	// AnchorAuditModePanel is the audit mode in which a Verifier panel decides
+	// an anchor audit. Modes 0 and 1 are the consensus validators' vote.
+	AnchorAuditModePanel = uint32(2)
+	// AnchorPanelSizeMaximum bounds a panel; every member's vote is kept on
+	// the audit row.
+	AnchorPanelSizeMaximum = uint32(15)
+)
+
+// validateAnchorPanel checks the Verifier-panel parameters. The audit mode is
+// always bounded. The panel's own parameters are checked only when the panel
+// mode is on, so the zero values a chain without it carries stay valid.
+func (p VerificationParamsV1) validateAnchorPanel() error {
+	if p.AnchorAuditMode > AnchorAuditModePanel {
+		return fmt.Errorf("verification.anchor_audit_mode must be <= %d", AnchorAuditModePanel)
+	}
+	if p.AnchorReauditRewardBps > BasisPointsMaximum || p.AnchorVerifierWrongVoteSlashBps > BasisPointsMaximum ||
+		p.AnchorVerifierMissSlashBps > BasisPointsMaximum {
+		return fmt.Errorf("verification anchor panel basis points must be <= %d", BasisPointsMaximum)
+	}
+	for _, item := range []struct {
+		name  string
+		value uint64
+	}{
+		{"verification.anchor_panel_vote_window_blocks", p.AnchorPanelVoteWindowBlocks},
+		{"verification.anchor_publication_window_blocks", p.AnchorPublicationWindowBlocks},
+	} {
+		if item.value > AnchorWindowBlocksMaximum {
+			return fmt.Errorf("%s must be <= %d", item.name, AnchorWindowBlocksMaximum)
+		}
+	}
+	if p.AnchorAuditMode != AnchorAuditModePanel {
+		return nil
+	}
+	if p.AnchorPanelSize == 0 || p.AnchorPanelSize > AnchorPanelSizeMaximum {
+		return fmt.Errorf("verification.anchor_panel_size must be in [1, %d] in panel mode", AnchorPanelSizeMaximum)
+	}
+	// A threshold above half the panel is what makes two opposite decisions in
+	// one round impossible.
+	if p.AnchorPanelThreshold <= p.AnchorPanelSize/2 || p.AnchorPanelThreshold > p.AnchorPanelSize {
+		return fmt.Errorf("verification.anchor_panel_threshold must be more than half of anchor_panel_size and at most anchor_panel_size")
+	}
+	if p.AnchorPanelVoteWindowBlocks == 0 {
+		return fmt.Errorf("verification.anchor_panel_vote_window_blocks must be greater than 0 in panel mode")
+	}
 	return nil
 }
 
@@ -1113,7 +1161,7 @@ func ValidateHistoricalTaskParams(params TaskParamsV1) error {
 }
 
 // verificationParamsCanonicalFields frames VerificationParamsV1 for the params
-// hash: every field, in field-number order (7..13 are ADR-0040).
+// hash: every field, in field-number order.
 func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.CanonicalFieldV1 {
 	return shared.RawCanonicalFieldsV1(
 		shared.Uint32BE(v.WorkerInferTimeoutSlashBps),
@@ -1126,5 +1174,30 @@ func verificationParamsCanonicalFields(v VerificationParamsV1) []shared.Canonica
 		shared.Uint64BE(v.AnchorOpenWindowBlocks),
 		shared.Uint64BE(v.AnchorProofWindowBlocks),
 		shared.Uint32BE(v.AnchorTimeoutSlashBps),
+		// 18..41: Verifier-panel audit, late submission, batch settlement.
+		shared.Uint32BE(v.AnchorAuditMode),
+		shared.Uint32BE(v.AnchorPanelSize),
+		shared.Uint32BE(v.AnchorPanelThreshold),
+		shared.Uint64BE(v.AnchorPanelVoteWindowBlocks),
+		shared.Uint64BE(v.AnchorPublicationWindowBlocks),
+		shared.Uint64BE(v.AnchorLateWindowBlocks),
+		shared.Uint32BE(v.AnchorTimeoutFreeCount),
+		shared.Uint64BE(v.AnchorTimeoutRollingWindowBlocks),
+		shared.Uint32BE(v.AnchorReauditRewardBps),
+		shared.Uint32BE(v.AnchorVerifierWrongVoteSlashBps),
+		shared.Uint32BE(v.AnchorVerifierMissTriggerCount),
+		shared.Uint64BE(v.AnchorVerifierMissWindowBlocks),
+		shared.Uint32BE(v.AnchorVerifierMissSlashFromTrigger),
+		shared.Uint32BE(v.AnchorVerifierMissSlashBps),
+		shared.Uint32BE(v.AnchorVerifierBondMultiple),
+		shared.Uint64BE(v.AnchorVerifierAllowanceWindowBlocks),
+		shared.Uint32BE(v.AnchorBrakeMinCases),
+		shared.Uint32BE(v.AnchorBrakeMultipleX1000),
+		shared.Uint32BE(v.AnchorBrakeBaselinePeriods),
+		shared.Uint64BE(v.BatchSettlementPeriodBlocks),
+		shared.Uint32BE(v.BatchSettlementMaxWorkersPerBlock),
+		shared.Uint32BE(v.LogprobRejectSlashBps),
+		shared.Uint32BE(v.LogprobVerifierWrongVoteSlashBps),
+		shared.Uint64BE(v.InputTokenTolerance),
 	)
 }

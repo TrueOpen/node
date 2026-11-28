@@ -38,7 +38,62 @@ const (
 	// tokenIDsRawOverheadBytes is the two u32 counts of the A-level artifact
 	// pair (input_token_ids_raw and generated_token_ids_raw).
 	tokenIDsRawOverheadBytes = 8
+	// maxAnchorOpeningSizeBytes is a sanity ceiling, not the bound a Worker has
+	// to plan for. How large an honest opening can get depends on the model
+	// and on how many tokens a task may carry, which is a fact of the Profile's
+	// registration, and a Worker must be able to stay under its bound by
+	// refusing an order before it accepts it. A tight bound here would instead
+	// refuse the opening after the task was sampled, which ends in a timeout
+	// fault for an honest Worker. The ceiling only keeps absurd values out of
+	// state; the per-Profile bound is applied where the registration is known.
+	maxAnchorOpeningSizeBytes = uint64(1) << 40
+	// maxAnchorProofSizeBytes bounds the proof package. Its size is fixed by
+	// the proof system (a few hundred kilobytes), not by the task, so an honest
+	// Worker cannot come near it.
+	maxAnchorProofSizeBytes = uint64(256) << 20
 )
+
+// validAnchorMaterialURI reports whether uri is a location validators can be
+// expected to fetch from: see shared.ValidateHTTPMaterialURL.
+func validAnchorMaterialURI(uri string) bool {
+	return shared.ValidateHTTPMaterialURL(uri, maxAnchorOpeningURIBytes)
+}
+
+// anchorDAEndpointProvider is implemented by the Hub keeper: the
+// data-availability endpoint a Cortex operator's service descriptor publishes.
+type anchorDAEndpointProvider interface {
+	GetAnchorDAEndpoint(ctx context.Context, operatorAddress string) string
+}
+
+// anchorDAPrefix returns the Worker's published data-availability endpoint at
+// this height, or "" when it has published none (or it is not a usable prefix).
+func (k Keeper) anchorDAPrefix(ctx context.Context, worker string) string {
+	provider, ok := k.hubKeeper.(anchorDAEndpointProvider)
+	if !ok {
+		return ""
+	}
+	prefix := provider.GetAnchorDAEndpoint(ctx, worker)
+	if !shared.ValidateHTTPMaterialPrefix(prefix, maxAnchorOpeningURIBytes) {
+		return ""
+	}
+	return prefix
+}
+
+// anchorLocationsUnderPrefix reports whether every location lies under the
+// audit's frozen data-availability prefix. An audit without one (the Worker
+// had published no endpoint when the task was sampled, or the audit predates
+// the field) is not restricted.
+func anchorLocationsUnderPrefix(state types.AnchorAuditState, locations ...string) bool {
+	if state.DaUriPrefix == "" {
+		return true
+	}
+	for _, location := range locations {
+		if !strings.HasPrefix(location, state.DaUriPrefix) || len(location) == len(state.DaUriPrefix) {
+			return false
+		}
+	}
+	return true
+}
 
 func anchorCommitmentOf(receipt types.InferReceiptState) (types.EvidenceCommitmentV1, bool) {
 	for _, item := range receipt.RequiredEvidenceCommitments {
@@ -128,7 +183,16 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	v := params.Verification
 	openDeadline, o1 := checkedHeightAdd(assignment.SelectionRandomnessHeight, v.AnchorOpenWindowBlocks)
 	proofDeadline, o2 := checkedHeightAdd(openDeadline, v.AnchorProofWindowBlocks)
-	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, v.AnchorVerdictWindowBlocks)
+	// The audit mode is frozen with the task's parameters. A panel audit runs
+	// longer than a validator vote: up to two rounds, the publication window
+	// and a re-audit.
+	verdictWindow := v.AnchorVerdictWindowBlocks
+	if v.AnchorAuditMode == anchorAuditModePanel {
+		if window, ok := anchorPanelVerdictWindowBlocks(params); ok {
+			verdictWindow = window
+		}
+	}
+	verdictDeadline, o3 := checkedHeightAdd(proofDeadline, verdictWindow)
 	if o1 || o2 || o3 {
 		sdk.UnwrapSDKContext(ctx).Logger().Error("anchor audit skipped: deadline overflows", "task", fmt.Sprintf("%x", assignment.TaskId))
 		return nil
@@ -151,6 +215,12 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		VerdictDeadlineHeight: verdictDeadline,
 		// ADR-0040 v5/v6: audit probability from the Worker's bond, coin from the beacon, slash base fixed now.
 		AuditRateBps: draw.rate, Selected: draw.selected, AuditBasis: draw.basis, SlashableBond: draw.bond,
+		AuditMode: v.AnchorAuditMode,
+	}
+	if state.Selected {
+		// Where this Worker serves its material from is fixed now, from what its
+		// descriptor published before the draw: it cannot be chosen afterwards.
+		state.DaUriPrefix = k.anchorDAPrefix(ctx, receipt.WinnerWorker)
 	}
 	rows, rowsErr := anchorRowsOf(receipt)
 	if rowsErr != nil {
@@ -173,6 +243,12 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 	}
 	if state.Selected {
 		state.Positions = anchorSamplePositions(assignment.TaskId, assignment.SelectionRandomnessBeacon, rows, anchorSamplePositionsV0)
+		if isAnchorPanelAudit(state) && v.AnchorLateWindowBlocks != 0 {
+			// With late submission the sweep watches the Worker's deadlines.
+			if err := k.setAnchorPanelDue(ctx, taskKey, openDeadline+1); err != nil {
+				return err
+			}
+		}
 	}
 	return k.AnchorAudit.Set(ctx, taskKey, state)
 }
@@ -241,9 +317,14 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		return nil, status.Error(codes.InvalidArgument, "anchor opening request is required")
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || bytes.Equal(req.OpeningHash, make([]byte, types.Hash32Len)) ||
-		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 || strings.TrimSpace(req.OpeningUri) == "" || len(req.OpeningUri) > maxAnchorOpeningURIBytes ||
-		strings.TrimSpace(req.AnchorCommitUri) == "" || len(req.AnchorCommitUri) > maxAnchorOpeningURIBytes {
+		req.OpeningSizeBytes == 0 || len(req.Positions) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "anchor opening envelope is invalid")
+	}
+	if req.OpeningSizeBytes > maxAnchorOpeningSizeBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "anchor opening size exceeds the %d byte limit", maxAnchorOpeningSizeBytes)
+	}
+	if !validAnchorMaterialURI(req.OpeningUri) || !validAnchorMaterialURI(req.AnchorCommitUri) {
+		return nil, status.Error(codes.InvalidArgument, "anchor opening locations must be http or https URLs")
 	}
 	for i := 1; i < len(req.Positions); i++ {
 		if req.Positions[i] <= req.Positions[i-1] {
@@ -271,11 +352,15 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 	if state.ResultHeight != 0 {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
 	}
-	if state.OpeningDeadlineHeight != 0 && height > state.OpeningDeadlineHeight {
+	late := anchorLateSubmissionOpen(state, height)
+	if state.OpeningDeadlineHeight != 0 && height > state.OpeningDeadlineHeight && !late {
 		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening deadline %d has passed", state.OpeningDeadlineHeight)
 	}
 	if !positionsEqual(state.Positions, req.Positions) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening positions do not match the sampled positions")
+	}
+	if !anchorLocationsUnderPrefix(state, req.OpeningUri, req.AnchorCommitUri) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor opening locations must lie under the Worker's published data-availability endpoint %s", state.DaUriPrefix)
 	}
 	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
@@ -287,10 +372,15 @@ func (m msgServer) SubmitAnchorOpening(ctx context.Context, req *types.MsgSubmit
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
 	if len(state.OpeningHash) == types.Hash32Len {
-		if bytes.Equal(state.OpeningHash, req.OpeningHash) && state.OpeningSizeBytes == req.OpeningSizeBytes {
+		same := bytes.Equal(state.OpeningHash, req.OpeningHash) && state.OpeningSizeBytes == req.OpeningSizeBytes
+		if !same {
+			return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening already recorded with a different hash")
+		}
+		// The opening itself never changes. Waiting for a late submission, the
+		// Worker may name new locations for it.
+		if !late || (state.OpeningUri == req.OpeningUri && state.AnchorCommitUri == req.AnchorCommitUri) {
 			return &types.MsgSubmitAnchorOpeningResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
 		}
-		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor opening already recorded with a different hash")
 	}
 	state.OpeningHash = append([]byte(nil), req.OpeningHash...)
 	state.OpeningSizeBytes = req.OpeningSizeBytes
@@ -313,10 +403,14 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if len(req.TaskId) != types.Hash32Len || len(req.OpeningHash) != types.Hash32Len || len(req.ProofHash) != types.Hash32Len ||
 		bytes.Equal(req.ProofHash, make([]byte, types.Hash32Len)) || req.ProofSizeBytes == 0 ||
-		strings.TrimSpace(req.ProofUri) == "" || len(req.ProofUri) > maxAnchorOpeningURIBytes ||
-		len(req.EpochManifestHash) != types.Hash32Len || bytes.Equal(req.EpochManifestHash, make([]byte, types.Hash32Len)) ||
-		strings.TrimSpace(req.EpochManifestUri) == "" || len(req.EpochManifestUri) > maxAnchorOpeningURIBytes {
+		len(req.EpochManifestHash) != types.Hash32Len || bytes.Equal(req.EpochManifestHash, make([]byte, types.Hash32Len)) {
 		return nil, status.Error(codes.InvalidArgument, "anchor proof envelope is invalid")
+	}
+	if req.ProofSizeBytes > maxAnchorProofSizeBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "anchor proof size exceeds the %d byte limit", maxAnchorProofSizeBytes)
+	}
+	if !validAnchorMaterialURI(req.ProofUri) || !validAnchorMaterialURI(req.EpochManifestUri) {
+		return nil, status.Error(codes.InvalidArgument, "anchor proof locations must be http or https URLs")
 	}
 	if _, _, err := m.k.canonicalAddress("submitter_address", req.SubmitterAddress); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -339,7 +433,8 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if state.ResultHeight != 0 {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor audit verdict is already final")
 	}
-	if state.ProofDeadlineHeight != 0 && height > state.ProofDeadlineHeight {
+	late := anchorLateSubmissionOpen(state, height)
+	if state.ProofDeadlineHeight != 0 && height > state.ProofDeadlineHeight && !late {
 		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor proof deadline %d has passed", state.ProofDeadlineHeight)
 	}
 	if len(state.OpeningHash) != types.Hash32Len {
@@ -347,6 +442,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	}
 	if !bytes.Equal(state.OpeningHash, req.OpeningHash) {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "anchor proof names a different opening than the chain recorded")
+	}
+	if !anchorLocationsUnderPrefix(state, req.ProofUri, req.EpochManifestUri) {
+		return nil, errorsmod.Wrapf(types.ErrInvalidAssignment, "anchor proof locations must lie under the Worker's published data-availability endpoint %s", state.DaUriPrefix)
 	}
 	winner, err := m.k.anchorWinner(ctx, taskKey, state)
 	if err != nil {
@@ -357,7 +455,9 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	if err := m.k.RequireCurrentServiceSubmitter(ctx, shared.ParticipantTypeCortexNode, winner, req.SubmitterAddress); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidAssignment, "submitter is not the winner Worker's current service")
 	}
-	if len(state.WorkerProofHash) == types.Hash32Len {
+	// Waiting for a late submission, the Worker records its proof again, the
+	// same one or another over the same opening: that is the late submission.
+	if len(state.WorkerProofHash) == types.Hash32Len && !late {
 		if bytes.Equal(state.WorkerProofHash, req.ProofHash) && state.WorkerProofSizeBytes == req.ProofSizeBytes &&
 			bytes.Equal(state.EpochManifestHash, req.EpochManifestHash) {
 			return &types.MsgSubmitAnchorProofResponse{Status: shared.MutationStatusV1_MUTATION_STATUS_V1_NOOP}, nil
@@ -370,6 +470,25 @@ func (m msgServer) SubmitAnchorProof(ctx context.Context, req *types.MsgSubmitAn
 	state.WorkerProofHeight = height
 	state.EpochManifestHash = append([]byte(nil), req.EpochManifestHash...)
 	state.EpochManifestUri = req.EpochManifestUri
+	if isAnchorPanelAudit(state) {
+		// The recorded proof is what a panel judges: the first panel round opens
+		// with it. A round that cannot be formed ends without a conclusion; it
+		// never keeps the Worker's proof from being recorded.
+		if err := emitTypedEvent(ctx, &types.EventAnchorProofRecorded{
+			TaskId: append([]byte(nil), req.TaskId...), WorkerOperatorAddress: winner,
+			ProofHash: append([]byte(nil), req.ProofHash...), Height: height, AuditMode: state.AuditMode,
+		}); err != nil {
+			return nil, err
+		}
+		if late {
+			if err := m.k.acceptAnchorLateProof(ctx, taskKey, &state, height); err != nil {
+				return nil, err
+			}
+		}
+		if err := m.k.openAnchorPanelRound(ctx, taskKey, &state, types.AnchorPanelRoundKindV1_ANCHOR_PANEL_ROUND_KIND_V1_INITIAL, height); err != nil {
+			return nil, err
+		}
+	}
 	if err := m.k.AnchorAudit.Set(ctx, taskKey, state); err != nil {
 		return nil, err
 	}
@@ -399,7 +518,8 @@ func (m msgServer) SubmitAnchorAuditResult(ctx context.Context, req *types.MsgSu
 	}
 	positions := make([]uint64, len(req.Verdicts))
 	for i, v := range req.Verdicts {
-		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || len(v.Reason) > maxAnchorVerdictReasonBytes {
+		if v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNSPECIFIED || v.Verdict == types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE ||
+			len(v.Reason) > maxAnchorVerdictReasonBytes {
 			return nil, status.Error(codes.InvalidArgument, "anchor audit verdict is invalid")
 		}
 		positions[i] = v.Position

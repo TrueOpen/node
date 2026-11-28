@@ -177,8 +177,8 @@ func (s ModelCapabilityState) Validate() error {
 	if err := validateRequiredHash32("model capability model_id", s.ModelId); err != nil {
 		return err
 	}
-	if !s.InferenceCapability && !s.VerificationCapability {
-		return fmt.Errorf("model capability must declare inference or verification capability")
+	if !s.InferenceCapability && !s.VerificationCapability && !s.AuditCapability {
+		return fmt.Errorf("model capability must declare inference, verification or audit capability")
 	}
 	if s.CapabilityVersion == 0 {
 		return fmt.Errorf("model capability capability_version must be greater than 0")
@@ -359,6 +359,12 @@ func SupportVoteWeight(in SupportEligibilityInputs, currentEpoch uint64, params 
 		weight = capAmount
 	}
 	return weight, weight > 0, nil
+}
+
+// IsAuditOnlyCapability reports a capability row that declares panel audit and
+// neither inference nor verification.
+func IsAuditOnlyCapability(capability ModelCapabilityState) bool {
+	return capability.AuditCapability && !capability.InferenceCapability && !capability.VerificationCapability
 }
 
 // SupportVoteWeightCeiling is the "min_stake(profile) * active_support_stake_cap_multiplier"

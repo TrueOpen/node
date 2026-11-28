@@ -24,7 +24,7 @@ func declaredSupportForTest(t *testing.T, f *fixture, operator, modelLabel strin
 	registerTestModelProfile(t, f, modelLabel, profileVersion, testServiceBondMinInitial, batchTestHeight)
 	modelID := testModelID(testHubChainID, hubAddress(t, 250), modelLabel)
 	result, err := f.keeper.DeclareModelSupport(
-		f.ctx, operator, modelID, true, true, batchTestHeight,
+		f.ctx, operator, modelID, true, true, false, batchTestHeight,
 	)
 	require.NoError(t, err)
 	require.False(t, result.Support.SupportActive)
@@ -173,7 +173,7 @@ func TestBatchConfirmModelSupportIsolatesOperators(t *testing.T) {
 	// The healthy operator supports the same model, so only its activation state
 	// differs from the stale one.
 	_, err := f.keeper.DeclareModelSupport(
-		f.ctx, healthyOperator, modelID, true, true, batchTestHeight,
+		f.ctx, healthyOperator, modelID, true, true, false, batchTestHeight,
 	)
 	require.NoError(t, err)
 	activateSupportForTest(t, f, healthyOperator, modelID, 1, "two-operators")
