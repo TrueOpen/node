@@ -38,6 +38,8 @@ type AppModule struct {
 func NewAppModule(cdc codec.Codec, keeper keeper.Keeper, msgServerDeps types.MsgServerDependencies) AppModule {
 	keeper = keeper.WithRuntimeDependencies(msgServerDeps.FreezeTaskValidator, msgServerDeps.ValidatorSnapshotProvider, msgServerDeps.RoleFaultConsumerGate)
 	keeper = keeper.WithWorkerCandidateWeights(msgServerDeps.WorkerCandidateWeightProvider)
+	keeper = keeper.WithConsensusIdentityChecker(msgServerDeps.ConsensusIdentityChecker)
+	keeper = keeper.WithWorkerSettlementView(msgServerDeps.WorkerSettlementView)
 	return AppModule{cdc: cdc, keeper: keeper, msgServerDeps: msgServerDeps}
 }
 

@@ -177,12 +177,16 @@ func (k Keeper) dispatchWinnerLiability(ctx context.Context, admission dispatchO
 	}
 	capability, capable := k.hubKeeper.GetModelCapability(sdkContextFrom(ctx), sdk.AccAddress(raw), admission.order.ModelId)
 	support, supported := k.hubKeeper.GetModelSupport(sdkContextFrom(ctx), sdk.AccAddress(raw), admission.order.ModelId)
-	epochLength := k.hubKeeper.GetHubParams(sdkContextFrom(ctx)).EpochLengthBlocks
+	hubParams := k.hubKeeper.GetHubParams(sdkContextFrom(ctx))
+	epochLength := hubParams.EpochLengthBlocks
 	if epochLength == 0 {
 		return empty, fmt.Errorf("winner support epoch length is unavailable")
 	}
 	if !capable || !supported || !capability.InferenceCapability || capability.CapabilityVersion == 0 || !candidateModelSupportAllowed(k.hubKeeper.GetModelStatus(sdkContextFrom(ctx), admission.order.ModelId), support, bond) || support.SupportVersion == 0 || support.SupportFreshUntilEpoch == 0 || height/epochLength >= support.SupportFreshUntilEpoch {
 		return empty, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_WINNER_NOT_ELIGIBLE, fmt.Errorf("winner liability audit versions are unavailable"))
+	}
+	if err := workerBondRuleRefusal(bond, hubParams.WorkerQuota, admission.profile.ResourceTier); err != nil {
+		return empty, rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_WINNER_NOT_ELIGIBLE, err)
 	}
 	return hubtypes.FrozenFactLiabilityRequest{TaskID: admission.taskID[:], CandidatePoolSnapshotID: pool.SnapshotId, OperatorAddress: target.OperatorAddress, Duty: shared.DutyWorker,
 		OrderValue: orderValue, Slot: target.Slot, SlotVersion: target.SlotVersion, RequiredTaskLiability: bond.RequiredTaskLiability, ActiveBondSnapshot: bond.EffectiveActiveBond,
@@ -204,6 +208,9 @@ func (k Keeper) applyDispatchRecord(ctx context.Context, admission dispatchOrder
 	}
 	if _, err := k.hubKeeper.ReserveTaskLiabilityFromFrozenFact(ctx, liability); err != nil {
 		return rejectDispatch(types.DispatchRejectCodeV1_DISPATCH_REJECT_CODE_V1_LIABILITY_RESERVATION_FAILED, err)
+	}
+	if err := k.reserveWorkerQuota(ctx, liability.OperatorAddress, liability.OrderValue, height, params); err != nil {
+		return err
 	}
 	created, err = k.hubKeeper.AcquireBuilderSetTaskRef(ctx, admission.taskID[:], admission.selection.BuilderSetId, admission.selection.BuilderSetHash, height)
 	if err != nil {

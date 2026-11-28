@@ -27,6 +27,8 @@ type Keeper struct {
 	validatorSnapshots            types.ValidatorSnapshotProvider
 	roleFaultConsumers            types.RoleFaultConsumerGate
 	workerCandidateWeights        types.WorkerCandidateWeightProvider
+	consensusIdentities           types.ConsensusIdentityChecker
+	workerSettlement              types.WorkerSettlementView
 	governanceActionReplayChecker *governanceActionReplayCheckerHolder
 	bridgeUpstream                *bridgeUpstreamHolder
 	vrfPoPVerifier                VrfPoPVerifier
@@ -38,16 +40,19 @@ type Keeper struct {
 	EndBlockBudgetRemainingItems collections.Item[uint64]
 	EndBlockBudgetRemainingBytes collections.Item[uint64]
 
-	Model                               collections.Map[shared.Hash32Key, types.ModelState]
-	Profile                             collections.Map[types.ProfileStateKeyPair, types.ProfileState]
-	RegistrationReceipt                 collections.Map[shared.Hash32Key, types.RegistrationReceipt]
-	CortexNode                          collections.Map[string, internaltypes.CortexNodeStoreState]
-	ServiceBond                         collections.Map[string, internaltypes.ServiceBondStoreState]
-	Unbonding                           collections.Map[types.UnbondingKeyPair, internaltypes.UnbondingStoreState]
-	UnbondingMaturityIndex              collections.KeySet[types.UnbondingMaturityIndexKeyTriple]
-	UnbondingByOperatorStatusIndex      collections.KeySet[types.UnbondingByOperatorStatusKey]
-	UnbondingReceipt                    collections.Map[shared.Hash32Key, internaltypes.UnbondingReceiptStoreState]
-	UnbondingReceiptPruneIndex          collections.KeySet[types.UnbondingReceiptPruneKey]
+	Model                          collections.Map[shared.Hash32Key, types.ModelState]
+	Profile                        collections.Map[types.ProfileStateKeyPair, types.ProfileState]
+	RegistrationReceipt            collections.Map[shared.Hash32Key, types.RegistrationReceipt]
+	CortexNode                     collections.Map[string, internaltypes.CortexNodeStoreState]
+	ServiceBond                    collections.Map[string, internaltypes.ServiceBondStoreState]
+	Unbonding                      collections.Map[types.UnbondingKeyPair, internaltypes.UnbondingStoreState]
+	UnbondingMaturityIndex         collections.KeySet[types.UnbondingMaturityIndexKeyTriple]
+	UnbondingByOperatorStatusIndex collections.KeySet[types.UnbondingByOperatorStatusKey]
+	UnbondingReceipt               collections.Map[shared.Hash32Key, internaltypes.UnbondingReceiptStoreState]
+	UnbondingReceiptPruneIndex     collections.KeySet[types.UnbondingReceiptPruneKey]
+	// WorkerQuota holds, per operator and settlement period, the order value
+	// reserved by tasks that are not final and the value of the final ones.
+	WorkerQuota                         collections.Map[types.WorkerQuotaKeyPair, internaltypes.WorkerQuotaUsage]
 	ServiceDescriptor                   collections.Map[types.ParticipantKeyPair, internaltypes.ServiceDescriptorStoreState]
 	CurrentServiceAddressIndex          collections.Map[types.CurrentServiceAddressIndexKeyPair, internaltypes.CurrentServiceAddressIndexStoreState]
 	TaskLiabilityReservation            collections.Map[types.TaskLiabilityReservationKeyTriple, internaltypes.TaskLiabilityStoreState]
@@ -63,16 +68,21 @@ type Keeper struct {
 	DispatchFault                       collections.Map[types.DispatchFaultKeyPair, internaltypes.DispatchFaultStoreState]
 	DispatchFaultPruneIndex             collections.KeySet[types.DispatchFaultPruneKeyTriple]
 	ModelCapability                     collections.Map[types.ModelCapabilityKeyPair, types.ModelCapabilityState]
-	ModelSupport                        collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
-	ModelSupportExpiryIndex             collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
-	ModelSupportByModelIndex            collections.KeySet[types.ModelSupportByModelIndexKeyPair]
-	ModelSupportByOperatorIndex         collections.KeySet[types.ModelSupportByOperatorIndexKeyPair]
-	ModelSupportPruneIndex              collections.KeySet[types.ModelSupportPruneIndexKeyPair]
-	ModelSupportRecheckIndex            collections.KeySet[types.ModelSupportRecheckIndexKeyPair]
-	ModelSupportRecheckCursor           collections.Map[shared.Hash32Key, types.ModelSupportRecheckCursorState]
-	ModelSupportDeactivateCursor        collections.Map[shared.Hash32Key, types.ModelSupportDeactivateCursorState]
-	DailySupport                        collections.Map[types.DailySupportKey, types.DailySupportState]
-	DailySupportExpiryIndex             collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
+	// AuditCapabilityDeclaredEpoch holds, per capability row, the epoch in which
+	// its audit capability was last switched on. A row is drawable for panels
+	// only in a later epoch. A missing entry means the capability predates any
+	// retained declaration and is effective.
+	AuditCapabilityDeclaredEpoch collections.Map[types.ModelCapabilityKeyPair, uint64]
+	ModelSupport                 collections.Map[types.ModelSupportKeyPair, types.ModelSupportState]
+	ModelSupportExpiryIndex      collections.KeySet[types.ModelSupportExpiryIndexKeyPair]
+	ModelSupportByModelIndex     collections.KeySet[types.ModelSupportByModelIndexKeyPair]
+	ModelSupportByOperatorIndex  collections.KeySet[types.ModelSupportByOperatorIndexKeyPair]
+	ModelSupportPruneIndex       collections.KeySet[types.ModelSupportPruneIndexKeyPair]
+	ModelSupportRecheckIndex     collections.KeySet[types.ModelSupportRecheckIndexKeyPair]
+	ModelSupportRecheckCursor    collections.Map[shared.Hash32Key, types.ModelSupportRecheckCursorState]
+	ModelSupportDeactivateCursor collections.Map[shared.Hash32Key, types.ModelSupportDeactivateCursorState]
+	DailySupport                 collections.Map[types.DailySupportKey, types.DailySupportState]
+	DailySupportExpiryIndex      collections.KeySet[types.DailySupportExpiryIndexKeyTriple]
 
 	// ---- Global epoch stable-slot CandidatePool ----
 	//
@@ -362,6 +372,7 @@ func NewKeeper(
 		UnbondingByOperatorStatusIndex:      collections.NewKeySet(sb, types.UnbondingByOperatorStatusIndexKey, "unbonding_by_operator_status", collections.QuadKeyCodec(addressStringKeyCodec, collections.Int32Key, collections.Uint64Key, shared.Hash32KeyCodec)),
 		UnbondingReceipt:                    collections.NewMap(sb, types.UnbondingReceiptKey, "unbonding_receipt", shared.Hash32KeyCodec, codec.CollValue[internaltypes.UnbondingReceiptStoreState](cdc)),
 		UnbondingReceiptPruneIndex:          collections.NewKeySet(sb, types.UnbondingReceiptPruneIndexKey, "unbonding_receipt_prune", collections.PairKeyCodec(collections.Uint64Key, shared.Hash32KeyCodec)),
+		WorkerQuota:                         collections.NewMap(sb, types.WorkerQuotaKey, "worker_quota", collections.PairKeyCodec(addressStringKeyCodec, collections.Uint64Key), codec.CollValue[internaltypes.WorkerQuotaUsage](cdc)),
 		ServiceDescriptor:                   collections.NewMap(sb, types.ServiceDescriptorKey, "service_descriptor", participantKeyCodec, codec.CollValue[internaltypes.ServiceDescriptorStoreState](cdc)),
 		CurrentServiceAddressIndex:          collections.NewMap(sb, types.CurrentServiceAddressIndexKey, "current_service_address", participantKeyCodec, codec.CollValue[internaltypes.CurrentServiceAddressIndexStoreState](cdc)),
 		TaskLiabilityReservation:            collections.NewMap(sb, types.TaskLiabilityReservationKey, "task_liability", liabilityKeyCodec, codec.CollValue[internaltypes.TaskLiabilityStoreState](cdc)),
@@ -377,6 +388,7 @@ func NewKeeper(
 		DispatchFault:                       collections.NewMap(sb, types.DispatchFaultKey, "dispatch_fault", addressHash32KeyCodec, codec.CollValue[internaltypes.DispatchFaultStoreState](cdc)),
 		DispatchFaultPruneIndex:             collections.NewKeySet(sb, types.DispatchFaultPruneIndexKey, "dispatch_fault_prune", collections.TripleKeyCodec(collections.Uint64Key, addressStringKeyCodec, shared.Hash32KeyCodec)),
 		ModelCapability:                     collections.NewMap(sb, types.ModelCapabilityKey, "model_capability", modelSupportKeyCodec, modelCapabilityValueCodec),
+		AuditCapabilityDeclaredEpoch:        collections.NewMap(sb, types.AuditCapabilityDeclaredEpochKey, "audit_capability_declared_epoch", modelSupportKeyCodec, collections.Uint64Value),
 		ModelSupport:                        collections.NewMap(sb, types.ModelSupportKey, "model_support", modelSupportKeyCodec, modelSupportValueCodec),
 		ModelSupportExpiryIndex:             collections.NewKeySet(sb, types.ModelSupportExpiryIndexKey, "model_support_expiry", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
 		ModelSupportPruneIndex:              collections.NewKeySet(sb, types.ModelSupportPruneIndexKey, "model_support_prune", collections.PairKeyCodec(collections.Uint64Key, modelSupportKeyCodec)),
@@ -508,6 +520,14 @@ func (k Keeper) WithRuntimeDependencies(taskValidator types.FreezeSignalTaskVali
 // WithWorkerCandidateWeights supplies Task-owned policy without a keeper construction cycle.
 func (k Keeper) WithWorkerCandidateWeights(provider types.WorkerCandidateWeightProvider) Keeper {
 	k.workerCandidateWeights = provider
+	return k
+}
+
+// WithConsensusIdentityChecker supplies the block-producer identity lookup that
+// keeps panel audit separate from consensus. Without it every audit capability
+// declaration is refused.
+func (k Keeper) WithConsensusIdentityChecker(checker types.ConsensusIdentityChecker) Keeper {
+	k.consensusIdentities = checker
 	return k
 }
 

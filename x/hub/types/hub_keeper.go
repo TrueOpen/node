@@ -42,6 +42,8 @@ type HubParamsSnapshot struct {
 	MaxQueryResponseBytes                 uint64
 	MaxEndblockVisitedItemsTotal          uint32
 	BusinessDenom                         string
+	// WorkerQuota carries the Worker bond rules a dispatch record applies.
+	WorkerQuota WorkerQuotaTerms
 }
 
 type EndBlockBudgetSnapshot struct {
@@ -63,6 +65,10 @@ type ModelCapabilitySnapshot struct {
 	InferenceCapability    bool
 	VerificationCapability bool
 	CapabilityVersion      uint64
+	// AuditCapability is the declared Verifier-panel capability. It is usable
+	// from AuditEffectiveFromEpoch on; zero means no waiting epoch is recorded.
+	AuditCapability         bool
+	AuditEffectiveFromEpoch uint64
 }
 
 type ModelSupportSnapshot struct {
@@ -94,6 +100,9 @@ type ServiceBondSnapshot struct {
 	BondVersion           uint64
 	EffectiveEpoch        uint64
 	PendingUnbonding      uint64
+	// DispatchPaused mirrors the bond: a paused Worker takes no new order.
+	DispatchPaused bool
+	PauseReasons   uint32
 }
 
 type CurrentServiceKeySnapshot struct {
@@ -271,6 +280,8 @@ type HubKeeper interface {
 	ApplyWorkerObjectiveEvidence(ctx context.Context, fact shared.WorkerObjectiveEvidenceFactV1) (RoleFaultState, error)
 	ApplyRoundEconomicEffect(ctx context.Context, req RoundEconomicEffectApplyRequest) (RoundEconomicEffectApplyReceipt, error)
 	ReleaseTaskLiabilities(ctx context.Context, sessionID, taskID string, height uint64) error
+	ReserveWorkerQuota(ctx context.Context, operatorAddress string, period, value, height uint64) error
+	SettleWorkerQuota(ctx context.Context, operatorAddress string, period, reserved, actual, height uint64) error
 	DeleteOneRoundSlashSummary(ctx context.Context, taskID, roundID []byte) (bool, error)
 	HasTaskRoleFaults(ctx context.Context, taskID []byte) (bool, error)
 	DeleteOneClosedTaskLiability(ctx context.Context, taskID string) (bool, error)

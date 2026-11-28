@@ -1,8 +1,11 @@
 package keeper
 
 import (
+	"errors"
+	"math"
 	"strings"
 
+	"cosmossdk.io/collections"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -58,7 +61,19 @@ func (k Keeper) GetModelCapability(ctx sdk.Context, provider sdk.AccAddress, mod
 	if err != nil || !modelCapabilityKeyMatches(state, provider.String(), modelID) || state.Validate() != nil {
 		return types.ModelCapabilitySnapshot{}, false
 	}
-	return modelCapabilitySnapshot(state), true
+	snapshot := modelCapabilitySnapshot(state)
+	if state.AuditCapability {
+		declared, err := k.AuditCapabilityDeclaredEpoch.Get(ctx, types.NewModelCapabilityKey(provider.String(), modelID))
+		switch {
+		case err == nil && declared < math.MaxUint64:
+			snapshot.AuditEffectiveFromEpoch = declared + 1
+		case err == nil:
+			return types.ModelCapabilitySnapshot{}, false
+		case !errors.Is(err, collections.ErrNotFound):
+			return types.ModelCapabilitySnapshot{}, false
+		}
+	}
+	return snapshot, true
 }
 
 func (k Keeper) GetModelSupport(ctx sdk.Context, provider sdk.AccAddress, modelID []byte) (types.ModelSupportSnapshot, bool) {
@@ -153,6 +168,10 @@ func (k Keeper) GetHubParams(ctx sdk.Context) types.HubParamsSnapshot {
 		MaxQueryResponseBytes:        params.QueryEvent.MaxQueryResponseBytes,
 		MaxEndblockVisitedItemsTotal: params.QueryEvent.MaxEndblockVisitedItemsTotal,
 		BusinessDenom:                params.Phase0.BusinessDenom,
+		WorkerQuota: types.WorkerQuotaTerms{
+			PeriodValueBpsOfBond: params.Service.WorkerQuotaPeriodValueBpsOfBond,
+			BondFloorByTier:      params.Service.WorkerBondFloorByTier,
+		},
 	}
 }
 
@@ -195,6 +214,7 @@ func (k Keeper) GetServiceBond(ctx sdk.Context, cortexNode sdk.AccAddress, order
 		RequiredTaskLiability: requiredLiability,
 		ReservedLiability:     state.ReservedLiability, BondVersion: state.BondVersion,
 		EffectiveEpoch: state.EffectiveBondEpoch, PendingUnbonding: state.PendingUnbondingTotal,
+		DispatchPaused: state.DispatchPaused, PauseReasons: state.PauseReasons,
 	}, true
 }
 
@@ -260,7 +280,7 @@ func modelCapabilitySnapshot(state types.ModelCapabilityState) types.ModelCapabi
 	return types.ModelCapabilitySnapshot{
 		OperatorAddress: state.OperatorAddress, ModelID: state.ModelId,
 		InferenceCapability: state.InferenceCapability, VerificationCapability: state.VerificationCapability,
-		CapabilityVersion: state.CapabilityVersion,
+		CapabilityVersion: state.CapabilityVersion, AuditCapability: state.AuditCapability,
 	}
 }
 

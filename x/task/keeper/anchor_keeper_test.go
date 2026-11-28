@@ -33,13 +33,31 @@ func (s anchorHubStub) GetServiceBondFacts(sdk.Context, string) hubtypes.Service
 type anchorStakingStub struct {
 	codec  address.Codec
 	powers map[string]int64
+	// consensus lists consensus addresses that belong to a validator.
+	consensus map[string]bool
+	// unbonded makes every known validator report an unbonded status.
+	unbonded bool
+}
+
+func (s anchorStakingStub) status() stakingtypes.BondStatus {
+	if s.unbonded {
+		return stakingtypes.Unbonded
+	}
+	return stakingtypes.Bonded
+}
+
+func (s anchorStakingStub) GetValidatorByConsAddr(_ context.Context, addr sdk.ConsAddress) (stakingtypes.Validator, error) {
+	if !s.consensus[string(addr)] {
+		return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
+	}
+	return stakingtypes.Validator{Status: s.status()}, nil
 }
 
 func (s anchorStakingStub) GetValidator(_ context.Context, addr sdk.ValAddress) (stakingtypes.Validator, error) {
 	if _, ok := s.powers[string(addr)]; !ok {
 		return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
 	}
-	return stakingtypes.Validator{Status: stakingtypes.Bonded}, nil
+	return stakingtypes.Validator{Status: s.status()}, nil
 }
 
 func (s anchorStakingStub) GetLastValidatorPower(_ context.Context, addr sdk.ValAddress) (int64, error) {

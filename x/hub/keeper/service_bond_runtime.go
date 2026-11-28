@@ -131,6 +131,11 @@ func (k Keeper) beginServiceUnstake(ctx context.Context, chainID, operatorAddres
 		return types.ServiceBondState{}, types.UnbondingState{}, fmt.Errorf("pending unbonding overflow: %w", err)
 	}
 	bond.LastUnstakeHeight = height
+	if params.Service.StopDispatchOnUnbondRequest {
+		// The request stops new orders at once. The reason is cleared when the
+		// last outstanding unbonding entry is withdrawn or slashed away.
+		bond.SetPauseReason(types.WorkerPauseReasonUnbonding, true)
+	}
 	if bond.ActiveBond == 0 && bond.Status != types.ServiceBondStatus_SERVICE_BOND_STATUS_TOMBSTONED {
 		bond.Status = types.ServiceBondStatus_SERVICE_BOND_STATUS_UNBONDING
 	}
@@ -299,6 +304,9 @@ func (k Keeper) withdrawServiceUnbondingRows(ctx context.Context, chainID, opera
 		}
 	}
 	bond.BondVersion++
+	if bond.PendingUnbondingTotal == 0 {
+		bond.SetPauseReason(types.WorkerPauseReasonUnbonding, false)
+	}
 	if bond.ActiveBond == 0 && bond.PendingUnbondingTotal == 0 && bond.Status != types.ServiceBondStatus_SERVICE_BOND_STATUS_TOMBSTONED {
 		bond.Status = types.ServiceBondStatus_SERVICE_BOND_STATUS_EXITED
 	}
@@ -411,7 +419,7 @@ func (k Keeper) requireServiceUnbondingWithdrawable(ctx context.Context, operato
 	if node.ActiveTaskLiabilityCount != 0 || node.PendingStageDutyCount != 0 {
 		return errorsmod.Wrap(types.ErrPendingResponsibility, "service unbonding cannot be withdrawn while duties are open")
 	}
-	return nil
+	return k.requireNoOpenWorkerObligations(ctx, operatorAddress)
 }
 
 // countOutstandingServiceUnbondings counts every unwithdrawn primary row.

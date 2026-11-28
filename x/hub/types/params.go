@@ -256,6 +256,9 @@ func (p HubParamsV2) Validate() error {
 		p.Service.MinStakeGracePeriodBlocks == 0 {
 		return fmt.Errorf("service parameters are invalid")
 	}
+	if err := validateWorkerBondParams(p.Service); err != nil {
+		return err
+	}
 	if p.Builder.BuilderSetCap == 0 ||
 		p.Builder.BuilderSetUpdateLeadBlocks == 0 ||
 		p.Builder.OpenVerifyBuilderProposalWindowBlocks == 0 || p.Builder.SettlementBuilderGraceBlocks == 0 ||
@@ -537,6 +540,14 @@ func hubParamsAmounts(amounts []shared.Amount) []canonicalHubParamsValue {
 	return values
 }
 
+func hubParamsWorkerBondFloors(values []WorkerBondFloorV1) []canonicalHubParamsValue {
+	result := make([]canonicalHubParamsValue, len(values))
+	for i, value := range values {
+		result[i] = hubParamsMessage(hubParamsScalar(shared.Uint32BE(value.ResourceTier)), hubParamsAmount(value.MinBond))
+	}
+	return result
+}
+
 func hubParamsStrings(values []string) []canonicalHubParamsValue {
 	result := make([]canonicalHubParamsValue, len(values))
 	for i := range values {
@@ -626,6 +637,12 @@ func canonicalHubParamsValues(p HubParamsV2) []canonicalHubParamsValue {
 			hubParamsAmount(p.Service.MinTaskLiability), hubParamsScalar(shared.Uint32BE(p.Service.MaxServiceBondEffectiveItemsPerBlock)),
 			hubParamsScalar(shared.Uint32BE(p.Service.TaskLiabilityOrderCoverageBps)),
 			hubParamsScalar(shared.Uint64BE(p.Service.MinStakeGracePeriodBlocks)),
+			hubParamsScalar(shared.Uint32BE(p.Service.WorkerBondFloorRevenuePeriods)),
+			hubParamsScalar(shared.Uint32BE(p.Service.WorkerQuotaPeriodValueBpsOfBond)),
+			hubParamsScalar(shared.BoolByte(p.Service.StopDispatchOnUnbondRequest)),
+			hubParamsScalar(shared.BoolByte(p.Service.UnbondRequiresNoOpenTasks)),
+			hubParamsScalar(shared.BoolByte(p.Service.MinValidatorSeparation)),
+			hubParamsRepeated(hubParamsWorkerBondFloors(p.Service.WorkerBondFloorByTier)),
 		),
 		hubParamsMessage(
 			hubParamsScalar(shared.Uint32BE(p.Builder.BuilderSetCap)),

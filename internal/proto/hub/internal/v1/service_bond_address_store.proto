@@ -17,6 +17,10 @@ message ServiceBondStoreState {
   uint32 normal_action_count_since_jail = 10;
   uint64 last_stake_height = 11;
   uint64 last_unstake_height = 12;
+  // Accounts that funded this bond, as codec bytes, in first-seen order.
+  repeated bytes bond_funder_addresses = 13;
+  bool dispatch_paused = 14;
+  uint32 pause_reasons = 15;
 }
 
 // UnbondingStoreState stores the operator as codec bytes.
@@ -40,4 +44,13 @@ message UnbondingReceiptStoreState {
   int32 terminal_status = 6;
   uint64 terminal_height = 7;
   bytes receipt_hash = 8;
+}
+
+// WorkerQuotaUsage is one Worker's order-value usage in one settlement
+// period. It is not a twin of hub.v1.WorkerQuotaState: the operator and the
+// period are the row key.
+message WorkerQuotaUsage {
+  uint64 reserved_value = 1;
+  uint64 settled_value = 2;
+  uint64 updated_height = 3;
 }

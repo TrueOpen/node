@@ -16,6 +16,7 @@ import (
 // recorded power, and a verdict is final at two thirds of the last total power.
 type StakingKeeper interface {
 	GetValidator(ctx context.Context, addr sdk.ValAddress) (stakingtypes.Validator, error)
+	GetValidatorByConsAddr(ctx context.Context, consAddr sdk.ConsAddress) (stakingtypes.Validator, error)
 	GetLastValidatorPower(ctx context.Context, operator sdk.ValAddress) (int64, error)
 	GetLastTotalPower(ctx context.Context) (math.Int, error)
 	ValidatorAddressCodec() address.Codec

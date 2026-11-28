@@ -6,6 +6,7 @@ import (
 	"github.com/TrueOpen/node/x/hub/keeper"
 	"github.com/TrueOpen/node/x/hub/types"
 	shared "github.com/TrueOpen/node/x/shared/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
@@ -43,4 +44,33 @@ func TestHubGovernanceCannotShortenRetainedOrderNotice(t *testing.T) {
 	params.Builder.BuilderSetUpdateLeadBlocks = 161
 	_, err = server.UpdateHubParams(f.ctx, &types.MsgUpdateHubParams{Authority: authtypes.NewModuleAddress(types.GovModuleName).String(), Params: params})
 	require.NoError(t, err)
+}
+
+// VRF may only be made mandatory from a future height: the blocks between an
+// already reached activation height and the update carry placeholder beacons
+// only, which stop being readable the moment the parameter takes effect.
+func TestHubGovernanceRejectsVrfActivationAtAReachedHeight(t *testing.T) {
+	f := initFixture(t)
+	require.NoError(t, f.keeper.InitGenesis(f.ctx, *types.DefaultGenesis()))
+	server := keeper.NewMsgServerImpl(f.keeper, types.MsgServerDependencies{ValidatorSnapshotProvider: deterministicValidatorSnapshots{historicalEntries: 10_000}, TaskSafetyWindowProvider: staticTaskSafetyWindows{}})
+	authority := authtypes.NewModuleAddress(types.GovModuleName).String()
+	ctx := sdk.WrapSDKContext(sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(100))
+	params, err := f.keeper.Params.Get(ctx)
+	require.NoError(t, err)
+	require.Zero(t, params.Beacon.VrfRequiredFromHeight)
+
+	for _, reached := range []uint64{1, 99, 100} {
+		next := params
+		next.Beacon.VrfRequiredFromHeight = reached
+		_, err = server.UpdateHubParams(ctx, &types.MsgUpdateHubParams{Authority: authority, Params: next})
+		require.ErrorIs(t, err, types.ErrInvalidBeacon, "height %d", reached)
+	}
+	after, err := f.keeper.Params.Get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, params, after)
+
+	next := params
+	next.Beacon.VrfRequiredFromHeight = 101
+	_, err = server.UpdateHubParams(ctx, &types.MsgUpdateHubParams{Authority: authority, Params: next})
+	require.NotErrorIs(t, err, types.ErrInvalidBeacon)
 }

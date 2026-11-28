@@ -89,6 +89,15 @@ type ModuleInputs struct {
 	TaskSafetyWindowProvider      types.TaskSafetyWindowProvider
 	RoleFaultConsumerGate         types.RoleFaultConsumerGate
 	WorkerCandidateWeightProvider types.WorkerCandidateWeightProvider
+	// ConsensusIdentityChecker is implemented by the task keeper over the
+	// staking keeper and the registered audit vote keys. It is a required
+	// input so that an app which cannot bind it fails to build instead of
+	// silently refusing every audit capability declaration.
+	ConsensusIdentityChecker types.ConsensusIdentityChecker
+	// WorkerSettlementView is implemented by the task keeper: the settlement
+	// period of the Worker quota and the open-obligation condition of an
+	// unbonding withdrawal.
+	WorkerSettlementView types.WorkerSettlementView
 	// BridgeUpstream is supplied by app wiring over the pinned Hyperlane
 	// keepers. It is optional so a chain without a bridge, and every direct
 	// keeper fixture, still wires; ValidateBridgeUpstream reports its absence
@@ -122,6 +131,8 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		TaskSafetyWindowProvider:      in.TaskSafetyWindowProvider,
 		RoleFaultConsumerGate:         in.RoleFaultConsumerGate,
 		WorkerCandidateWeightProvider: in.WorkerCandidateWeightProvider,
+		ConsensusIdentityChecker:      in.ConsensusIdentityChecker,
+		WorkerSettlementView:          in.WorkerSettlementView,
 	}
 	hub := in.HubKeeper.WithBridgeUpstream(in.BridgeUpstream)
 	if in.VrfPoPVerifier != nil {

@@ -98,12 +98,19 @@ type dispatchTestHub struct {
 	queryMaxBytes   uint64
 	bondStatus      hubtypes.ServiceBondStatus
 	availableBond   *uint64
+	// Worker bond rules: pause reasons of the winner's bond, the terms the
+	// Hub parameters carry, and the quota ledger a reservation is booked in.
+	pauseReasons uint32
+	quotaTerms   hubtypes.WorkerQuotaTerms
+	quota        *quotaLedgerStub
+	roleFaults   []hubtypes.TaskRoleFaultFact
 }
 
 func (h *dispatchTestHub) GetHubParams(ctx sdk.Context) hubtypes.HubParamsSnapshot {
 	params := h.internalStubHubKeeper.GetHubParams(ctx)
 	params.EpochLengthBlocks = 120
 	params.BusinessDenom = dispatchTestDenom
+	params.WorkerQuota = h.quotaTerms
 	if h.queryMaxBytes != 0 {
 		params.MaxQueryResponseBytes = h.queryMaxBytes
 	}
@@ -172,7 +179,8 @@ func (h *dispatchTestHub) GetServiceBond(_ sdk.Context, _ sdk.AccAddress, _ uint
 	if h.availableBond != nil {
 		available = *h.availableBond
 	}
-	return hubtypes.ServiceBondSnapshot{Status: status, ActiveBond: 4_000_000, EffectiveActiveBond: 4_000_000, AvailableBond: available, RequiredTaskLiability: 30_000, BondVersion: 1}, true
+	return hubtypes.ServiceBondSnapshot{Status: status, ActiveBond: 4_000_000, EffectiveActiveBond: 4_000_000, AvailableBond: available, RequiredTaskLiability: 30_000, BondVersion: 1,
+		DispatchPaused: h.pauseReasons != 0, PauseReasons: h.pauseReasons}, true
 }
 func (h *dispatchTestHub) GetModelCapability(sdk.Context, sdk.AccAddress, []byte) (hubtypes.ModelCapabilitySnapshot, bool) {
 	return hubtypes.ModelCapabilitySnapshot{InferenceCapability: true, CapabilityVersion: 1}, true
