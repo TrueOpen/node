@@ -42,6 +42,8 @@ type HubParamsSnapshot struct {
 	MaxQueryResponseBytes                 uint64
 	MaxEndblockVisitedItemsTotal          uint32
 	BusinessDenom                         string
+	// MinValidatorSeparation keeps block-producer identities off Verifier panels.
+	MinValidatorSeparation bool
 }
 
 type EndBlockBudgetSnapshot struct {
@@ -63,6 +65,10 @@ type ModelCapabilitySnapshot struct {
 	InferenceCapability    bool
 	VerificationCapability bool
 	CapabilityVersion      uint64
+	// AuditCapability is the declared Verifier-panel capability. It is usable
+	// from AuditEffectiveFromEpoch on; zero means no waiting epoch is recorded.
+	AuditCapability         bool
+	AuditEffectiveFromEpoch uint64
 }
 
 type ModelSupportSnapshot struct {

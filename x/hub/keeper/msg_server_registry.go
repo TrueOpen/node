@@ -187,7 +187,7 @@ func (m msgServer) DeclareModelSupport(ctx context.Context, req *types.MsgDeclar
 	if err != nil {
 		return nil, err
 	}
-	if len(req.ModelId) != shared.Hash32KeySize || (!req.InferenceCapability && !req.VerificationCapability) {
+	if len(req.ModelId) != shared.Hash32KeySize || (!req.InferenceCapability && !req.VerificationCapability && !req.AuditCapability) {
 		return nil, errorsmod.Wrap(types.ErrInvalidModelCapability, "raw model_id and at least one capability are required")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -195,7 +195,7 @@ func (m msgServer) DeclareModelSupport(ctx context.Context, req *types.MsgDeclar
 	cacheCtx, commit := sdkCtx.CacheContext()
 	result, err := m.k.DeclareModelSupport(
 		sdk.WrapSDKContext(cacheCtx), operator, req.ModelId,
-		req.InferenceCapability, req.VerificationCapability,
+		req.InferenceCapability, req.VerificationCapability, req.AuditCapability,
 		height,
 	)
 	if err != nil {

@@ -1,0 +1,29 @@
+syntax = "proto3";
+package task.internal.v1;
+
+option go_package = "github.com/TrueOpen/node/x/task/internal/types";
+
+// AnchorPanelSelectionStoreState is the working state of one Verifier-panel
+// round while its members are being chosen: the frozen candidate window, the
+// hand-raises relayed for it and the proposals that carried them. It exists
+// from the opening of the round until its members are drawn or the round is
+// closed without a panel, one row per task. Every nested value is the
+// serialized public message named in its comment.
+message AnchorPanelSelectionStoreState {
+  bytes task_id = 1;
+  // The verify-round number hand-raises for this round are signed with.
+  uint32 panel_round = 2;
+  // task.v1.VerifierCandidateWindowState
+  bytes window = 3;
+  // task.v1.VerifierCandidateEligibilitySegmentState, non-empty segments only.
+  repeated bytes eligibility_segments = 4;
+  // task.v1.VerifierCandidateWindowMemberState in rank order; empty until the
+  // window is materialized.
+  repeated bytes members = 5;
+  // task.v1.TaskStageHandraiseUnionState; empty until a proposal is accepted.
+  bytes union = 6;
+  // task.v1.TaskCandidateFactState in ascending slot order.
+  repeated bytes facts = 7;
+  // task.v1.BuilderStageProposalState in acceptance order.
+  repeated bytes proposals = 8;
+}

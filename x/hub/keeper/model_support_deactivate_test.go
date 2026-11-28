@@ -23,7 +23,7 @@ func TestModelSupportDeactivationResumesAcrossBlocksAndGenesis(t *testing.T) {
 	}{{0x11, 0x31}, {0x22, 0x32}} {
 		operator := hubAddress(t, seed.addressFill)
 		registerSupportOperatorForTest(t, f, operator, hubIdentity(t, seed.identityFill))
-		_, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, true, true, 10)
+		_, err := f.keeper.DeclareModelSupport(f.ctx, operator, modelID, true, true, false, 10)
 		require.NoError(t, err)
 		operators = append(operators, operator)
 	}
