@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- **Consensus-breaking: Verifier-panel anchor audit (`anchor_audit_mode = 2`).**
+  With the task parameter `anchor_audit_mode` set to 2, the audit of a sampled
+  anchor task is decided by a panel of Verifiers instead of the validator
+  vote. The parameter defaults to 0; modes 0 and 1 behave exactly as before,
+  and a task keeps the mode of the parameters it was accepted under.
+  - Selection reuses the Verifier machinery: when the Worker's proof is
+    recorded the chain freezes the operators eligible for the task (audit
+    capability past its waiting epoch, fresh support, bond at the task's
+    minimum stake, not the Worker, not a member of an earlier panel of the
+    task, and not a block-producer identity where `min_validator_separation`
+    is set), ranks them into a candidate window, accepts hand-raises relayed by
+    a selected Task Builder (`MsgSubmitVerifierHandraises` with `verify_round`
+    set to the panel round) and draws `anchor_panel_size` members by weight.
+    Panel rounds are numbered from 2; round 1 remains the task's own round.
+  - `MsgSubmitAnchorPanelVote`: each member casts one vote, PASS or REJECT
+    over exactly the sampled positions, or UNAVAILABLE. A vote cannot be
+    changed. A round closes when `anchor_panel_threshold` equal votes are cast,
+    when every member has voted, or after `anchor_panel_vote_window_blocks`.
+  - A PASS or REJECT round publishes a provisional verdict for
+    `anchor_publication_window_blocks`. Nothing is paid or slashed before the
+    verdict is final. `MsgRequestAnchorReaudit` lets any account pay for one
+    re-audit by a panel of other members during that window: an opposite
+    decision replaces the published verdict and returns the fee; anything else
+    leaves the published verdict standing.
+  - A first round without a conclusion is re-assigned once, automatically, to
+    other members. Until late submission is implemented: a round in which the
+    threshold of members could not obtain the Worker's material ends as
+    material unavailable (the existing timeout fault, not paid, no jail); a
+    re-assigned round that also reaches no conclusion ends the audit without a
+    verdict (the Worker is paid, nobody is slashed). An absent vote is never
+    read as a statement about the Worker.
+  - Panel members are not paid by this change: the fee of each round is
+    recorded on the round. The re-audit fee is held in the
+    `task_challenge_effect` module account.
+  - Queries: `AnchorPanelAssignments` (open rounds an operator must vote on),
+    `AnchorAuditsUnderReview` (published verdicts that are not final), and
+    `VerifierCandidateWindow` now also answers for an open panel round.
+  - New task store prefixes `anchor_panel_selection`, `anchor_panel_due_index`,
+    `anchor_panel_due_height`, `anchor_panel_member_index`,
+    `anchor_under_review_index`, `anchor_panel_last_scan_height`. The working
+    selection row of a round is not exported: after an import a round that was
+    still choosing its members ends without a conclusion at the first block.
+  - Parameter validation: with `anchor_audit_mode = 2`, `anchor_panel_size`
+    must be 1..15 and `anchor_panel_threshold` a strict majority of it.
 - **Consensus-breaking: audit capability for Verifier panels.** A Cortex
   operator may declare `audit_capability` for a model in
   `MsgDeclareModelSupport`, alone or together with inference or verification

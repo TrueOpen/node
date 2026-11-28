@@ -295,6 +295,37 @@ func (q queryServer) AnchorAuditsUnderReview(ctx context.Context, req *types.Que
 	return out, nil
 }
 
+// anchorPanelCandidateWindow answers the candidate-window query for a panel
+// round that is choosing its members: the frozen window header and, once the
+// window beacon has ranked it, its members in rank order. It reports
+// found=false when the task has no working row for that round (the round was
+// drawn or closed, or the task has no panel audit), so the caller falls back to
+// the verification rounds.
+func (q *queryServer) anchorPanelCandidateWindow(ctx context.Context, taskKey types.TaskKey, panelRound uint32) (*types.QueryVerifierCandidateWindowResponse, bool, error) {
+	selection, found, err := q.k.loadAnchorPanelSelection(ctx, taskKey)
+	if err != nil {
+		return nil, true, status.Error(codes.Internal, "panel selection row is unreadable")
+	}
+	if !found || selection.PanelRound != panelRound {
+		return nil, false, nil
+	}
+	if selection.Window.Status != types.VerifierCandidateWindowStatusV1_VERIFIER_CANDIDATE_WINDOW_STATUS_V1_READY {
+		return nil, true, status.Error(codes.FailedPrecondition, "verifier candidate window is not materialized")
+	}
+	caps, err := q.queryCaps(ctx)
+	if err != nil {
+		return nil, true, err
+	}
+	response := &types.QueryVerifierCandidateWindowResponse{Window: selection.Window, Members: selection.Members}
+	if response.Members == nil {
+		response.Members = []types.VerifierCandidateWindowMemberState{}
+	}
+	if uint64(response.Size()) > caps.responseSize {
+		return nil, true, status.Error(codes.ResourceExhausted, "verifier candidate window exceeds the response byte cap")
+	}
+	return response, true, nil
+}
+
 func anchorPageLimit(requested uint32) int {
 	limit := int(requested)
 	if limit <= 0 {

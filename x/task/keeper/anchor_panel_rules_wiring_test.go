@@ -499,3 +499,113 @@ func TestAnchorPanelParamsValidation(t *testing.T) {
 	off.Verification.AnchorPanelSize, off.Verification.AnchorPanelThreshold = 4, 1
 	require.NoError(t, off.Validate())
 }
+
+// The candidate window of a panel round is read through the same query as a
+// verification round's, with verify_round set to the panel round number: not
+// materialized before the window beacon, the ranked eligible members after it,
+// and gone once the panel is drawn.
+func TestPanelCandidateWindowIsQueryable(t *testing.T) {
+	f := newAnchorPanelFixture(t, 4_000, 6)
+	query := &queryServer{k: f.keeper}
+	request := &types.QueryVerifierCandidateWindowRequest{TaskId: f.taskID, VerifyRound: f.audit.PanelRound}
+	_, err := query.VerifierCandidateWindow(f.ctx, request)
+	require.ErrorContains(t, err, "not materialized")
+
+	selection := f.selection(t)
+	f.sweep(t, selection.Window.WindowRandomnessHeight)
+	selection = f.selection(t)
+	response, err := query.VerifierCandidateWindow(f.ctx, request)
+	require.NoError(t, err)
+	require.Equal(t, selection.Window, response.Window)
+	require.Equal(t, f.audit.PanelRound, response.Window.VerifyRound)
+	require.Len(t, response.Members, int(selection.Window.WindowSize))
+	for rank, member := range response.Members {
+		require.Equal(t, uint32(rank), member.RankIndex, "members are listed in rank order")
+		require.Contains(t, f.candidates, member.OperatorAddress)
+		require.NotEqual(t, f.worker, member.OperatorAddress)
+	}
+	// A round number the audit has not opened falls through to the
+	// verification rounds, which know no round after the second.
+	_, err = query.VerifierCandidateWindow(f.ctx, &types.QueryVerifierCandidateWindowRequest{TaskId: f.taskID, VerifyRound: f.audit.PanelRound + 1})
+	require.ErrorContains(t, err, "verify_round must be 1 or 2")
+	// Round 1 of the task is still its own zero-Verifier round.
+	first, err := query.VerifierCandidateWindow(f.ctx, &types.QueryVerifierCandidateWindowRequest{TaskId: f.taskID, VerifyRound: types.VerifyRoundV1})
+	require.NoError(t, err)
+	require.True(t, isAnchorOnlyWindow(first.Window))
+
+	_, err = f.server.SubmitVerifierHandraises(f.at(int64(selection.Window.HandraiseCloseHeight)), &types.MsgSubmitVerifierHandraises{
+		TaskId: f.taskID, Handraises: f.handraises(t, selection), SubmitterAddress: f.builders[0],
+	})
+	require.NoError(t, err)
+	f.sweep(t, selection.Window.SelectionRandomnessHeight)
+	require.Len(t, f.round(t).Members, 3)
+	_, err = query.VerifierCandidateWindow(f.ctx, request)
+	require.Error(t, err, "a drawn round has no window left; its members are in the audit row")
+}
+
+// A task in flight when a network switches to panel audit keeps the mode it
+// was accepted under. An audit sampled before the switch stays on the
+// validator vote: its proof opens no panel round, panel messages are refused
+// for it, validator votes decide it and the Worker is paid as before.
+func TestAuditInFlightAtTheSwitchStaysOnTheValidatorVote(t *testing.T) {
+	f := newAnchorOnlyFixture(t, 4_000, true)
+	f.submitReceipt(t)
+	state := f.sampleRound(t)
+	require.True(t, state.Selected)
+	require.Zero(t, state.AuditMode)
+
+	switched := f.params
+	switched.Verification.AnchorAuditMode = types.AnchorAuditModePanel
+	switched.Verification.AnchorPanelSize, switched.Verification.AnchorPanelThreshold = 3, 2
+	switched.Verification.AnchorPanelVoteWindowBlocks, switched.Verification.AnchorPublicationWindowBlocks = panelVoteWindow, panelPublication
+	require.NoError(t, switched.Validate())
+	require.NoError(t, f.keeper.Params.Set(f.ctx, switched))
+
+	f.openAndProveSampled(t, state)
+	got, err := f.keeper.AnchorAudit.Get(f.ctx, f.taskKey)
+	require.NoError(t, err)
+	require.Zero(t, got.AuditMode)
+	require.Empty(t, got.PanelRounds, "an audit sampled before the switch opens no panel round")
+	require.Equal(t, state.VerdictDeadlineHeight, got.VerdictDeadlineHeight, "its deadlines are the ones frozen at sampling")
+	has, err := f.keeper.anchorPanelHasWork(f.ctx, f.taskKey, got)
+	require.NoError(t, err)
+	require.False(t, has)
+	voteAt := state.SampleHeight + 3
+	_, err = f.server.SubmitAnchorPanelVote(f.at(int64(voteAt)), &types.MsgSubmitAnchorPanelVote{
+		TaskId: f.taskID, PanelRound: 2, OpeningHash: got.OpeningHash, ProofHash: got.WorkerProofHash, Verdict: voteUnavailable,
+		VerifierOperatorAddress: f.operators[1], SubmitterAddress: f.operators[1],
+	})
+	require.ErrorContains(t, err, "not decided by a Verifier panel")
+	visited, err := f.keeper.processAnchorPanelDue(f.at(int64(state.VerdictDeadlineHeight)), state.VerdictDeadlineHeight, 10)
+	require.NoError(t, err)
+	require.Zero(t, visited)
+
+	_, err = f.vote(0, f.valAcct[0], votePass, voteAt)
+	require.NoError(t, err)
+	response, err := f.vote(1, f.valAcct[1], votePass, voteAt)
+	require.NoError(t, err)
+	require.True(t, response.Finalized)
+	settlement, err := f.settleNow(t, voteAt+1)
+	require.NoError(t, err)
+	f.requirePaidInFull(t, settlement)
+	require.Empty(t, *f.faults)
+}
+
+// The same holds when nobody votes on the in-flight audit after the switch:
+// it ends at its own verdict deadline without a verdict, the Worker is paid
+// and nobody is slashed.
+func TestAuditInFlightAtTheSwitchIsNotFaultedBySilence(t *testing.T) {
+	f := newAnchorOnlyFixture(t, 4_000, true)
+	f.submitReceipt(t)
+	state := f.sampleRound(t)
+	switched := f.params
+	switched.Verification.AnchorAuditMode = types.AnchorAuditModePanel
+	switched.Verification.AnchorPanelSize, switched.Verification.AnchorPanelThreshold = 3, 2
+	switched.Verification.AnchorPanelVoteWindowBlocks, switched.Verification.AnchorPublicationWindowBlocks = panelVoteWindow, panelPublication
+	require.NoError(t, f.keeper.Params.Set(f.ctx, switched))
+	f.openAndProveSampled(t, state)
+	settlement, err := f.settleNow(t, state.VerdictDeadlineHeight)
+	require.NoError(t, err)
+	f.requirePaidInFull(t, settlement)
+	require.Empty(t, *f.faults)
+}
