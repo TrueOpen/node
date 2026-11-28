@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+- **Consensus-breaking: per-Worker, per-period batch settlement
+  (`batch_settlement_period_blocks`) and panel fees.**
+  - With the task parameter set (default 0 = off), a task joins the batch of
+    (its Worker, `dispatch record height / batch_settlement_period_blocks`)
+    when its dispatch is recorded. The task still settles on its own and every
+    other payee and the user's refund are paid with it, but the Worker's net is
+    held (in the `task_challenge_effect` module account) and added to the
+    batch's `worker_due`.
+  - When the period is over and every member task is final the batch is
+    queued; EndBlock pays queued batches in one credit each, oldest first, ties
+    by operator address, at most `batch_settlement_max_workers_per_block` per
+    block (one when unset). A batch whose payment fails is taken off the queue
+    with its held amount untouched and does not stop the others.
+  - A member task that settles on a rejected audit forfeits the batch
+    (`FORFEITED_CHEAT`); one that settles on an expired late window forfeits
+    it as `FORFEITED_TIMEOUT`. The held amount and the Worker net of members
+    that become final later go to the treasury. A batch that was already paid
+    is not taken back. A missed deadline without a late window, panel silence
+    and audits that end without a verdict forfeit nothing.
+  - A member task's rows, the audit among them, are kept until its batch is
+    paid or forfeited (evidence cleanup waits for it).
+  - Panel fees. A task judged by a Verifier panel pays the panel from its
+    verify share, in its own settlement plan, and its Worker no longer carries
+    that share (a task the audit did not select, or whose audit drew no panel,
+    is unchanged). Each drawn round other than the re-audit is worth one
+    verify share, one seat per member: a member that voted is paid its seat
+    less maintenance, the seat of a member that did not vote goes to the
+    treasury. A second or third round is paid only while the budget reserved
+    for the task covers a whole round fee. On a rejected task the panel is
+    paid out of what would have been refunded to the user. The re-audit panel
+    is paid from the opener's fee when the task settles; the unvoted part of
+    the fee goes to the treasury.
+  - `AnchorAuditState.settlement_period` is set at sampling for a member task.
+  - Queries `WorkerBatch`, `WorkerBatches`, `WorkerBatchTasks`; events
+    `EventWorkerBatchQueued`, `EventWorkerBatchSettled`,
+    `EventWorkerBatchForfeited`. A batch that waits for a member task's late
+    submission is reported as `SUSPENDED` with `awaiting_late_count`; both are
+    computed when the batch is read.
+  - New task store prefixes `worker_batch`, `worker_batch_task` (both exported:
+    `worker_batches`, `worker_batch_tasks`), `worker_batch_task_index`,
+    `worker_batch_close_index`, `worker_batch_queue` (rebuilt on import).
 - **Consensus-breaking: Worker timeout and late submission in panel audits
   (`anchor_late_window_blocks`).** With the task parameter set (default 0 =
   off; it applies to audits with `anchor_audit_mode = 2` only), a timeout no

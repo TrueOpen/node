@@ -297,7 +297,7 @@ func TestSettlementDoesNotDependOnTheSweep(t *testing.T) {
 	require.ErrorContains(t, err, "pending until")
 	settlement, err := published.settleNow(t, audit.PublicationEndHeight)
 	require.NoError(t, err)
-	published.requirePaidInFull(t, settlement)
+	published.requireAuditedPaid(t, settlement)
 	audit = published.reload(t)
 	require.Equal(t, votePass, audit.TaskVerdict)
 	require.Equal(t, audit.PublicationEndHeight, audit.FinalHeight)

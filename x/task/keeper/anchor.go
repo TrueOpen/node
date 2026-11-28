@@ -217,6 +217,9 @@ func (k Keeper) sampleAnchorAudit(ctx context.Context, assignment types.Verifier
 		AuditRateBps: draw.rate, Selected: draw.selected, AuditBasis: draw.basis, SlashableBond: draw.bond,
 		AuditMode: v.AnchorAuditMode,
 	}
+	if member, err := k.WorkerBatchTask.Get(ctx, taskKey); err == nil {
+		state.SettlementPeriod = member.Period
+	}
 	if state.Selected {
 		// Where this Worker serves its material from is fixed now, from what its
 		// descriptor published before the draw: it cannot be chosen afterwards.

@@ -137,6 +137,11 @@ type Keeper struct {
 	AnchorPanelLastScanHeight           collections.Item[uint64]
 	WorkerTimeoutLedger                 collections.Map[types.AddrKey, types.WorkerTimeoutLedgerState]
 	WorkerLateIndex                     collections.KeySet[types.RoleActiveTaskKey]
+	WorkerBatch                         collections.Map[collections.Pair[types.AddrKey, uint64], types.WorkerBatchState]
+	WorkerBatchTask                     collections.Map[types.TaskKey, types.WorkerBatchTaskState]
+	WorkerBatchTaskIndex                collections.KeySet[collections.Triple[types.AddrKey, uint64, types.TaskKey]]
+	WorkerBatchCloseIndex               collections.KeySet[collections.Triple[uint64, types.AddrKey, uint64]]
+	WorkerBatchQueue                    collections.KeySet[collections.Triple[uint64, types.AddrKey, uint64]]
 	VerifierCandidateWindow             collections.Map[types.VerifyRoundKey, types.VerifierCandidateWindowState]
 	VerifierCandidateEligibilitySegment collections.Map[types.VerifyRoundSegmentKey, types.VerifierCandidateEligibilitySegmentState]
 	VerifierCandidateWindowMember       collections.Map[types.VerifyRoundSegmentKey, internaltypes.VerifierWindowMemberStoreState]
@@ -329,6 +334,11 @@ func NewKeeper(storeService corestore.KVStoreService, transientStoreService core
 		AnchorPanelLastScanHeight:           collections.NewItem(sb, types.AnchorPanelLastScanHeightKey, "anchor_panel_last_scan_height", collections.Uint64Value),
 		WorkerTimeoutLedger:                 collections.NewMap(sb, types.WorkerTimeoutLedgerKey, "worker_timeout_ledger", types.AddrKeyCodec, codec.CollValue[types.WorkerTimeoutLedgerState](cdc)),
 		WorkerLateIndex:                     collections.NewKeySet(sb, types.WorkerLateIndexKey, "worker_late_index", roleActiveTaskKeyCodec),
+		WorkerBatch:                         collections.NewMap(sb, types.WorkerBatchKey, "worker_batch", collections.PairKeyCodec(types.AddrKeyCodec, collections.Uint64Key), codec.CollValue[types.WorkerBatchState](cdc)),
+		WorkerBatchTask:                     collections.NewMap(sb, types.WorkerBatchTaskKey, "worker_batch_task", types.Hash32KeyCodec, codec.CollValue[types.WorkerBatchTaskState](cdc)),
+		WorkerBatchTaskIndex:                collections.NewKeySet(sb, types.WorkerBatchTaskIndexKey, "worker_batch_task_index", collections.TripleKeyCodec(types.AddrKeyCodec, collections.Uint64Key, types.Hash32KeyCodec)),
+		WorkerBatchCloseIndex:               collections.NewKeySet(sb, types.WorkerBatchCloseIndexKey, "worker_batch_close_index", collections.TripleKeyCodec(collections.Uint64Key, types.AddrKeyCodec, collections.Uint64Key)),
+		WorkerBatchQueue:                    collections.NewKeySet(sb, types.WorkerBatchQueueKey, "worker_batch_queue", collections.TripleKeyCodec(collections.Uint64Key, types.AddrKeyCodec, collections.Uint64Key)),
 		VerifierCandidateWindow:             collections.NewMap(sb, types.VerifierCandidateWindowKey, "verifier_candidate_window", verifyRoundKeyCodec, codec.CollValue[types.VerifierCandidateWindowState](cdc)),
 		VerifierCandidateEligibilitySegment: collections.NewMap(sb, types.VerifierCandidateEligibilitySegmentKey, "verifier_candidate_eligibility_segment", verifyRoundSegmentKeyCodec, codec.CollValue[types.VerifierCandidateEligibilitySegmentState](cdc)),
 		VerifierCandidateWindowMember:       collections.NewMap(sb, types.VerifierCandidateWindowMemberKey, "verifier_candidate_window_member", verifyRoundSegmentKeyCodec, codec.CollValue[internaltypes.VerifierWindowMemberStoreState](cdc)),

@@ -21,18 +21,6 @@ func (m msgServer) ReleaseAnchorBrake(context.Context, *types.MsgReleaseAnchorBr
 	return nil, errAnchorPanelNotAvailable
 }
 
-func (q queryServer) WorkerBatch(context.Context, *types.QueryWorkerBatchRequest) (*types.QueryWorkerBatchResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (q queryServer) WorkerBatches(context.Context, *types.QueryWorkerBatchesRequest) (*types.QueryWorkerBatchesResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
-func (q queryServer) WorkerBatchTasks(context.Context, *types.QueryWorkerBatchTasksRequest) (*types.QueryWorkerBatchTasksResponse, error) {
-	return nil, errAnchorPanelNotAvailable
-}
-
 func (q queryServer) VerifierAuditStanding(context.Context, *types.QueryVerifierAuditStandingRequest) (*types.QueryVerifierAuditStandingResponse, error) {
 	return nil, errAnchorPanelNotAvailable
 }

@@ -54,7 +54,7 @@ func TestPanelPassIsPublishedThenFinalAndPaysTheWorker(t *testing.T) {
 
 	settlement, err := f.settleNow(t, audit.FinalHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 }
 
@@ -105,7 +105,7 @@ func TestPanelWithoutConclusionIsReassignedOnceToOtherMembers(t *testing.T) {
 	f.sweep(t, audit.PublicationEndHeight)
 	settlement, err := f.settleNow(t, audit.PublicationEndHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 }
 
@@ -131,7 +131,7 @@ func TestSilentPanelsNeverCostTheWorker(t *testing.T) {
 	f.requireNoPanelWork(t)
 	settlement, err := f.settleNow(t, audit.ResultHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 }
 
@@ -234,7 +234,7 @@ func TestReauditOverturnsAPublishedReject(t *testing.T) {
 	f.requireNoPanelWork(t)
 	settlement, err := f.settleNow(t, audit.FinalHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 }
 

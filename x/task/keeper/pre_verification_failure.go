@@ -393,6 +393,11 @@ func (k Keeper) applyPreVerificationFailure(
 	if err := k.TaskCore.Set(ctx, taskKey, core); err != nil {
 		return preVerificationFailureResult{}, err
 	}
+	// A task that ends here earned its Worker nothing; its batch only has to
+	// know that it is final.
+	if err := k.closeWorkerBatchTask(ctx, taskKey, 0, false, types.WorkerBatchStatusV1_WORKER_BATCH_STATUS_V1_UNSPECIFIED, currentHeight); err != nil {
+		return preVerificationFailureResult{}, err
+	}
 	cleanupHeight, overflow := checkedHeightAdd(
 		currentHeight, core.EvidenceRetentionBlocksSnapshot,
 	)

@@ -165,7 +165,15 @@ var (
 	AnchorPanelLastScanHeightKey = MustVersionedStorePrefix("anchor_panel_last_scan_height", CurrentStoreSchemaVersion)
 	// Late submission: a Worker's rolling ledger of settlement periods with a
 	// timeout of its own, and its audits that timed out and are not final.
-	WorkerTimeoutLedgerKey                 = MustVersionedStorePrefix("worker_timeout_ledger", CurrentStoreSchemaVersion)
+	WorkerTimeoutLedgerKey = MustVersionedStorePrefix("worker_timeout_ledger", CurrentStoreSchemaVersion)
+	// Batch settlement: a Worker's batch per settlement period, the member row
+	// of each task, the member listing, the batches whose period end is due and
+	// the batches queued for payment.
+	WorkerBatchKey                         = MustVersionedStorePrefix("worker_batch", CurrentStoreSchemaVersion)
+	WorkerBatchTaskKey                     = MustVersionedStorePrefix("worker_batch_task", CurrentStoreSchemaVersion)
+	WorkerBatchTaskIndexKey                = MustVersionedStorePrefix("worker_batch_task_index", CurrentStoreSchemaVersion)
+	WorkerBatchCloseIndexKey               = MustVersionedStorePrefix("worker_batch_close_index", CurrentStoreSchemaVersion)
+	WorkerBatchQueueKey                    = MustVersionedStorePrefix("worker_batch_queue", CurrentStoreSchemaVersion)
 	WorkerLateIndexKey                     = MustVersionedStorePrefix("worker_late_index", CurrentStoreSchemaVersion)
 	VerifierCandidateWindowKey             = MustVersionedStorePrefix("verifier_candidate_window", CurrentStoreSchemaVersion)
 	VerifierCandidateEligibilitySegmentKey = MustVersionedStorePrefix("verifier_candidate_eligibility_segment", CurrentStoreSchemaVersion)

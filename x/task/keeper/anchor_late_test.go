@@ -150,7 +150,7 @@ func TestMissedProofDeadlineIsCuredByALateSubmission(t *testing.T) {
 	require.Empty(t, f.lateList(t))
 	settlement, err := f.settleNow(t, audit.FinalHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	f.requireNoPanelWork(t)
 	_, found = f.ledger(t)
 	require.True(t, found, "the timeout stays counted")
@@ -245,7 +245,7 @@ func TestUnavailablePanelIsCuredByRecordingTheProofAgain(t *testing.T) {
 	f.sweep(t, audit.PublicationEndHeight)
 	settlement, err := f.settleNow(t, audit.PublicationEndHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 }
 
 // The late panel also casts UNAVAILABLE twice. The task has one late attempt:
@@ -310,7 +310,7 @@ func TestSilentPanelsWithALateWindowNeverCostTheWorker(t *testing.T) {
 	require.Equal(t, sourcePanel, audit.ResultSource)
 	settlement, err := f.settleNow(t, audit.ResultHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 	f.requireNoPanelWork(t)
 }
@@ -332,14 +332,14 @@ func TestSilentLatePanelEndsWithoutAVerdict(t *testing.T) {
 	require.Len(t, audit.PanelRounds, 3, "a round on a late submission is not re-assigned")
 	settlement, err := f.settleNow(t, audit.ResultHeight+1)
 	require.NoError(t, err)
-	f.requirePaidInFull(t, settlement)
+	f.requireAuditedPaid(t, settlement)
 	require.Empty(t, *f.faults)
 
 	g := newProvedAnchorLateFixture(t, 4_000, 12)
 	audit = g.silence(t)
 	settlement, err = g.settleNow(t, audit.LateDeadlineHeight)
 	require.NoError(t, err)
-	g.requirePaidInFull(t, settlement)
+	g.requireAuditedPaid(t, settlement)
 	require.Empty(t, *g.faults)
 }
 

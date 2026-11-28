@@ -724,6 +724,17 @@ func (k Keeper) applySettlementPlan(
 		}
 	}
 
+	// A member of a Worker batch: what the Worker earned is held for the batch
+	// instead of being credited now. Every other payee is paid with the task.
+	held := uint64(0)
+	if batched, err := k.taskSettlesInBatch(ctx, taskKey); err != nil {
+		return types.TaskSettlementState{}, err
+	} else if batched {
+		if held, err = shared.ParseAmount(plan.WorkerNet); err != nil {
+			return types.TaskSettlementState{}, err
+		}
+		inputs.BatchHeldWorkerNet = held
+	}
 	credits, err := settlementEarningsCredits(inputs, plan)
 	if err != nil {
 		return types.TaskSettlementState{}, err
@@ -748,6 +759,12 @@ func (k Keeper) applySettlementPlan(
 	}
 	if err := k.releaseTaskLiabilitiesForSettlement(ctx, inputs, height); err != nil {
 		return types.TaskSettlementState{}, err
+	}
+	if err := k.closeWorkerBatchTask(ctx, taskKey, held, inputs.Anchor != nil, anchorForfeitureOf(inputs.Anchor), height); err != nil {
+		return types.TaskSettlementState{}, err
+	}
+	if err := k.payAnchorReauditFee(ctx, inputs, settlementID, height); err != nil {
+		return types.TaskSettlementState{}, errorsmod.Wrap(types.ErrInvariantBroken, err.Error())
 	}
 
 	core := inputs.Core
@@ -844,8 +861,10 @@ func settlementEarningsCredits(inputs settlementInputs, plan types.SettlementPla
 		totals[address] = sum
 		return nil
 	}
-	if err := add(inputs.Assignment.WinnerWorker, plan.WorkerNet); err != nil {
-		return nil, err
+	if inputs.BatchHeldWorkerNet == 0 {
+		if err := add(inputs.Assignment.WinnerWorker, plan.WorkerNet); err != nil {
+			return nil, err
+		}
 	}
 	for _, payout := range plan.VerifierPayouts {
 		if err := add(payout.OperatorAddress, payout.Net); err != nil {
@@ -857,6 +876,12 @@ func settlementEarningsCredits(inputs settlementInputs, plan types.SettlementPla
 			return nil, err
 		}
 	}
+	return sortedEarningsCredits(totals)
+}
+
+// sortedEarningsCredits turns per-beneficiary totals into the credit list Hub
+// accepts: unique and sorted by address bytes.
+func sortedEarningsCredits(totals map[string]uint64) ([]hubtypes.TaskEarningsCredit, error) {
 	addresses := make([]string, 0, len(totals))
 	decoded := make(map[string][]byte, len(totals))
 	for address := range totals {
@@ -905,7 +930,14 @@ func (k Keeper) finalizeSettledBudget(ctx context.Context, inputs settlementInpu
 	if err != nil {
 		return err
 	}
-	if err := k.sendFromTaskEscrow(ctx, hubtypes.RewardsModuleName, claimable); err != nil {
+	// What is held for the Worker's batch waits in the holding account.
+	if inputs.BatchHeldWorkerNet > claimable {
+		return errorsmod.Wrap(types.ErrInvariantBroken, "held Worker earnings exceed the task's claimable total")
+	}
+	if err := k.sendFromTaskEscrow(ctx, hubtypes.RewardsModuleName, claimable-inputs.BatchHeldWorkerNet); err != nil {
+		return err
+	}
+	if err := k.sendFromTaskEscrow(ctx, shared.TaskChallengeEffectModuleName, inputs.BatchHeldWorkerNet); err != nil {
 		return err
 	}
 	if err := k.sendFromTaskEscrow(ctx, hubtypes.TreasuryModuleName, maintenance); err != nil {

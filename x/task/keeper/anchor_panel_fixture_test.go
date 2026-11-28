@@ -190,7 +190,7 @@ func newAnchorPanelFixtureBeforeProof(t *testing.T, bond uint64, candidates int)
 
 // newTunedAnchorPanelFixture is newAnchorPanelFixtureBeforeProof with the
 // task's parameters adjusted by tune before the task freezes them.
-func newTunedAnchorPanelFixture(t *testing.T, bond uint64, candidates int, tune func(*types.TaskParamsV1)) *anchorPanelFixture {
+func newTunedAnchorPanelFixture(t *testing.T, bond uint64, candidates int, tune func(*types.TaskParamsV1), prepare ...func(*anchorOnlyFixture)) *anchorPanelFixture {
 	t.Helper()
 	base := newAnchorOnlyFixture(t, bond, true)
 	state := &panelHubState{
@@ -221,6 +221,10 @@ func newTunedAnchorPanelFixture(t *testing.T, bond uint64, candidates int, tune 
 	tune(&base.params)
 	require.NoError(t, base.params.Validate())
 	require.NoError(t, base.keeper.Params.Set(base.ctx, base.params))
+	// What a test needs in place before the Worker's receipt is accepted.
+	for _, step := range prepare {
+		step(base)
+	}
 
 	base.submitReceipt(t)
 	f.audit = base.sampleRound(t)
@@ -378,3 +382,16 @@ var (
 	voteUnavailable = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_UNAVAILABLE
 	noVerdict       = types.AnchorVerdictV1_ANCHOR_VERDICT_V1_NO_VERDICT
 )
+
+// requireAuditedPaid asserts the settlement of a task that a panel judged and
+// did not reject: the Worker is paid its own price in full and is not
+// faulted. The verify share of such a task is the panel's, not the Worker's.
+func (f *anchorPanelFixture) requireAuditedPaid(t *testing.T, settlement types.TaskSettlementState) {
+	t.Helper()
+	require.Equal(t, types.TaskVerdict_TASK_VERDICT_PASS, settlement.Verdict)
+	gross := anchorOnlyGenerated * f.priceTokens / 1_000_000
+	require.Equal(t, shared.NewAmount(gross), settlement.WorkerGross, "the Worker is paid its price, without the verify share")
+	maintenance := gross * uint64(f.maintenance) / 10_000
+	require.Equal(t, shared.NewAmount(gross-maintenance), settlement.WorkerNet)
+	require.Empty(t, *f.faults, "an honest Worker is never faulted")
+}

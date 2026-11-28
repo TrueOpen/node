@@ -23,7 +23,10 @@ const (
 	// Panel audits are advanced just before the settlement deadlines of the
 	// same height, so a verdict that becomes final at a height is recorded
 	// before a settlement at that height reads it.
-	endBlockPriorityAnchorPanel         endBlockQueuePriority = 39
+	endBlockPriorityAnchorPanel endBlockQueuePriority = 39
+	// Worker batches: period ends, then payment of queued batches.
+	endBlockPriorityWorkerBatchClose    endBlockQueuePriority = 40
+	endBlockPriorityWorkerBatchQueue    endBlockQueuePriority = 41
 	endBlockPriorityDispatchClaim       endBlockQueuePriority = 1100
 	endBlockPriorityDispatchChallenge   endBlockQueuePriority = 1101
 	endBlockPriorityDispatchPrune       endBlockQueuePriority = 2100
@@ -78,7 +81,9 @@ type EndBlockSweepResult struct {
 	OrderCancel        uint64
 	ValueEvidenceClose uint64
 	// AnchorPanel counts visited Verifier-panel audits.
-	AnchorPanel         uint64
+	AnchorPanel uint64
+	// WorkerBatch counts visited Worker batches (period ends and payments).
+	WorkerBatch         uint64
 	DispatchClaim       uint64
 	DispatchChallenge   uint64
 	DispatchPrune       uint64
@@ -736,6 +741,23 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 			return deadlineQueueHead{deadline: key.K1(), primaryID: key.K2()}, true, nil
 		}
 	}
+	batchHead := func(set collections.KeySet[collections.Triple[uint64, types.AddrKey, uint64]]) func(context.Context, uint64) (deadlineQueueHead, bool, error) {
+		return func(ctx context.Context, height uint64) (deadlineQueueHead, bool, error) {
+			iter, err := set.Iterate(ctx, nil)
+			if err != nil {
+				return deadlineQueueHead{}, false, err
+			}
+			defer iter.Close()
+			if !iter.Valid() {
+				return deadlineQueueHead{}, false, nil
+			}
+			key, err := iter.Key()
+			if err != nil || key.K1() > height {
+				return deadlineQueueHead{}, false, err
+			}
+			return deadlineQueueHead{deadline: key.K1(), primaryID: key.K2()}, true, nil
+		}
+	}
 	withdraw := k.newSessionPendingQueue(sessionPendingWithdraw)
 	keyChange := k.newSessionPendingQueue(sessionPendingKeyChange)
 	cancel := k.newSessionPendingQueue(sessionPendingCancel)
@@ -757,6 +779,8 @@ func (k Keeper) runEndBlockDeadlineSweepsWithBudget(
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_CHALLENGE_WINDOW_CLOSE), taskHead(k.ChallengeWindowCloseIndex), recordedRun(k.processExpiredChallengeWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ChallengeWindowClose += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_VERIFIER_VALUE_EVIDENCE_WINDOW_CLOSE), taskHead(k.ValueEvidenceWindowCloseIndex), recordedRun(k.processValueEvidenceWindowCloses, taskDeadlineConservativeBytesV1), func(n uint64) { result.ValueEvidenceClose += n }},
 		{endBlockPriorityAnchorPanel, taskHead(k.AnchorPanelDueIndex), conservativeRun(k.processAnchorPanelDue, anchorPanelSweepConservativeBytesV1), func(n uint64) { result.AnchorPanel += n }},
+		{endBlockPriorityWorkerBatchClose, batchHead(k.WorkerBatchCloseIndex), conservativeRun(k.processWorkerBatchCloses, workerBatchSweepConservativeBytesV1), func(n uint64) { result.WorkerBatch += n }},
+		{endBlockPriorityWorkerBatchQueue, batchHead(k.WorkerBatchQueue), conservativeRun(k.processWorkerBatchQueue, workerBatchSweepConservativeBytesV1), func(n uint64) { result.WorkerBatch += n }},
 		{endBlockQueuePriority(21), verifyRoundHead(k.RoundEconomicEffectApplyIndex), k.processRoundEconomicEffectApplyIndexWithBudget, func(n uint64) { result.RoundEconomicEffect += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_TASK_SETTLEMENT), taskHead(k.SettlementDeadlineIndex), recordedRun(k.processExpiredSettlementDeadlines, taskDeadlineConservativeBytesV1), func(n uint64) { result.Settlement += n }},
 		{endBlockDeadlinePriority(types.DeadlineKindV1_DEADLINE_KIND_V1_EVIDENCE_CLEANUP), taskHead(k.EvidenceCleanupIndex), conservativeRun(k.processEvidenceCleanupEndBlock, evidenceCleanupConservativeBytesV1), func(n uint64) { result.EvidenceCleanup += n }},

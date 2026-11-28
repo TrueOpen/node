@@ -1087,6 +1087,12 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if genesis.WorkerTimeoutLedgers, err = collectMapValues(ctx, k.WorkerTimeoutLedger); err != nil {
 		return nil, err
 	}
+	if genesis.WorkerBatches, err = collectMapValues(ctx, k.WorkerBatch); err != nil {
+		return nil, err
+	}
+	if genesis.WorkerBatchTasks, err = collectMapValues(ctx, k.WorkerBatchTask); err != nil {
+		return nil, err
+	}
 	if genesis.AnchorVoteKeys, err = collectMapValues(ctx, k.AnchorVoteKey); err != nil {
 		return nil, err
 	}
@@ -1293,6 +1299,9 @@ func (k Keeper) initGenesisAnchor(ctx context.Context, genesis types.GenesisStat
 		if err := k.rebuildAnchorPanelIndexes(ctx, taskID, state); err != nil {
 			return err
 		}
+	}
+	if err := k.rebuildWorkerBatchIndexes(ctx, genesis); err != nil {
+		return err
 	}
 	for _, ledger := range genesis.WorkerTimeoutLedgers {
 		raw, err := k.sessionAddressToStore("worker timeout ledger operator_address", ledger.OperatorAddress)
